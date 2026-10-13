@@ -12,13 +12,13 @@ describe('sabotaje 1', () => {
   it('[CA-003] sabotaje 1: con el día de estudio cortando a las 00:00 la red da ROJO nombrando «día de estudio», y al revertir vuelve a VERDE', async () => {
     const { revertir } = aplicarSabotaje(1, copia);
     const rojo = veredicto((await redEn(copia)).salida);
-    expect(rojo[0]).toMatch(
+    expect(rojo[0], rojo.join('\n')).toMatch(
       /^ROJO · \d+ fallas? · copiá desde acá hasta el final y pegáselo a Claude Code$/,
     );
     expect(rojo.join('\n')).toContain('día de estudio');
 
     revertir();
     const verde = veredicto((await redEn(copia)).salida);
-    expect(verde[0]).toMatch(/^VERDE · /);
+    expect(verde[0], verde.join('\n')).toMatch(/^VERDE · /);
   });
 });

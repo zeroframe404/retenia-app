@@ -1,7 +1,7 @@
 // Gancho de Claude Code (PostToolUse en Edit, Write y NotebookEdit): da formato al archivo
 // recién escrito y lo revisa. Si queda algo mal, se lo devuelve a Claude (código 2).
 import { existsSync } from 'node:fs';
-import { relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { leerEntrada } from '../lib/gancho.mjs';
 import { correrPaquete, RAIZ, sinColores } from '../lib/proceso.mjs';
 
@@ -12,8 +12,9 @@ const ruta = entrada?.tool_input?.file_path ?? entrada?.tool_input?.notebook_pat
 if (typeof ruta !== 'string' || !REVISABLES.test(ruta) || !existsSync(ruta)) {
   process.exit(0);
 }
+// Solo archivos del proyecto. En Windows, un archivo de otra unidad da una ruta absoluta.
 const relativa = relative(RAIZ, resolve(ruta));
-if (relativa.startsWith('..')) {
+if (relativa.startsWith('..') || isAbsolute(relativa)) {
   process.exit(0);
 }
 

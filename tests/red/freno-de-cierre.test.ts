@@ -25,7 +25,7 @@ describe('freno de cierre', () => {
     const { revertir } = aplicarSabotaje(1, copia);
     try {
       const primero = await freno(copia, false);
-      expect(primero.codigo).toBe(2);
+      expect(primero.codigo, primero.errores).toBe(2);
       expect(primero.errores).toContain('Freno de cierre');
       expect(primero.errores).toMatch(/^ROJO · /m);
       expect(primero.errores).toContain('día de estudio');
@@ -39,12 +39,12 @@ describe('freno de cierre', () => {
 
   it('[CA-007] con la red en verde, el freno deja terminar, y si nada cambió desde la última corrida verde ni siquiera la vuelve a correr', async () => {
     const primero = await freno(copia, false);
-    expect(primero.codigo).toBe(0);
+    expect(primero.codigo, primero.errores).toBe(0);
     const ultimaVerde = join(copia, '.cache', 'red', 'ultima-verde.json');
     const antes = readFileSync(ultimaVerde, 'utf8');
 
     const segundo = await freno(copia, false);
-    expect(segundo.codigo).toBe(0);
+    expect(segundo.codigo, segundo.errores).toBe(0);
     expect(readFileSync(ultimaVerde, 'utf8')).toBe(antes);
   });
 });

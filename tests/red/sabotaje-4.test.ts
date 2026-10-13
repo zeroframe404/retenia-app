@@ -12,11 +12,11 @@ describe('sabotaje 4', () => {
   it('[CA-006] sabotaje 4: si la ventana importa directamente la base de datos la red da ROJO nombrando «capas», y al revertir vuelve a VERDE', async () => {
     const { revertir } = aplicarSabotaje(4, copia);
     const rojo = veredicto((await redEn(copia)).salida);
-    expect(rojo[0]).toMatch(/^ROJO · /);
+    expect(rojo[0], rojo.join('\n')).toMatch(/^ROJO · /);
     expect(rojo.join('\n')).toContain('capas');
 
     revertir();
     const verde = veredicto((await redEn(copia)).salida);
-    expect(verde[0]).toMatch(/^VERDE · /);
+    expect(verde[0], verde.join('\n')).toMatch(/^VERDE · /);
   });
 });

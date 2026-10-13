@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -47,5 +47,30 @@ describe('ganchos', () => {
     });
     expect(r.codigo).toBe(0);
     expect(r.errores).toBe('');
+  });
+
+  it('el gancho de edición deja en paz los archivos de fuera del proyecto, aunque estén en otra unidad', async () => {
+    const afuera = join(carpeta, 'ajeno.mjs');
+    writeFileSync(afuera, 'export const   a = Date.now()\n');
+    const r = await correr(process.execPath, [join(RAIZ, 'tools', 'hooks', 'post-edit.mjs')], {
+      env: entornoLimpio(),
+      entrada: JSON.stringify({ tool_name: 'Write', tool_input: { file_path: afuera } }),
+      limiteMs: 30_000,
+    });
+    expect(r.codigo).toBe(0);
+    expect(r.errores).toBe('');
+    expect(readFileSync(afuera, 'utf8')).toBe('export const   a = Date.now()\n');
+  });
+
+  it('el gancho de edición revisa un archivo del proyecto que está bien y lo deja igual', async () => {
+    const reloj = join(RAIZ, 'src', 'core', 'clock', 'index.ts');
+    const antes = readFileSync(reloj, 'utf8');
+    const r = await correr(process.execPath, [join(RAIZ, 'tools', 'hooks', 'post-edit.mjs')], {
+      env: entornoLimpio(),
+      entrada: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: reloj } }),
+      limiteMs: 30_000,
+    });
+    expect(r.codigo, r.errores).toBe(0);
+    expect(readFileSync(reloj, 'utf8')).toBe(antes);
   });
 });

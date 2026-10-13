@@ -25,12 +25,12 @@ describe('sabotaje 2', () => {
     expect(historial.salida.trim()).toBe('1');
 
     const rojo = veredicto((await redEn(copia)).salida);
-    expect(rojo[0]).toMatch(/^ROJO · /);
+    expect(rojo[0], rojo.join('\n')).toMatch(/^ROJO · /);
     expect(rojo.join('\n')).toContain('secreto');
 
     await git(copia, 'reset', '-q', '--', ...archivos);
     revertir();
     const verde = veredicto((await redEn(copia)).salida);
-    expect(verde[0]).toMatch(/^VERDE · /);
+    expect(verde[0], verde.join('\n')).toMatch(/^VERDE · /);
   });
 });

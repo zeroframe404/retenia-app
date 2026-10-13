@@ -540,6 +540,11 @@ async function principal() {
       return [];
     }
     const total = JSON.parse(readFileSync(resumen, 'utf8')).total;
+    if (total.lines.total === 0) {
+      return [
+        'la medición de cobertura no encontró ningún archivo de src/core: las pruebas no cargaron el núcleo o la ruta del proyecto no coincide.',
+      ];
+    }
     cobertura = { ramas: total.branches.pct, lineas: total.lines.pct, umbral: UMBRAL_RAMAS_NUCLEO };
     return total.branches.pct < UMBRAL_RAMAS_NUCLEO
       ? [

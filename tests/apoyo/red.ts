@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { archivosDelProyecto } from '../../tools/lib/archivos.mjs';
@@ -26,7 +26,9 @@ export function git(raiz: string, ...args: string[]) {
 // Una copia del proyecto en una carpeta temporal, con su propio git y node_modules compartido.
 // Los sabotajes automáticos rompen la copia, nunca la carpeta real.
 export async function copiarProyecto(): Promise<string> {
-  const destino = mkdtempSync(join(tmpdir(), 'retenia-red-'));
+  // Ruta larga canónica: en el CI la carpeta temporal viene con nombres cortos de Windows
+  // (RUNNER~1) y las herramientas no reconocerían los archivos como del proyecto.
+  const destino = realpathSync.native(mkdtempSync(join(tmpdir(), 'retenia-red-')));
   for (const archivo of await archivosDelProyecto(RAIZ)) {
     mkdirSync(dirname(join(destino, archivo)), { recursive: true });
     copyFileSync(join(RAIZ, archivo), join(destino, archivo));
