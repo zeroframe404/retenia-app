@@ -91,3 +91,5 @@ Cada línea: qué se eligió, por qué y qué se descartó. Las versiones exacta
 - CI: un solo trabajo en `windows-latest`, acciones fijadas por su huella, adjuntos por 2 días. En cada pull request los sabotajes corren como pruebas dentro de `verificar:todo`; el guion de los cuatro se repite en la corrida semanal.
 - lefthook muestra solo lo que dicen las revisiones, sin sus adornos (tenían emojis).
 - El subagente revisor recién se carga al reiniciar Claude Code; en esta fase corrió como agente general con exactamente las mismas instrucciones.
+- knip corre sin su «transferencia directa» (`KNIP_DISABLE_RAW_TRANSFER=1`): ese modo reserva 6 GiB por proceso y Windows los cuenta contra el límite de memoria, así que con varias corridas a la vez fallaba en el CI. Mismo comportamiento en tu PC y en la nube.
+- Las copias temporales de la red se crean en su ruta larga canónica: en el CI la carpeta temporal viene con nombres cortos de Windows (`RUNNER~1`) y la cobertura no reconocía los archivos.

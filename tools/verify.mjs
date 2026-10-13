@@ -155,7 +155,11 @@ async function capaCapas() {
 }
 
 async function capaCodigoMuerto() {
-  const r = await correrPaquete('knip', 'knip', ['--reporter', 'json', '--no-progress']);
+  // Sin la «transferencia directa» del lector de knip: reserva 6 GiB por proceso, y Windows
+  // los cuenta contra el límite de memoria; con varias corridas a la vez en el CI, falla.
+  const r = await correrPaquete('knip', 'knip', ['--reporter', 'json', '--no-progress'], {
+    env: { ...process.env, KNIP_DISABLE_RAW_TRANSFER: '1' },
+  });
   guardarRegistro('codigo-muerto', r);
   if (r.codigo === 0) {
     return [];
