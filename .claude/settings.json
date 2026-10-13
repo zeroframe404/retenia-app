@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run iniciar)",
+      "Bash(npm run verificar)",
+      "Bash(npm run verificar:todo)",
+      "Bash(npm run datos:reiniciar)",
+      "Bash(npm run tablero)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "PowerShell(npm run iniciar)",
+      "PowerShell(npm run verificar)",
+      "PowerShell(npm run verificar:todo)",
+      "PowerShell(npm run datos:reiniciar)",
+      "PowerShell(npm run tablero)",
+      "PowerShell(git:*)",
+      "PowerShell(gh:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env)",
+      "Read(**/.env.*)"
+    ]
+  }
+}

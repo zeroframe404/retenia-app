@@ -1,0 +1,17 @@
+{
+  "name": "retenia",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Programa de escritorio para aprender y retener.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "iniciar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
+    "verificar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
+    "verificar:todo": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
+    "datos:reiniciar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
+    "tablero": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\""
+  }
+}

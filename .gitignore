@@ -1,0 +1,65 @@
+# Dependencias
+node_modules/
+.npm/
+.pnpm-store/
+
+# Compilados y paquetes
+dist/
+dist-electron/
+out/
+release/
+.vite/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+.cache/
+
+# Electron / instaladores
+*.exe
+*.msi
+*.blockmap
+*.nupkg
+
+# Bases de datos locales
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+datos-locales/
+copias/
+
+# Modelos descargados (voz, OCR, etc.)
+modelos/
+models/
+*.onnx
+*.traineddata
+*.gguf
+*.bin
+
+# Secretos
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# Registros
+*.log
+npm-debug.log*
+
+# Sistema operativo y editores
+Thumbs.db
+desktop.ini
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code (configuración personal)
+.claude/settings.local.json
