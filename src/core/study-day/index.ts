@@ -13,21 +13,10 @@ const localParts = new Intl.DateTimeFormat('en-US', {
   hourCycle: 'h23',
 });
 
-function part(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): number {
-  const value = parts.find((p) => p.type === type)?.value;
-  if (value === undefined) {
-    throw new Error(`Falta la parte «${type}» al leer la hora de Buenos Aires`);
-  }
-  return Number(value);
-}
-
 // Devuelve el día de estudio como fecha AAAA-MM-DD.
 export function studyDayOf(instant: Date): string {
-  const parts = localParts.formatToParts(instant);
-  const year = part(parts, 'year');
-  const month = part(parts, 'month');
-  const day = part(parts, 'day');
-  const hour = part(parts, 'hour');
-  const shift = hour < STUDY_DAY_CUTOFF_HOUR ? -1 : 0;
-  return new Date(Date.UTC(year, month - 1, day + shift)).toISOString().slice(0, 10);
+  const parts = Object.fromEntries(localParts.formatToParts(instant).map((p) => [p.type, p.value]));
+  const shift = Number(parts.hour) < STUDY_DAY_CUTOFF_HOUR ? -1 : 0;
+  const day = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day) + shift);
+  return new Date(day).toISOString().slice(0, 10);
 }

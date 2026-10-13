@@ -5,6 +5,7 @@ const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes
 
 export const texts = {
   appName: 'Retenia',
+  appNameTest: 'Retenia (prueba)',
   demoRibbon: (longDate: string) => `DEMOSTRACIÓN · hoy es ${longDate}`,
 };
 

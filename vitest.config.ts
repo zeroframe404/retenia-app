@@ -1,9 +1,13 @@
+import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 // Capas de la red (docs/plan-de-pruebas.md, sección 1). Las rápidas corren en
 // «verificar»; «red» (los sabotajes y las pruebas que corren la red entera)
 // solo en «verificar:todo».
 export default defineConfig({
+  // Cada corrida aislada de la red (RETENIA_RED_DIR) usa su propia caché, para que varias
+  // corridas en paralelo no se pisen.
+  cacheDir: process.env.RETENIA_RED_DIR ? join(process.env.RETENIA_RED_DIR, 'vite') : '.cache/vite',
   test: {
     allowOnly: false,
     passWithNoTests: false,
@@ -31,6 +35,7 @@ export default defineConfig({
           include: ['tests/red/**/*.test.ts'],
           testTimeout: 600_000,
           hookTimeout: 600_000,
+          maxWorkers: 3,
         },
       },
     ],

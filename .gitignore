@@ -63,3 +63,6 @@ desktop.ini
 
 # Claude Code (configuración personal)
 .claude/settings.local.json
+
+# Herramientas bajadas por tools/preparar.mjs (se verifican por huella)
+tools/bin/

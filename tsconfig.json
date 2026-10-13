@@ -2,7 +2,9 @@
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2024"],
-    "types": ["node"]
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": false
   },
   "include": [
     "src/core/**/*.ts",
@@ -10,5 +12,6 @@
     "src/preload/**/*.ts",
     "tests/**/*.ts",
     "*.config.ts"
-  ]
+  ],
+  "exclude": ["tests/e2e/**"]
 }

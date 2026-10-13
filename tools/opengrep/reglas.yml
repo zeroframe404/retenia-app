@@ -1,0 +1,45 @@
+# Reglas de seguridad propias (docs/arquitectura.md, sección 4). Las corre «verificar:todo».
+rules:
+  - id: sin-eval
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Seguridad: nada de eval ni new Function. El contenido es dato, nunca instrucción."
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: Function(...)
+
+  - id: ventana-sin-integracion-de-node
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Seguridad: la ventana nunca tiene integración de Node."
+    pattern-either:
+      - pattern: "{..., nodeIntegration: true, ...}"
+      - pattern: "{..., nodeIntegrationInWorker: true, ...}"
+      - pattern: "{..., nodeIntegrationInSubFrames: true, ...}"
+
+  - id: ventana-aislada
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Seguridad: la ventana va siempre con aislamiento de contexto, sandbox y seguridad web."
+    pattern-either:
+      - pattern: "{..., contextIsolation: false, ...}"
+      - pattern: "{..., sandbox: false, ...}"
+      - pattern: "{..., webSecurity: false, ...}"
+      - pattern: "{..., allowRunningInsecureContent: true, ...}"
+
+  - id: sin-consola-intermedia
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Seguridad: nunca se corre un programa a través de una consola (shell: true)."
+    pattern: "$F(..., {..., shell: true, ...}, ...)"
+
+  - id: sin-html-crudo
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Seguridad: la ventana no inserta HTML crudo; el contenido se muestra como texto."
+    pattern-either:
+      - pattern-regex: dangerouslySetInnerHTML
+      - pattern: $X.innerHTML = $Y
+      - pattern: $X.outerHTML = $Y
+      - pattern: document.write(...)

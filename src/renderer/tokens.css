@@ -1,0 +1,26 @@
+/* Variables de diseño mínimas hasta la Fase 06 (sistema de diseño). Sin rojo. */
+:root {
+  color-scheme: light dark;
+  --color-fondo: #f7f6f2;
+  --color-tinta: #1d1d1b;
+  --color-cinta-fondo: #e8e0c4;
+  --color-cinta-tinta: #3b3524;
+  --fuente: "Segoe UI", system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-fondo: #16171a;
+    --color-tinta: #ecebe6;
+    --color-cinta-fondo: #3a3423;
+    --color-cinta-tinta: #f1e7c4;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--color-fondo);
+  color: var(--color-tinta);
+  font-family: var(--fuente);
+}

@@ -8,11 +8,15 @@
     "node": ">=24"
   },
   "scripts": {
-    "iniciar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
-    "verificar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
-    "verificar:todo": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
-    "datos:reiniciar": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\"",
-    "tablero": "node -e \"console.log('todavía no disponible: llega en la Fase 02')\""
+    "iniciar": "node tools/iniciar.mjs",
+    "verificar": "node tools/verify.mjs",
+    "verificar:todo": "node tools/verify.mjs --todo",
+    "datos:reiniciar": "node tools/datos-reiniciar.mjs",
+    "tablero": "node tools/dashboard.mjs",
+    "construir": "node tools/construir.mjs",
+    "trazabilidad": "node tools/trace.mjs",
+    "sabotaje": "node tests/sabotage/correr.mjs",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "zod": "4.6.7"
