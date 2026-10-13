@@ -65,22 +65,27 @@ test('el puente rechaza un mensaje que no cumple el contrato del canal «ping»'
   expect(resultado).toContain('Petición rechazada en el canal «ping»');
 });
 
-test('accesibilidad: la ventana no tiene faltas según axe-core', async ({ ventana }) => {
+test('accesibilidad: la ventana no tiene faltas según axe-core, en claro y en oscuro', async ({
+  ventana,
+}) => {
   await expect(ventana.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
   await ventana.evaluate(AXE);
-  const faltas = await ventana.evaluate(async () => {
-    const axe = (
-      globalThis as unknown as {
-        axe: {
-          run: (
-            context: Document,
-            options: object,
-          ) => Promise<{ violations: { id: string; help: string; nodes: unknown[] }[] }>;
-        };
-      }
-    ).axe;
-    const resultado = await axe.run(document, { resultTypes: ['violations'] });
-    return resultado.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`);
-  });
-  expect(faltas).toEqual([]);
+  for (const tema of ['light', 'dark'] as const) {
+    await ventana.emulateMedia({ colorScheme: tema });
+    const faltas = await ventana.evaluate(async () => {
+      const axe = (
+        globalThis as unknown as {
+          axe: {
+            run: (
+              context: Document,
+              options: object,
+            ) => Promise<{ violations: { id: string; help: string; nodes: unknown[] }[] }>;
+          };
+        }
+      ).axe;
+      const resultado = await axe.run(document, { resultTypes: ['violations'] });
+      return resultado.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`);
+    });
+    expect(faltas, `tema ${tema}`).toEqual([]);
+  }
 });

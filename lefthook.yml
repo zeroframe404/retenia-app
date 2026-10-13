@@ -1,5 +1,9 @@
 # Ganchos de git. Antes del commit: revisión estática y escáner de secretos sobre lo que entra
 # en el commit. Antes de subir: la red rápida entera («npm run verificar»).
+
+# Solo lo que dicen las revisiones, sin los adornos de lefthook.
+output:
+  - execution_out
 pre-commit:
   parallel: true
   jobs:

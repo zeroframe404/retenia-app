@@ -1,11 +1,11 @@
 # Versiones verificadas
 
-Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. Nada de esto está instalado en el proyecto: la Fase 02 instala exactamente estas versiones y deja el lockfile en el repositorio.
+Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. Cada pieza restante entra en su fase con la versión de esta tabla.
 
 ## Regla para fijar versiones
 
 1. Se toma la versión que npm marca como `latest` al 13/10/2026, exacta (sin `^` ni `~`).
-2. Excepciones, todas anotadas en la tabla: incompatibilidad comprobada (Vite 7.3.7 porque electron-vite 5 no acepta Vite 8; KaTeX 0.18.11 porque TipTap no acepta 0.19); versión mayor con menos de cuatro semanas (WebdriverIO 9.32.0 en lugar de 10.0.2); versión publicada el mismo día de la verificación (TipTap 3.31.4, lefthook 2.2.1, user-event 14.6.7, lucide-react 1.55.0); línea mantenida por delante de la etiqueta `latest` (electron-builder 26.17.0 y electron-updater 6.8.10, etiqueta `v26`).
+2. Excepciones, todas anotadas en la tabla: incompatibilidad comprobada (Vite 7.3.7 porque electron-vite 5 no acepta Vite 8; KaTeX 0.18.11 porque TipTap no acepta 0.19; `@vitejs/plugin-react` 5.2.0 porque toda la línea 6 pide Vite 8); versión mayor con menos de cuatro semanas (WebdriverIO 9.32.0 en lugar de 10.0.2); versión publicada el mismo día de la verificación (TipTap 3.31.4, lefthook 2.2.1, user-event 14.6.7, lucide-react 1.55.0); línea mantenida por delante de la etiqueta `latest` (electron-builder 26.17.0 y electron-updater 6.8.10, etiqueta `v26`).
 3. Electron lleva siempre el último parche de su versión mayor, porque cada parche trae correcciones de seguridad de Chromium.
 4. Un paquete entra solo si existe en npm, es el oficial de su proyecto, tiene actividad en los últimos doce meses y su licencia permite usarlo en un programa de uso personal sin publicar el código.
 
@@ -21,7 +21,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | electron | 44.7.0 | 13/10/2026 | MIT | Último parche del mayor estable más nuevo (Node 24.21.0, Chromium 152, ABI 149); Electron mantiene los tres últimos mayores (42, 43, 44). La 45 está en beta. |
 | electron-vite | 5.0.0 | 13/10/2026 | MIT | Única versión estable; arma principal, puente, ventana y procesos de trabajo con una sola configuración. La 6.0 (Vite 8) está en beta 8. |
 | vite | 7.3.7 | 13/10/2026 | MIT | Última de la línea 7, la más alta que acepta electron-vite 5; Vite 8 espera a electron-vite 6. |
-| @vitejs/plugin-react | 6.1.2 | 13/10/2026 | MIT | `latest`; React con Vite 7. |
+| @vitejs/plugin-react | 5.2.0 | 13/10/2026 | MIT | La más alta que acepta Vite 7. La 6.1.2 (`latest`) declara que pide Vite 8: lo descubrió la instalación de la Fase 02. |
 | typescript | 7.0.2 | 13/10/2026 | Apache-2.0 | `latest`, compilador nativo mucho más rápido para `tsc --noEmit`; no trae API de compilador, pero ninguna herramienta elegida la necesita. Plan B: 6.0.3. |
 | @swc/core | 1.16.18 | 13/10/2026 | Apache-2.0 | Lo pide electron-vite y lo usa dependency-cruiser para leer TypeScript sin la API de tsc. |
 | react, react-dom | 19.3.0 | 13/10/2026 | MIT | `latest`; la biblioteca de interfaz que piden TipTap y Testing Library; sin cambios mayores pendientes. |
@@ -60,6 +60,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | @testing-library/react | 16.3.3 | 13/10/2026 | MIT | Pruebas de componentes por rol y texto; React 19. |
 | @testing-library/user-event | 14.6.7 | 13/10/2026 | MIT | Teclado y mouse realistas; la 14.6.8 salió hoy. |
 | @testing-library/jest-dom | 7.0.1 | 13/10/2026 | MIT | Aserciones sobre el DOM. |
+| axe-core | 4.14.0 | 13/10/2026 | MPL-2.0 | Revisión automática de accesibilidad de la ventana (claro y oscuro) en `verificar:todo`; oficial de Deque, publicado desde 2015, solo en pruebas. Agregado en la Fase 02. |
 | @playwright/test | 1.64.0 | 13/10/2026 | Apache-2.0 | Punta a punta en Electron por rol y texto; su soporte de Electron sigue marcado experimental y exige el fuse `EnableNodeCliInspectArguments` encendido. Comprobado en esta PC. |
 | @wdio/cli, @wdio/local-runner, @wdio/mocha-framework, webdriverio | 9.32.0 | 13/10/2026 | MIT | Prueba el programa instalado y la versión real endurecida; la 10.0 salió el 05/10 (menos de cuatro semanas). |
 | @wdio/electron-service | 10.4.0 | 13/10/2026 | MIT | Sucesor oficial de `wdio-electron-service` (obsoleto desde el 24/10/2025); maneja el ejecutable instalado por Chromedriver. |
@@ -76,6 +77,17 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | @types/react, @types/react-dom | 19.3.0 | 13/10/2026 | MIT | Tipos de React 19.3, misma versión que la biblioteca; los pide TipTap React. |
 
 Huella SHA-256 del ejecutable `opengrep_windows_x86.exe` de la release v1.30.2 (53.366.784 bytes), calculada en esta PC el 13/10/2026: `523b1074a81006436fec457e2daccf7cf7cacc04000d4482f1072a1b19bc6372`. La release trae firma sigstore (`.sig` y `.cert`), no un archivo de sumas; la huella de arriba es la que fija `tools/preparar`.
+
+## Acciones de GitHub del CI
+
+Fijadas por la huella del commit de su versión (verificadas el 13/10/2026 con la API de GitHub); todas sus versiones mayores tienen más de cuatro semanas.
+
+| Acción | Versión | Huella |
+|---|---|---|
+| actions/checkout | v7.0.1 | `3d3c42e5aac5ba805825da76410c181273ba90b1` |
+| actions/setup-node | v7.1.0 | `949feb2413d6458794dcd2491c4babbbce0c15c1` |
+| actions/cache | v6.1.0 | `55cc8345863c7cc4c66a329aec7e433d2d1c52a9` |
+| actions/upload-artifact | v7.0.2 | `cf430e030ddbb5b0abf93d22962f4752f3646cd9` |
 
 ## Modelos y datos que se descargan una sola vez
 

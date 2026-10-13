@@ -63,3 +63,31 @@ Cada línea: qué se eligió, por qué y qué se descartó. Las versiones exacta
 - Sin biblioteca de fechas (`Intl` con Buenos Aires, que no cambia de horario), sin enrutador ni gestor de estado, CSS modules con variables de diseño, íconos lucide-react. Descartado: Tailwind.
 - Dependencias se actualizan solo en las ventanas de las Fases 02, 13, 24, 35 y 40.
 - Cuatro pruebas descartables fuera del repositorio dieron bien el 13/10/2026 (Electron + better-sqlite3 + trigram; Playwright + Electron; sherpa-onnx en un `utilityProcess`; Opengrep en Windows); los resultados están en `docs/versiones.md` y la carpeta temporal se borró.
+
+## 13/10/2026 · Fase 02
+
+- La rama `fase-02` nace de `fase-01` y su pull request apunta a `fase-01`, porque la 00 y la 01 todavía no están fusionadas.
+- Se instala solo lo que usa esta fase, con la versión exacta de `docs/versiones.md`; el resto entra en su fase. knip pone la red en rojo con dependencias sin uso.
+- `@vitejs/plugin-react` 5.2.0 en lugar de 6.1.2: toda la línea 6 pide Vite 8 (comprobado en npm) y electron-vite 5 no acepta Vite 8. La 5.2.0 es la más alta que acepta Vite 7.
+- axe-core 4.14.0 (oficial de Deque, MPL-2.0, solo en pruebas) para revisar la accesibilidad de la ventana en claro y en oscuro dentro de `verificar:todo`.
+- npm 11 frena los scripts de instalación no aprobados: los de esbuild, @swc/core y lefthook quedan denegados porque sus binarios vienen aparte. Electron 44 baja su ejecutable la primera vez que se usa (el CI lo hace en un paso propio).
+- Saltos de línea universales (LF) fijados en `.gitattributes`, para que el formato dé igual en tu PC y en el CI. Reemplaza en este repositorio el efecto de `core.autocrlf`.
+- La regla del reloj es un complemento de Biome (GritQL) que se aplica a `src`, `tests` y `tools`, menos a `src/core/clock`. Hasta los scripts de la red piden la hora al reloj único: Node 24 importa TypeScript directamente.
+- El canal «ping» devuelve además la variante y el día de estudio. La cinta de demostración lo usa, así que verla prueba de punta a punta el puente, la validación y el reloj. `app.info` y `demo.state` llegan en la Fase 03.
+- Variante por compilación: sin variable se compila la real (para no llevar la demostración por descuido). `iniciar` y la punta a punta usan la de prueba. Salida en `out/prueba` y `out/real`.
+- El puente se compila como un solo archivo CommonJS con Zod adentro, porque la ventana corre con sandbox. El catálogo de textos vive en `src/preload/contract/texts.ts`, el único lugar que pueden usar la ventana y el principal.
+- Se quitó el menú de Electron (estaba en inglés). La política de contenido va por etiqueta en esta fase; la de cabecera llega con los protocolos propios.
+- La punta a punta corre sobre la variante de prueba compilada sin empaquetar (`out/prueba`) hasta que la Fase 03 traiga el instalador y `win-unpacked`.
+- `datos:reiniciar` deja `datos-locales/demostracion` (ignorada por git, la que usa `iniciar`) vacía con un `LEEME.txt`: es el estado conocido de esta fase. Desde la Fase 03 suma el elenco.
+- El escáner de secretos corre también en `verificar` (tarda menos de un segundo), además de en el gancho de commit; así el sabotaje 2 se ve en la red rápida. Opengrep y `npm audit` corren solo en `verificar:todo`.
+- «X de Y criterios cubiertos» cuenta las fases cerradas (tag `fase-NN-ok`) y la en curso (por el nombre de la rama). Los de la fase en curso se exigen solo en `verificar:todo`, que es el cierre; los de fases cerradas, siempre.
+- La cantidad de pruebas de cada orden queda en `tests/conteo.json` en cada corrida verde; la red compara contra el que quedó guardado en el último tag `fase-NN-ok`.
+- Las pruebas que no pertenecen a un criterio (reloj, contrato del puente, ventana aislada, accesibilidad) van sin identificador. Un identificador mal puesto o inexistente da rojo.
+- Umbral de ramas del núcleo: 90 %.
+- La línea ROJO tiene formato fijo; lo que se nombra («día de estudio», «secreto», «1 salteada», «capas») aparece en el resumen de debajo.
+- Los sabotajes automáticos corren en una copia temporal del proyecto, con su propio git y `node_modules` enlazado: nunca tocan tu carpeta. El guion para vos (`npm run sabotaje -- N`) sí usa tu carpeta, con respaldo en disco para revertir aunque se corte.
+- El sabotaje 2 escribe la clave falsa en `ajustes-ia.json`. La clave se arma en el momento, así nunca queda escrita en el repositorio.
+- Ganchos de Claude Code en forma «programa + argumentos» con `${CLAUDE_PROJECT_DIR}`, la forma recomendada en Windows. El de edición mira `Edit`, `Write` y `NotebookEdit`.
+- CI: un solo trabajo en `windows-latest`, acciones fijadas por su huella, adjuntos por 2 días. En cada pull request los sabotajes corren como pruebas dentro de `verificar:todo`; el guion de los cuatro se repite en la corrida semanal.
+- lefthook muestra solo lo que dicen las revisiones, sin sus adornos (tenían emojis).
+- El subagente revisor recién se carga al reiniciar Claude Code; en esta fase corrió como agente general con exactamente las mismas instrucciones.
