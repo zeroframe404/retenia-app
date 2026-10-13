@@ -9,7 +9,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { leerEspecificacionDelProyecto } from './lib/especificacion.mjs';
 import { faseEnCurso, tagsDeFasesCerradas } from './lib/fases.mjs';
-import { ESTADOS, ultimosResultados } from './lib/historial.mjs';
+import { ESTADOS, expandirPlantillas, ultimosResultados } from './lib/historial.mjs';
 import { listarTitulos } from './lib/listado.mjs';
 import { RAIZ } from './lib/proceso.mjs';
 import { ahora, formatearDuracion, formatearFechaHora } from './lib/reloj.mjs';
@@ -41,7 +41,9 @@ const [enCurso, tags, { titulos }] = await Promise.all([
 const cerradas = tags.map((t) => t.numero);
 const traza = cruzar({ especificacion, titulos, cerradas, enCurso, exigirEnCurso: false });
 const { corridas, pruebas, cobertura } = ultimosResultados(RAIZ);
-const criteriosPorId = new Map(traza.criterios.map((c) => [c.id, c]));
+const criteriosPorId = new Map(
+  traza.criterios.map((c) => [c.id, { ...c, pruebas: expandirPlantillas(c.pruebas, pruebas) }]),
+);
 
 function estadoDeCriterio(criterio) {
   if (criterio.pruebas.length === 0) {
@@ -76,7 +78,7 @@ function seccionDeCriterio(criterio) {
       : `<table><thead><tr><th>Prueba</th><th>Capa</th><th>Resultado</th><th>Última vez</th></tr></thead><tbody>${filas}</tbody></table>`;
   return `<article class="criterio" aria-labelledby="t-${criterio.id}">
   <h4 id="t-${criterio.id}">${criterio.id} <span class="chip ${estado.clase}">${estado.texto}</span></h4>
-  <p class="dado">Dado ${conCodigo(criterio.dado)}, cuando ${conCodigo(criterio.cuando)}, entonces ${conCodigo(criterio.entonces)}.</p>
+  <p class="dado">Dado ${conCodigo(criterio.dado)}, cuando ${conCodigo(criterio.cuando)}, entonces ${conCodigo(criterio.entonces)}${/[.!?]$/.test(criterio.entonces ?? '') ? '' : '.'}</p>
   ${tabla}
 </article>`;
 }

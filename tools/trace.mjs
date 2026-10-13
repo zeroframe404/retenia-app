@@ -2,7 +2,7 @@
 // dice), sus pruebas y el último resultado de cada una.
 import { leerEspecificacionDelProyecto } from './lib/especificacion.mjs';
 import { faseEnCurso, tagsDeFasesCerradas } from './lib/fases.mjs';
-import { ESTADOS, ultimosResultados } from './lib/historial.mjs';
+import { ESTADOS, expandirPlantillas, ultimosResultados } from './lib/historial.mjs';
 import { listarTitulos } from './lib/listado.mjs';
 import { RAIZ } from './lib/proceso.mjs';
 import { formatearFechaHora } from './lib/reloj.mjs';
@@ -38,7 +38,7 @@ for (const criterio of traza.criterios.filter((c) => c.fase === fase.numero)) {
     continue;
   }
   cubiertos++;
-  for (const { titulo, capa } of criterio.pruebas) {
+  for (const { titulo, capa } of expandirPlantillas(criterio.pruebas, pruebas)) {
     const ultimo = pruebas.get(titulo);
     const estado = ultimo
       ? `${ESTADOS[ultimo.estado]} (${formatearFechaHora(new Date(ultimo.fecha))})`

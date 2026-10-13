@@ -150,7 +150,7 @@ async function capaCapas() {
   );
   return informe.summary.violations.map(
     (v) =>
-      `capas: «${v.from}» importa «${v.to}». ${comentarios.get(v.rule.name) ?? ''} (regla ${v.rule.name}).`,
+      `«${v.from}» importa «${v.to}». ${comentarios.get(v.rule.name) ?? ''} (regla ${v.rule.name}).`,
   );
 }
 
@@ -424,7 +424,7 @@ async function capa(id, nombre, trabajo) {
   const peso = problemas.reduce((s, p) => s + (p.peso ?? 1), 0);
   const estado = peso === 0 ? 'bien' : `${peso} ${peso === 1 ? 'falla' : 'fallas'}`;
   console.log(
-    `  ${`${nombre} `.padEnd(34, '.')} ${estado} (${formatearDuracion(registro.duracionMs)})`,
+    `  ${`${nombre} `.padEnd(38, '.')} ${estado} (${formatearDuracion(registro.duracionMs)})`,
   );
   return resultado;
 }
