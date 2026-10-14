@@ -360,9 +360,9 @@ export function backupStamps(copiesDir: string): BackupStamp[] {
 }
 
 // Se conservan las 14 automáticas más nuevas; las otras copias no se borran solas.
-export function pruneAutomaticBackups(copiesDir: string): number {
+export function pruneAutomaticBackups(copiesDir: string, now: Date): number {
   const listed = listBackupFiles(copiesDir);
-  const pruned = automaticBackupsToPrune(backupStamps(copiesDir));
+  const pruned = automaticBackupsToPrune(backupStamps(copiesDir), now);
   for (const stamp of pruned) {
     const entry = listed.find(({ view }) => view.id === stamp.id);
     if (entry) {

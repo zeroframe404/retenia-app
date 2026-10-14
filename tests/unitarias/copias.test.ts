@@ -53,11 +53,14 @@ describe('copias: cuándo se hace una automática', () => {
 });
 
 describe('copias: cuáles se conservan', () => {
+  // Un momento después de todas las copias de estas pruebas (ninguna tiene fecha futura).
+  const later = new Date(base.getTime() + 60 * 24 * HOUR_MS);
+
   it(`[CA-021] quedan las ${AUTOMATIC_BACKUPS_KEPT} automáticas más nuevas; se van las más viejas`, () => {
     const automatic = Array.from({ length: 16 }, (_, day) =>
       stamp(`a${String(day).padStart(2, '0')}`, 'auto', day * 24),
     );
-    const pruned = automaticBackupsToPrune(automatic);
+    const pruned = automaticBackupsToPrune(automatic, later);
     expect(pruned.map((backup) => backup.id)).toEqual(['a01', 'a00']);
   });
 
@@ -67,7 +70,7 @@ describe('copias: cuáles se conservan', () => {
       stamp('m', 'manual', 0),
       stamp('r', 'before_restore', 1),
     ];
-    const pruned = automaticBackupsToPrune(copies);
+    const pruned = automaticBackupsToPrune(copies, later);
     expect(pruned).toHaveLength(6);
     expect(pruned.every((backup) => backup.kind === 'auto')).toBe(true);
   });
@@ -83,7 +86,7 @@ describe('copias: cuáles se conservan', () => {
 
   it('con 14 o menos automáticas no se borra nada', () => {
     const automatic = Array.from({ length: 14 }, (_, day) => stamp(`a${day}`, 'auto', day * 24));
-    expect(automaticBackupsToPrune(automatic)).toEqual([]);
+    expect(automaticBackupsToPrune(automatic, later)).toEqual([]);
   });
 
   it('ordena de la más nueva a la más vieja y, en el mismo instante, por identificador', () => {

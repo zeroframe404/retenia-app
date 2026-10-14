@@ -1,6 +1,14 @@
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
 import { join } from 'node:path';
-import { isAutomaticBackupDue } from '../core/backups';
+import { BACKUP_EXTENSION, isAutomaticBackupDue } from '../core/backups';
 import type { Clock } from '../core/clock';
 import { type ActivityStore, createActivityStore } from './activity';
 import {
@@ -84,13 +92,16 @@ function removeIfPossible(path: string): void {
   }
 }
 
-// Lo que quedó a medias de una copia o una restauración cortadas. Nunca impide abrir Retenia.
+// Lo que quedó a medias de una copia o una restauración cortadas. Nunca impide abrir Retenia, y
+// nunca borra fuera de lo suyo: si «tmp» es un enlace o una unión a otra carpeta, se saca el
+// enlace sin entrar (lstat no lo sigue), y en «copias» solo se borran los restos de copias.
 function cleanLeftovers(tmpDir: string, copiesDir: string): void {
-  if (existsSync(tmpDir) && statSync(tmpDir).isDirectory()) {
+  const tmp = lstatSync(tmpDir, { throwIfNoEntry: false });
+  if (tmp?.isDirectory()) {
     for (const entry of readdirSync(tmpDir)) {
       removeIfPossible(join(tmpDir, entry));
     }
-  } else {
+  } else if (tmp) {
     removeIfPossible(tmpDir);
   }
   try {
@@ -99,7 +110,10 @@ function cleanLeftovers(tmpDir: string, copiesDir: string): void {
     // Sin carpeta de trabajo, la próxima copia falla y lo dice; abrir Retenia no depende de eso.
   }
   if (existsSync(copiesDir)) {
-    for (const name of readdirSync(copiesDir).filter((entry) => entry.endsWith('.tmp'))) {
+    const leftovers = readdirSync(copiesDir).filter((entry) =>
+      entry.endsWith(`${BACKUP_EXTENSION}.tmp`),
+    );
+    for (const name of leftovers) {
       removeIfPossible(join(copiesDir, name));
     }
   }
@@ -223,7 +237,7 @@ export function openWorkspace({
           return null;
         }
         const created = await backup('auto');
-        pruneAutomaticBackups(copiesDir);
+        pruneAutomaticBackups(copiesDir, clock.now());
         return created;
       };
       const pending = run();

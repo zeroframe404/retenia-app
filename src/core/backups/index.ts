@@ -40,11 +40,19 @@ export function isAutomaticBackupDue(backups: readonly BackupStamp[], now: Date)
   });
 }
 
+// Las automáticas con fecha futura (un reloj que volvió atrás) cuentan como las más viejas: se
+// van primero y una copia recién hecha nunca es la que se borra.
 export function automaticBackupsToPrune<T extends BackupStamp>(
   backups: readonly T[],
+  now: Date,
   keep: number = AUTOMATIC_BACKUPS_KEPT,
 ): T[] {
-  return newestFirst(backups.filter((backup) => backup.kind === 'auto')).slice(keep);
+  const automatic = backups.filter((backup) => backup.kind === 'auto');
+  const isFuture = (backup: T) => backup.createdAt.getTime() > now.getTime();
+  return [
+    ...newestFirst(automatic.filter((backup) => !isFuture(backup))),
+    ...newestFirst(automatic.filter(isFuture)),
+  ].slice(keep);
 }
 
 const KIND_SLUGS: Record<BackupKind, string> = {
