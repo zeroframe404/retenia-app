@@ -79,6 +79,16 @@ describe('memoria: ts-fsrs con FSRS-6 y parámetros por defecto', () => {
     expect(again.dueAt.getTime()).toBeGreaterThan(second.getTime() + 2 * DAY_MS);
   });
 
+  it('si el reloj retrocede (la PC se atrasó o se restableció la fecha), repasar cuenta desde el último repaso y no falla', () => {
+    const first = inBuenosAires('15/03/2027 10:00');
+    const reviewed = reviewCard(newCardMemory(first), 'good', first);
+    const before = inBuenosAires('10/03/2027 10:00');
+    const again = reviewCard(reviewed, 'good', before);
+    expect(again.reps).toBe(2);
+    expect(again.lastReviewAt).toEqual(first);
+    expect(again.dueAt.getTime()).toBeGreaterThan(first.getTime());
+  });
+
   it('con retención 0,85 «La sabía» da 4 días, y 0,90 da 2', () => {
     const now = inBuenosAires('15/03/2027 10:00');
     const at90 = reviewCard(newCardMemory(now), 'good', now, 0.9);

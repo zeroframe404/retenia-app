@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CardsScreen } from '../../src/renderer/cards/CardsScreen';
@@ -80,8 +80,7 @@ describe('pantalla «Tarjetas»: alta', () => {
     await screen.findByText('Una anterior');
     await fillAndSave(user, { question: '¿Capital de Francia?', answer: 'París' });
 
-    const notice = await screen.findByText('Tarjeta guardada');
-    expect(notice.closest('[role="status"]')).not.toBeNull();
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('Tarjeta guardada'));
     const items = await screen.findAllByRole('listitem');
     expect(within(items[0] as HTMLElement).getByText('¿Capital de Francia?')).toBeTruthy();
     expect(within(items[1] as HTMLElement).getByText('Una anterior')).toBeTruthy();
@@ -144,6 +143,31 @@ describe('pantalla «Tarjetas»: alta', () => {
     await user.type(screen.getByRole('textbox', { name: 'Pregunta' }), '¿Capital de Francia?');
     await user.type(screen.getByRole('textbox', { name: 'Respuesta' }), 'París');
     await user.dblClick(screen.getByRole('button', { name: 'Guardar' }));
+    await screen.findByText('Tarjeta guardada');
+    expect(created(bridge)).toHaveLength(1);
+    expect(await screen.findAllByRole('listitem')).toHaveLength(1);
+  });
+
+  it('«Guardar» se deshabilita al tocarlo, mientras se guarda, y un segundo envío no crea otra tarjeta', async () => {
+    const { bridge, user } = openScreen();
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((open) => {
+      release = open;
+    });
+    const create = bridge.handlers['cards.create'];
+    bridge.handlers['cards.create'] = async (request) => {
+      await gate;
+      return create(request);
+    };
+    await user.click(await screen.findByRole('button', { name: 'Nueva tarjeta' }));
+    await user.type(screen.getByRole('textbox', { name: 'Pregunta' }), '¿Capital de Francia?');
+    await user.type(screen.getByRole('textbox', { name: 'Respuesta' }), 'París');
+    const save = screen.getByRole('button', { name: 'Guardar' }) as HTMLButtonElement;
+    await user.click(save);
+    await waitFor(() => expect(save.disabled).toBe(true));
+    // Aunque el botón se saltee (Enter, otro envío del formulario), no se crea otra.
+    fireEvent.submit(screen.getByRole('form', { name: 'Nueva tarjeta' }));
+    release();
     await screen.findByText('Tarjeta guardada');
     expect(created(bridge)).toHaveLength(1);
     expect(await screen.findAllByRole('listitem')).toHaveLength(1);
