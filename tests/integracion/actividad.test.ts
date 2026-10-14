@@ -152,6 +152,26 @@ describe('deshacer altas y borrados', () => {
     expect(target.cards.list().map((item) => item.id)).toEqual([card.id]);
   });
 
+  it('[CA-022] un borrado que ya venció en la papelera no ofrece «Deshacer», aunque todavía no se haya vaciado', () => {
+    const folder = tempDataFolder();
+    folders.push(folder);
+    let days = 0;
+    const target = openWorkspace({
+      dataDir: folder.folder,
+      clock: { now: () => demoClock(days).now() },
+      appVersion: '0.0.0-prueba',
+    });
+    open.push(target);
+    const card = target.cards.create({ question: 'P', answer: 'R' });
+    target.cards.remove({ cardId: card.id });
+    // «+35 días» sin cerrar Retenia: la entrada venció, pero la purga corre recién al abrir.
+    days = 35;
+    const [removal] = target.activity.recent();
+    expect(removal).toMatchObject({ kind: 'card.delete', canUndo: false });
+    expect(target.activity.undo({ operationId: removal?.id ?? '' })).toEqual({ undone: false });
+    expect(target.cards.list()).toEqual([]);
+  });
+
   it('lo vaciado de la papelera ya no se deshace y sus renglones dicen que la tarjeta se eliminó', () => {
     const target = workspace();
     const card = target.cards.create({ question: 'P', answer: 'R' });

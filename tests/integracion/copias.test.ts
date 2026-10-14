@@ -4,6 +4,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -14,6 +15,7 @@ import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
 import { type Clock, demoClock, fixedClock } from '../../src/core/clock';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
+import { holdFile } from '../apoyo/archivo-tomado';
 import { tempDataFolder } from '../apoyo/base';
 import { dumpTables, readRows } from '../apoyo/base-cruda';
 import { inBuenosAires } from '../apoyo/fechas';
@@ -22,6 +24,8 @@ import { inBuenosAires } from '../apoyo/fechas';
 // Todo con la base real y archivos reales en una carpeta de datos temporal.
 
 const HOUR_MS = 3_600_000;
+// Arrancar un PowerShell que tome un archivo lleva un par de segundos.
+const SLOW_MS = 20_000;
 const folders: ReturnType<typeof tempDataFolder>[] = [];
 const open: Workspace[] = [];
 afterEach(() => {
@@ -41,6 +45,19 @@ function dataFolder() {
 
 function workspaceAt(dataDir: string, clock: Clock = demoClock()) {
   const workspace = openWorkspace({ dataDir, clock, appVersion: '0.0.0-prueba' });
+  open.push(workspace);
+  return workspace;
+}
+
+// Con un aviso en cada paso con archivos de una copia o una restauración, para provocar una
+// falla justo en uno de ellos.
+function workspaceWithSteps(dataDir: string, onStep: (name: string) => void) {
+  const workspace = openWorkspace({
+    dataDir,
+    clock: demoClock(),
+    appVersion: '0.0.0-prueba',
+    onStep,
+  });
   open.push(workspace);
   return workspace;
 }
@@ -90,6 +107,30 @@ function databaseOf(file: string, folder: string): string {
 }
 
 describe('«Hacer copia ahora»', () => {
+  it('[CA-019] una copia que se cortó después de hecha ya no dice «Verificada» ni se ofrece para restaurar', async () => {
+    const { folder } = dataFolder();
+    const workspace = workspaceAt(folder);
+    withData(workspace);
+    const copy = await workspace.createBackup('manual');
+    const file = join(folder, 'copias', copyFiles(folder)[0] ?? '');
+    const whole = readFileSync(file);
+    const cut = whole.subarray(0, Math.floor(whole.length / 2));
+    writeFileSync(file, cut);
+
+    expect(await workspace.backups()).toEqual([
+      {
+        id: null,
+        kind: null,
+        createdAt: null,
+        day: null,
+        time: null,
+        sizeBytes: cut.length,
+        readable: false,
+      },
+    ]);
+    await expect(workspace.restoreBackup(copy.id)).rejects.toThrow();
+  });
+
   it('[CA-019] crea un archivo comprimido con la base, un manifiesto y su huella, lo abre y lo cuenta: «Verificada», 15/03/2027', async () => {
     const { folder } = dataFolder();
     const workspace = workspaceAt(folder);
@@ -265,6 +306,82 @@ describe('restaurar una copia', () => {
     expect(workspace.cards.list().map((card) => card.question)).toContain('Después de la copia');
   });
 
+  it('[CA-020] si falla solo la copia «Antes de restaurar», no restaura nada aunque la copia elegida esté sana', async () => {
+    const { folder } = dataFolder();
+    let failSafety = false;
+    const workspace = workspaceWithSteps(folder, (name) => {
+      if (failSafety && name === 'verificada') {
+        throw new Error('la copia previa no se pudo verificar');
+      }
+    });
+    withData(workspace);
+    const copy = await workspace.createBackup('manual');
+    workspace.cards.create({ question: 'Después de la copia', answer: 'x' });
+    const before = dumpTables(join(folder, 'retenia.db'));
+
+    failSafety = true;
+    await expect(workspace.restoreBackup(copy.id)).rejects.toThrow(
+      'la copia previa no se pudo verificar',
+    );
+    failSafety = false;
+    expect(dumpTables(join(folder, 'retenia.db'))).toEqual(before);
+    expect(copyFiles(folder)).toHaveLength(1);
+    expect((await workspace.backups()).map((backup) => backup.kind)).toEqual(['manual']);
+    expect(workspace.cards.list().map((card) => card.question)).toContain('Después de la copia');
+  });
+
+  it('[CA-020] si algo falla después de reemplazar el archivo, la restauración ya está hecha y Retenia sigue con la base restaurada', async () => {
+    const { folder } = dataFolder();
+    let failAfterReplacing = false;
+    const workspace = workspaceWithSteps(folder, (name) => {
+      if (failAfterReplacing && name === 'reemplazada') {
+        throw new Error('falla después de reemplazar');
+      }
+    });
+    withData(workspace);
+    const copy = await workspace.createBackup('manual');
+    const atCopy = dumpTables(join(folder, 'retenia.db'), { except: ['ledger_state'] });
+    workspace.cards.create({ question: 'Después de la copia', answer: 'x' });
+
+    failAfterReplacing = true;
+    const { restored } = await workspace.restoreBackup(copy.id);
+    failAfterReplacing = false;
+    expect(restored.id).toBe(copy.id);
+    expect(dumpTables(join(folder, 'retenia.db'), { except: ['ledger_state'] })).toEqual(atCopy);
+    expect(workspace.cards.list().map((card) => card.question)).not.toContain(
+      'Después de la copia',
+    );
+    expect(workspace.verifyData()).toEqual([]);
+  });
+
+  it('si después de restaurar no puede volver a abrir la base, la abre en el pedido siguiente', async () => {
+    const { folder } = dataFolder();
+    const dbFile = join(folder, 'retenia.db');
+    const aside = join(folder, 'retenia-aparte.db');
+    let block = false;
+    const workspace = workspaceWithSteps(folder, (name) => {
+      if (block && name === 'reemplazada') {
+        // Algo deja la base sin poder abrirse un momento: en su lugar queda una carpeta.
+        renameSync(dbFile, aside);
+        mkdirSync(dbFile);
+      }
+    });
+    withData(workspace);
+    const copy = await workspace.createBackup('manual');
+    workspace.cards.create({ question: 'Después de la copia', answer: 'x' });
+
+    block = true;
+    await workspace.restoreBackup(copy.id);
+    block = false;
+    expect(() => workspace.cards.list()).toThrow();
+    rmSync(dbFile, { recursive: true });
+    renameSync(aside, dbFile);
+    expect(workspace.cards.list().map((card) => card.question)).not.toContain(
+      'Después de la copia',
+    );
+    expect(workspace.verifyData()).toEqual([]);
+  });
+
   it('restaurar una copia que no existe falla sin tocar nada', async () => {
     const { folder } = dataFolder();
     const workspace = workspaceAt(folder);
@@ -334,6 +451,18 @@ describe('copia automática al abrir', () => {
     expect(automatic.at(-1)?.day).toBe('2027-03-16');
     expect(listed.filter((backup) => backup.kind === 'manual')).toHaveLength(1);
   });
+
+  it('[CA-021] una copia con fecha futura (el reloj volvió atrás) no frena la copia automática', async () => {
+    const { folder } = dataFolder();
+    // «+35 días», cerrar y abrir: la automática del 19/04/2027.
+    const ahead = workspaceAt(folder, at(35 * 24));
+    expect(await ahead.ensureAutomaticBackup()).toMatchObject({ kind: 'auto', day: '2027-04-19' });
+    closeWorkspace(ahead);
+    // «Restablecer fecha», «+1 día», cerrar y abrir: la del 16/03/2027, y una sola.
+    const back = workspaceAt(folder, at(24));
+    expect(await back.ensureAutomaticBackup()).toMatchObject({ kind: 'auto', day: '2027-03-16' });
+    expect(await back.ensureAutomaticBackup()).toBeNull();
+  });
 });
 
 describe('restos de una copia o una restauración cortadas', () => {
@@ -357,6 +486,27 @@ describe('restos de una copia o una restauración cortadas', () => {
     expect(reopened.cards.list()).toHaveLength(3);
     expect(reopened.verifyData()).toEqual([]);
   });
+
+  it(
+    'un resto de una copia cortada que Windows tiene tomado no impide abrir Retenia',
+    async () => {
+      const { folder } = dataFolder();
+      closeWorkspace(workspaceAt(folder));
+      mkdirSync(join(folder, 'tmp'), { recursive: true });
+      const leftover = join(folder, 'tmp', 'copia-cortada.db');
+      writeFileSync(leftover, 'a medias');
+      const held = await holdFile(leftover);
+      try {
+        const reopened = workspaceAt(folder);
+        expect(reopened.cards.list()).toEqual([]);
+        expect(await reopened.createBackup('manual')).toMatchObject({ kind: 'manual' });
+        closeWorkspace(reopened);
+      } finally {
+        await held.release();
+      }
+    },
+    SLOW_MS,
+  );
 
   it('restaurar no deja archivos de trabajo a medias y la base queda sana', async () => {
     const { folder } = dataFolder();

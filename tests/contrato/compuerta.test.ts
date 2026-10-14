@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { createGate } from '../../src/main/gate';
+import { handleMessage } from '../../src/main/bridge';
+import { createGate, gateHandlers } from '../../src/main/gate';
+import { openBridge } from '../apoyo/puente';
 
 // Mientras se restaura una copia, nada más toca los datos: la base se cierra, se reemplaza y se
 // vuelve a abrir. Los demás pedidos esperan en fila y siguen cuando termina.
@@ -69,6 +72,34 @@ describe('compuerta de los pedidos', () => {
     expect(events).toEqual(['rápido']);
     slow.release();
     await first;
+  });
+
+  it('con los manejadores de Retenia, un repaso pedido mientras se restaura una copia espera y queda guardado en la base restaurada', async () => {
+    const bridge = openBridge();
+    try {
+      const card = await bridge.api['cards.create']({ question: 'P', answer: 'R' });
+      const { created } = await bridge.api['backups.createNow']({});
+      if (!created.readable) {
+        throw new Error('la copia tendría que poder abrirse');
+      }
+      const routes = gateHandlers(bridge.handlers, createGate());
+      const order: string[] = [];
+      const restoring = handleMessage(routes, 'backups.restore', { backupId: created.id }).then(
+        () => order.push('restaurar'),
+      );
+      const reviewing = handleMessage(routes, 'cards.review', {
+        cardId: card.id,
+        grade: 'good',
+        attemptId: randomUUID(),
+      }).then(() => order.push('repasar'));
+      await Promise.all([restoring, reviewing]);
+
+      expect(order).toEqual(['restaurar', 'repasar']);
+      const history = await bridge.api['cards.history']({ cardId: card.id });
+      expect(history.entries.map((entry) => entry.result)).toEqual(['good']);
+    } finally {
+      bridge.close();
+    }
   });
 
   it('si la restauración falla, la falla llega a quien la pidió y los demás siguen', async () => {

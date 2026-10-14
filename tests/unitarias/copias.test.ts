@@ -39,8 +39,16 @@ describe('copias: cuándo se hace una automática', () => {
     expect(isAutomaticBackupDue(copies, new Date(base.getTime() + 31 * HOUR_MS))).toBe(false);
   });
 
-  it('con el reloj atrasado respecto de la última copia no hace otra', () => {
-    expect(isAutomaticBackupDue([stamp('a', 'auto', 48)], base)).toBe(false);
+  it('[CA-021] con el reloj atrasado, una copia de fecha futura no frena la automática: si ninguna es de las últimas 24 horas, hace una', () => {
+    expect(isAutomaticBackupDue([stamp('a', 'auto', 48)], base)).toBe(true);
+    // «+35 días» y una copia del 19/04/2027; «Restablecer fecha» y «+1 día»: 16/03/2027.
+    const future = [stamp('a', 'auto', 35 * 24)];
+    expect(isAutomaticBackupDue(future, new Date(base.getTime() + 24 * HOUR_MS))).toBe(true);
+  });
+
+  it('con el reloj atrasado y una copia de hace menos de 24 horas, no hace otra', () => {
+    const copies = [stamp('a', 'auto', 48), stamp('m', 'manual', -1)];
+    expect(isAutomaticBackupDue(copies, base)).toBe(false);
   });
 });
 
