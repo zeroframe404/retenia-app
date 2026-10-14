@@ -45,8 +45,12 @@ describe('deshacer: qué se puede y qué hace', () => {
     expect(undoPlan(edit, gone)).toBeNull();
   });
 
-  it('una edición sin versión anterior no se puede deshacer', () => {
+  it('una edición sin versión anterior o sin contenido conocido no se puede deshacer', () => {
     expect(undoPlan({ ...edit, versionBeforeId: null }, active())).toBeNull();
+    expect(undoPlan({ ...edit, afterContent: null }, active())).toBeNull();
+    expect(
+      undoPlan(edit, { status: 'active', content: null, activeTrashEntryId: null }),
+    ).toBeNull();
   });
 
   it('[CA-023] un alta o una restauración se deshacen mandando la tarjeta a la papelera', () => {

@@ -5,6 +5,7 @@ import {
   generatorParameters,
   Rating,
 } from 'ts-fsrs';
+import { inCanonicalOrder } from '../ledger';
 
 // El motor de repaso mínimo de la Fase 03: ts-fsrs con FSRS-6 y sus parámetros por defecto,
 // sin variación al azar y sin pasos de aprendizaje de minutos. El reloj llega siempre como
@@ -12,7 +13,11 @@ import {
 
 export type Grade = 'again' | 'hard' | 'good';
 
-const DEFAULT_RETENTION = 0.9;
+export const DEFAULT_RETENTION = 0.9;
+
+// La versión del motor con la que se calcula la agenda. Una agenda guardada se recalcula con la
+// misma versión; la Fase 09 trae la siguiente.
+export const MEMORY_ENGINE_VERSION = 1;
 
 const RATINGS: Record<Grade, FsrsGrade> = {
   again: Rating.Again,
@@ -99,4 +104,67 @@ export function reviewCard(
     lapses: next.lapses,
     scheduledDays: next.scheduled_days,
   };
+}
+
+// Cómo se calificó un repaso (la evaluación) y con qué botón se repasa la tarjeta.
+export type Verdict = 'correct' | 'partial' | 'incorrect';
+
+const VERDICTS: Record<Grade, Verdict> = { good: 'correct', hard: 'partial', again: 'incorrect' };
+const GRADES: Record<Verdict, Grade> = { correct: 'good', partial: 'hard', incorrect: 'again' };
+
+export function verdictOfGrade(grade: Grade): Verdict {
+  return VERDICTS[grade];
+}
+
+export function gradeOfVerdict(verdict: Verdict): Grade {
+  return GRADES[verdict];
+}
+
+// Lo que mueve la agenda de una tarjeta: un repaso (con la calificación de su evaluación
+// vigente) o la agenda que traía de antes del libro mayor (bases de la Fase 03).
+export type MemoryEvent =
+  | {
+      readonly kind: 'review';
+      readonly id: string;
+      readonly seq: number;
+      readonly occurredAt: Date;
+      readonly grade: Grade;
+    }
+  | {
+      readonly kind: 'adopted';
+      readonly id: string;
+      readonly seq: number;
+      readonly memory: CardMemory;
+    };
+
+export interface MemoryConfig {
+  readonly retention: number;
+}
+
+export class UnknownEngineError extends Error {
+  constructor(version: number) {
+    super(`No conozco la versión ${version} del motor de memoria`);
+    this.name = 'UnknownEngineError';
+  }
+}
+
+// La agenda de una tarjeta como proyección: se recalcula entera desde sus eventos, la
+// configuración y la versión del motor, en el orden canónico. Da lo mismo que haber repasado
+// uno por uno en el momento, así «Verificar datos» la puede comparar con la guardada.
+export function projectCardMemory(
+  { createdAt, events }: { createdAt: Date; events: readonly MemoryEvent[] },
+  config: MemoryConfig,
+  engineVersion: number,
+): CardMemory {
+  if (engineVersion !== MEMORY_ENGINE_VERSION) {
+    throw new UnknownEngineError(engineVersion);
+  }
+  let memory = newCardMemory(createdAt);
+  for (const event of inCanonicalOrder(events)) {
+    memory =
+      event.kind === 'adopted'
+        ? event.memory
+        : reviewCard(memory, event.grade, event.occurredAt, config.retention);
+  }
+  return memory;
 }
