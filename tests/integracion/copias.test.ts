@@ -1,12 +1,14 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
   renameSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -463,6 +465,21 @@ describe('copia automática al abrir', () => {
     expect(await back.ensureAutomaticBackup()).toMatchObject({ kind: 'auto', day: '2027-03-16' });
     expect(await back.ensureAutomaticBackup()).toBeNull();
   });
+
+  it('[CA-021] con 14 automáticas de fecha futura, la de hoy se hace y queda en la lista', async () => {
+    const { folder } = dataFolder();
+    for (let day = 0; day < 14; day++) {
+      const ahead = workspaceAt(folder, at((100 + day) * 24));
+      expect(await ahead.ensureAutomaticBackup(), `día ${day}`).not.toBeNull();
+      closeWorkspace(ahead);
+    }
+    const today = workspaceAt(folder, at(0));
+    const created = await today.ensureAutomaticBackup();
+    expect(created).toMatchObject({ kind: 'auto', day: '2027-03-15' });
+    const listed = await today.backups();
+    expect(listed.map((backup) => backup.id)).toContain(created?.id);
+    expect(listed.filter((backup) => backup.kind === 'auto')).toHaveLength(14);
+  });
 });
 
 describe('restos de una copia o una restauración cortadas', () => {
@@ -507,6 +524,31 @@ describe('restos de una copia o una restauración cortadas', () => {
     },
     SLOW_MS,
   );
+
+  it('si la carpeta de trabajo es un enlace a otra carpeta, al abrir se saca el enlace y lo de la otra carpeta no se toca', () => {
+    const { folder } = dataFolder();
+    const { folder: elsewhere } = dataFolder();
+    const precious = join(elsewhere, 'importante.txt');
+    writeFileSync(precious, 'no se toca');
+    closeWorkspace(workspaceAt(folder));
+    rmSync(join(folder, 'tmp'), { recursive: true, force: true });
+    symlinkSync(elsewhere, join(folder, 'tmp'), 'junction');
+
+    const reopened = workspaceAt(folder);
+    expect(readFileSync(precious, 'utf8')).toBe('no se toca');
+    expect(lstatSync(join(folder, 'tmp')).isSymbolicLink()).toBe(false);
+    expect(lstatSync(join(folder, 'tmp')).isDirectory()).toBe(true);
+    expect(reopened.cards.list()).toEqual([]);
+  });
+
+  it('al abrir solo se borran los restos de Retenia en la carpeta de copias', () => {
+    const { folder } = dataFolder();
+    closeWorkspace(workspaceAt(folder));
+    mkdirSync(join(folder, 'copias'), { recursive: true });
+    writeFileSync(join(folder, 'copias', 'otro-programa.tmp'), 'ajeno');
+    workspaceAt(folder);
+    expect(readdirSync(join(folder, 'copias'))).toEqual(['otro-programa.tmp']);
+  });
 
   it('restaurar no deja archivos de trabajo a medias y la base queda sana', async () => {
     const { folder } = dataFolder();

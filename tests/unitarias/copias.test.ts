@@ -72,6 +72,15 @@ describe('copias: cuáles se conservan', () => {
     expect(pruned.every((backup) => backup.kind === 'auto')).toBe(true);
   });
 
+  it('[CA-021] las automáticas con fecha futura (el reloj volvió atrás) cuentan como las más viejas: la recién hecha nunca se borra', () => {
+    const future = Array.from({ length: 14 }, (_, index) =>
+      stamp(`f${String(index).padStart(2, '0')}`, 'auto', (100 + index) * 24),
+    );
+    const pruned = automaticBackupsToPrune([...future, stamp('hoy', 'auto', 0)], base);
+    expect(pruned).toHaveLength(1);
+    expect(pruned.every((backup) => backup.id.startsWith('f'))).toBe(true);
+  });
+
   it('con 14 o menos automáticas no se borra nada', () => {
     const automatic = Array.from({ length: 14 }, (_, day) => stamp(`a${day}`, 'auto', day * 24));
     expect(automaticBackupsToPrune(automatic)).toEqual([]);
