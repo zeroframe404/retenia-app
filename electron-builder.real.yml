@@ -1,0 +1,42 @@
+# Instalador de «Retenia»: el de uso real, sin nada de demostración (docs/arquitectura.md,
+# secciones 6 y 7). El identificador y el guid de abajo se fijaron en la Fase 03 y no cambian.
+appId: io.github.zeroframe404.retenia
+productName: Retenia
+executableName: Retenia
+copyright: zeroframe404
+directories:
+  output: release/real
+files:
+  - out/real/**/*
+  - package.json
+  - "!node_modules/{drizzle-orm,ts-fsrs,zod}/**"
+extraMetadata:
+  main: out/real/main/index.js
+asar: true
+asarUnpack:
+  - node_modules/better-sqlite3/**
+npmRebuild: false
+compression: normal
+artifactName: Retenia-instalador-${version}.${ext}
+win:
+  target:
+    - target: nsis
+      arch: x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: Retenia
+  deleteAppDataOnUninstall: false
+  guid: 07d46497-6f25-492d-966a-9fea67fafae1
+  language: "3082"
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
