@@ -283,3 +283,9 @@ p.itemText {
   color: var(--color-tinta-suave);
   font-weight: 600;
 }
+
+/* Una pantalla de bloques apilados con aire entre ellos (el historial). */
+.stack {
+  display: grid;
+  gap: 0.75rem;
+}

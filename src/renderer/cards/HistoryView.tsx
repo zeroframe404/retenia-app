@@ -35,7 +35,7 @@ export function HistoryView({ card, onClose }: { card: Card; onClose: () => void
   }, [card.id]);
 
   return (
-    <section className={styles.screen} aria-labelledby="titulo-historial">
+    <section className={`${styles.screen} ${styles.stack}`} aria-labelledby="titulo-historial">
       <div className={styles.header}>
         <h2 id="titulo-historial">{texts.history.title}</h2>
       </div>
