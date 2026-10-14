@@ -46,8 +46,32 @@ describe('pantalla «Tarjetas»: alta', () => {
   it('sin tarjetas muestra el estado vacío con la invitación a crear la primera', async () => {
     openScreen();
     expect(await screen.findByRole('heading', { name: 'Tarjetas' })).toBeTruthy();
-    expect(screen.getByText(/Todavía no tenés tarjetas/)).toBeTruthy();
+    expect(await screen.findByText(/Todavía no tenés tarjetas/)).toBeTruthy();
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+
+  it('mientras las tarjetas se leen no muestra el estado vacío: no se ve una lista vacía que después se llena', async () => {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((open) => {
+      release = open;
+    });
+    const list = bridge.handlers['cards.list'];
+    bridge.handlers['cards.list'] = async (request) => {
+      await gate;
+      return list(request);
+    };
+    await bridge.api['cards.create']({ question: 'Ya guardada', answer: 'x' });
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    render(<CardsScreen />);
+
+    expect(await screen.findByRole('heading', { name: 'Tarjetas' })).toBeTruthy();
+    expect(screen.queryByText(/Todavía no tenés tarjetas/)).toBeNull();
+    expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+    release();
+    expect(await screen.findByText('Ya guardada')).toBeTruthy();
+    expect(screen.queryByText(/Todavía no tenés tarjetas/)).toBeNull();
   });
 
   it('[CA-009] «Nueva tarjeta» con pregunta y respuesta y «Guardar»: cartel «Tarjeta guardada» y la tarjeta queda primera', async () => {
