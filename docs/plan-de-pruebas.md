@@ -128,6 +128,7 @@ Cómo quedó en la Fase 04:
 - CA-017 en I (`tests/integracion/corte.test.ts`): un programa hijo armado una vez por corrida con Vite (`src/data` usa `import.meta.glob`) abre una copia de una base preparada y se mata a sí mismo justo antes de cada sentencia de cada escritura (repasar, crear, editar, eliminar, restaurar de la Papelera, deshacer, vaciar) o entre los pasos con archivos de una copia y de una restauración; al reabrir, `integrity_check` da ok, el cambio está entero o no está y «Verificar datos» da 0.
 - Fuera de los criterios: contrato (C) de cada canal nuevo, componentes (R) de cada pantalla nueva, el catálogo de textos de la Fase 04 letra por letra, accesibilidad en claro y en oscuro de las pantallas nuevas, y una prueba estática (S) que compara cada migración que alguna vez entró al historial de git con su primer commit.
 - «Abrir carpeta de copias» usa el doble del Explorador de Windows (sección 4).
+- Un archivo tomado por Windows (como lo dejan el antivirus o el indexador) no es un doble: una prueba de integración lo toma de verdad con un PowerShell que lo abre sin compartirlo (`tests/apoyo/archivo-tomado.ts`).
 
 ### Fase 05 · Laboratorio de piezas riesgosas (H-07)
 
