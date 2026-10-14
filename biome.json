@@ -3,7 +3,14 @@
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!**/node_modules", "!**/out", "!**/.cache", "!**/datos-locales"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/out",
+      "!**/.cache",
+      "!**/datos-locales",
+      "!**/src/data/migrations/meta"
+    ]
   },
   "formatter": {
     "enabled": true,

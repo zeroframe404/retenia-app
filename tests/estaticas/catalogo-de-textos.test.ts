@@ -4,17 +4,24 @@ import { texts } from '../../src/preload/contract/texts';
 
 // El catálogo es el único lugar de los textos visibles (CLAUDE.md, secciones g y «Reglas del
 // producto»): castellano rioplatense con voseo, vocabulario del sistema, sin emojis y sin
-// textos técnicos. Las funciones del catálogo se prueban con argumentos de ejemplo.
-const SAMPLE_ARGUMENTS = ['miércoles 17/03/2027', 100000];
+// textos técnicos. Cada función del catálogo se prueba con los argumentos de ejemplo de acá
+// abajo; una función nueva sin ejemplo hace fallar la prueba.
+const SAMPLES: Record<string, unknown[]> = {
+  'texts.cards.questionTooLong': [100000],
+  'texts.cards.answerTooLong': [100000],
+  'texts.cards.nextReview': ['miércoles 17/03/2027'],
+  'demoTexts.ribbon': ['lunes 15/03/2027'],
+};
 
 function collect(value: unknown, path: string, out: { path: string; text: string }[]): void {
   if (typeof value === 'string') {
     out.push({ path, text: value });
   } else if (typeof value === 'function') {
-    out.push({
-      path,
-      text: String((value as (...args: unknown[]) => unknown)(...SAMPLE_ARGUMENTS)),
-    });
+    const args = SAMPLES[path];
+    if (!args) {
+      throw new Error(`El texto ${path} es una función y falta su ejemplo en SAMPLES`);
+    }
+    out.push({ path, text: String((value as (...a: unknown[]) => unknown)(...args)) });
   } else if (value && typeof value === 'object') {
     for (const [key, inner] of Object.entries(value)) {
       collect(inner, `${path}.${key}`, out);

@@ -3,10 +3,11 @@ import { createCardsStore } from '../../src/data/cards';
 import { openDatabase, type ReteniaDatabase } from '../../src/data/database';
 import { createHandlers, handleMessage, type Variant } from '../../src/main/bridge';
 import { buildApi, type Invoke } from '../../src/preload/api';
+import type { ApiOf, channels } from '../../src/preload/contract';
 import { tempDataFolder } from './base';
 
 export interface TestBridge {
-  api: ReturnType<typeof buildApi>;
+  api: ApiOf<typeof channels>;
   handlers: ReturnType<typeof createHandlers>;
   db: ReteniaDatabase;
   file: string;

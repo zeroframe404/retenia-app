@@ -12,7 +12,7 @@ import {
 
 export type Grade = 'again' | 'hard' | 'good';
 
-export const DEFAULT_RETENTION = 0.9;
+const DEFAULT_RETENTION = 0.9;
 
 const RATINGS: Record<Grade, FsrsGrade> = {
   again: Rating.Again,
@@ -89,7 +89,7 @@ export function reviewCard(
     stability: next.stability,
     difficulty: next.difficulty,
     dueAt: next.due,
-    lastReviewAt: next.last_review ?? now,
+    lastReviewAt: now,
     reps: next.reps,
     lapses: next.lapses,
     scheduledDays: next.scheduled_days,

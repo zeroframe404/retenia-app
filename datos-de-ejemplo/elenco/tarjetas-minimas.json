@@ -1,0 +1,14 @@
+[
+  {
+    "question": "¿Qué mide el desvío estándar?",
+    "answer": "Cuánto se alejan, en promedio, los datos de la media."
+  },
+  {
+    "question": "¿Qué es la varianza?",
+    "answer": "El promedio de los cuadrados de las distancias a la media."
+  },
+  {
+    "question": "¿Qué es la media muestral?",
+    "answer": "El promedio de los valores de una muestra."
+  }
+]

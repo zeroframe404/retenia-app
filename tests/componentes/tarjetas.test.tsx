@@ -56,7 +56,8 @@ describe('pantalla «Tarjetas»: alta', () => {
     await screen.findByText('Una anterior');
     await fillAndSave(user, { question: '¿Capital de Francia?', answer: 'París' });
 
-    expect((await screen.findByRole('status')).textContent).toBe('Tarjeta guardada');
+    const notice = await screen.findByText('Tarjeta guardada');
+    expect(notice.closest('[role="status"]')).not.toBeNull();
     const items = await screen.findAllByRole('listitem');
     expect(within(items[0] as HTMLElement).getByText('¿Capital de Francia?')).toBeTruthy();
     expect(within(items[1] as HTMLElement).getByText('Una anterior')).toBeTruthy();
