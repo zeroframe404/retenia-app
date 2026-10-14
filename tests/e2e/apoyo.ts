@@ -27,7 +27,7 @@ export function reteniaEnv(dataDir: string): Record<string, string> {
   return env;
 }
 
-export interface Launched {
+interface Launched {
   app: ElectronApplication;
   page: Page;
   // Cierra Retenia como lo haría quien cierra la ventana, dejando antes la traza como adjunto.

@@ -27,8 +27,9 @@ function isDemoFolder(folder) {
   return existsSync(marker) && readFileSync(marker, 'utf8') === MARKER_TEXT;
 }
 
-// Estado conocido de la Fase 02: la carpeta vacía con su marca. Desde la Fase 03 también
-// lleva el elenco.
+// Estado conocido: la carpeta vacía con su marca. Retenia (prueba) siembra sus tarjetas de
+// ejemplo la primera vez que abre una base vacía (src/main/demo/seed.ts), así que después de
+// reiniciar y abrir aparecen las tres de la Fase 03; el elenco completo llega en las fases siguientes.
 /** @param {string} [folder] */
 export function resetDemoData(folder = DEMO_DATA_DIR) {
   if (!isDemoFolder(folder)) {

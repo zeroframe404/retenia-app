@@ -307,6 +307,7 @@ export async function runNetwork({ full }) {
     const { titles, errors, raw } = await listTitles({ env: testEnv });
     saveLog('listado-vitest', raw.vitest);
     saveLog('listado-punta-a-punta', raw.e2e);
+    saveLog('listado-instalado', raw.installed);
     return { titles, problems: errors.map((e) => toolFailure(e.name, e.result)) };
   };
 

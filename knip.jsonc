@@ -7,6 +7,8 @@
     "src/renderer/globals.d.ts",
     "tools/*.mjs",
     "tools/hooks/*.mjs",
+    "playwright.instalado.config.ts",
+    "tests/instalado/*.spec.ts",
     "tests/sabotage/*.mjs"
   ],
   "project": ["src/**/*.{ts,tsx}", "tools/**/*.mjs", "tests/**/*.{ts,mjs}"],

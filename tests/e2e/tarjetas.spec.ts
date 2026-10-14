@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
 import type { Page } from '@playwright/test';
 import { expect, test } from './apoyo';
 
@@ -183,5 +185,34 @@ test('un texto larguísimo con ñ, tildes y emoji se guarda entero y la lista lo
   const second = await launch();
   await second.page.getByRole('listitem').first().getByRole('button', { name: 'Repasar' }).click();
   await expect(second.page.getByText('fin del texto')).toBeVisible();
+  await second.close();
+});
+
+test('después de «datos:reiniciar» la lista vuelve a tener solo las tres tarjetas de ejemplo', async ({
+  launch,
+  dataDir,
+}) => {
+  const reset = () =>
+    execFileSync(
+      process.execPath,
+      [resolve(import.meta.dirname, '../../tools/datos-reiniciar.mjs')],
+      {
+        env: { ...process.env, RETENIA_DATOS: dataDir },
+        encoding: 'utf8',
+      },
+    );
+  expect(reset()).toContain('quedó como nueva');
+
+  const first = await launch();
+  await createCard(first.page, '¿Capital de Francia?', 'París');
+  await expect(first.page.getByRole('listitem')).toHaveCount(4);
+  await first.close();
+
+  expect(reset()).toContain('Al abrir Retenia aparecen las tres tarjetas de ejemplo');
+  const second = await launch();
+  const items = second.page.getByRole('listitem');
+  await expect(items).toHaveCount(3);
+  await expect(itemWith(second.page, '¿Capital de Francia?')).toHaveCount(0);
+  await expect(items.first()).toContainText('¿Qué mide el desvío estándar?');
   await second.close();
 });

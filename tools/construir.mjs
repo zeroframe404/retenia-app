@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { ROOT, runPackage } from './lib/proceso.mjs';
 import { formatDuration } from './lib/reloj.mjs';
 
+// Tope de tamaño de cada instalador (docs/arquitectura.md, sección 7).
+const MAX_INSTALLER_BYTES = 150 * 1024 * 1024;
+
 const withInstaller = process.argv.includes('--instalador');
 const onlyIndex = process.argv.indexOf('--solo');
 const only = onlyIndex === -1 ? null : process.argv[onlyIndex + 1];
@@ -60,9 +63,16 @@ for (const variant of variants) {
       ? readdirSync(folder).filter((name) => name.endsWith('.exe'))
       : [];
     for (const name of installers) {
+      const size = statSync(join(folder, name)).size;
       console.log(
-        `Variante «${variant}»: instalador release/${variant}/${name} (${megabytes(statSync(join(folder, name)).size)}).`,
+        `Variante «${variant}»: instalador release/${variant}/${name} (${megabytes(size)}).`,
       );
+      if (size > MAX_INSTALLER_BYTES) {
+        failed = true;
+        console.log(
+          `Variante «${variant}»: el instalador pesa más que el tope de ${megabytes(MAX_INSTALLER_BYTES)}.`,
+        );
+      }
     }
     if (installers.length === 0) {
       failed = true;

@@ -31,8 +31,8 @@ test('[CA-014] abrir Retenia por segunda vez pasa al frente la ventana que ya es
   // La ventana está minimizada: «pasar al frente» tiene que devolverla.
   const windowState = () =>
     app.evaluate(({ BrowserWindow }) => {
-      const [window] = BrowserWindow.getAllWindows();
-      return { count: BrowserWindow.getAllWindows().length, minimized: window?.isMinimized() };
+      const [first] = BrowserWindow.getAllWindows();
+      return { count: BrowserWindow.getAllWindows().length, minimized: first?.isMinimized() };
     });
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.minimize());
   await expect.poll(windowState).toEqual({ count: 1, minimized: true });

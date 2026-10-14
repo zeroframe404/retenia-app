@@ -54,6 +54,7 @@ export default defineConfig({
           name: 'paquete',
           include: ['tests/paquete/**/*.test.ts'],
           testTimeout: 120_000,
+          maxWorkers: 3,
         },
       },
       {
