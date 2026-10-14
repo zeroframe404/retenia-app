@@ -17,7 +17,7 @@ import { buildCutChild, type CutChild, runCut } from '../apoyo/corte';
 let child: CutChild | undefined;
 let folder: ReturnType<typeof tempDataFolder>;
 let base = '';
-const ids = { reviewed: '', fresh: '', backup: '' };
+const ids = { reviewed: '', fresh: '', backup: '', trashEntry: '', edit: '' };
 
 beforeAll(async () => {
   folder = tempDataFolder();
@@ -39,11 +39,22 @@ beforeAll(async () => {
   workspace.cards.review({ cardId: reviewed.id, grade: 'good', attemptId: randomUUID() });
   // Una copia hecha a mano y, después de ella, un cambio más: restaurarla tiene que notarse.
   const backup = await workspace.createBackup('manual');
-  workspace.cards.create({ question: 'Hecha después de la copia', answer: 'x' });
+  const later = workspace.cards.create({ question: 'Hecha después de la copia', answer: 'x' });
+  // Una edición para deshacer y una tarjeta en la papelera para restaurar o vaciar.
+  workspace.cards.edit({
+    cardId: later.id,
+    question: 'Hecha después de la copia PRUEBA',
+    answer: 'x',
+  });
+  const [edit] = workspace.activity.recent();
+  const trashed = workspace.cards.create({ question: 'En la papelera', answer: 'x' });
+  const { trashEntryId } = workspace.cards.remove({ cardId: trashed.id });
   workspace.close();
   ids.reviewed = reviewed.id;
   ids.fresh = fresh.id;
   ids.backup = backup.id ?? '';
+  ids.trashEntry = trashEntryId;
+  ids.edit = edit?.id ?? '';
 }, 60_000);
 
 afterAll(() => {
@@ -188,6 +199,27 @@ describe('corte del proceso en cada punto de una escritura', () => {
       expect(state, `corte ${cutAt}`).toBe(cutAt === -1 ? 'después' : 'antes');
     }
   }, 120_000);
+
+  it.for([
+    { title: 'eliminar una tarjeta', operation: 'remove', key: 'cardId', id: 'fresh' },
+    {
+      title: 'restaurar de la papelera',
+      operation: 'restoreFromTrash',
+      key: 'entryId',
+      id: 'trashEntry',
+    },
+    { title: 'vaciar la papelera', operation: 'emptyTrash', key: 'none', id: 'fresh' },
+    { title: 'deshacer una edición', operation: 'undo', key: 'operationId', id: 'edit' },
+  ] as const)(
+    '[CA-017] cortar el proceso en cada punto de $title deja el cambio entero o ausente',
+    { timeout: 120_000 },
+    async ({ operation, key, id }) => {
+      const { outcomes } = await cutEverywhere(operation, { [key]: ids[id] });
+      for (const { cutAt, state } of outcomes) {
+        expect(state, `corte ${cutAt}`).toBe(cutAt === -1 ? 'después' : 'antes');
+      }
+    },
+  );
 
   it('[CA-017] cortar el proceso entre los pasos de «Hacer copia ahora» no toca la base ni deja una copia a medias en la lista', async () => {
     const { points, before, after } = await cutEverywhere('backup', { unit: 'paso' });

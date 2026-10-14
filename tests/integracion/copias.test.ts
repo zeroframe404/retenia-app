@@ -170,6 +170,40 @@ describe('«Hacer copia ahora»', () => {
 });
 
 describe('restaurar una copia', () => {
+  it('[CA-020] eliminar «¿Qué mide el desvío estándar?», vaciar la papelera y restaurar la copia de hoy la devuelve con sus dos renglones de historial', async () => {
+    const { folder } = dataFolder();
+    const monday = workspaceAt(folder);
+    const card = monday.cards.create({
+      question: '¿Qué mide el desvío estándar?',
+      answer: 'Cuánto se alejan, en promedio, los datos de la media.',
+    });
+    monday.cards.review({ cardId: card.id, grade: 'good', attemptId: randomUUID() });
+    closeWorkspace(monday);
+    const workspace = workspaceAt(folder, demoClock(7));
+    workspace.cards.review({ cardId: card.id, grade: 'hard', attemptId: randomUUID() });
+    const history = workspace.cards.history({ cardId: card.id });
+    const copy = await workspace.createBackup('manual');
+
+    workspace.cards.remove({ cardId: card.id });
+    expect(workspace.trash.empty()).toEqual({ purged: 1 });
+    expect(workspace.cards.list()).toEqual([]);
+
+    await workspace.restoreBackup(copy.id);
+    expect(workspace.cards.list().map((item) => item.question)).toEqual([
+      '¿Qué mide el desvío estándar?',
+    ]);
+    expect(workspace.cards.history({ cardId: card.id })).toEqual(history);
+    expect(history.entries.map(({ day, result }) => ({ day, result }))).toEqual([
+      { day: '2027-03-15', result: 'good' },
+      { day: '2027-03-22', result: 'hard' },
+    ]);
+    expect((await workspace.backups()).map((backup) => backup.kind)).toEqual([
+      'before_restore',
+      'manual',
+    ]);
+    expect(workspace.verifyData()).toEqual([]);
+  });
+
   it('[CA-020] restaurar deja la base igual a la copia y guarda antes una copia «Antes de restaurar» del estado que tenía', async () => {
     const { folder } = dataFolder();
     const workspace = workspaceAt(folder);

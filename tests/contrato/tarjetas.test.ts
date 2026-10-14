@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { demoClock } from '../../src/core/clock';
 import { handleMessage } from '../../src/main/bridge';
 import { createDemoHandlers } from '../../src/main/demo';
+import { createDemoDate } from '../../src/main/demo/clock';
 import { channels } from '../../src/preload/contract';
 import { MAX_CARD_TEXT_LENGTH } from '../../src/preload/contract/cards';
 import { demoChannels } from '../../src/preload/contract/demo';
@@ -172,8 +172,8 @@ describe('contrato del puente: canales de demostración', () => {
   });
 
   it('[CA-012] en la variante de prueba «demo.state» devuelve el día de estudio del reloj de demostración', async () => {
-    const { handlers } = bridge();
-    const demoHandlers = createDemoHandlers({ clock: demoClock() });
+    const { handlers, dataDir } = bridge();
+    const demoHandlers = createDemoHandlers(createDemoDate(dataDir));
     const registry = { ...channels, ...demoChannels() };
     await expect(
       handleMessage({ ...handlers, ...demoHandlers }, 'demo.state', {}, registry),

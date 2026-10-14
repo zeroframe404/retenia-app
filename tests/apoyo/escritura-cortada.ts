@@ -53,6 +53,10 @@ const operations: Record<string, () => unknown> = {
       question: field('question'),
       answer: field('answer'),
     }),
+  remove: () => workspace.cards.remove({ cardId: field('cardId') }),
+  restoreFromTrash: () => workspace.trash.restore({ entryId: field('entryId') }),
+  emptyTrash: () => workspace.trash.empty(),
+  undo: () => workspace.activity.undo({ operationId: field('operationId') }),
   backup: () => workspace.createBackup('manual'),
   restore: () => workspace.restoreBackup(field('backupId')),
 };

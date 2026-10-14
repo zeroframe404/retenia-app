@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { createDemoDate } from '../../src/main/demo/clock';
 import { ROOT, run } from '../../tools/lib/proceso.mjs';
 import { cleanEnv } from '../apoyo/red';
 
@@ -28,6 +29,25 @@ describe('datos de demostración', () => {
     expect(second.code).toBe(0);
     expect(second.stdout).toContain('quedó como nueva');
     expect(readdirSync(demo)).toEqual(['LEEME.txt']);
+  });
+
+  it('«npm run datos:reiniciar» también vuelve la fecha de demostración al lunes 15/03/2027 y saca las copias', async () => {
+    const demo = join(folder, 'demostracion-con-fecha');
+    expect((await resetData(demo)).code).toBe(0);
+    // Como queda después de usar Retenia: días sumados con «+7 días» y una copia.
+    createDemoDate(demo).advance(7);
+    mkdirSync(join(demo, 'copias'));
+    writeFileSync(
+      join(demo, 'copias', '2027-03-22-1000-hecha-por-vos-0000abcd.retenia-copia'),
+      'x',
+    );
+    expect(createDemoDate(demo).today()).toBe('2027-03-22');
+
+    const r = await resetData(demo);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toContain('la fecha vuelve al lunes 15/03/2027');
+    expect(readdirSync(demo)).toEqual(['LEEME.txt']);
+    expect(createDemoDate(demo).today()).toBe('2027-03-15');
   });
 
   it('«npm run datos:reiniciar» no borra una carpeta que no reconoce como de demostración', async () => {

@@ -1,6 +1,6 @@
+import { join } from 'node:path';
 import { type Clock, demoClock } from '../../src/core/clock';
-import { createCardsStore } from '../../src/data/cards';
-import { openDatabase, type ReteniaDatabase } from '../../src/data/database';
+import { openWorkspace, type Workspace } from '../../src/data/workspace';
 import { createHandlers, handleMessage, type Variant } from '../../src/main/bridge';
 import { buildApi, type Invoke } from '../../src/preload/api';
 import type { ApiOf, channels } from '../../src/preload/contract';
@@ -9,30 +9,43 @@ import { tempDataFolder } from './base';
 export interface TestBridge {
   api: ApiOf<typeof channels>;
   handlers: ReturnType<typeof createHandlers>;
-  db: ReteniaDatabase;
+  workspace: Workspace;
+  dataDir: string;
   file: string;
   // Cada mensaje que salió de la ventana hacia el principal, en orden.
   sent: { channel: string; request: unknown }[];
+  // Las carpetas que se pidió abrir con el Explorador de Windows (doble: no abre nada).
+  opened: string[];
   close: () => void;
 }
 
-// El puente armado como en Retenia: el manejador real del principal con una base real en un
-// archivo temporal y, del otro lado, window.retenia. Lo único que falta es Electron en el medio.
+// El puente armado como en Retenia: el manejador real del principal con una carpeta de datos
+// real (base, copias) y, del otro lado, window.retenia. Lo único que falta es Electron en el
+// medio y el Explorador de Windows, que es un doble declarado en docs/plan-de-pruebas.md: anota
+// la carpeta en vez de abrirla.
 export function openBridge({
   clock = demoClock(),
   variant = 'prueba',
+  openFolder,
 }: {
   clock?: Clock;
   variant?: Variant;
+  openFolder?: (path: string) => Promise<string>;
 } = {}): TestBridge {
   const data = tempDataFolder();
-  const db = openDatabase(data.file);
+  const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
+  const opened: string[] = [];
   const handlers = createHandlers({
     clock,
     variant,
-    cards: createCardsStore(db, clock),
-    dataDir: data.folder,
+    workspace,
     version: '0.0.0-prueba',
+    openFolder:
+      openFolder ??
+      (async (path) => {
+        opened.push(path);
+        return '';
+      }),
   });
   const sent: TestBridge['sent'] = [];
   const invoke: Invoke = async (channel, request) => {
@@ -42,11 +55,13 @@ export function openBridge({
   return {
     api: buildApi(invoke),
     handlers,
-    db,
-    file: data.file,
+    workspace,
+    dataDir: data.folder,
+    file: join(data.folder, 'retenia.db'),
     sent,
+    opened,
     close: () => {
-      db.close();
+      workspace.close();
       data.remove();
     },
   };
