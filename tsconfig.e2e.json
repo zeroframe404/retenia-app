@@ -4,5 +4,10 @@
     "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "types": ["node"]
   },
-  "include": ["tests/e2e/**/*.ts", "src/renderer/globals.d.ts", "src/preload/contract/**/*.ts"]
+  "include": [
+    "tests/e2e/**/*.ts",
+    "tests/instalado/**/*.ts",
+    "src/renderer/globals.d.ts",
+    "src/preload/contract/**/*.ts"
+  ]
 }

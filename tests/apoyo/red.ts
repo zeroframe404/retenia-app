@@ -55,6 +55,15 @@ export async function copyProject(): Promise<string> {
   await git(copy, 'init', '-q', '-b', branch && branch !== 'HEAD' ? branch : 'copia');
   await git(copy, 'add', '-A');
   await git(copy, 'commit', '-q', '-m', 'copia del proyecto para la red');
+  // Y con las mismas fases cerradas: la red lee los tags fase-NN-ok (qué fases están cerradas
+  // y cuántas pruebas tenían), y sin ellos la copia se comportaría como un proyecto sin historia.
+  const closed = (await git(ROOT, 'tag', '--list', 'fase-*-ok')).stdout
+    .split(/\r?\n/)
+    .filter(Boolean);
+  for (const tag of closed) {
+    const message = (await git(ROOT, 'tag', '-l', '--format=%(contents)', tag)).stdout.trim();
+    await git(copy, 'tag', '-a', tag, '-m', message || 'Fase aprobada.');
+  }
   return copy;
 }
 

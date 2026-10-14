@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { formatLongDate, texts } from '../../preload/contract/texts';
+import { demoTexts } from '../../preload/contract/demo-texts';
+import { formatLongDate } from '../../preload/contract/texts';
 import styles from './DemoRibbon.module.css';
 
 // Cinta superior de «Retenia (prueba)». La fecha llega por el puente desde el reloj del
@@ -9,8 +10,7 @@ export function DemoRibbon() {
 
   useEffect(() => {
     let active = true;
-    window.retenia
-      .ping({ message: 'ping' })
+    window.retenia['demo.state']({})
       .then((response) => {
         if (active) {
           setToday(response.today);
@@ -29,7 +29,7 @@ export function DemoRibbon() {
   }
   return (
     <header className={styles.ribbon}>
-      <p className={styles.text}>{texts.demoRibbon(formatLongDate(today))}</p>
+      <p className={styles.text}>{demoTexts.ribbon(formatLongDate(today))}</p>
     </header>
   );
 }

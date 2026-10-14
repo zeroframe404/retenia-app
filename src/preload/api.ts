@@ -1,13 +1,15 @@
-import { type ChannelName, channels, type ReteniaApi } from './contract';
+import { type ApiOf, channels, type Registry } from './contract';
 
-export type Invoke = (channel: ChannelName, request: unknown) => Promise<unknown>;
+export type Invoke = (channel: string, request: unknown) => Promise<unknown>;
 
 // Arma window.retenia recorriendo el contrato. Cada petición se valida antes de salir y
 // cada respuesta antes de llegar a la ventana; lo inválido se rechaza con un error neutro.
-export function buildApi(invoke: Invoke): ReteniaApi {
+// Sin registro usa los canales del contrato; la variante de prueba suma los suyos.
+export function buildApi(invoke: Invoke): ApiOf<typeof channels>;
+export function buildApi<R extends Registry>(invoke: Invoke, registry: R): ApiOf<R>;
+export function buildApi(invoke: Invoke, registry: Registry = channels): unknown {
   const api: Record<string, (request: unknown) => Promise<unknown>> = {};
-  for (const name of Object.keys(channels) as ChannelName[]) {
-    const schema = channels[name];
+  for (const [name, schema] of Object.entries(registry)) {
     api[name] = async (request) => {
       const parsedRequest = schema.request.safeParse(request);
       if (!parsedRequest.success) {
@@ -20,5 +22,5 @@ export function buildApi(invoke: Invoke): ReteniaApi {
       return response.data;
     };
   }
-  return api as ReteniaApi;
+  return api;
 }

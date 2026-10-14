@@ -70,7 +70,7 @@ Como estudiante quiero crear una tarjeta, repasarla y encontrarla al volver, par
   - cuando toco «Guardar»,
   - entonces el campo se marca con «Escribí la pregunta», lo que escribí en la respuesta sigue ahí y no se crea ninguna tarjeta.
 
-Notas: en la Fase 03 el motor de memoria todavía no existe. La fecha de CA-010 sale de una regla fija (tarjeta nueva + «La sabía» = 2 días). La Fase 09 reemplaza esa regla por el motor y tiene que dar la misma fecha (ver CA-058).
+Notas: en la Fase 03 la fecha de CA-010 sale de un envoltorio mínimo de ts-fsrs (FSRS-6 con parámetros por defecto, retención 0,90, sin variación al azar y sin pasos de aprendizaje de minutos): tarjeta nueva + «La sabía» = 2 días. La Fase 09 construye el motor completo y tiene que dar la misma fecha (ver CA-058).
 
 ## H-03 · Imprescindible · Fase 03
 

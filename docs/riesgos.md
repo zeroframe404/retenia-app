@@ -21,7 +21,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** Playwright sigue marcando su soporte de Electron como experimental. Cada versión mayor de Electron puede romper el arranque de las pruebas; el fuse `EnableNodeCliInspectArguments` tiene que seguir encendido en la variante de prueba; las máquinas del CI son más lentas y con otra resolución.
 - **Cómo nos damos cuenta.** La primera prueba de punta a punta (Fase 02) y el instalador (Fase 03) se corren en esta PC y en el CI. Un arranque que falla intermitentemente se detecta con las 20 corridas seguidas (CA-333).
 - **Plan B.** WebdriverIO con `@wdio/electron-service` también para la punta a punta, con la misma estrategia de selectores por rol y texto, así las pruebas se portan sin reescribir la intención. Está elegido de todas formas para probar el programa instalado y la versión real.
-- **Estado hoy.** Comprobado en esta PC el 13/10/2026: Playwright 1.64.0 lanza Electron 44.7.0 y lee la ventana en menos de un segundo.
+- **Estado hoy.** Comprobado en esta PC el 13/10/2026: Playwright 1.64.0 lanza Electron 44.7.0 y lee la ventana en menos de un segundo. El 14/10/2026 (Fase 03) también abre el programa empaquetado y el instalado (instalado en silencio y desinstalado, 5 pasos en 11 segundos), así que para la variante de prueba no hace falta el plan B; WebdriverIO queda para la versión real endurecida (Fase 36).
 - **Se comprueba en** la Fase 02 (primera prueba E) y la Fase 03 (programa instalado).
 
 ## 2. Voz y transcripción dentro del instalador
@@ -44,6 +44,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** Electron ocupa unos 100 MB instalado; sherpa-onnx suma 25 MB de DLL; pdf.js, KaTeX con sus fuentes, el núcleo de tesseract.js y el curso de inglés suman más. Un instalador de 200 MB hace lenta cada actualización y cada corrida del CI.
 - **Cómo nos damos cuenta.** El CI mide el tamaño del instalador en cada pull request desde la Fase 03 y falla si supera 150 MB.
 - **Plan B.** Mover sherpa-onnx (las DLL, no solo los modelos) a la descarga única; comprimir el instalador con LZMA (lo hace NSIS); dejar el núcleo de tesseract.js fuera del asar pero dentro del instalador, que es más chico que descargarlo.
+- **Estado hoy.** El instalador de «Retenia (prueba)» pesa unos 116 MB (14/10/2026), con Electron, la base de datos y las pantallas; el CI lo mide y falla si pasa de 150 MB. Falta lo que traen las fases siguientes (sherpa-onnx, pdf.js, KaTeX, el curso de inglés).
 - **Se comprueba en** la Fase 03 (y en cada pull request después).
 
 ## 5. Costo de la IA

@@ -2,7 +2,15 @@
 :root {
   color-scheme: light dark;
   --color-fondo: #f7f6f2;
+  --color-superficie: #ffffff;
   --color-tinta: #1d1d1b;
+  --color-tinta-suave: #55534b;
+  --color-borde: #d6d2c4;
+  --color-borde-fuerte: #8d897b;
+  --color-primario-fondo: #2c4a3e;
+  --color-primario-tinta: #ffffff;
+  --color-aviso: #7a4b00;
+  --color-foco: #1a56b8;
   --color-cinta-fondo: #e8e0c4;
   --color-cinta-tinta: #3b3524;
   --fuente: "Segoe UI", system-ui, sans-serif;
@@ -11,7 +19,15 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --color-fondo: #16171a;
+    --color-superficie: #1f2126;
     --color-tinta: #ecebe6;
+    --color-tinta-suave: #b6b4aa;
+    --color-borde: #34363c;
+    --color-borde-fuerte: #6f7077;
+    --color-primario-fondo: #a9d3bf;
+    --color-primario-tinta: #10231b;
+    --color-aviso: #f0c36d;
+    --color-foco: #8ab4ff;
     --color-cinta-fondo: #3a3423;
     --color-cinta-tinta: #f1e7c4;
   }

@@ -1,6 +1,10 @@
 # La red de pruebas en la nube, sobre Windows como tu PC.
-# - En cada pull request: «npm run verificar:todo» y compilar las dos variantes, con el informe
-#   y las trazas de punta a punta como adjuntos.
+# - En cada pull request, trabajo «red»: "npm run verificar:todo" (que compila y empaqueta las
+#   dos variantes), con el informe y las trazas de punta a punta como adjuntos.
+# - En cada pull request, trabajo «instalador»: arma los dos instaladores (NSIS), mide su tamaño,
+#   instala "Retenia (prueba)" en silencio en una Windows limpia, la abre, crea una tarjeta, la
+#   cierra, la abre de nuevo y la desinstala. Deja el instalador de prueba como adjunto
+#   («instalador-prueba»): es el que baja "Bajame el instalador de prueba".
 # - Una vez por semana (y a pedido): todo lo anterior solo, más los cuatro sabotajes.
 # Las acciones van fijadas por su huella; al lado, la versión.
 name: Red de pruebas
@@ -54,9 +58,6 @@ jobs:
       - name: Red completa (verificar:todo)
         run: npm run verificar:todo
 
-      - name: Compilar las dos variantes
-        run: npm run construir
-
       - name: Repetir los cuatro sabotajes
         if: github.event_name != 'pull_request'
         shell: bash
@@ -77,6 +78,55 @@ jobs:
           path: |
             .cache/red/corridas/
             .cache/tablero/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 2
+
+  instalador:
+    name: Instaladores y humo del instalador
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Bajar el código con sus tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Node 24.21.0 (el mismo de Electron 44)
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+          cache: npm
+
+      - name: Instalar las dependencias del lockfile
+        run: npm ci
+
+      - name: Armar los dos instaladores y medir su tamaño (tope 150 MB)
+        run: npm run construir -- --instalador
+
+      - name: Dejar el instalador de prueba como adjunto
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: instalador-prueba
+          path: release/prueba/Retenia-prueba-instalador-*.exe
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Humo del instalador (instalar en silencio, abrir, crear una tarjeta, cerrar, abrir, desinstalar)
+        shell: bash
+        env:
+          RETENIA_RUN_DIR: ${{ github.workspace }}/.cache/red/instalado
+        run: |
+          installer=$(ls release/prueba/Retenia-prueba-instalador-*.exe | head -n 1)
+          RETENIA_INSTALADOR="$installer" npx playwright test --config playwright.instalado.config.ts
+
+      - name: Adjuntar el informe del humo
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: informe-del-humo
+          path: .cache/red/instalado/
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 2

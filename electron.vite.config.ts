@@ -11,9 +11,15 @@ const define = { __VARIANTE__: JSON.stringify(variant) };
 export default defineConfig({
   main: {
     define,
-    build: { outDir: resolve(out, 'main') },
+    build: {
+      outDir: resolve(out, 'main'),
+      // Todo va adentro del archivo menos better-sqlite3, que trae su parte nativa y viaja
+      // aparte (asarUnpack en electron-builder).
+      externalizeDeps: { exclude: ['drizzle-orm', 'ts-fsrs', 'zod'] },
+    },
   },
   preload: {
+    define,
     // La ventana corre con sandbox: el puente tiene que ser un solo archivo CommonJS,
     // con Zod adentro.
     build: {

@@ -20,6 +20,17 @@ export default defineConfig({
       },
       { extends: true, test: { name: 'contrato', include: ['tests/contrato/**/*.test.ts'] } },
       {
+        // Las pantallas de la ventana (capa R): Testing Library con jsdom.
+        extends: true,
+        esbuild: { jsx: 'automatic' },
+        test: {
+          name: 'componentes',
+          include: ['tests/componentes/**/*.test.tsx'],
+          environment: 'jsdom',
+          testTimeout: 30_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'integracion',
@@ -33,6 +44,17 @@ export default defineConfig({
           name: 'estaticas',
           include: ['tests/estaticas/**/*.test.ts'],
           testTimeout: 30_000,
+        },
+      },
+      {
+        // El programa empaquetado de cada variante, tal como lo deja «npm run construir»
+        // (CA-013, fuses). Solo en «verificar:todo».
+        extends: true,
+        test: {
+          name: 'paquete',
+          include: ['tests/paquete/**/*.test.ts'],
+          testTimeout: 120_000,
+          maxWorkers: 3,
         },
       },
       {

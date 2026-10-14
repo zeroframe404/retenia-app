@@ -1,28 +1,35 @@
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, session } from 'electron';
 import { demoClock, systemClock } from '../core/clock';
-import { channels } from '../preload/contract';
+import { createCardsStore } from '../data/cards';
+import { openDatabase } from '../data/database';
+import { channels, type Registry } from '../preload/contract';
+import { demoChannels } from '../preload/contract/demo';
 import { texts } from '../preload/contract/texts';
 import { createHandlers, handleMessage, type Variant } from './bridge';
+import { createDemoHandlers } from './demo';
+import { seedDemoCards } from './demo/seed';
 
 const variant: Variant = __VARIANTE__;
+const isTest = __VARIANTE__ === 'prueba';
+const productName = isTest ? texts.appNameTest : texts.appName;
 
-app.setName(variant === 'prueba' ? texts.appNameTest : texts.appName);
+app.setName(productName);
 
-// La variante de prueba acepta una carpeta de datos propia (RETENIA_DATOS), para que cada
-// prueba de punta a punta y «npm run iniciar» usen la suya. La versión real la ignora.
-const dataDir = process.env.RETENIA_DATOS;
-if (variant === 'prueba' && dataDir) {
-  app.setPath('userData', resolve(dataDir));
+// Los datos viven en la carpeta de datos de aplicaciones de la cuenta de Windows, una por
+// variante («Retenia» y «Retenia (prueba)»), nunca dentro de la carpeta del programa. La
+// variante de prueba acepta además una carpeta propia (RETENIA_DATOS), para que cada prueba de
+// punta a punta y «npm run iniciar» usen la suya. La versión real la ignora.
+let dataDir = join(app.getPath('appData'), productName);
+if (__VARIANTE__ === 'prueba' && process.env.RETENIA_DATOS) {
+  dataDir = resolve(process.env.RETENIA_DATOS);
 }
+app.setPath('userData', dataDir);
 
-const handlers = createHandlers({
-  clock: variant === 'prueba' ? demoClock() : systemClock(),
-  variant,
-});
+let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     title: texts.appName,
     width: 1100,
     height: 720,
@@ -35,27 +42,81 @@ function createWindow(): void {
       nodeIntegration: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
-      devTools: variant === 'prueba',
+      devTools: isTest,
       spellcheck: false,
     },
   });
-  mainWindow.once('ready-to-show', () => mainWindow.show());
-  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
-  void mainWindow.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
+  const window = mainWindow;
+  window.once('ready-to-show', () => window.show());
+  window.on('closed', () => {
+    mainWindow = null;
+  });
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  void window.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
 }
 
-app.whenReady().then(() => {
+// Una sola instancia (CA-014): si se abre una segunda, la primera pasa al frente.
+function bringToFront(): void {
+  if (!mainWindow) {
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function start(): void {
+  const clock = isTest ? demoClock() : systemClock();
+  const db = openDatabase(join(dataDir, 'retenia.db'), { clock });
+  app.on('quit', () => db.close());
+  const cards = createCardsStore(db, clock);
+  if (__VARIANTE__ === 'prueba') {
+    seedDemoCards(cards);
+  }
+
+  let handlers: Record<string, (request: never) => Promise<unknown>> = createHandlers({
+    clock,
+    variant,
+    cards,
+    dataDir,
+    version: app.getVersion(),
+  });
+  let registry: Registry = channels;
+  if (__VARIANTE__ === 'prueba') {
+    handlers = { ...handlers, ...createDemoHandlers({ clock }) };
+    registry = { ...channels, ...demoChannels() };
+  }
+
   Menu.setApplicationMenu(null);
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) =>
     decide(false),
   );
-  for (const channel of Object.keys(channels)) {
+  const known = registry;
+  const routes = handlers;
+  for (const channel of Object.keys(known)) {
     ipcMain.handle(channel, (_event, request: unknown) =>
-      handleMessage(handlers, channel, request),
+      handleMessage(routes, channel, request, known),
     );
   }
   createWindow();
-});
+}
 
-app.on('window-all-closed', () => app.quit());
+if (app.requestSingleInstanceLock()) {
+  app.on('second-instance', bringToFront);
+  app
+    .whenReady()
+    .then(start)
+    .catch((error: unknown) => {
+      // Sin base no hay programa: se sale en vez de quedar escondida sin ventana y con el candado
+      // de la instancia única tomado. El aviso en castellano y la recuperación llegan en la
+      // Fase 39.
+      console.error('Retenia no pudo abrir su base de datos', error);
+      app.exit(1);
+    });
+  app.on('window-all-closed', () => app.quit());
+} else {
+  app.quit();
+}

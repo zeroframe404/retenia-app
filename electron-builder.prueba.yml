@@ -1,0 +1,50 @@
+# Instalador de «Retenia (prueba)»: el que trae el modo demostración (docs/arquitectura.md,
+# secciones 6 y 7). El identificador y el guid de abajo se fijaron en la Fase 03 y no cambian:
+# cambiarlos rompería las actualizaciones silenciosas y mezclaría las carpetas de datos.
+appId: io.github.zeroframe404.retenia-prueba
+productName: Retenia (prueba)
+executableName: Retenia (prueba)
+copyright: zeroframe404
+directories:
+  output: release/prueba
+files:
+  - out/prueba/**/*
+  - package.json
+  # Zod, Drizzle y ts-fsrs ya viajan adentro del archivo principal; de better-sqlite3 solo
+  # hace falta lo que usa en Windows de 64 bits.
+  - "!node_modules/{drizzle-orm,ts-fsrs,zod}/**"
+  - "!node_modules/better-sqlite3/{deps,src}/**"
+  - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
+  - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"
+  - "!node_modules/better-sqlite3/prebuilds/win32-arm64.node"
+extraMetadata:
+  main: out/prueba/main/index.js
+asar: true
+asarUnpack:
+  - node_modules/better-sqlite3/**
+npmRebuild: false
+compression: normal
+artifactName: Retenia-prueba-instalador-${version}.${ext}
+win:
+  target:
+    - target: nsis
+      arch: x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: false
+  createDesktopShortcut: false
+  createStartMenuShortcut: true
+  shortcutName: Retenia (prueba)
+  deleteAppDataOnUninstall: false
+  guid: ab0e1494-aefb-4ff4-ab9c-a80f7839c37a
+  language: "3082"
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  # La variante de prueba lo necesita encendido para que Playwright pueda abrirla.
+  enableNodeCliInspectArguments: true
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
