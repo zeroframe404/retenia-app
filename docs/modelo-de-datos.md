@@ -1,10 +1,12 @@
 # Modelo de datos
 
-Versión 1 (Fase 01, 13/10/2026). Una sola base SQLite por instalación (`retenia.db`), en modo WAL con `synchronous = FULL`, manejada solo desde `src/data` con Drizzle. Las tablas se nombran en inglés, en `snake_case`; los identificadores son UUID versión 7 en texto; los instantes van en ISO 8601 UTC y los días de estudio como `YYYY-MM-DD` calculados por `core` con el corte de las 04:00 de Buenos Aires.
+Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
+
+Una sola base SQLite por instalación (`retenia.db`), en modo WAL con `synchronous = FULL`, manejada solo desde `src/data` con Drizzle. Las tablas se nombran en inglés, en `snake_case`; los identificadores son UUID versión 7 en texto; los instantes van en ISO 8601 UTC y los días de estudio como `YYYY-MM-DD` calculados por `core` con el corte de las 04:00 de Buenos Aires.
 
 Cuatro reglas que no se negocian:
 
-1. **El historial solo se agrega.** Las observaciones y las evaluaciones nunca se actualizan ni se borran: disparadores de SQLite (`BEFORE UPDATE` y `BEFORE DELETE` con `RAISE(ABORT)`) lo impiden incluso a un error de programación. Deshacer, corregir o apelar agrega una fila nueva que apunta a la anterior.
+1. **El historial solo se agrega.** Las observaciones, las evaluaciones y las operaciones (Fase 04) nunca se actualizan ni se borran: disparadores de SQLite (`BEFORE UPDATE` y `BEFORE DELETE` con `RAISE(ABORT)`) lo impiden incluso a un error de programación. Deshacer, corregir o apelar agrega una fila nueva que apunta a la anterior.
 2. **Todo estado se recalcula.** Las proyecciones (vencimientos, estados de dominio, contadores) se pueden borrar y reconstruir desde el historial y el contenido, en orden estable, y dan lo mismo. «Verificar datos» hace exactamente eso y compara (CA-016, CA-062).
 3. **El contenido se versiona.** Un apunte, una tarjeta o un ejercicio tiene una fila «cabeza» y filas de versión inmutables; editar crea una versión; «Deshacer» crea otra versión igual a la anterior.
 4. **Las migraciones solo agregan.** Tablas y columnas nuevas (con valor por defecto o nulas), índices y disparadores. Nunca `DROP`, `RENAME` ni `ALTER … DROP`. Un dato que cambia de forma se escribe en una columna nueva y se rellena desde el historial.
@@ -15,10 +17,13 @@ Cuatro reglas que no se negocian:
 
 | Columna | Tipo | Qué es |
 |---|---|---|
-| `id` | TEXT, PK | UUID v7 (ordenable por tiempo). |
+| `id` | TEXT, PK | UUID v7 (ordenable por tiempo), generado en el principal antes de guardar. |
 | `kind` | TEXT | Tipo de observación (lista cerrada abajo). |
 | `occurred_at` | TEXT | Instante en que ocurrió, ISO UTC con milisegundos. |
 | `recorded_at` | TEXT | Instante en que se guardó (puede ser después, por ejemplo al importar). |
+| `time_zone` | TEXT | Zona horaria de quien lo registró: `America/Argentina/Buenos_Aires` (Fase 04). |
+| `device_id` | TEXT | El dispositivo que lo registró (`ledger_state.device_id`) (Fase 04). |
+| `seq` | INTEGER | Número de secuencia del dispositivo, uno solo para observaciones, evaluaciones y operaciones; UNIQUE con `device_id`. Es el orden canónico (Fase 04). |
 | `subject_id` | TEXT, nulo | Materia, cuando aplica, para filtrar rápido. |
 | `payload` | TEXT (JSON) | Los datos del tipo, validados con el esquema Zod de ese `kind` y esa `schema_version`. |
 | `schema_version` | INTEGER | Versión del esquema del `payload`; los esquemas viejos se conservan para leer historial viejo. |
@@ -27,11 +32,14 @@ Cuatro reglas que no se negocian:
 
 Índices: `(kind, occurred_at)`, `(subject_id, occurred_at)`, y por entidad dentro del `payload` mediante columnas generadas para las dos consultas calientes: `card_id` y `objective_id` (columnas `GENERATED ALWAYS AS (json_extract(payload, '$.cardId')) VIRTUAL` con índice).
 
+Fase 04: existen `(kind, occurred_at)`, la columna generada `card_id` con índice `(card_id, seq)`, UNIQUE `idempotency_key` y UNIQUE (`device_id`, `seq`); `subject_id` y `objective_id` llegan agregando con sus fases.
+
 Tipos de observación (`kind`) y lo esencial de su `payload`:
 
 | `kind` | Payload | Historias |
 |---|---|---|
-| `review.graded` | `cardId, sessionId, grade ('again' \| 'hard' \| 'good'), helpLevel ('A0'…'A4'), optionsQuestion (bool), shownAt, durationMs, dueAtThen` | H-02, H-04, H-15, H-16, H-21 |
+| `review.graded` | `cardId, sessionId, grade ('again' \| 'hard' \| 'good'), helpLevel ('A0'…'A4'), optionsQuestion (bool), shownAt, durationMs, dueAtThen`. Versión 1 del esquema (Fase 04): `cardId, grade, helpLevel 'A0', dueAtThen`; la sesión, los tiempos y la ayuda llegan con su fase como versión 2. Clave de idempotencia `review:<attemptId>` (la ventana genera `attemptId` al abrir el repaso). | H-02, H-04, H-15, H-16, H-21 |
+| `schedule.adopted` | `cardId, memory` (la agenda que traía una tarjeta de una base de la Fase 03, repasada sin historial). Una sola vez por tarjeta, clave `adopt:<cardId>`, fuente `system` (Fase 04). | H-04 |
 | `review.annulled` | `reviewId` (la observación anulada) | H-15, H-16 |
 | `attempt.submitted` | `activityType ('card' \| 'exercise' \| 'lesson' \| 'word' \| 'contrast' \| 'writing' \| 'dictation' \| 'probe30' \| 'simulacro'), activityId, sessionId?, answer (texto, número u opción), helpLevel, optionsQuestion, variantId?, durationMs` | H-31, H-32, H-37 a H-39, H-54, H-59, H-61, H-63 a H-65, H-67 |
 | `hint.requested` | `activityId, sessionId, level` | H-32, H-47 |
@@ -61,7 +69,9 @@ Lo que **no** es observación: los cambios de contenido (van como versiones), lo
 
 ### 1.2 Evaluaciones (`evaluations`): versionadas, se enmiendan agregando
 
-Una evaluación dice qué resultado tuvo un intento. Se agregan versiones; la vigente es la de mayor `version` sin `superseded_by`.
+Una evaluación dice qué resultado tuvo un intento. Se agregan versiones; la vigente es la de mayor `version` (no hay columna `superseded_by`: eso obligaría a modificar la anterior). Un disparador exige que la versión 1 no enmiende nada y que la N enmiende la N-1 del mismo intento; UNIQUE (`attempt_id`, `version`).
+
+Fase 04: cada repaso de tarjeta escribe su evaluación versión 1 (fuente `user`, veredicto `correct` para «La sabía», `partial` para «Con dudas» e `incorrect` para «No la sabía») y la agenda usa la calificación de la vigente. La tabla tiene por ahora `id, attempt_id, version, supersedes_id, verdict, source, created_at` más `time_zone`, `device_id` y `seq`; las demás columnas entran agregando en la fase que las use.
 
 | Columna | Qué es |
 |---|---|
@@ -84,7 +94,9 @@ Una evaluación dice qué resultado tuvo un intento. Se agregan versiones; la vi
 
 ### 1.3 Inferencias (proyecciones): recalculables
 
-Cada proyección tiene una función pura en `core` que la calcula desde observaciones, evaluaciones y contenido, en orden `(occurred_at, id)`, con el reloj inyectado. Se actualizan en la misma transacción que la observación que las afecta, y «Verificar datos» las reconstruye en tablas temporales y las compara fila por fila.
+Cada proyección tiene una función pura en `core` que la calcula desde observaciones, evaluaciones y contenido, con el reloj inyectado. Se actualizan en la misma transacción que la observación que las afecta, y «Verificar datos» las reconstruye y las compara campo por campo.
+
+Orden canónico (Fase 04): el número de secuencia (`seq`), con el identificador como desempate; ya no `(occurred_at, id)`. «Restablecer fecha» y un reloj de PC atrasado hacen que la hora vaya para atrás; con la secuencia el recálculo da lo mismo que el cálculo hecho en el momento y el historial solo crece al final. La agenda de una tarjeta se recalcula en cada escritura leyendo todos sus eventos de la base, con la misma función (`projectCardMemory`, versión del motor 1, retención 0,90) que usa «Verificar datos».
 
 | Tabla | Clave | Columnas principales | Calculada por | Historias |
 |---|---|---|---|---|
@@ -105,9 +117,30 @@ Cada proyección tiene una función pura en `core` que la calcula desde observac
 | `error_notebook_user` | `evaluation_id, index` | `text, correct, type, topic_id, course?` | `core/measures` | H-36, H-38, H-65 |
 | `search_documents` + `search_index` (FTS5) | `doc_id` | ver sección 3 | `data/search` | H-23, H-24 |
 
+### 1.4 Operaciones (`operations`): el registro para deshacer (Fase 04)
+
+Cada alta, edición, borrado, restauración desde la Papelera y vaciado de una tarjeta. Solo se agrega (disparadores como los de las observaciones). «Deshacer» agrega una operación del tipo inverso con `undoes_id`; nunca modifica ni borra una anterior.
+
+| Columna | Qué es |
+|---|---|
+| `id` | UUID v7. |
+| `kind` | `card.create` · `card.edit` · `card.delete` · `card.restore` · `card.purge`. |
+| `entity_type`, `entity_id` | `card` y la tarjeta. |
+| `version_before_id`, `version_after_id` | Las versiones de contenido antes y después (sin clave foránea: sobreviven a vaciar la papelera). |
+| `trash_entry_id` | La entrada de la Papelera, en borrados, restauraciones y vaciados. |
+| `undoes_id` | La operación que esta deshace, si es un «Deshacer». |
+| `source` | `user`, `system` (vencimiento de la Papelera) o `demo` (siembra del ejemplo). «Actividad reciente» muestra solo `user`. |
+| `occurred_at`, `recorded_at`, `time_zone`, `device_id`, `seq` | Como en las observaciones. |
+
+Índices: UNIQUE (`device_id`, `seq`) y (`entity_type`, `entity_id`, `seq`).
+
+`ledger_state` (una fila): `device_id` (UUID v7 creado al abrir la base por primera vez) y `last_seq`, que se suma en la misma transacción que cada evento. Al restaurar una copia vieja, el dispositivo sigue y `last_seq` toma el mayor de los dos: un par (dispositivo, número) nunca se repite.
+
 ## 2. Contenido con versiones inmutables
 
 Convención: la tabla «cabeza» guarda identidad, pertenencia y `current_version_id`; la tabla `*_versions` guarda cada estado del contenido con `created_at` y `cause` (`edit`, `undo`, `import`, `correction`, `ai`, `restore`). Borrar es marcar `deleted_at` y crear una entrada en `trash_entries`; a los 30 días se eliminan las versiones de contenido, nunca las observaciones que las mencionan (el historial muestra «(eliminada)»).
+
+Fase 04, tarjetas: la cabeza `cards` tiene por ahora `id, current_version_id, created_at, deleted_at` y `card_versions` tiene `id, card_id, question, answer, created_at, cause` (`edit` al crear o editar, `undo` al deshacer); las demás columnas entran agregando. Vaciar la papelera (o su vencimiento a los 30 días, que corre al abrir después de la copia automática) borra en una transacción la agenda, las versiones y la cabeza, marca `purged_at` y agrega la operación `card.purge`; las observaciones, las evaluaciones y las operaciones de esa tarjeta quedan.
 
 ### Organización
 
@@ -160,15 +193,25 @@ Convención: la tabla «cabeza» guarda identidad, pertenencia y `current_versio
 | Tabla | Columnas | Historias |
 |---|---|---|
 | `settings` | `key, value (JSON), updated_at` | H-08, H-19, H-40, H-51, H-53 |
-| `trash_entries` | `id, entity_type, entity_id, deleted_at, expires_at, restored_at` | H-05, H-06 |
+| `trash_entries` | `id, entity_type, entity_id, deleted_at, expires_at, restored_at, purged_at` (`purged_at`: Fase 04) | H-05, H-06 |
+| `purge_permits` | `entity_type, entity_id` (Fase 04): el permiso para borrar las versiones de una tarjeta; se agrega y se saca dentro de la transacción de vaciar la papelera, así que fuera de ella siempre está vacía | H-06 |
 | `ai_requests` | `id, at, purpose, task, model, prompt_version, rubric_version, fragments (JSON: materialId, pageNo, sha256, chars), input_tokens, cache_write_tokens, cache_read_tokens, output_tokens, usd, status ('ok' \| 'rejected_schema' \| 'failed' \| 'pending'), related_attempt_id?` (solo se agrega) | H-40, H-41, H-43 |
 | `ai_material_permissions` | `material_id, scope ('once' \| 'always' \| 'never'), decided_at` | H-40 |
-| `backups` | `id, created_at, kind ('auto' \| 'manual' \| 'before_import' \| 'before_update' \| 'before_restore'), file, size_bytes, db_sha256, manifest (JSON de huellas), verified_at, last_checked_at` | H-05, H-29, H-72, H-73 |
+| ~~`backups`~~ | No existe (Fase 04): las copias son archivos con su manifiesto adentro, ver «Copias» abajo | H-05, H-29, H-72, H-73 |
 | `imports` | `id, kind ('anki' \| 'remnote' \| 'retenia'), file_sha256, at, summary (JSON), rejected (JSON)` (CA-124: un archivo ya importado se reconoce por su huella) | H-29, H-30 |
 | `model_downloads` | `name, version, sha256, status, downloaded_at` | H-07 |
 | `course_item_states` | `item_id, state ('reviewed' \| 'flagged' \| 'excluded'), note, at` (tus marcas sobre el contenido del curso) | H-62, H-63 |
 | `user_texts` | `id, title, text, level_estimate, known_ratio, created_at` (textos en inglés pegados por vos) | H-60 |
 | `schema_meta` | `key, value` (versión de migraciones aplicadas, fecha de la última verificación de datos) | H-04, H-73 |
+
+### Copias (Fase 04): archivos, no tabla
+
+La lista de copias sale de leer la carpeta `copias\` de la carpeta de datos, no de la base: restaurar reemplaza la base, y una base dañada (Fase 39) igual tiene que saber qué copias hay.
+
+- Nombre: `AAAA-MM-DD-HHMM-<tipo>-<8 caracteres>.retenia-copia` (hora de Buenos Aires; los 8 caracteres salen de un UUID v7, así dos copias del mismo minuto no chocan y se ordenan bien).
+- Contenido: gzip de un renglón de manifiesto JSON seguido de una instantánea de la base hecha con `VACUUM INTO`. Manifiesto: `format 'retenia-copia'`, `formatVersion 1`, `id` (UUID v7), `kind` (`auto` · `manual` · `before_restore`; `before_import` y `before_update` llegan con sus fases), `createdAt`, `timeZone`, `appVersion`, `migrations`, `counts` (filas por tabla), `databaseBytes` y `databaseSha256`.
+- Una copia se escribe como `.tmp`, se sincroniza con el disco, se descomprime y se verifica (huella, `PRAGMA integrity_check` y cantidades) y recién entonces se renombra con su nombre: toda copia de la lista está verificada. Rotan solo las automáticas (quedan las 14 más nuevas).
+- Restaurar recibe el `id` del manifiesto, nunca una ruta.
 
 ### Base del curso de inglés (`curso-ingles.db`, solo lectura, dentro del instalador)
 
@@ -187,9 +230,9 @@ Se construye en las Fases 28 a 34 con herramientas de `tools/` a partir de fuent
 | H-01 | ninguna del producto: la red lee el repositorio |
 | H-02 | `cards`, `card_versions`, `observations` (`review.graded`), `card_schedule` |
 | H-03 | `settings`, `schema_meta` (carpeta por variante; sin tablas nuevas) |
-| H-04 | `observations`, `evaluations`, todas las proyecciones (recalcular y comparar) |
-| H-05 | `backups`, `trash_entries` |
-| H-06 | `trash_entries`, `*_versions` (Actividad reciente y Deshacer) |
+| H-04 | `observations`, `evaluations`, `ledger_state`, todas las proyecciones (recalcular y comparar) |
+| H-05 | copias (archivos con manifiesto, sin tabla), `trash_entries` |
+| H-06 | `trash_entries`, `purge_permits`, `operations`, `*_versions` (Actividad reciente y Deshacer) |
 | H-07 | `model_downloads` |
 | H-08 | `settings` |
 | H-09 | `subjects`, `topics`, `notes` |
@@ -212,7 +255,7 @@ Se construye en las Fases 28 a 34 con herramientas de `tools/` a partir de fuent
 | H-26 | `materials` (original por huella), `card_versions.source_cite`, `inbox_items` |
 | H-27 | `material_pages`, `page_corrections`, `cards` (que usan el texto) |
 | H-28 | `materials` (`kind = 'web'`, `pending_network`) |
-| H-29 | `imports`, `backups`, `cards`, `observations` (`source = 'import:anki'`) |
+| H-29 | `imports`, copias (`before_import`), `cards`, `observations` (`source = 'import:anki'`) |
 | H-30 | todo (exportar e importar la base completa), `images` |
 | H-31 | `exercises`, `exercise_versions`, `observations` (`attempt.submitted`), `evaluations` |
 | H-32 | `observations` (`hint.requested`), `card_versions.hints`, `objective_state` |
@@ -255,8 +298,8 @@ Se construye en las Fases 28 a 34 con herramientas de `tools/` a partir de fuent
 | H-69 | `ai_requests` (nada de la clave), `materials` (archivos trampa) |
 | H-70 | ninguna |
 | H-71 | `search_index`, `card_schedule` (10.000 tarjetas) |
-| H-72 | `backups`, `schema_meta`, `materials` (disco lleno) |
-| H-73 | `backups` (`before_update`), `schema_meta` (migraciones), `settings` |
+| H-72 | copias, `schema_meta`, `materials` (disco lleno) |
+| H-73 | copias (`before_update`), `schema_meta` (migraciones), `settings` |
 | H-74 | ninguna: la ayuda vive en el código |
 
 ## 5. Cada tabla y las historias que la justifican
@@ -265,6 +308,8 @@ Se construye en las Fases 28 a 34 con herramientas de `tools/` a partir de fuent
 |---|---|
 | `observations` | H-02, H-04, H-15 a H-17, H-21, H-22, H-29, H-31, H-32, H-34, H-35, H-37 a H-39, H-46 a H-55, H-58 a H-67 |
 | `evaluations` | H-04, H-18, H-31, H-33, H-37, H-41, H-43, H-45 a H-47, H-65 |
+| `operations` | H-06 |
+| `ledger_state` | H-04, H-05 |
 | `card_schedule` | H-02, H-13 a H-15, H-19, H-20, H-22, H-36, H-54, H-55, H-71 |
 | `objective_state` | H-32, H-34, H-35, H-39, H-47, H-56, H-63 |
 | `concept_estimate` | H-36 |
@@ -298,24 +343,25 @@ Se construye en las Fases 28 a 34 con herramientas de `tools/` a partir de fuent
 | `doubts` | H-17, H-46 |
 | `settings` | H-03, H-08, H-19, H-40, H-49, H-51 a H-53, H-73 |
 | `trash_entries` | H-05, H-06 |
+| `purge_permits` | H-06 |
 | `ai_requests` | H-40, H-41, H-43, H-45, H-47, H-69 |
 | `ai_material_permissions` | H-40 |
-| `backups` | H-05, H-29, H-72, H-73 |
 | `imports` | H-29, H-30 |
 | `model_downloads` | H-07 |
 | `course_item_states` | H-62, H-63 |
 | `user_texts` | H-60 |
 | `schema_meta` | H-03, H-04, H-72, H-73 |
 
-Toda tabla tiene al menos una historia; ninguna historia que guarde datos queda sin tabla. Si en una fase aparece una tabla sin historia, se saca.
+Toda tabla tiene al menos una historia; ninguna historia que guarde datos queda sin tabla. Si en una fase aparece una tabla sin historia, se saca. Las copias (H-05, H-29, H-72, H-73) no son una tabla desde la Fase 04: son archivos con su manifiesto.
 
 ## 6. Reglas de implementación
 
 - **Identificadores.** UUID v7 generados en el principal con `crypto.randomUUIDv7()`; `core` recibe el generador inyectado. Nunca enteros autoincrementales en tablas de negocio (se sincronizarían mal más adelante).
 - **Append-only por disparador.** `observations`, `evaluations`, `ai_requests` y todas las `*_versions` tienen disparadores `BEFORE UPDATE` y `BEFORE DELETE` que abortan, salvo la purga de versiones vencidas de la Papelera, que corre con un `PRAGMA` de mantenimiento explícito dentro de una transacción marcada.
-- **Transacciones.** Una calificación (observación + proyección + índice) es una transacción; un cierre a la fuerza deja todo o nada (CA-017). `PRAGMA journal_mode = WAL`, `synchronous = FULL`, `foreign_keys = ON`, `busy_timeout = 5000`. Al abrir: `PRAGMA quick_check`; si falla, se ofrece «Restaurar la última copia comprobada» y el archivo dañado se conserva aparte (CA-357).
-- **Idempotencia.** Toda escritura de observación lleva `idempotency_key`; un duplicado se ignora en silencio (CA-018, CA-069).
-- **Migraciones.** Archivos SQL generados por drizzle-kit en `src/data/migrations/`, aplicados al arrancar con el migrador de Drizzle, dentro de una transacción, después de la copia «Antes de actualizar». Una prueba estática lee cada migración y falla ante `DROP`, `RENAME`, `ALTER … DROP` o cambios de tipo. Cada columna nueva es nula o tiene valor por defecto; cada tabla nueva se rellena desde el historial si hace falta.
-- **Recálculo.** `verifyData()` reconstruye cada proyección en una tabla temporal con la misma función de `core` y compara con la vigente; informa «Todo en orden · 0 diferencias» o la lista de diferencias y, si pedís, reemplaza. Las funciones de `core` son deterministas: reciben el reloj, el generador de identificadores y los datos ordenados por `(occurred_at, id)` (CA-062).
+  - Cómo quedó en la Fase 04 (migración `0002_libro_mayor_disparadores.sql`): `observations`, `evaluations` y `operations` rechazan todo `UPDATE` y `DELETE`, sin excepción. `card_versions` rechaza todo `UPDATE`, y un `DELETE` solo pasa si existe en `purge_permits` el permiso para esa tarjeta; vaciar la papelera agrega el permiso, borra y lo saca en la misma transacción (en vez del `PRAGMA`, que no se puede limitar a una tarjeta). `evaluations` además controla al insertar que la versión 1 no enmiende nada y que la N enmiende la N-1 del mismo intento.
+- **Transacciones.** Una calificación (observación + evaluación + proyección + índice) es una transacción; un cierre a la fuerza deja todo o nada (CA-017). `PRAGMA journal_mode = WAL`, `synchronous = FULL`, `foreign_keys = ON`, `busy_timeout = 5000`. Al abrir: `PRAGMA quick_check`; si falla, se ofrece «Restaurar la última copia comprobada» y el archivo dañado se conserva aparte (CA-357).
+- **Idempotencia.** Toda escritura de observación lleva `idempotency_key`; un duplicado se ignora en silencio (CA-018, CA-069). Desde la Fase 04 un duplicado tampoco gasta número de secuencia, ni agrega evaluación, ni toca la agenda (se busca la clave antes y se inserta con `ON CONFLICT(idempotency_key) DO NOTHING`).
+- **Migraciones.** Archivos SQL generados por drizzle-kit en `src/data/migrations/`, aplicados al arrancar con el migrador de Drizzle, dentro de una transacción, después de la copia «Antes de actualizar». Una prueba estática lee cada migración y falla ante `DROP`, `RENAME`, `ALTER … DROP` o cambios de tipo. Desde la Fase 04 otra prueba estática compara cada migración que alguna vez entró al historial de git con su primer commit: una migración aplicada no se edita, no se renombra ni se borra. Cada columna nueva es nula o tiene valor por defecto; cada tabla nueva se rellena desde el historial si hace falta.
+- **Recálculo.** `verifyData()` reconstruye cada proyección en una tabla temporal con la misma función de `core` y compara con la vigente; informa «Todo en orden · 0 diferencias» o la lista de diferencias y, si pedís, reemplaza. Las funciones de `core` son deterministas: reciben el reloj, el generador de identificadores y los datos ordenados por `(occurred_at, id)` (CA-062). Cómo quedó en la Fase 04: la reconstrucción se hace en memoria (no en tablas temporales), cubre la agenda de cada tarjeta existente (también las de la Papelera) y compara campo por campo; los datos van ordenados por número de secuencia (ver 1.3). «Reparar desde el historial» reescribe, agrega o saca solo filas de `card_schedule`, en una transacción, y nunca toca eventos.
 - **Exportación.** «Exportar todo» produce un comprimido con `apuntes/` en Markdown (fórmulas como `$…$`, enlaces como `[[Título]]` con el identificador en un atributo, imágenes referenciadas por archivo), `imagenes/`, `originales/`, `tarjetas.json`, `historial.jsonl` (observaciones y evaluaciones), `indice.json` (conteos y huellas) y nunca `clave.bin` (CA-127, CA-379). «Importar exportación» en un Retenia vacío reconstruye todo y «Verificar datos» da 0 diferencias (CA-128).
 - **Volumen.** 10.000 tarjetas y 200.000 repasos ocupan del orden de 150 MB con el índice trigram. Índices además de los ya dichos: `card_schedule(due_at)`, `cards(subject_id, topic_id)`, `blocks(note_id, parent_block_id, position)`, `block_links(target_note_id)`, `materials(original_sha256)`, `material_pages(material_id, status)`, `trash_entries(expires_at)`, `ai_requests(at)`.

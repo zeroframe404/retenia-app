@@ -52,6 +52,7 @@ Solo en las fronteras externas. Cada doble está en esta lista, declarado en el 
 | Disco y sistema de archivos | Escritor que devuelve «disco lleno» o «sin permiso»; base dañada a propósito como archivo de prueba. | `tests/apoyo/disco.ts`, `tests/apoyo/base-danada.db` | Nada. |
 | Actualizador | electron-updater apuntado al servidor local. | configuración de prueba | Fase 40 a mano. |
 | GitHub (`gh`) | Guion que contesta lo que contestaría `gh` (corridas del CI y descarga del adjunto) y una carpeta temporal en lugar del Escritorio. | `tests/integracion/bajar-instalador.test.ts`, con `RETENIA_GH_SCRIPT` y `RETENIA_ESCRITORIO` | «Bajame el instalador de prueba» real, a mano, con el pull request de la fase. |
+| Explorador de Windows (Fase 04) | `openFolder`: anota la carpeta pedida en vez de abrirla, o devuelve un error para probar el caso en que Windows no puede abrirla. Las pruebas que lo llaman lo dicen con «(simulado)»; las demás lo reciben solo para armar el puente y nunca lo llaman. | `tests/apoyo/puente.ts` y `tests/contrato/demostracion.test.ts` | «Abrir carpeta de copias» a mano, en las pruebas manuales de la Fase 04. |
 
 ## 5. Presupuesto de tiempo
 
@@ -119,6 +120,14 @@ Cómo quedó en la Fase 03: la capa R usa Testing Library con jsdom contra el pu
 | CA-021 | I | — | Última copia con 25 horas (reloj) → al abrir se crea una; con 15 copias se conservan 14. |
 | CA-022 | I | E | Eliminar manda a `trash_entries` con vencimiento a 30 días; «Restaurar» devuelve la tarjeta con historial. |
 | CA-023 | I | E | Editar la pregunta crea una versión; «Deshacer» en «Actividad reciente» crea otra igual a la anterior. |
+
+Cómo quedó en la Fase 04:
+
+- Cada criterio tiene además prueba en la capa E con los pasos de las pruebas manuales (`tests/e2e/libro-mayor.spec.ts`, `copias.spec.ts`, `papelera-deshacer.spec.ts`), incluidos CA-017 (se mata el árbol entero de procesos de Retenia apenas se toca «La sabía», como «Finalizar árbol de procesos») y CA-021 («+1 día», cerrar y abrir: aparece la copia automática del 16/03/2027).
+- CA-015 y CA-018 suman propiedades (P): ninguna secuencia al azar de operaciones (alta, editar, eliminar, restaurar, vaciar, repasar, repetir un repaso, deshacer, reparar, correr el reloj) modifica ni borra un evento ya guardado, y guardar dos veces cualquier repaso deja una sola entrada sin gastar número de secuencia. CA-016 suma que los eventos en cualquier orden de entrada dan la misma agenda.
+- CA-017 en I (`tests/integracion/corte.test.ts`): un programa hijo armado una vez por corrida con Vite (`src/data` usa `import.meta.glob`) abre una copia de una base preparada y se mata a sí mismo justo antes de cada sentencia de cada escritura (repasar, crear, editar, eliminar, restaurar de la Papelera, deshacer, vaciar) o entre los pasos con archivos de una copia y de una restauración; al reabrir, `integrity_check` da ok, el cambio está entero o no está y «Verificar datos» da 0.
+- Fuera de los criterios: contrato (C) de cada canal nuevo, componentes (R) de cada pantalla nueva, el catálogo de textos de la Fase 04 letra por letra, accesibilidad en claro y en oscuro de las pantallas nuevas, y una prueba estática (S) que compara cada migración que alguna vez entró al historial de git con su primer commit.
+- «Abrir carpeta de copias» usa el doble del Explorador de Windows (sección 4).
 
 ### Fase 05 · Laboratorio de piezas riesgosas (H-07)
 

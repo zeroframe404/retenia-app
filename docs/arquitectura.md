@@ -107,6 +107,8 @@ Convenciones de los esquemas: identificadores como UUID v7 en texto; fechas como
 | `cards.activationEstimate` / `cards.activate` | `{ cardIds }` | `{ minutesMin, minutesMax, weeks }` / tarjetas | H-20, H-44 |
 | `cards.whyToday` | `{ cardId }` | `{ daysSince, lastGrade, recallProbability, text }` | H-15 |
 
+Cómo quedó en la Fase 04 (sin materias ni temas todavía): `cards.list` (`{}` → tarjetas con `nextReviewDay`), `cards.create` (`{ question, answer }`), `cards.review` (`{ cardId, grade, attemptId }`: la ventana genera `attemptId` al abrir el repaso y un pedido repetido queda una sola vez), `cards.edit` (`{ cardId, question, answer }`; la Fase 08 trae `cards.saveSheet` con la ficha completa), `cards.delete` (`{ cardId }` → `{ trashEntryId }`) y `cards.history` (`{ cardId }` → `{ question, entries: [{ id, day, result }] }`, con `result` `good` · `hard` · `again` · `adopted`).
+
 ### `study`, `goals`, `plan`
 
 | Canal | Petición | Respuesta | Historias |
@@ -201,6 +203,20 @@ La evaluación con IA no tiene canal propio: `study.answer` decide, según ajust
 | `trash.list` / `trash.restore` / `trash.empty` | `{ entryId? }` | entradas con vencimiento | H-06 |
 | `activity.recent` / `activity.undo` | `{ versionId }` | lista de cambios; estado anterior restaurado | H-06 |
 
+Cómo quedó en la Fase 04:
+
+| Canal | Petición | Respuesta |
+|---|---|---|
+| `backups.list` | `{}` | `{ backups }`: por copia, `id`, `kind` (`auto` · `manual` · `before_restore`), `day`, `time` y `sizeBytes`; un archivo que no se pudo abrir viene como `{ readable: false, sizeBytes }` y no se ofrece para restaurar |
+| `backups.createNow` | `{}` | `{ created, backups }` |
+| `backups.restore` | `{ backupId }` (el `id` del manifiesto, nunca una ruta) | `{ restoredFrom: { day, time }, backups }` |
+| `backups.verifyData` / `backups.repairData` | `{}` | `{ differences }`: por diferencia, `cardId`, `question`, `kind` (`due` · `memory` · `missing` · `extra`), `storedDay`, `expectedDay` |
+| `backups.openFolder` | `{}` | `{}` (el principal abre `copias\` con `shell.openPath`) |
+| `trash.list` / `trash.restore` / `trash.empty` | `{}` / `{ entryId }` / `{}` | `{ items }` con `deletedDay` y `expiresDay` / `{ restored }` / `{ purged }` |
+| `activity.recent` / `activity.undo` | `{}` / `{ operationId }` (una operación, no una versión) | tus últimas 50 operaciones con `canUndo` / `{ undone }` |
+
+Una compuerta en el principal (`src/main/gate.ts`) deja correr juntos los pedidos comunes y hace esperar todo lo demás mientras corre `backups.restore`. Los manejadores piden a la carpeta de trabajo (`src/data/workspace.ts`) el almacén vigente en cada pedido, así siguen andando después de que restaurar cambia la base. `backups.list` y `trash.list` esperan a que terminen la copia automática y la purga de la Papelera del arranque.
+
 ### `reminders`, `updates`, `diagnostics`, `help`
 
 | Canal | Petición | Respuesta | Historias |
@@ -237,6 +253,8 @@ La evaluación con IA no tiene canal propio: `study.answer` decide, según ajust
 | `demo.load10k` | — | progreso | H-24, H-71 |
 | `demo.lab.speak` / `demo.lab.record` / `demo.lab.readPdf` / `demo.lab.ocrPage` / `demo.lab.notify` | según la prueba | resultado del Laboratorio | H-07 |
 | `demo.perf.marks` | — | marcas de tiempo para la capa de medición | H-71 |
+
+Cómo quedó en la Fase 04: `demo.state`, `demo.advanceDays` (`{ days: 1 | 7 | 35 }`) y `demo.resetDate` (`{}`) devuelven los tres exactamente `{ today }`; los demás llegan con sus fases.
 
 ### `events` (del principal a la ventana)
 
@@ -285,7 +303,12 @@ Decisiones sobre la carpeta:
 - **Una sola base** para todo lo tuyo (`retenia.db`). El contenido del curso de inglés (diccionario, lecciones, textos) no es tuyo: viaja dentro del instalador como `resources/curso-ingles.db`, de solo lectura, y tus marcas sobre él («Revisada», «Tiene un error») sí van a tu base.
 - **Copias** (H-05): una copia es una instantánea consistente de la base hecha con `VACUUM INTO` (sin frenar el programa), comprimida, más un manifiesto con las huellas de los originales e imágenes que existían en ese momento. Los archivos binarios no se duplican catorce veces: se guardan una sola vez en `copias\blobs\` y se borran de ahí cuando ninguna copia ni la base los referencia. Automática al abrir si la última tiene más de 24 horas; se conservan 14 automáticas más las de nombre («Antes de importar», «Antes de actualizar», «Antes de restaurar»). «Verificada» significa que la copia se volvió a abrir, pasó `PRAGMA integrity_check` y sus conteos coinciden. Una vez por semana se vuelve a comprobar la última (CA-358).
 - **Restaurar** hace primero una copia «Antes de restaurar» del estado actual (CA-020), reemplaza la base con la instantánea y repone los binarios desde `blobs\`.
-- **Papelera**: nada se borra físicamente antes de 30 días; los binarios que ya nadie referencia se eliminan en el arranque siguiente al vencimiento.
+- **Cómo quedaron las copias en la Fase 04** (todavía no hay originales ni imágenes, así que no hay `blobs\`):
+  - Nombre `AAAA-MM-DD-HHMM-<tipo>-<8 caracteres>.retenia-copia`: un gzip con un renglón de manifiesto y la instantánea `VACUUM INTO` (formato en `docs/modelo-de-datos.md`, «Copias»). Sin paquetes nuevos: la compresión y la huella SHA-256 vienen con Node.
+  - La lista sale de leer `copias\` y no de la base. Una copia se arma en `tmp\` y en `copias\<nombre>.tmp`, se sincroniza con el disco, se descomprime y se verifica (huella, `integrity_check`, cantidades por tabla) y recién ahí se renombra: toda copia de la lista está verificada. Al arrancar se borran los restos de `tmp\` y los `.tmp`.
+  - Automática al abrir si no hay ninguna copia o si la más nueva tiene **24 horas o más** (no «más de 24»: «+1 día» corre el reloj exactamente 24 horas). Rotan solo las automáticas: quedan las 14 más nuevas; las hechas a mano y las «Antes de restaurar» se quedan. La verificación semanal de CA-358 llega con su fase.
+  - Restaurar, sin reiniciar el programa y con la compuerta cerrada: 1) copia «Antes de restaurar» verificada (si falla, no se restaura nada); 2) la elegida se descomprime y se verifica en `tmp\`; 3) se abre aparte, se le corren las migraciones, su secuencia sigue desde el número más alto ya usado y se pasa a `journal_mode = DELETE` para que el archivo sea autosuficiente; 4) se cierra la base viva con un checkpoint completo y se comprueba que no quedan `-wal` ni `-shm` con contenido (si queda algo, se aborta y se reabre la de antes); 5) un solo renombre reemplaza `retenia.db`, con reintentos si Windows lo tiene tomado; 6) se reabre. Un corte antes del paso 5 deja todo como estaba; después, la restaurada. Lo hecho después de la copia elegida queda solo en «Antes de restaurar».
+- **Papelera**: nada se borra físicamente antes de 30 días; los binarios que ya nadie referencia se eliminan en el arranque siguiente al vencimiento. Fase 04: el vencimiento corre al arrancar, después de la copia automática; «Vaciar papelera» pide confirmación.
 - **La variante de prueba** acepta la variable de entorno `RETENIA_DATOS` para que cada prueba de punta a punta use una carpeta de datos nueva; la versión real la ignora.
 - **Nunca** se guarda en esta carpeta la clave en claro, texto de apuntes en los registros ni datos de otra cuenta de Windows.
 
