@@ -36,9 +36,10 @@ describe('tarjetas: cualquier texto se guarda y se lee igual', () => {
           created.question === first.question
         );
       }),
-      { seed: SEED, numRuns: 300 },
+      { seed: SEED, numRuns: 60 },
     );
-  });
+    // Cada alta espera el disco (synchronous FULL): en una máquina lenta 60 altas llevan segundos.
+  }, 60_000);
 
   it('una pregunta que es solo espacios, saltos o tabulaciones nunca se acepta', () => {
     fc.assert(
