@@ -172,3 +172,7 @@ Cada línea: qué se eligió, por qué y qué se descartó. Las versiones exacta
   - «Deshacer» se ofrecía en un borrado ya vencido en la Papelera (y después decía que no se podía). Ahora no se ofrece.
   - El mismo intento de repaso con otra tarjeta se daba por guardado sin guardar nada. Ahora se rechaza.
   - Dos frases de `docs/arquitectura.md` no coincidían con el código (qué espera a qué al arrancar y qué se mira del `-shm`). Corregidas.
+- Segunda vuelta del revisor sobre esos arreglos: 2 objeciones menores nuevas, las dos resueltas con prueba en rojo primero.
+  - Con copias automáticas de fecha futura, la rotación borraba en el acto la recién hecha (seguía tomando las futuras como las más nuevas). Ahora, al rotar, las de fecha futura cuentan como las más viejas.
+  - La limpieza al abrir seguía un enlace: si `tmp` era un enlace o una unión a otra carpeta, la vaciaba. Ahora se mira sin seguir enlaces y se saca solo el enlace; además, en `copias` solo se borran los restos de copias (`.retenia-copia.tmp`), no cualquier `.tmp`.
+  - Regla para las fases que vienen (el revisor lo marcó sin contarlo como objeción): todo acceso a la base pasa por la compuerta. Si la base no está abierta, el pedido siguiente la vuelve a abrir; uno que llegara fuera de la compuerta en medio de una restauración la abriría antes del reemplazo (el reemplazo fallaría y la restauración se informaría como no hecha, sin pérdida).
