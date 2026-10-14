@@ -2,22 +2,22 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { formatearDuracion, formatearFechaHora } from '../../../tools/lib/reloj.mjs';
+import { formatDateTime, formatDuration } from '../../../tools/lib/reloj.mjs';
 import {
-  capaDeArchivo,
-  leerInformeDePlaywright,
-  leerInformeDeVitest,
+  layerOfFile,
+  readPlaywrightReport,
+  readVitestReport,
 } from '../../../tools/lib/resultados.mjs';
 import { inBuenosAires } from '../../apoyo/fechas';
 
-const carpeta = mkdtempSync(join(tmpdir(), 'retenia-informes-'));
-afterAll(() => rmSync(carpeta, { recursive: true, force: true }));
+const folder = mkdtempSync(join(tmpdir(), 'retenia-informes-'));
+afterAll(() => rmSync(folder, { recursive: true, force: true }));
 
 describe('lectura de informes', () => {
   it('[CA-001] cuenta las pruebas del informe de Vitest tal como vienen', () => {
-    const ruta = join(carpeta, 'vitest.json');
+    const path = join(folder, 'vitest.json');
     writeFileSync(
-      ruta,
+      path,
       JSON.stringify({
         testResults: [
           {
@@ -30,7 +30,7 @@ describe('lectura de informes', () => {
                 title: 'c',
                 status: 'skipped',
                 failureMessages: [],
-                meta: { caso: { tabla: 't', entrada: 'e', esperado: '1', obtenido: '1' } },
+                meta: { tableCase: { table: 't', input: 'e', expected: '1', actual: '1' } },
               },
             ],
           },
@@ -43,28 +43,24 @@ describe('lectura de informes', () => {
         ],
       }),
     );
-    const leido = leerInformeDeVitest(ruta);
-    expect(leido?.pruebas.map((p: { estado: string }) => p.estado)).toEqual([
-      'paso',
-      'fallo',
-      'salteada',
-    ]);
-    expect(leido?.pruebas[2]?.caso).toEqual({
-      tabla: 't',
-      entrada: 'e',
-      esperado: '1',
-      obtenido: '1',
+    const report = readVitestReport(path);
+    expect(report?.tests.map((t) => t.status)).toEqual(['passed', 'failed', 'skipped']);
+    expect(report?.tests[2]?.tableCase).toEqual({
+      table: 't',
+      input: 'e',
+      expected: '1',
+      actual: '1',
     });
-    expect(leido?.archivosRotos).toEqual([
-      { archivo: 'H:/Retenia/tests/red/y.test.ts', mensaje: 'no carga' },
+    expect(report?.brokenFiles).toEqual([
+      { file: 'H:/Retenia/tests/red/y.test.ts', message: 'no carga' },
     ]);
-    expect(leerInformeDeVitest(join(carpeta, 'no-existe.json'))).toBeNull();
+    expect(readVitestReport(join(folder, 'no-existe.json'))).toBeNull();
   });
 
   it('[CA-001] cuenta las pruebas del informe de punta a punta tal como vienen', () => {
-    const ruta = join(carpeta, 'playwright.json');
+    const path = join(folder, 'playwright.json');
     writeFileSync(
-      ruta,
+      path,
       JSON.stringify({
         suites: [
           {
@@ -96,26 +92,24 @@ describe('lectura de informes', () => {
         errors: [],
       }),
     );
-    const leido = leerInformeDePlaywright(ruta);
-    expect(
-      leido?.pruebas.map((p: { titulo: string; estado: string }) => [p.titulo, p.estado]),
-    ).toEqual([
-      ['abre', 'paso'],
-      ['falla', 'fallo'],
-      ['saltea', 'salteada'],
+    const report = readPlaywrightReport(path);
+    expect(report?.tests.map((t) => [t.title, t.status])).toEqual([
+      ['abre', 'passed'],
+      ['falla', 'failed'],
+      ['saltea', 'skipped'],
     ]);
-    expect(leido?.pruebas[1]?.mensajes).toEqual(['mal']);
+    expect(report?.tests[1]?.messages).toEqual(['mal']);
   });
 
   it('nombra la capa de cada prueba por su carpeta', () => {
-    expect(capaDeArchivo('H:/Retenia/tests/unitarias/red/x.test.ts')).toBe('Unitaria');
-    expect(capaDeArchivo('tests\\e2e\\ventana.spec.ts')).toBe('Punta a punta');
-    expect(capaDeArchivo('tests/red/sabotaje-1.test.ts')).toBe('Red completa y sabotajes');
+    expect(layerOfFile('H:/Retenia/tests/unitarias/red/x.test.ts')).toBe('Unitaria');
+    expect(layerOfFile('tests\\e2e\\ventana.spec.ts')).toBe('Punta a punta');
+    expect(layerOfFile('tests/red/sabotaje-1.test.ts')).toBe('Red completa y sabotajes');
   });
 
   it('muestra tiempos y fechas en castellano, con coma decimal y hora de Buenos Aires', () => {
-    expect(formatearDuracion(1234)).toBe('1,2 s');
-    expect(formatearDuracion(75_000)).toBe('1 min 15 s');
-    expect(formatearFechaHora(inBuenosAires('15/03/2027 10:00'))).toBe('15/03/2027 10:00');
+    expect(formatDuration(1234)).toBe('1,2 s');
+    expect(formatDuration(75_000)).toBe('1 min 15 s');
+    expect(formatDateTime(inBuenosAires('15/03/2027 10:00'))).toBe('15/03/2027 10:00');
   });
 });

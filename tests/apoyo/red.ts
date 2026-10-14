@@ -1,65 +1,96 @@
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { archivosDelProyecto } from '../../tools/lib/archivos.mjs';
-import { correr, RAIZ } from '../../tools/lib/proceso.mjs';
+import { projectFiles } from '../../tools/lib/archivos.mjs';
+import { ROOT, run } from '../../tools/lib/proceso.mjs';
 
 // El entorno de un proceso hijo sin las marcas de Vitest ni la carpeta de la corrida actual.
-export function entornoLimpio(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+export function cleanEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
-  for (const [clave, valor] of Object.entries(process.env)) {
-    if (!clave.startsWith('VITEST') && clave !== 'RETENIA_RED_DIR' && clave !== 'NODE_OPTIONS') {
-      env[clave] = valor;
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith('VITEST') && key !== 'RETENIA_RUN_DIR' && key !== 'NODE_OPTIONS') {
+      env[key] = value;
     }
   }
   return { ...env, ...extra };
 }
 
-export function git(raiz: string, ...args: string[]) {
-  return correr(
+export function git(root: string, ...args: string[]) {
+  return run(
     'git',
     ['-c', 'user.name=Red de Retenia', '-c', 'user.email=red@retenia.invalid', ...args],
-    { cwd: raiz },
+    { cwd: root },
   );
 }
 
-// Una copia del proyecto en una carpeta temporal, con su propio git y node_modules compartido.
-// Los sabotajes automáticos rompen la copia, nunca la carpeta real.
-export async function copiarProyecto(): Promise<string> {
-  // Ruta larga canónica: en el CI la carpeta temporal viene con nombres cortos de Windows
-  // (RUNNER~1) y las herramientas no reconocerían los archivos como del proyecto.
-  const destino = realpathSync.native(mkdtempSync(join(tmpdir(), 'retenia-red-')));
-  for (const archivo of await archivosDelProyecto(RAIZ)) {
-    mkdirSync(dirname(join(destino, archivo)), { recursive: true });
-    copyFileSync(join(RAIZ, archivo), join(destino, archivo));
-  }
-  symlinkSync(join(RAIZ, 'node_modules'), join(destino, 'node_modules'), 'junction');
-  // La copia lleva el nombre de la rama real, así sabe en qué fase está.
-  const rama = (await git(RAIZ, 'rev-parse', '--abbrev-ref', 'HEAD')).salida.trim();
-  await git(destino, 'init', '-q', '-b', rama && rama !== 'HEAD' ? rama : 'copia');
-  await git(destino, 'add', '-A');
-  await git(destino, 'commit', '-q', '-m', 'copia del proyecto para la red');
-  return destino;
+// Una carpeta temporal en su ruta larga canónica: en el CI la carpeta temporal viene con
+// nombres cortos de Windows (RUNNER~1) y las herramientas no reconocerían sus archivos.
+function tempFolder(prefix: string): string {
+  return realpathSync.native(mkdtempSync(join(tmpdir(), prefix)));
 }
 
-export function borrarCopia(copia: string): void {
+function linkNodeModules(copy: string): void {
+  symlinkSync(join(ROOT, 'node_modules'), join(copy, 'node_modules'), 'junction');
+}
+
+// Una copia del proyecto entero, con su propio git y node_modules compartido. Los sabotajes
+// automáticos rompen la copia, nunca la carpeta real.
+export async function copyProject(): Promise<string> {
+  const copy = tempFolder('retenia-red-');
+  for (const file of await projectFiles(ROOT)) {
+    mkdirSync(dirname(join(copy, file)), { recursive: true });
+    copyFileSync(join(ROOT, file), join(copy, file));
+  }
+  linkNodeModules(copy);
+  // La copia lleva el nombre de la rama real, así sabe en qué fase está.
+  const branch = (await git(ROOT, 'rev-parse', '--abbrev-ref', 'HEAD')).stdout.trim();
+  await git(copy, 'init', '-q', '-b', branch && branch !== 'HEAD' ? branch : 'copia');
+  await git(copy, 'add', '-A');
+  await git(copy, 'commit', '-q', '-m', 'copia del proyecto para la red');
+  return copy;
+}
+
+// Una copia con solo algunos archivos o carpetas del proyecto (y node_modules enlazado), para
+// las pruebas que necesitan datos propios sin tocar la carpeta real.
+export function minimalCopy(paths: string[]): string {
+  const copy = tempFolder('retenia-minima-');
+  for (const path of paths) {
+    cpSync(join(ROOT, path), join(copy, path), {
+      recursive: true,
+      // Sin las herramientas bajadas (Opengrep pesa 53 MB) ni cachés.
+      filter: (source) => !/[\\/](bin|\.cache)([\\/]|$)/.test(source.slice(ROOT.length)),
+    });
+  }
+  linkNodeModules(copy);
+  return copy;
+}
+
+export function removeCopy(copy: string): void {
   // Primero el enlace a node_modules, para no tocar nunca el node_modules real.
-  rmSync(join(copia, 'node_modules'), { force: true });
-  rmSync(copia, { recursive: true, force: true });
+  rmSync(join(copy, 'node_modules'), { force: true });
+  rmSync(copy, { recursive: true, force: true });
 }
 
 // Corre la red rápida en una carpeta, aislada (escribe sus informes en una carpeta propia).
-export function redEn(raiz: string) {
-  return correr(process.execPath, [join(raiz, 'tools', 'verify.mjs')], {
-    cwd: raiz,
-    env: entornoLimpio({ RETENIA_RED_DIR: join(raiz, '.cache', 'red', 'aislada') }),
-    limiteMs: 300_000,
+export function runNetworkIn(root: string) {
+  return run(process.execPath, [join(root, 'tools', 'verify.mjs')], {
+    cwd: root,
+    env: cleanEnv({ RETENIA_RUN_DIR: join(root, '.cache', 'red', 'aislada') }),
+    timeoutMs: 300_000,
   });
 }
 
 // Desde la línea de veredicto hasta el final.
-export function veredicto(salida: string): string[] {
-  const renglones = salida.trimEnd().split(/\r?\n/);
-  const desde = renglones.findIndex((r) => /^(VERDE|ROJO) · /.test(r));
-  return desde === -1 ? [] : renglones.slice(desde);
+export function verdictLines(stdout: string): string[] {
+  const lines = stdout.trimEnd().split(/\r?\n/);
+  const start = lines.findIndex((l) => /^(VERDE|ROJO) · /.test(l));
+  return start === -1 ? [] : lines.slice(start);
 }

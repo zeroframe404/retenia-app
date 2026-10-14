@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { expandirRangos, leerEspecificacion } from '../../../tools/lib/especificacion.mjs';
-import { criteriosDelTitulo, tituloMalFormado } from '../../../tools/lib/resultados.mjs';
-import { cruzar } from '../../../tools/lib/trazabilidad.mjs';
+import { expandRanges, parseSpec } from '../../../tools/lib/especificacion.mjs';
+import { criteriaInTitle, isMalformedTitle } from '../../../tools/lib/resultados.mjs';
+import { crossCheck } from '../../../tools/lib/trazabilidad.mjs';
 
-const MUESTRA = `# Historias
+const SAMPLE = `# Historias
 
 ## H-01 · Imprescindible · Fase 02
 
@@ -35,82 +35,86 @@ Como estudiante quiero tarjetas, para repasar.
 | 03 | Esqueleto | H-02 | CA-003 | 1 |
 `;
 
-const especificacion = leerEspecificacion(MUESTRA);
+const spec = parseSpec(SAMPLE);
 
-describe('trazabilidad', () => {
-  it('[CA-008] lee historias, criterios en tres renglones y la tabla «Criterio por fase»', () => {
-    expect(especificacion.historias.map((h: { id: string }) => h.id)).toEqual(['H-01', 'H-02']);
-    expect(especificacion.historias[0]?.criterios[1]).toEqual({
+// La lectura de la especificación sostiene la trazabilidad, pero no prueba un criterio por sí
+// sola: estas dos van sin identificador.
+describe('lectura de la especificación', () => {
+  it('lee historias, criterios en tres renglones y la tabla «Criterio por fase»', () => {
+    expect(spec.stories.map((s) => s.id)).toEqual(['H-01', 'H-02']);
+    expect(spec.stories[0]?.criteria[1]).toEqual({
       id: 'CA-002',
-      dado: 'un repaso a las 02:30',
-      cuando: 'se calcula su día',
-      entonces: 'cuenta para el día anterior.',
+      given: 'un repaso a las 02:30',
+      when: 'se calcula su día',
+      outcome: 'cuenta para el día anterior.',
     });
-    expect(especificacion.fases).toEqual([
-      { numero: '02', nombre: 'Andamiaje', historias: ['H-01'], criterios: ['CA-001', 'CA-002'] },
-      { numero: '03', nombre: 'Esqueleto', historias: ['H-02'], criterios: ['CA-003'] },
+    expect(spec.phases).toEqual([
+      { number: '02', name: 'Andamiaje', stories: ['H-01'], criteria: ['CA-001', 'CA-002'] },
+      { number: '03', name: 'Esqueleto', stories: ['H-02'], criteria: ['CA-003'] },
     ]);
   });
 
-  it('[CA-008] entiende los tramos de criterios con «a» y con comas', () => {
-    expect(expandirRangos('CA-038 a CA-040, CA-372 a CA-373')).toEqual([
+  it('entiende los tramos de criterios con «a» y con comas', () => {
+    expect(expandRanges('CA-038 a CA-040, CA-372 a CA-373')).toEqual([
       'CA-038',
       'CA-039',
       'CA-040',
       'CA-372',
       'CA-373',
     ]);
-    expect(() => expandirRangos('CA-1 y CA-2')).toThrow('No entiendo');
+    expect(() => expandRanges('CA-1 y CA-2')).toThrow('No entiendo');
   });
+});
 
+describe('trazabilidad', () => {
   it('[CA-001] el identificador va al principio del título, entre corchetes', () => {
-    expect(criteriosDelTitulo('[CA-003] [CA-004] sabotajes')).toEqual(['CA-003', 'CA-004']);
-    expect(criteriosDelTitulo('día de estudio [CA-002]')).toEqual([]);
-    expect(tituloMalFormado('día de estudio [CA-002]')).toBe(true);
-    expect(tituloMalFormado('CA-002 · día de estudio')).toBe(true);
-    expect(tituloMalFormado('el reloj fijo devuelve copias')).toBe(false);
+    expect(criteriaInTitle('[CA-003] [CA-004] sabotajes')).toEqual(['CA-003', 'CA-004']);
+    expect(criteriaInTitle('día de estudio [CA-002]')).toEqual([]);
+    expect(isMalformedTitle('día de estudio [CA-002]')).toBe(true);
+    expect(isMalformedTitle('CA-002 · día de estudio')).toBe(true);
+    expect(isMalformedTitle('el reloj fijo devuelve copias')).toBe(false);
   });
 
   it('[CA-001] un criterio de una fase cerrada sin prueba es una falla', () => {
-    const r = cruzar({
-      especificacion,
-      titulos: [{ titulo: '[CA-001] veredicto', capa: 'Unitaria' }],
-      cerradas: ['02'],
-      enCurso: '03',
-      exigirEnCurso: false,
+    const r = crossCheck({
+      spec,
+      titles: [{ title: '[CA-001] veredicto', layer: 'Unitaria' }],
+      closed: ['02'],
+      current: '03',
+      requireCurrent: false,
     });
-    expect(r.problemas).toEqual([
+    expect(r.problems).toEqual([
       'el criterio CA-002 (fase 02, cerrada) no tiene ninguna prueba con «[CA-002]» al principio del título.',
     ]);
-    expect([r.numerador, r.denominador]).toEqual([1, 3]);
+    expect([r.covered, r.total]).toEqual([1, 3]);
   });
 
   it('[CA-001] los criterios de la fase en curso se exigen recién al cerrarla', () => {
     const base = {
-      especificacion,
-      titulos: [{ titulo: '[CA-001] veredicto', capa: 'Unitaria' }],
-      cerradas: [],
-      enCurso: '02',
+      spec,
+      titles: [{ title: '[CA-001] veredicto', layer: 'Unitaria' }],
+      closed: [],
+      current: '02',
     };
-    expect(cruzar({ ...base, exigirEnCurso: false }).problemas).toEqual([]);
-    expect(cruzar({ ...base, exigirEnCurso: true }).problemas).toEqual([
+    expect(crossCheck({ ...base, requireCurrent: false }).problems).toEqual([]);
+    expect(crossCheck({ ...base, requireCurrent: true }).problems).toEqual([
       'el criterio CA-002 (fase 02, que se está cerrando) no tiene ninguna prueba con «[CA-002]» al principio del título.',
     ]);
   });
 
   it('[CA-001] una prueba que nombra un criterio inexistente o lo escribe mal es una falla', () => {
-    const r = cruzar({
-      especificacion,
-      titulos: [
-        { titulo: '[CA-999] no existe', capa: 'Unitaria' },
-        { titulo: 'veredicto CA-001', capa: 'Unitaria' },
+    const r = crossCheck({
+      spec,
+      titles: [
+        { title: '[CA-999] no existe', layer: 'Unitaria' },
+        { title: 'veredicto CA-001', layer: 'Unitaria' },
       ],
-      cerradas: [],
-      enCurso: null,
-      exigirEnCurso: false,
+      closed: [],
+      current: null,
+      requireCurrent: false,
     });
-    expect(r.problemas).toHaveLength(2);
-    expect(r.problemas[0]).toContain('CA-999, que no existe');
-    expect(r.problemas[1]).toContain('no lo pone al principio entre corchetes');
+    expect(r.problems).toHaveLength(2);
+    expect(r.problems[0]).toContain('CA-999, que no existe');
+    expect(r.problems[1]).toContain('no lo pone al principio entre corchetes');
   });
 });

@@ -2,67 +2,69 @@
 // lo revierte y vuelve a correr la red para mostrar el VERDE. Termina bien solo si la red
 // detectó el sabotaje nombrándolo y volvió a VERDE al revertirlo.
 import { join } from 'node:path';
-import { correr, RAIZ } from '../../tools/lib/proceso.mjs';
-import { aplicarSabotaje, restaurarSiQuedoAlgo, SABOTAJES } from './sabotajes.mjs';
+import { ROOT, run } from '../../tools/lib/proceso.mjs';
+import { applySabotage, restoreLeftover, SABOTAGES } from './sabotajes.mjs';
 
-const numero = Number(process.argv[2]);
-const sabotaje = SABOTAJES[numero];
-if (!sabotaje) {
+const number = Number(process.argv[2]);
+const sabotage = SABOTAGES[number];
+if (!sabotage) {
   console.log('Decime qué sabotaje: npm run sabotaje -- 1 (hay del 1 al 4).');
   process.exit(1);
 }
 
-function redRapida() {
+function fastNetwork() {
   const env = { ...process.env };
-  delete env.RETENIA_RED_DIR;
-  return correr(process.execPath, [join(RAIZ, 'tools', 'verify.mjs')], { env });
+  delete env.RETENIA_RUN_DIR;
+  return run(process.execPath, [join(ROOT, 'tools', 'verify.mjs')], { env });
 }
 
-function desdeElVeredicto(salida) {
-  const renglones = salida.trimEnd().split(/\r?\n/);
-  const desde = renglones.findIndex((r) => /^(VERDE|ROJO) · /.test(r));
-  return desde === -1 ? renglones.slice(-15) : renglones.slice(desde);
+/** @param {string} stdout */
+function fromVerdict(stdout) {
+  const lines = stdout.trimEnd().split(/\r?\n/);
+  const start = lines.findIndex((l) => /^(VERDE|ROJO) · /.test(l));
+  return start === -1 ? lines.slice(-15) : lines.slice(start);
 }
 
-if (restaurarSiQuedoAlgo(RAIZ)) {
+if (restoreLeftover(ROOT)) {
   console.log(
     'Había quedado un sabotaje puesto de una corrida cortada: lo revertí antes de empezar.',
   );
 }
 
-console.log(`Sabotaje ${numero} · ${sabotaje.nombre}`);
-const { archivos, revertir } = aplicarSabotaje(numero, RAIZ);
-let rojo;
+console.log(`Sabotaje ${number} · ${sabotage.name}`);
+const { files, revert } = applySabotage(number, ROOT);
+/** @type {import('../../tools/lib/proceso.mjs').RunResult} */
+let red;
 try {
-  console.log(`Aplicado en: ${archivos.join(', ')}`);
-  if (numero === 2) {
-    const commit = await correr(process.execPath, [
-      join(RAIZ, 'tools', 'hooks', 'secretos.mjs'),
-      ...archivos,
+  console.log(`Aplicado en: ${files.join(', ')}`);
+  if (number === 2) {
+    const commit = await run(process.execPath, [
+      join(ROOT, 'tools', 'hooks', 'secretos.mjs'),
+      ...files,
     ]);
     console.log('Intento de guardar el cambio (gancho de commit):');
-    console.log(commit.errores.trim() || commit.salida.trim());
+    console.log(commit.stderr.trim() || commit.stdout.trim());
   }
   console.log('Corriendo la red…');
-  rojo = await redRapida();
+  red = await fastNetwork();
 } finally {
-  revertir();
+  revert();
 }
-const lineasRojas = desdeElVeredicto(rojo.salida);
-console.log(lineasRojas.join('\n'));
+const redLines = fromVerdict(red.stdout);
+console.log(redLines.join('\n'));
 console.log('Revertido.');
 console.log('Corriendo la red de nuevo…');
-const verde = await redRapida();
-const lineasVerdes = desdeElVeredicto(verde.salida);
-console.log(lineasVerdes.join('\n'));
+const green = await fastNetwork();
+const greenLines = fromVerdict(green.stdout);
+console.log(greenLines.join('\n'));
 
-const detecto =
-  lineasRojas[0]?.startsWith('ROJO · ') && lineasRojas.join('\n').includes(sabotaje.espera);
-const volvio = lineasVerdes[0]?.startsWith('VERDE · ');
-if (!detecto) {
-  console.log(`La red NO detectó el sabotaje nombrando «${sabotaje.espera}».`);
+const detected =
+  redLines[0]?.startsWith('ROJO · ') === true && redLines.join('\n').includes(sabotage.expects);
+const recovered = greenLines[0]?.startsWith('VERDE · ') === true;
+if (!detected) {
+  console.log(`La red NO detectó el sabotaje nombrando «${sabotage.expects}».`);
 }
-if (!volvio) {
+if (!recovered) {
   console.log('Al revertir, la red no volvió a VERDE.');
 }
-process.exitCode = detecto && volvio ? 0 : 1;
+process.exitCode = detected && recovered ? 0 : 1;

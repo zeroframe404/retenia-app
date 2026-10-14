@@ -19,7 +19,7 @@
   "assist": { "enabled": true, "actions": { "source": { "organizeImports": "on" } } },
   "overrides": [
     {
-      "includes": ["src/**", "tests/**", "tools/**", "!src/core/clock/**"],
+      "includes": ["**", "!src/core/clock/**"],
       "plugins": ["./tools/biome/reloj-del-sistema.grit"]
     }
   ]

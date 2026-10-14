@@ -1,24 +1,26 @@
-import { correrPaquete, jsonDe } from './proceso.mjs';
-import { titulosDeListadoDePlaywright, titulosDeListadoDeVitest } from './resultados.mjs';
+import { firstJson, runPackage } from './proceso.mjs';
+import { titlesFromPlaywrightList, titlesFromVitestList } from './resultados.mjs';
 
 // Todas las pruebas de la red, sin correrlas: las de Vitest y las de punta a punta.
-/** @param {{ env?: NodeJS.ProcessEnv }} [opciones] */
-export async function listarTitulos({ env = process.env } = {}) {
-  const [v, p] = await Promise.all([
-    correrPaquete('vitest', 'vitest', ['list', '--json'], { env }),
-    correrPaquete('@playwright/test', 'playwright', ['test', '--list', '--reporter=json'], { env }),
+/** @param {{ env?: NodeJS.ProcessEnv }} [options] */
+export async function listTitles({ env = process.env } = {}) {
+  const [vitest, e2e] = await Promise.all([
+    runPackage('vitest', 'vitest', ['list', '--json'], { env }),
+    runPackage('@playwright/test', 'playwright', ['test', '--list', '--reporter=json'], { env }),
   ]);
-  const titulos = [];
-  const errores = [];
+  /** @type {import('./resultados.mjs').ListedTest[]} */
+  const titles = [];
+  /** @type {{ name: string, result: import('./proceso.mjs').RunResult }[]} */
+  const errors = [];
   try {
-    titulos.push(...titulosDeListadoDeVitest(jsonDe(v.salida)));
+    titles.push(...titlesFromVitestList(firstJson(vitest.stdout)));
   } catch {
-    errores.push({ nombre: 'listado-vitest', r: v });
+    errors.push({ name: 'listado-vitest', result: vitest });
   }
   try {
-    titulos.push(...titulosDeListadoDePlaywright(jsonDe(p.salida)));
+    titles.push(...titlesFromPlaywrightList(firstJson(e2e.stdout)));
   } catch {
-    errores.push({ nombre: 'listado-punta-a-punta', r: p });
+    errors.push({ name: 'listado-punta-a-punta', result: e2e });
   }
-  return { titulos, errores, crudos: { vitest: v, puntaAPunta: p } };
+  return { titles, errors, raw: { vitest, e2e } };
 }

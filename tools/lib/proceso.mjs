@@ -1,113 +1,110 @@
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { cronometro } from './reloj.mjs';
+import { stopwatch } from './reloj.mjs';
 
-export const RAIZ = resolve(import.meta.dirname, '..', '..');
+export const ROOT = resolve(import.meta.dirname, '..', '..');
 
-function cortar(hijo) {
+/**
+ * @typedef {{ cwd?: string, env?: NodeJS.ProcessEnv, input?: string, timeoutMs?: number }} RunOptions
+ * @typedef {{ code: number, stdout: string, stderr: string, durationMs: number, timedOut: boolean }} RunResult
+ */
+
+/** @param {import('node:child_process').ChildProcess} child */
+function killTree(child) {
   if (process.platform === 'win32') {
-    spawn('taskkill', ['/pid', String(hijo.pid), '/T', '/F'], { windowsHide: true });
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true });
   } else {
-    hijo.kill('SIGKILL');
+    child.kill('SIGKILL');
   }
 }
 
-/**
- * @typedef {{ cwd?: string, env?: NodeJS.ProcessEnv, entrada?: string, limiteMs?: number }} Opciones
- * @typedef {{ codigo: number, salida: string, errores: string, duracionMs: number, vencido: boolean }} Resultado
- */
-
 // Corre un programa sin pasar por una consola intermedia y junta todo lo que escribe.
-// Con limiteMs, si tarda más lo corta (con sus procesos hijos) y lo informa.
+// Con timeoutMs, si tarda más lo corta (con sus procesos hijos) y lo informa.
 /**
- * @param {string} comando
+ * @param {string} command
  * @param {string[]} args
- * @param {Opciones} [opciones]
- * @returns {Promise<Resultado>}
+ * @param {RunOptions} [options]
+ * @returns {Promise<RunResult>}
  */
-export function correr(comando, args, { cwd = RAIZ, env = process.env, entrada, limiteMs } = {}) {
-  return new Promise((listo) => {
-    const medir = cronometro();
-    const hijo = spawn(comando, args, { cwd, env, windowsHide: true });
-    let vencido = false;
-    const reloj = limiteMs
+export function run(command, args, { cwd = ROOT, env = process.env, input, timeoutMs } = {}) {
+  return new Promise((done) => {
+    const elapsed = stopwatch();
+    const child = spawn(command, args, { cwd, env, windowsHide: true });
+    let timedOut = false;
+    const timer = timeoutMs
       ? setTimeout(() => {
-          vencido = true;
-          cortar(hijo);
-        }, limiteMs)
+          timedOut = true;
+          killTree(child);
+        }, timeoutMs)
       : null;
-    let salida = '';
-    let errores = '';
-    hijo.stdout.on('data', (d) => {
-      salida += d;
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (d) => {
+      stdout += d;
     });
-    hijo.stderr.on('data', (d) => {
-      errores += d;
+    child.stderr.on('data', (d) => {
+      stderr += d;
     });
-    hijo.on('error', (error) => {
-      if (reloj) clearTimeout(reloj);
-      listo({
-        codigo: -1,
-        salida,
-        errores: `${errores}${error.message}`,
-        duracionMs: medir(),
-        vencido,
+    child.on('error', (error) => {
+      if (timer) clearTimeout(timer);
+      done({
+        code: -1,
+        stdout,
+        stderr: `${stderr}${error.message}`,
+        durationMs: elapsed(),
+        timedOut,
       });
     });
-    hijo.on('close', (codigo) => {
-      if (reloj) clearTimeout(reloj);
-      listo({ codigo: codigo ?? -1, salida, errores, duracionMs: medir(), vencido });
+    child.on('close', (code) => {
+      if (timer) clearTimeout(timer);
+      done({ code: code ?? -1, stdout, stderr, durationMs: elapsed(), timedOut });
     });
-    if (entrada !== undefined) {
-      hijo.stdin.end(entrada);
-    } else {
-      hijo.stdin.end();
-    }
+    child.stdin.end(input);
   });
 }
 
 // Ruta al script de línea de comandos de un paquete instalado, para correrlo con Node.
 /**
- * @param {string} paquete
- * @param {string} [nombre]
- * @param {string} [raiz]
+ * @param {string} name
+ * @param {string} [bin]
+ * @param {string} [root]
  * @returns {string}
  */
-export function binario(paquete, nombre = paquete, raiz = RAIZ) {
-  const carpeta = join(raiz, 'node_modules', paquete);
-  const { bin } = JSON.parse(readFileSync(join(carpeta, 'package.json'), 'utf8'));
-  const relativo = typeof bin === 'string' ? bin : bin[nombre];
-  return join(carpeta, relativo);
+export function packageBin(name, bin = name, root = ROOT) {
+  const folder = join(root, 'node_modules', name);
+  const manifest = JSON.parse(readFileSync(join(folder, 'package.json'), 'utf8'));
+  return join(folder, typeof manifest.bin === 'string' ? manifest.bin : manifest.bin[bin]);
 }
 
 /**
- * @param {string} paquete
- * @param {string} nombre
+ * @param {string} name
+ * @param {string} bin
  * @param {string[]} args
- * @param {Opciones} [opciones]
- * @returns {Promise<Resultado>}
+ * @param {RunOptions} [options]
+ * @returns {Promise<RunResult>}
  */
-export function correrPaquete(paquete, nombre, args, opciones = {}) {
-  return correr(process.execPath, [binario(paquete, nombre, opciones.cwd), ...args], opciones);
+export function runPackage(name, bin, args, options = {}) {
+  return run(process.execPath, [packageBin(name, bin, options.cwd), ...args], options);
 }
 
 // npm, sin depender de que «npm.cmd» esté en el PATH de Windows.
-export function rutaDeNpm() {
+export function npmCliPath() {
   return process.env.npm_execpath?.endsWith('.js')
     ? process.env.npm_execpath
     : join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
 }
 
-export function sinColores(texto) {
+/** @param {string} text */
+export function stripColors(text) {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: quita los códigos de color de la consola.
-  return texto.replace(/\u001b\[[0-9;]*m/g, '');
+  return text.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
 // El primer JSON que aparece en la salida de una herramienta (algunas escriben algo antes).
-/** @param {string} texto @returns {any} */
-export function jsonDe(texto) {
-  const limpio = sinColores(texto);
-  const desde = limpio.search(/[[{]/);
-  return desde === -1 ? null : JSON.parse(limpio.slice(desde));
+/** @param {string} text @returns {any} */
+export function firstJson(text) {
+  const clean = stripColors(text);
+  const start = clean.search(/[[{]/);
+  return start === -1 ? null : JSON.parse(clean.slice(start));
 }

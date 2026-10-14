@@ -1,50 +1,59 @@
 // Gancho de Claude Code (PostToolUse en Edit, Write y NotebookEdit): da formato al archivo
-// recién escrito y lo revisa. Si queda algo mal, se lo devuelve a Claude (código 2).
+// recién escrito y lo revisa. Si queda algo mal, se lo devuelve a Claude (código 2). Si el
+// gancho mismo no puede arrancar, también lo dice con código 2.
 import { existsSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
-import { leerEntrada } from '../lib/gancho.mjs';
-import { correrPaquete, RAIZ, sinColores } from '../lib/proceso.mjs';
+import { readHookInput } from '../lib/gancho.mjs';
 
-const REVISABLES = /\.(ts|tsx|js|mjs|cjs|json|jsonc|css|grit)$/i;
+const REVIEWABLE = /\.(ts|tsx|js|mjs|cjs|json|jsonc|css|grit)$/i;
 
-const entrada = await leerEntrada();
-const ruta = entrada?.tool_input?.file_path ?? entrada?.tool_input?.notebook_path;
-if (typeof ruta !== 'string' || !REVISABLES.test(ruta) || !existsSync(ruta)) {
-  process.exit(0);
-}
-// Solo archivos del proyecto. En Windows, un archivo de otra unidad da una ruta absoluta.
-const relativa = relative(RAIZ, resolve(ruta));
-if (relativa.startsWith('..') || isAbsolute(relativa)) {
+const input = await readHookInput();
+const path = input?.tool_input?.file_path ?? input?.tool_input?.notebook_path;
+if (typeof path !== 'string' || !REVIEWABLE.test(path) || !existsSync(path)) {
   process.exit(0);
 }
 
-const r = await correrPaquete('@biomejs/biome', 'biome', [
-  'check',
-  '--write',
-  '--error-on-warnings',
-  '--no-errors-on-unmatched',
-  '--files-ignore-unknown=true',
-  '--reporter=json',
-  '--colors=off',
-  relativa,
-]);
-if (r.codigo === 0) {
-  process.exit(0);
-}
-let diagnosticos = [];
 try {
-  const limpio = sinColores(r.salida);
-  diagnosticos = JSON.parse(limpio.slice(limpio.indexOf('{'))).diagnostics ?? [];
-} catch {
-  diagnosticos = [];
+  const { ROOT, runPackage, stripColors } = await import('../lib/proceso.mjs');
+  // Solo archivos del proyecto. En Windows, un archivo de otra unidad da una ruta absoluta.
+  const relativePath = relative(ROOT, resolve(path));
+  if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+    process.exit(0);
+  }
+  const file = relativePath.split('\\').join('/');
+  const r = await runPackage('@biomejs/biome', 'biome', [
+    'check',
+    '--write',
+    '--error-on-warnings',
+    '--no-errors-on-unmatched',
+    '--files-ignore-unknown=true',
+    '--reporter=json',
+    '--colors=off',
+    relativePath,
+  ]);
+  if (r.code === 0) {
+    process.exit(0);
+  }
+  /** @type {any[]} */
+  let diagnostics = [];
+  try {
+    const clean = stripColors(r.stdout);
+    diagnostics = JSON.parse(clean.slice(clean.indexOf('{'))).diagnostics ?? [];
+  } catch {
+    diagnostics = [];
+  }
+  console.error(`Revisión de ${file}: quedó algo para arreglar.`);
+  if (diagnostics.length === 0) {
+    console.error(stripColors(`${r.stdout}\n${r.stderr}`).trim().slice(0, 2000));
+  }
+  for (const d of diagnostics) {
+    const line = d.location?.start?.line ? `:${d.location.start.line}` : '';
+    console.error(`  ${file}${line}: ${d.message} (${d.category})`);
+  }
+  process.exit(2);
+} catch (error) {
+  console.error(
+    `Revisión de archivos: el gancho no pudo arrancar. ${error instanceof Error ? error.message : String(error)}`,
+  );
+  process.exit(2);
 }
-const archivo = relativa.split('\\').join('/');
-console.error(`Revisión de ${archivo}: quedó algo para arreglar.`);
-if (diagnosticos.length === 0) {
-  console.error(sinColores(`${r.salida}\n${r.errores}`).trim().slice(0, 2000));
-}
-for (const d of diagnosticos) {
-  const renglon = d.location?.start?.line ? `:${d.location.start.line}` : '';
-  console.error(`  ${archivo}${renglon}: ${d.message} (${d.category})`);
-}
-process.exit(2);

@@ -3,45 +3,46 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { RAIZ } from './lib/proceso.mjs';
+import { ROOT } from './lib/proceso.mjs';
 
 const VERSION = 'v1.30.2';
-const ARCHIVO = 'opengrep_windows_x86.exe';
-const HUELLA = '523b1074a81006436fec457e2daccf7cf7cacc04000d4482f1072a1b19bc6372';
-const DIRECCION = `https://github.com/opengrep/opengrep/releases/download/${VERSION}/${ARCHIVO}`;
+const ASSET = 'opengrep_windows_x86.exe';
+const SHA256 = '523b1074a81006436fec457e2daccf7cf7cacc04000d4482f1072a1b19bc6372';
+const URL = `https://github.com/opengrep/opengrep/releases/download/${VERSION}/${ASSET}`;
 
-const carpeta = join(RAIZ, 'tools', 'bin');
-const destino = join(carpeta, 'opengrep.exe');
+const folder = join(ROOT, 'tools', 'bin');
+const target = join(folder, 'opengrep.exe');
 
-function huellaDe(ruta) {
-  return createHash('sha256').update(readFileSync(ruta)).digest('hex');
+/** @param {string} path */
+function sha256Of(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
 if (process.platform !== 'win32') {
   console.log('Opengrep se prepara solo en Windows (la PC de Retenia y el CI).');
   process.exit(1);
 }
-if (existsSync(destino) && huellaDe(destino) === HUELLA) {
+if (existsSync(target) && sha256Of(target) === SHA256) {
   console.log(`Opengrep ${VERSION} ya está listo y su huella coincide.`);
   process.exit(0);
 }
 
-mkdirSync(carpeta, { recursive: true });
+mkdirSync(folder, { recursive: true });
 console.log(`Bajando Opengrep ${VERSION}…`);
-const respuesta = await fetch(DIRECCION);
-if (!respuesta.ok) {
-  console.log(`No pude bajar Opengrep: el servidor respondió ${respuesta.status}.`);
+const response = await fetch(URL);
+if (!response.ok) {
+  console.log(`No pude bajar Opengrep: el servidor respondió ${response.status}.`);
   process.exit(1);
 }
-const temporal = `${destino}.descarga`;
-writeFileSync(temporal, Buffer.from(await respuesta.arrayBuffer()));
-const obtenida = huellaDe(temporal);
-if (obtenida !== HUELLA) {
-  rmSync(temporal, { force: true });
+const download = `${target}.descarga`;
+writeFileSync(download, Buffer.from(await response.arrayBuffer()));
+const got = sha256Of(download);
+if (got !== SHA256) {
+  rmSync(download, { force: true });
   console.log(
-    `La huella de Opengrep no coincide (esperaba ${HUELLA} y llegó ${obtenida}); no lo instalé.`,
+    `La huella de Opengrep no coincide (esperaba ${SHA256} y llegó ${got}); no lo instalé.`,
   );
   process.exit(1);
 }
-renameSync(temporal, destino);
+renameSync(download, target);
 console.log('Opengrep listo: la huella coincide con la de docs/versiones.md.');

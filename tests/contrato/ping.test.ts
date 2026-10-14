@@ -18,16 +18,16 @@ describe('contrato del puente: canal «ping»', () => {
   });
 
   it('el puente rechaza una petición que no cumple el esquema, antes de mandarla', async () => {
-    const enviados: unknown[] = [];
-    const espia = buildApi(async (channel, request) => {
-      enviados.push(request);
+    const sent: unknown[] = [];
+    const spy = buildApi(async (channel, request) => {
+      sent.push(request);
       return handleMessage(handlers, channel, request);
     });
-    const invalida = { message: 'pong' } as unknown as { message: 'ping' };
-    await expect(espia.ping(invalida)).rejects.toThrow('Petición rechazada en el canal «ping»');
-    const sobrante = { message: 'ping', extra: 1 } as unknown as { message: 'ping' };
-    await expect(espia.ping(sobrante)).rejects.toThrow('Petición rechazada');
-    expect(enviados).toEqual([]);
+    const invalid = { message: 'pong' } as unknown as { message: 'ping' };
+    await expect(spy.ping(invalid)).rejects.toThrow('Petición rechazada en el canal «ping»');
+    const extra = { message: 'ping', extra: 1 } as unknown as { message: 'ping' };
+    await expect(spy.ping(extra)).rejects.toThrow('Petición rechazada');
+    expect(sent).toEqual([]);
   });
 
   it('el principal rechaza una petición inválida o un canal desconocido sin tocar nada', async () => {
@@ -38,15 +38,15 @@ describe('contrato del puente: canal «ping»', () => {
   });
 
   it('una respuesta que no cumple el esquema no llega a la ventana', async () => {
-    const roto = buildApi(async () => ({
+    const broken = buildApi(async () => ({
       message: 'pong',
       variant: 'prueba',
       today: '15/03/2027',
     }));
-    await expect(roto.ping({ message: 'ping' })).rejects.toThrow('Respuesta rechazada');
-    const malos = { ping: async () => ({ message: 'pong', variant: 'otra', today: '2027-03-15' }) };
+    await expect(broken.ping({ message: 'ping' })).rejects.toThrow('Respuesta rechazada');
+    const wrong = { ping: async () => ({ message: 'pong', variant: 'otra', today: '2027-03-15' }) };
     await expect(
-      handleMessage(malos as unknown as typeof handlers, 'ping', { message: 'ping' }),
+      handleMessage(wrong as unknown as typeof handlers, 'ping', { message: 'ping' }),
     ).rejects.toThrow('Respuesta rechazada');
   });
 });

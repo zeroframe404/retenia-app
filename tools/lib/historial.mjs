@@ -1,58 +1,76 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+/**
+ * @typedef {import('./resultados.mjs').TestResult & { date: string, mode: string }} KnownResult
+ */
+
 // Lo último que se sabe de cada prueba, juntando la última corrida rápida y la última completa.
 // Si una prueba corrió en las dos, vale la más reciente.
-export function ultimosResultados(raiz) {
-  const corridas = [];
-  for (const archivo of ['rapida.json', 'todo.json']) {
-    const ruta = join(raiz, '.cache', 'red', 'ultimo', archivo);
-    if (existsSync(ruta)) {
-      corridas.push(JSON.parse(readFileSync(ruta, 'utf8')));
+/** @param {string} root */
+export function latestResults(root) {
+  /** @type {any[]} */
+  const runs = [];
+  for (const name of ['rapida.json', 'todo.json']) {
+    const path = join(root, '.cache', 'red', 'ultimo', name);
+    if (!existsSync(path)) {
+      continue;
+    }
+    try {
+      const run = JSON.parse(readFileSync(path, 'utf8'));
+      // Un resultado guardado con otro formato (de una versión anterior de la red) se ignora.
+      if (typeof run.date === 'string' && Array.isArray(run.tests) && Array.isArray(run.layers)) {
+        runs.push(run);
+      }
+    } catch {
+      // Un archivo a medio escribir o dañado también se ignora.
     }
   }
-  corridas.sort((a, b) => a.fecha.localeCompare(b.fecha));
-  const pruebas = new Map();
-  let cobertura = null;
-  for (const corrida of corridas) {
-    for (const prueba of corrida.pruebas) {
-      pruebas.set(prueba.titulo, { ...prueba, fecha: corrida.fecha, modo: corrida.modo });
+  runs.sort((a, b) => a.date.localeCompare(b.date));
+  /** @type {Map<string, KnownResult>} */
+  const tests = new Map();
+  let coverage = null;
+  for (const run of runs) {
+    for (const test of run.tests) {
+      tests.set(test.title, { ...test, date: run.date, mode: run.mode });
     }
-    cobertura = corrida.cobertura ?? cobertura;
+    coverage = run.coverage ?? coverage;
   }
-  return { corridas, pruebas, cobertura };
+  return { runs, tests, coverage };
 }
 
-export const ESTADOS = {
-  paso: 'Pasó',
-  fallo: 'Falló',
-  salteada: 'Salteada',
-  'sin-correr': 'Todavía no corrió',
+/** @type {Record<string, string>} */
+export const STATUS_LABELS = {
+  passed: 'Pasó',
+  failed: 'Falló',
+  skipped: 'Salteada',
+  'not-run': 'Todavía no corrió',
 };
 
-const MARCADOR = /\$[A-Za-z_][\w.]*|%[sdifjoc#%]/;
+const PLACEHOLDER = /\$[A-Za-z_][\w.]*|%[sdifjoc#%]/;
 
-function escapar(texto) {
-  return texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** @param {string} text */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Las pruebas con tabla de casos se listan con su plantilla («… $entrada … $esperado»):
+// Las pruebas con tabla de casos se listan con su plantilla («… $input … $expected»):
 // se reemplazan por los casos que corrieron de verdad. Si no corrió ninguno, queda la plantilla.
 /**
- * @param {{ titulo: string, capa: string }[]} listadas
- * @param {Map<string, { titulo: string }>} pruebas
- * @returns {{ titulo: string, capa: string }[]}
+ * @param {{ title: string, layer: string }[]} listed
+ * @param {Map<string, { title: string }>} tests
+ * @returns {{ title: string, layer: string }[]}
  */
-export function expandirPlantillas(listadas, pruebas) {
-  return listadas.flatMap((listada) => {
-    if (!MARCADOR.test(listada.titulo)) {
-      return [listada];
+export function expandTemplates(listed, tests) {
+  return listed.flatMap((item) => {
+    if (!PLACEHOLDER.test(item.title)) {
+      return [item];
     }
-    const partes = listada.titulo.split(new RegExp(MARCADOR.source, 'g')).map(escapar);
-    const patron = new RegExp(`^${partes.join('.+?')}$`);
-    const casos = [...pruebas.values()]
-      .filter((p) => patron.test(p.titulo))
-      .map((p) => ({ titulo: p.titulo, capa: listada.capa }));
-    return casos.length > 0 ? casos : [listada];
+    const parts = item.title.split(new RegExp(PLACEHOLDER.source, 'g')).map(escapeRegExp);
+    const pattern = new RegExp(`^${parts.join('.+?')}$`);
+    const cases = [...tests.values()]
+      .filter((t) => pattern.test(t.title))
+      .map((t) => ({ title: t.title, layer: item.layer }));
+    return cases.length > 0 ? cases : [item];
   });
 }

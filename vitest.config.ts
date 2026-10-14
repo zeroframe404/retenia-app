@@ -5,9 +5,9 @@ import { defineConfig } from 'vitest/config';
 // «verificar»; «red» (los sabotajes y las pruebas que corren la red entera)
 // solo en «verificar:todo».
 export default defineConfig({
-  // Cada corrida aislada de la red (RETENIA_RED_DIR) usa su propia caché, para que varias
+  // Cada corrida aislada de la red (RETENIA_RUN_DIR) usa su propia caché, para que varias
   // corridas en paralelo no se pisen.
-  cacheDir: process.env.RETENIA_RED_DIR ? join(process.env.RETENIA_RED_DIR, 'vite') : '.cache/vite',
+  cacheDir: process.env.RETENIA_RUN_DIR ? join(process.env.RETENIA_RUN_DIR, 'vite') : '.cache/vite',
   test: {
     allowOnly: false,
     passWithNoTests: false,
@@ -27,7 +27,14 @@ export default defineConfig({
           testTimeout: 60_000,
         },
       },
-      { extends: true, test: { name: 'estaticas', include: ['tests/estaticas/**/*.test.ts'] } },
+      {
+        extends: true,
+        test: {
+          name: 'estaticas',
+          include: ['tests/estaticas/**/*.test.ts'],
+          testTimeout: 30_000,
+        },
+      },
       {
         extends: true,
         test: {

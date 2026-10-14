@@ -1,68 +1,121 @@
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { binario, correr, jsonDe, RAIZ } from '../../tools/lib/proceso.mjs';
+import { firstJson, packageBin, ROOT, run } from '../../tools/lib/proceso.mjs';
+import {
+  findSystemClockReads,
+  scanProjectForSystemClock,
+} from '../../tools/lib/reloj-del-sistema.mjs';
 
-type Diagnostico = { message: string; location?: { path?: string } };
-
-async function lint(carpeta: string, rutas: string[]): Promise<Diagnostico[]> {
-  const r = await correr(
-    process.execPath,
-    [binario('@biomejs/biome', 'biome'), 'lint', '--reporter=json', '--colors=off', ...rutas],
-    { cwd: carpeta },
-  );
-  return ((jsonDe(r.salida)?.diagnostics ?? []) as Diagnostico[]).filter((d) =>
-    d.message.startsWith('Reloj del sistema'),
-  );
-}
-
-// Una carpeta con la misma configuración de Biome y la misma regla que el proyecto, y archivos
-// de muestra en las mismas rutas, para ver qué atrapa la regla sin tocar el proyecto.
-const muestra = mkdtempSync(join(tmpdir(), 'retenia-reloj-'));
-afterAll(() => rmSync(muestra, { recursive: true, force: true }));
-for (const archivo of ['biome.json', '.gitignore', 'tools/biome/reloj-del-sistema.grit']) {
-  mkdirSync(dirname(join(muestra, archivo)), { recursive: true });
-  copyFileSync(join(RAIZ, archivo), join(muestra, archivo));
-}
-
-const CODIGO = [
+// Formas de leer la hora del sistema, incluidas las rebuscadas.
+const READS = [
   'export const a = Date.now();',
   'export const b = new Date();',
-  'export const c = performance.now();',
-  'export const d = globalThis.Date.now();',
-  'export const e = Date.now;',
-  "export const f = new Date('2027-03-15T10:00:00-03:00');",
-  'export const g = new Date(Date.UTC(2027, 2, 15));',
-  '',
-].join('\n');
+  'export const c = new Date;',
+  'export const d = new (Date)();',
+  'export const e = Date();',
+  "export const f = Date['now']();",
+  "export const g = globalThis['Date'].now();",
+  'export const h = globalThis.Date.now();',
+  'const D = Date; export const i = new D();',
+  'export const j = Reflect.construct(Date, []);',
+  'export const k = performance.now();',
+  'export const l = performance.timeOrigin;',
+  'export const m = process.hrtime.bigint();',
+  'export const n = Temporal.Now.instant();',
+  "export const o = new Intl.DateTimeFormat('es-AR').format();",
+];
+
+// Fechas armadas a mano: están permitidas en todos lados.
+const ALLOWED = [
+  "export const a = new Date('2027-03-15T10:00:00-03:00');",
+  'export const b = Date.UTC(2027, 2, 15);',
+  "export const c = Date.parse('2027-03-15');",
+  'export function d(x: Date): Date { return new Date(x.getTime()); }',
+  "export const e = new Intl.DateTimeFormat('es-AR').format(new Date(0));",
+  'export const f = { Date: 1 };',
+];
+
+const sample = mkdtempSync(join(tmpdir(), 'retenia-reloj-'));
+afterAll(() => rmSync(sample, { recursive: true, force: true }));
 
 describe('regla «reloj del sistema»', () => {
-  it('solo src/core/clock lee la hora del sistema: en el programa, las pruebas y la red no hay ninguna otra lectura', async () => {
-    expect(await lint(RAIZ, ['src', 'tests', 'tools'])).toEqual([]);
+  it('solo src/core/clock lee la hora del sistema: en ningún otro archivo de código del proyecto hay otra lectura', async () => {
+    expect(await scanProjectForSystemClock(ROOT)).toEqual([]);
   });
 
-  it('la regla atrapa cada forma de leer la hora fuera del reloj y deja pasar las fechas armadas a mano', async () => {
-    for (const archivo of [
+  it('la regla atrapa cada forma de leer la hora fuera del reloj y deja pasar las fechas armadas a mano', () => {
+    for (const code of READS) {
+      expect(findSystemClockReads(code, 'src/main/muestra.ts'), code).not.toEqual([]);
+    }
+    for (const code of ALLOWED) {
+      expect(findSystemClockReads(code, 'src/main/muestra.ts'), code).toEqual([]);
+    }
+  });
+
+  it('un comentario no apaga la regla, y apagar la de Biome también es una falta', () => {
+    const ignore = `// ${'biome'}-ignore lint/plugin: no hace falta`;
+    expect(
+      findSystemClockReads(`${ignore}\nexport const a = Date.now();\n`, 'tools/x.mjs'),
+    ).toEqual([
+      { line: 1, text: 'apaga la regla del reloj con un comentario' },
+      { line: 2, text: '`Date.now` no está permitido fuera del reloj' },
+    ]);
+  });
+
+  it('Biome también la marca al escribir, en todo archivo de código salvo el reloj (incluidos los de la raíz)', async () => {
+    for (const file of ['biome.json', '.gitignore', 'tools/biome/reloj-del-sistema.grit']) {
+      mkdirSync(dirname(join(sample, file)), { recursive: true });
+      copyFileSync(join(ROOT, file), join(sample, file));
+    }
+    const files = [
       'src/renderer/muestra.ts',
       'src/main/muestra.ts',
       'tests/unitarias/muestra.ts',
       'tools/muestra.mjs',
+      'muestra.config.ts',
       'src/core/clock/muestra.ts',
-    ]) {
-      mkdirSync(dirname(join(muestra, archivo)), { recursive: true });
-      writeFileSync(join(muestra, archivo), CODIGO);
+    ];
+    for (const file of files) {
+      mkdirSync(dirname(join(sample, file)), { recursive: true });
+      writeFileSync(
+        join(sample, file),
+        'export const a = Date.now();\nexport const b = new Date();\n',
+      );
     }
-    const porArchivo = new Map<string, number>();
-    for (const d of await lint(muestra, ['.'])) {
-      const ruta = (d.location?.path ?? '').split('\\').join('/');
-      porArchivo.set(ruta, (porArchivo.get(ruta) ?? 0) + 1);
+    const r = await run(
+      process.execPath,
+      [packageBin('@biomejs/biome', 'biome'), 'lint', '--reporter=json', '--colors=off', '.'],
+      { cwd: sample },
+    );
+    const perFile = new Map<string, number>();
+    for (const d of (firstJson(r.stdout)?.diagnostics ?? []) as {
+      message: string;
+      location?: { path?: string };
+    }[]) {
+      if (d.message.startsWith('Reloj del sistema')) {
+        const path = (d.location?.path ?? '').split('\\').join('/');
+        perFile.set(path, (perFile.get(path) ?? 0) + 1);
+      }
     }
-    expect(Object.fromEntries(porArchivo)).toEqual({
-      'src/renderer/muestra.ts': 5,
-      'src/main/muestra.ts': 5,
-      'tests/unitarias/muestra.ts': 5,
-      'tools/muestra.mjs': 5,
+    expect(Object.fromEntries(perFile)).toEqual({
+      'src/renderer/muestra.ts': 2,
+      'src/main/muestra.ts': 2,
+      'tests/unitarias/muestra.ts': 2,
+      'tools/muestra.mjs': 2,
+      'muestra.config.ts': 2,
     });
+  });
+
+  it('Node puede cargar el reloj directamente, como lo hacen las herramientas de la red', async () => {
+    const clock = pathToFileURL(join(ROOT, 'src', 'core', 'clock', 'index.ts')).href;
+    const r = await run(process.execPath, [
+      '--input-type=module',
+      '-e',
+      `const m = await import(${JSON.stringify(clock)}); if (typeof m.systemClock !== 'function') process.exit(3);`,
+    ]);
+    expect(r.code, r.stderr).toBe(0);
   });
 });

@@ -1,47 +1,47 @@
 import { describe, expect, it } from 'vitest';
-import { expandirPlantillas } from '../../../tools/lib/historial.mjs';
+import { expandTemplates } from '../../../tools/lib/historial.mjs';
 
-const corridas = new Map(
+const ran = new Map(
   [
     '[CA-002] día de estudio: 16/03/2027 02:30 en Buenos Aires cuenta para lunes 15/03/2027',
     '[CA-002] día de estudio: 16/03/2027 04:00 en Buenos Aires cuenta para martes 16/03/2027',
     '[CA-002] el día de estudio no depende de la zona horaria de la PC',
     '[CA-001] cuesta $5 (texto con signo pesos)',
-  ].map((titulo) => [titulo, { titulo }]),
+  ].map((title) => [title, { title }]),
 );
 
 describe('historial de resultados', () => {
   it('[CA-008] una prueba con tabla de casos se muestra con cada caso que corrió', () => {
-    const listadas = [
+    const listed = [
       {
-        titulo: '[CA-002] día de estudio: $entrada en Buenos Aires cuenta para $esperado',
-        capa: 'Unitaria',
+        title: '[CA-002] día de estudio: $input en Buenos Aires cuenta para $expected',
+        layer: 'Unitaria',
       },
       {
-        titulo: '[CA-002] el día de estudio no depende de la zona horaria de la PC',
-        capa: 'Unitaria',
+        title: '[CA-002] el día de estudio no depende de la zona horaria de la PC',
+        layer: 'Unitaria',
       },
     ];
-    expect(expandirPlantillas(listadas, corridas)).toEqual([
+    expect(expandTemplates(listed, ran)).toEqual([
       {
-        titulo:
+        title:
           '[CA-002] día de estudio: 16/03/2027 02:30 en Buenos Aires cuenta para lunes 15/03/2027',
-        capa: 'Unitaria',
+        layer: 'Unitaria',
       },
       {
-        titulo:
+        title:
           '[CA-002] día de estudio: 16/03/2027 04:00 en Buenos Aires cuenta para martes 16/03/2027',
-        capa: 'Unitaria',
+        layer: 'Unitaria',
       },
       {
-        titulo: '[CA-002] el día de estudio no depende de la zona horaria de la PC',
-        capa: 'Unitaria',
+        title: '[CA-002] el día de estudio no depende de la zona horaria de la PC',
+        layer: 'Unitaria',
       },
     ]);
   });
 
   it('[CA-008] si ningún caso corrió todavía, queda la plantilla para mostrarla «sin correr»', () => {
-    const listadas = [{ titulo: '[CA-009] crea $pregunta', capa: 'Punta a punta' }];
-    expect(expandirPlantillas(listadas, corridas)).toEqual(listadas);
+    const listed = [{ title: '[CA-009] crea $question', layer: 'Punta a punta' }];
+    expect(expandTemplates(listed, ran)).toEqual(listed);
   });
 });

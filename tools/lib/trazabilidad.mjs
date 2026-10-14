@@ -1,58 +1,69 @@
-import { criteriosDelTitulo, tituloMalFormado } from './resultados.mjs';
+import { criteriaInTitle, isMalformedTitle } from './resultados.mjs';
+
+/**
+ * @typedef {import('./especificacion.mjs').Spec} Spec
+ * @typedef {import('./especificacion.mjs').Criterion} Criterion
+ * @typedef {{ title: string, layer: string }} TitledTest
+ * @typedef {Criterion & { story: string, phase: string, tests: TitledTest[] }} TracedCriterion
+ */
 
 // Cruza los criterios de la especificación con los títulos de las pruebas.
 // Un criterio de una fase cerrada sin prueba es una falla; los de la fase en curso se
-// exigen solo al cerrarla (exigirEnCurso).
-export function cruzar({ especificacion, titulos, cerradas, enCurso, exigirEnCurso }) {
-  const faseDe = new Map();
-  for (const fase of especificacion.fases) {
-    for (const id of fase.criterios) {
-      faseDe.set(id, fase.numero);
+// exigen solo al cerrarla (requireCurrent).
+/**
+ * @param {{ spec: Spec, titles: TitledTest[], closed: string[], current: string | null, requireCurrent: boolean }} options
+ */
+export function crossCheck({ spec, titles, closed, current, requireCurrent }) {
+  /** @type {Map<string, string>} */
+  const phaseOf = new Map();
+  for (const phase of spec.phases) {
+    for (const id of phase.criteria) {
+      phaseOf.set(id, phase.number);
     }
   }
-  const pruebasDe = new Map();
-  const problemas = [];
-  const existentes = new Set(faseDe.keys());
-  for (const { titulo, capa } of titulos) {
-    if (tituloMalFormado(titulo)) {
-      problemas.push(
-        `la prueba «${titulo}» menciona un criterio pero no lo pone al principio entre corchetes (por ejemplo «[CA-002] …»).`,
+  /** @type {Map<string, TitledTest[]>} */
+  const testsOf = new Map();
+  /** @type {string[]} */
+  const problems = [];
+  for (const { title, layer } of titles) {
+    if (isMalformedTitle(title)) {
+      problems.push(
+        `la prueba «${title}» menciona un criterio pero no lo pone al principio entre corchetes (por ejemplo «[CA-002] …»).`,
       );
     }
-    for (const id of criteriosDelTitulo(titulo)) {
-      if (!existentes.has(id)) {
-        problemas.push(`la prueba «${titulo}» nombra ${id}, que no existe en la especificación.`);
+    for (const id of criteriaInTitle(title)) {
+      if (!phaseOf.has(id)) {
+        problems.push(`la prueba «${title}» nombra ${id}, que no existe en la especificación.`);
         continue;
       }
-      if (!pruebasDe.has(id)) {
-        pruebasDe.set(id, []);
-      }
-      pruebasDe.get(id).push({ titulo, capa });
+      testsOf.set(id, [...(testsOf.get(id) ?? []), { title, layer }]);
     }
   }
-  const criterios = especificacion.historias.flatMap((h) =>
-    h.criterios.map((c) => ({
+  /** @type {TracedCriterion[]} */
+  const criteria = spec.stories.flatMap((story) =>
+    story.criteria.map((c) => ({
       ...c,
-      historia: h.id,
-      fase: faseDe.get(c.id) ?? h.fase,
-      pruebas: pruebasDe.get(c.id) ?? [],
+      story: story.id,
+      phase: phaseOf.get(c.id) ?? story.phase,
+      tests: testsOf.get(c.id) ?? [],
     })),
   );
-  const deFases = (numeros) => criterios.filter((c) => numeros.includes(c.fase));
-  const considerados = deFases([...cerradas, ...(enCurso ? [enCurso] : [])]);
-  const exigidos = deFases([...cerradas, ...(enCurso && exigirEnCurso ? [enCurso] : [])]);
-  for (const c of exigidos) {
-    if (c.pruebas.length === 0) {
-      const cuando = cerradas.includes(c.fase) ? 'cerrada' : 'que se está cerrando';
-      problemas.push(
-        `el criterio ${c.id} (fase ${c.fase}, ${cuando}) no tiene ninguna prueba con «[${c.id}]» al principio del título.`,
+  /** @param {string[]} numbers */
+  const ofPhases = (numbers) => criteria.filter((c) => numbers.includes(c.phase));
+  const considered = ofPhases([...closed, ...(current ? [current] : [])]);
+  const required = ofPhases([...closed, ...(current && requireCurrent ? [current] : [])]);
+  for (const c of required) {
+    if (c.tests.length === 0) {
+      const when = closed.includes(c.phase) ? 'cerrada' : 'que se está cerrando';
+      problems.push(
+        `el criterio ${c.id} (fase ${c.phase}, ${when}) no tiene ninguna prueba con «[${c.id}]» al principio del título.`,
       );
     }
   }
   return {
-    criterios,
-    numerador: considerados.filter((c) => c.pruebas.length > 0).length,
-    denominador: considerados.length,
-    problemas,
+    criteria,
+    covered: considered.filter((c) => c.tests.length > 0).length,
+    total: considered.length,
+    problems,
   };
 }

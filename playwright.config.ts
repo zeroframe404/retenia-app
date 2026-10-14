@@ -1,8 +1,8 @@
 import { resolve } from 'node:path';
 import { defineConfig } from '@playwright/test';
 
-// Informes en la carpeta de la corrida (la elige tools/verify.mjs con RETENIA_RED_DIR).
-const reports = resolve(process.env.RETENIA_RED_DIR ?? '.cache/red/manual', 'punta-a-punta');
+// Informes en la carpeta de la corrida (la elige la red con RETENIA_RUN_DIR).
+const reports = resolve(process.env.RETENIA_RUN_DIR ?? '.cache/red/manual', 'punta-a-punta');
 
 export default defineConfig({
   testDir: 'tests/e2e',

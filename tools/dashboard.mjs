@@ -7,166 +7,178 @@
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { leerEspecificacionDelProyecto } from './lib/especificacion.mjs';
-import { faseEnCurso, tagsDeFasesCerradas } from './lib/fases.mjs';
-import { ESTADOS, expandirPlantillas, ultimosResultados } from './lib/historial.mjs';
-import { listarTitulos } from './lib/listado.mjs';
-import { RAIZ } from './lib/proceso.mjs';
-import { ahora, formatearDuracion, formatearFechaHora } from './lib/reloj.mjs';
-import { cruzar } from './lib/trazabilidad.mjs';
+import { readProjectSpec } from './lib/especificacion.mjs';
+import { closedPhaseTags, currentPhase } from './lib/fases.mjs';
+import { expandTemplates, latestResults, STATUS_LABELS } from './lib/historial.mjs';
+import { listTitles } from './lib/listado.mjs';
+import { ROOT } from './lib/proceso.mjs';
+import { formatDateTime, formatDuration, now } from './lib/reloj.mjs';
+import { crossCheck } from './lib/trazabilidad.mjs';
 
-const salida = process.argv.includes('--salida')
-  ? resolve(process.argv[process.argv.indexOf('--salida') + 1])
-  : join(RAIZ, '.cache', 'tablero');
-const abrir = !process.argv.includes('--sin-abrir');
+/** @typedef {import('./lib/trazabilidad.mjs').TracedCriterion} TracedCriterion */
 
-function h(texto) {
-  return String(texto)
+const outputDir = process.argv.includes('--salida')
+  ? resolve(process.argv[process.argv.indexOf('--salida') + 1] ?? '.')
+  : join(ROOT, '.cache', 'tablero');
+const open = !process.argv.includes('--sin-abrir');
+
+/** @param {unknown} text */
+function h(text) {
+  return String(text)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;');
 }
 
-function conCodigo(texto) {
-  return h(texto).replace(/`([^`]+)`/g, '<code>$1</code>');
+/** @param {string | null} text */
+function withCode(text) {
+  return h(text ?? '').replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
-const especificacion = leerEspecificacionDelProyecto(RAIZ);
-const [enCurso, tags, { titulos }] = await Promise.all([
-  faseEnCurso(RAIZ),
-  tagsDeFasesCerradas(RAIZ),
-  listarTitulos(),
+const spec = readProjectSpec(ROOT);
+const [phase, tags, { titles }] = await Promise.all([
+  currentPhase(ROOT),
+  closedPhaseTags(ROOT),
+  listTitles(),
 ]);
-const cerradas = tags.map((t) => t.numero);
-const traza = cruzar({ especificacion, titulos, cerradas, enCurso, exigirEnCurso: false });
-const { corridas, pruebas, cobertura } = ultimosResultados(RAIZ);
-const criteriosPorId = new Map(
-  traza.criterios.map((c) => [c.id, { ...c, pruebas: expandirPlantillas(c.pruebas, pruebas) }]),
+const closed = tags.map((t) => t.number);
+const trace = crossCheck({ spec, titles, closed, current: phase, requireCurrent: false });
+const { runs, tests, coverage } = latestResults(ROOT);
+/** @type {Map<string, TracedCriterion>} */
+const criteriaById = new Map(
+  trace.criteria.map((c) => [c.id, { ...c, tests: expandTemplates(c.tests, tests) }]),
 );
 
-function estadoDeCriterio(criterio) {
-  if (criterio.pruebas.length === 0) {
-    return { clase: 'sin', texto: 'Sin prueba' };
+/** @param {TracedCriterion} criterion */
+function criterionState(criterion) {
+  if (criterion.tests.length === 0) {
+    return { css: 'sin', label: 'Sin prueba' };
   }
-  const estados = criterio.pruebas.map((p) => pruebas.get(p.titulo)?.estado ?? 'sin-correr');
-  if (estados.includes('fallo')) {
-    return { clase: 'falla', texto: 'Con fallas' };
+  const states = criterion.tests.map((t) => tests.get(t.title)?.status ?? 'not-run');
+  if (states.includes('failed')) {
+    return { css: 'falla', label: 'Con fallas' };
   }
-  if (estados.includes('salteada')) {
-    return { clase: 'falla', texto: 'Con salteadas' };
+  if (states.includes('skipped')) {
+    return { css: 'falla', label: 'Con salteadas' };
   }
-  if (estados.includes('sin-correr')) {
-    return { clase: 'pendiente', texto: 'Faltan corridas' };
+  if (states.includes('not-run')) {
+    return { css: 'pendiente', label: 'Faltan corridas' };
   }
-  return { clase: 'bien', texto: 'Comprobado' };
+  return { css: 'bien', label: 'Comprobado' };
 }
 
-function seccionDeCriterio(criterio) {
-  const estado = estadoDeCriterio(criterio);
-  const filas = criterio.pruebas
-    .map(({ titulo, capa }) => {
-      const ultimo = pruebas.get(titulo);
-      const resultado = ESTADOS[ultimo?.estado ?? 'sin-correr'];
-      const cuando = ultimo ? formatearFechaHora(new Date(ultimo.fecha)) : '—';
-      return `<tr><td>${h(titulo)}</td><td>${h(capa)}</td><td><span class="chip ${ultimo?.estado ?? 'sin-correr'}">${h(resultado)}</span></td><td>${h(cuando)}</td></tr>`;
+/** @param {TracedCriterion} criterion */
+function criterionSection(criterion) {
+  const state = criterionState(criterion);
+  const rows = criterion.tests
+    .map(({ title, layer }) => {
+      const last = tests.get(title);
+      const status = last?.status ?? 'not-run';
+      const when = last ? formatDateTime(new Date(last.date)) : '—';
+      return `<tr><td>${h(title)}</td><td>${h(layer)}</td><td><span class="chip ${status}">${h(STATUS_LABELS[status])}</span></td><td>${h(when)}</td></tr>`;
     })
     .join('');
-  const tabla =
-    criterio.pruebas.length === 0
+  const table =
+    criterion.tests.length === 0
       ? '<p class="nota">Todavía no tiene ninguna prueba.</p>'
-      : `<table><thead><tr><th>Prueba</th><th>Capa</th><th>Resultado</th><th>Última vez</th></tr></thead><tbody>${filas}</tbody></table>`;
-  return `<article class="criterio" aria-labelledby="t-${criterio.id}">
-  <h4 id="t-${criterio.id}">${criterio.id} <span class="chip ${estado.clase}">${estado.texto}</span></h4>
-  <p class="dado">Dado ${conCodigo(criterio.dado)}, cuando ${conCodigo(criterio.cuando)}, entonces ${conCodigo(criterio.entonces)}${/[.!?]$/.test(criterio.entonces ?? '') ? '' : '.'}</p>
-  ${tabla}
+      : `<table><thead><tr><th>Prueba</th><th>Capa</th><th>Resultado</th><th>Última vez</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const ending = /[.!?]$/.test(criterion.outcome ?? '') ? '' : '.';
+  return `<article class="criterio" aria-labelledby="t-${criterion.id}">
+  <h4 id="t-${criterion.id}">${criterion.id} <span class="chip ${state.css}">${state.label}</span></h4>
+  <p class="dado">Dado ${withCode(criterion.given)}, cuando ${withCode(criterion.when)}, entonces ${withCode(criterion.outcome)}${ending}</p>
+  ${table}
 </article>`;
 }
 
-function seccionDeFase(fase) {
-  const cerrada = cerradas.includes(fase.numero);
-  const actual = fase.numero === enCurso;
-  const criterios = fase.criterios.map((id) => criteriosPorId.get(id)).filter(Boolean);
-  const comprobados = criterios.filter((c) => estadoDeCriterio(c).clase === 'bien').length;
-  const rotulo = cerrada ? 'cerrada' : actual ? 'en curso' : 'todavía no empezó';
-  const resumen = `Fase ${fase.numero} · ${h(fase.nombre)} · ${rotulo} · ${comprobados} de ${criterios.length} criterios comprobados`;
-  if (!cerrada && !actual) {
-    return `<details class="fase"><summary>${resumen}</summary><p class="nota">Historias ${h(fase.historias.join(', '))}: ${criterios.map((c) => c.id).join(', ')}.</p></details>`;
+/** @param {import('./lib/especificacion.mjs').Phase} p */
+function phaseSection(p) {
+  const isClosed = closed.includes(p.number);
+  const isCurrent = p.number === phase;
+  const criteria = p.criteria.map((id) => criteriaById.get(id)).filter((c) => c !== undefined);
+  const verified = criteria.filter((c) => criterionState(c).css === 'bien').length;
+  const label = isClosed ? 'cerrada' : isCurrent ? 'en curso' : 'todavía no empezó';
+  const summary = `Fase ${p.number} · ${h(p.name)} · ${label} · ${verified} de ${criteria.length} criterios comprobados`;
+  if (!isClosed && !isCurrent) {
+    return `<details class="fase"><summary>${summary}</summary><p class="nota">Historias ${h(p.stories.join(', '))}: ${criteria.map((c) => c.id).join(', ')}.</p></details>`;
   }
-  const historias = especificacion.historias
-    .filter((hist) => fase.historias.includes(hist.id))
+  const stories = spec.stories
+    .filter((s) => p.stories.includes(s.id))
     .map(
-      (hist) => `<section class="historia" aria-labelledby="h-${hist.id}">
-  <h3 id="h-${hist.id}">${hist.id} · ${h(hist.prioridad)}</h3>
-  <p>${h(hist.descripcion)}</p>
-  ${criterios
-    .filter((c) => c.historia === hist.id)
-    .map(seccionDeCriterio)
+      (s) => `<section class="historia" aria-labelledby="h-${s.id}">
+  <h3 id="h-${s.id}">${s.id} · ${h(s.priority)}</h3>
+  <p>${h(s.description)}</p>
+  ${criteria
+    .filter((c) => c.story === s.id)
+    .map(criterionSection)
     .join('\n')}
 </section>`,
     )
     .join('\n');
-  return `<section class="fase abierta" aria-label="Fase ${fase.numero}"><h2>${resumen}</h2>${historias}</section>`;
+  return `<section class="fase abierta" aria-label="Fase ${p.number}"><h2>${summary}</h2>${stories}</section>`;
 }
 
-function seccionDeCorridas() {
-  const TOPES = { verificar: '2 min', 'verificar:todo': '15 min' };
-  if (corridas.length === 0) {
+function runsSection() {
+  /** @type {Record<string, string>} */
+  const LIMITS = { verificar: '2 min', 'verificar:todo': '15 min' };
+  if (runs.length === 0) {
     return '<p class="nota">Todavía no corrió la red. Corré «npm run verificar».</p>';
   }
-  const filas = corridas
-    .map((c) => {
-      const linea = c.veredicto[0] ?? '';
-      const resultado = linea.startsWith('ROJO')
-        ? `${linea.split(' · ').slice(0, 2).join(' · ')} (el detalle está en la terminal)`
-        : linea;
-      return `<tr><td>npm run ${h(c.modo)}</td><td>${h(formatearFechaHora(new Date(c.fecha)))}</td><td>${h(resultado)}</td><td>${h(formatearDuracion(c.duracionMs))} (tope ${TOPES[c.modo]})</td></tr>`;
+  const rows = runs
+    .map((r) => {
+      const line = r.verdict[0] ?? '';
+      const shown = line.startsWith('ROJO')
+        ? `${line.split(' · ').slice(0, 2).join(' · ')} (el detalle está en la terminal)`
+        : line;
+      return `<tr><td>npm run ${h(r.mode)}</td><td>${h(formatDateTime(new Date(r.date)))}</td><td>${h(shown)}</td><td>${h(formatDuration(r.durationMs))} (tope ${LIMITS[r.mode]})</td></tr>`;
     })
     .join('');
-  return `<table><thead><tr><th>Orden</th><th>Última corrida</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>${filas}</tbody></table>`;
+  return `<table><thead><tr><th>Orden</th><th>Última corrida</th><th>Resultado</th><th>Tiempo</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
-function capaDeLaUltima(id) {
-  for (const corrida of [...corridas].reverse()) {
-    const capa = corrida.capas.find((c) => c.id === id);
-    if (capa) {
-      return { ...capa, fecha: corrida.fecha };
+/** @param {string} id */
+function latestLayer(id) {
+  for (const r of [...runs].reverse()) {
+    const found = r.layers.find((/** @type {any} */ l) => l.id === id);
+    if (found) {
+      return { ...found, date: r.date };
     }
   }
   return null;
 }
 
-function renglonDeCapa(id, nombre, sinDatos) {
-  const capa = capaDeLaUltima(id);
-  if (!capa) {
-    return `<li>${h(nombre)}: ${h(sinDatos)}</li>`;
+/** @param {string} id @param {string} name @param {string} noData */
+function layerLine(id, name, noData) {
+  const found = latestLayer(id);
+  if (!found) {
+    return `<li>${h(name)}: ${h(noData)}</li>`;
   }
-  const estado =
-    capa.fallas === 0 ? 'sin faltas' : `${capa.fallas} ${capa.fallas === 1 ? 'falta' : 'faltas'}`;
-  return `<li>${h(nombre)}: ${estado} (${h(formatearFechaHora(new Date(capa.fecha)))})</li>`;
+  const state =
+    found.failures === 0
+      ? 'sin faltas'
+      : `${found.failures} ${found.failures === 1 ? 'falta' : 'faltas'}`;
+  return `<li>${h(name)}: ${state} (${h(formatDateTime(new Date(found.date)))})</li>`;
 }
 
-function seccionDeCasos() {
-  const tablas = new Map();
-  for (const prueba of pruebas.values()) {
-    if (prueba.caso) {
-      if (!tablas.has(prueba.caso.tabla)) {
-        tablas.set(prueba.caso.tabla, []);
-      }
-      tablas.get(prueba.caso.tabla).push(prueba);
+function casesSection() {
+  /** @type {Map<string, import('./lib/historial.mjs').KnownResult[]>} */
+  const tables = new Map();
+  for (const test of tests.values()) {
+    if (test.tableCase) {
+      tables.set(test.tableCase.table, [...(tables.get(test.tableCase.table) ?? []), test]);
     }
   }
-  if (tablas.size === 0) {
+  if (tables.size === 0) {
     return '<p class="nota">Todavía no hay tablas de casos con resultados.</p>';
   }
-  return [...tablas]
+  return [...tables]
     .map(
-      ([tabla, filas]) => `<h3>${h(tabla)}</h3>
+      ([table, rows]) => `<h3>${h(table)}</h3>
 <table><thead><tr><th>Entrada</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead><tbody>
-${filas
+${rows
   .map(
-    (p) =>
-      `<tr><td>${h(p.caso.entrada)}</td><td>${h(p.caso.esperado)}</td><td>${h(p.caso.obtenido)}</td><td><span class="chip ${p.estado}">${h(ESTADOS[p.estado])}</span></td></tr>`,
+    (t) =>
+      `<tr><td>${h(t.tableCase?.input)}</td><td>${h(t.tableCase?.expected)}</td><td>${h(t.tableCase?.actual)}</td><td><span class="chip ${t.status}">${h(STATUS_LABELS[t.status])}</span></td></tr>`,
   )
   .join('\n')}
 </tbody></table>`,
@@ -174,10 +186,9 @@ ${filas
     .join('\n');
 }
 
-const pruebasDeAccesibilidad = [...pruebas.values()].filter((p) =>
-  p.titulo.startsWith('accesibilidad:'),
-);
-const coma = (n) => String(n).replace('.', ',');
+const a11yTests = [...tests.values()].filter((t) => t.title.startsWith('accesibilidad:'));
+/** @param {number} n */
+const decimal = (n) => String(n).replace('.', ',');
 
 const html = `<!doctype html>
 <html lang="es-AR">
@@ -198,9 +209,9 @@ table { width:100%; border-collapse:collapse; margin:.5rem 0 1rem; background:va
 th, td { text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--borde); vertical-align:top; }
 .criterio { border:1px solid var(--borde); border-radius:8px; padding:.25rem 1rem; margin:.75rem 0; background:var(--tarjeta); }
 .chip { display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.85rem; font-weight:600; }
-.bien, .paso { color:var(--bien); background:var(--bien-fondo); }
-.falla, .fallo, .salteada { color:var(--falla); background:var(--falla-fondo); }
-.pendiente, .sin-correr { color:var(--pend); background:var(--pend-fondo); }
+.bien, .passed { color:var(--bien); background:var(--bien-fondo); }
+.falla, .failed, .skipped { color:var(--falla); background:var(--falla-fondo); }
+.pendiente, .not-run { color:var(--pend); background:var(--pend-fondo); }
 .sin { color:var(--sin); background:var(--sin-fondo); }
 details.fase { margin:.5rem 0; } summary { cursor:pointer; }
 code { font-family:Consolas,monospace; }
@@ -209,19 +220,19 @@ code { font-family:Consolas,monospace; }
 <body>
 <main>
 <h1>Tablero de Retenia</h1>
-<p class="nota">Armado el ${h(formatearFechaHora(ahora()))}, hora de Buenos Aires. ${enCurso ? `Fase en curso: ${enCurso}.` : ''} Fases cerradas: ${cerradas.length === 0 ? 'ninguna todavía' : cerradas.join(', ')}.</p>
+<p class="nota">Armado el ${h(formatDateTime(now()))}, hora de Buenos Aires. ${phase ? `Fase en curso: ${phase}.` : ''} Fases cerradas: ${closed.length === 0 ? 'ninguna todavía' : closed.join(', ')}.</p>
 
-<section aria-labelledby="s-red"><h2 id="s-red">Estado de la red</h2>${seccionDeCorridas()}</section>
+<section aria-labelledby="s-red"><h2 id="s-red">Estado de la red</h2>${runsSection()}</section>
 
 <section aria-labelledby="s-historias"><h2 id="s-historias">Historias, criterios y pruebas</h2>
-<p class="nota">${traza.numerador} de ${traza.denominador} criterios de las fases cerradas y en curso tienen al menos una prueba.</p>
-${especificacion.fases.map(seccionDeFase).join('\n')}
+<p class="nota">${trace.covered} de ${trace.total} criterios de las fases cerradas y en curso tienen al menos una prueba.</p>
+${spec.phases.map(phaseSection).join('\n')}
 </section>
 
-<section aria-labelledby="s-casos"><h2 id="s-casos">Tablas de casos: lo esperado y lo obtenido</h2>${seccionDeCasos()}</section>
+<section aria-labelledby="s-casos"><h2 id="s-casos">Tablas de casos: lo esperado y lo obtenido</h2>${casesSection()}</section>
 
 <section aria-labelledby="s-cobertura"><h2 id="s-cobertura">Cobertura de reglas</h2>
-${cobertura ? `<p>Las pruebas recorren el ${coma(cobertura.ramas)} % de las ramas y el ${coma(cobertura.lineas)} % de las líneas del núcleo (las reglas puras). Mínimo de ramas: ${cobertura.umbral} %.</p>` : '<p class="nota">Todavía sin medir: corré «npm run verificar».</p>'}
+${coverage ? `<p>Las pruebas recorren el ${decimal(coverage.branches)} % de las ramas y el ${decimal(coverage.lines)} % de las líneas del núcleo (las reglas puras). Mínimo de ramas: ${coverage.threshold} %.</p>` : '<p class="nota">Todavía sin medir: corré «npm run verificar».</p>'}
 </section>
 
 <section aria-labelledby="s-mutacion"><h2 id="s-mutacion">Mutación</h2>
@@ -229,15 +240,16 @@ ${cobertura ? `<p>Las pruebas recorren el ${coma(cobertura.ramas)} % de las rama
 </section>
 
 <section aria-labelledby="s-seguridad"><h2 id="s-seguridad">Seguridad</h2><ul>
-${renglonDeCapa('secretos', 'Escáner de secretos', 'todavía no corrió')}
-${renglonDeCapa('auditoria', 'Auditoría de dependencias (vulnerabilidades altas o críticas)', 'corre con «npm run verificar:todo»')}
-${renglonDeCapa('seguridad', 'Análisis estático de seguridad', 'corre con «npm run verificar:todo»')}
-${renglonDeCapa('capas', 'Regla de capas', 'todavía no corrió')}
+${layerLine('secretos', 'Escáner de secretos', 'todavía no corrió')}
+${layerLine('auditoria', 'Auditoría de dependencias (vulnerabilidades altas o críticas)', 'corre con «npm run verificar:todo»')}
+${layerLine('seguridad', 'Análisis estático de seguridad', 'corre con «npm run verificar:todo»')}
+${layerLine('capas', 'Regla de capas', 'todavía no corrió')}
+${layerLine('reloj', 'Regla del reloj del sistema', 'todavía no corrió')}
 </ul></section>
 
 <section aria-labelledby="s-accesibilidad"><h2 id="s-accesibilidad">Accesibilidad</h2><ul>
-${renglonDeCapa('accesibilidad', 'Revisión automática de la ventana', 'corre con «npm run verificar:todo»')}
-<li>Pantallas revisadas: ${pruebasDeAccesibilidad.length}.</li>
+${layerLine('accesibilidad', 'Revisión automática de la ventana', 'corre con «npm run verificar:todo»')}
+<li>Pantallas revisadas: ${a11yTests.length}.</li>
 </ul></section>
 
 <section aria-labelledby="s-rendimiento"><h2 id="s-rendimiento">Rendimiento</h2>
@@ -248,11 +260,11 @@ ${renglonDeCapa('accesibilidad', 'Revisión automática de la ventana', 'corre c
 </html>
 `;
 
-mkdirSync(salida, { recursive: true });
-const pagina = join(salida, 'index.html');
-writeFileSync(pagina, html);
-console.log(`Tablero listo: ${pagina}`);
-if (abrir) {
-  spawn('explorer.exe', [pagina], { detached: true, stdio: 'ignore' }).unref();
+mkdirSync(outputDir, { recursive: true });
+const page = join(outputDir, 'index.html');
+writeFileSync(page, html);
+console.log(`Tablero listo: ${page}`);
+if (open) {
+  spawn('explorer.exe', [page], { detached: true, stdio: 'ignore' }).unref();
   console.log('Se abre en tu navegador.');
 }

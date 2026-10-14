@@ -1,22 +1,22 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { borrarCopia, copiarProyecto, redEn, veredicto } from '../apoyo/red';
-import { aplicarSabotaje } from '../sabotage/sabotajes.mjs';
+import { copyProject, removeCopy, runNetworkIn, verdictLines } from '../apoyo/red';
+import { applySabotage } from '../sabotage/sabotajes.mjs';
 
 describe('sabotaje 3', () => {
-  let copia = '';
+  let copy = '';
   beforeAll(async () => {
-    copia = await copiarProyecto();
+    copy = await copyProject();
   });
-  afterAll(() => borrarCopia(copia));
+  afterAll(() => removeCopy(copy));
 
   it('[CA-005] sabotaje 3: con una prueba salteada la red da ROJO con «1 salteada», y al revertir vuelve a VERDE', async () => {
-    const { revertir } = aplicarSabotaje(3, copia);
-    const rojo = veredicto((await redEn(copia)).salida);
-    expect(rojo[0], rojo.join('\n')).toMatch(/^ROJO · /);
-    expect(rojo.join('\n')).toContain('1 salteada');
+    const { revert } = applySabotage(3, copy);
+    const red = verdictLines((await runNetworkIn(copy)).stdout);
+    expect(red[0], red.join('\n')).toMatch(/^ROJO · /);
+    expect(red.join('\n')).toContain('1 salteada');
 
-    revertir();
-    const verde = veredicto((await redEn(copia)).salida);
-    expect(verde[0], verde.join('\n')).toMatch(/^VERDE · /);
+    revert();
+    const green = verdictLines((await runNetworkIn(copy)).stdout);
+    expect(green[0], green.join('\n')).toMatch(/^VERDE · /);
   });
 });

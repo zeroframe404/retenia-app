@@ -16,7 +16,8 @@
     "construir": "node tools/construir.mjs",
     "trazabilidad": "node tools/trace.mjs",
     "sabotaje": "node tests/sabotage/correr.mjs",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "cerrar-fase": "node tools/cerrar-fase.mjs"
   },
   "dependencies": {
     "zod": "4.6.7"

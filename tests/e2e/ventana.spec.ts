@@ -7,32 +7,32 @@ const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 test('la ventana se llama «Retenia» y muestra la cinta «DEMOSTRACIÓN · hoy es lunes 15/03/2027»', async ({
   app,
-  ventana,
+  appWindow,
 }) => {
   await expect(
-    ventana.getByText('DEMOSTRACIÓN · hoy es lunes 15/03/2027', { exact: true }),
+    appWindow.getByText('DEMOSTRACIÓN · hoy es lunes 15/03/2027', { exact: true }),
   ).toBeVisible();
-  await expect(ventana.getByRole('heading', { level: 1, name: 'Retenia' })).toBeVisible();
-  await expect(ventana).toHaveTitle('Retenia');
-  const tituloDeLaVentana = await app.evaluate(({ BrowserWindow }) =>
+  await expect(appWindow.getByRole('heading', { level: 1, name: 'Retenia' })).toBeVisible();
+  await expect(appWindow).toHaveTitle('Retenia');
+  const windowTitles = await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows().map((w) => w.getTitle()),
   );
-  expect(tituloDeLaVentana).toEqual(['Retenia']);
+  expect(windowTitles).toEqual(['Retenia']);
 });
 
 test('la ventana está aislada: sin Node, con sandbox y sin integración de Node', async ({
   app,
-  ventana,
+  appWindow,
 }) => {
-  await expect(ventana.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
-  const enLaVentana = await ventana.evaluate(() => ({
+  await expect(appWindow.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
+  const inWindow = await appWindow.evaluate(() => ({
     require: typeof (globalThis as { require?: unknown }).require,
     process: typeof (globalThis as { process?: unknown }).process,
-    puente: Object.keys(window.retenia),
+    bridge: Object.keys(window.retenia),
   }));
-  expect(enLaVentana).toEqual({ require: 'undefined', process: 'undefined', puente: ['ping'] });
+  expect(inWindow).toEqual({ require: 'undefined', process: 'undefined', bridge: ['ping'] });
   // getLastWebPreferences existe en Electron 44 pero no está en sus tipos.
-  const preferencias = await app.evaluate(({ BrowserWindow }) => {
+  const preferences = await app.evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0]?.webContents as unknown as
       | { getLastWebPreferences(): Record<string, unknown> }
       | undefined;
@@ -44,7 +44,7 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       webSecurity: prefs?.webSecurity,
     };
   });
-  expect(preferencias).toEqual({
+  expect(preferences).toEqual({
     contextIsolation: true,
     nodeIntegration: false,
     sandbox: true,
@@ -53,26 +53,26 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
 });
 
 test('el puente rechaza un mensaje que no cumple el contrato del canal «ping»', async ({
-  ventana,
+  appWindow,
 }) => {
-  await expect(ventana.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
-  const resultado = await ventana.evaluate(() =>
+  await expect(appWindow.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
+  const result = await appWindow.evaluate(() =>
     window.retenia
       .ping({ message: 'otra cosa' } as unknown as { message: 'ping' })
       .then(() => 'aceptado')
       .catch((error: Error) => error.message),
   );
-  expect(resultado).toContain('Petición rechazada en el canal «ping»');
+  expect(result).toContain('Petición rechazada en el canal «ping»');
 });
 
 test('accesibilidad: la ventana no tiene faltas según axe-core, en claro y en oscuro', async ({
-  ventana,
+  appWindow,
 }) => {
-  await expect(ventana.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
-  await ventana.evaluate(AXE);
-  for (const tema of ['light', 'dark'] as const) {
-    await ventana.emulateMedia({ colorScheme: tema });
-    const faltas = await ventana.evaluate(async () => {
+  await expect(appWindow.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
+  await appWindow.evaluate(AXE);
+  for (const theme of ['light', 'dark'] as const) {
+    await appWindow.emulateMedia({ colorScheme: theme });
+    const violations = await appWindow.evaluate(async () => {
       const axe = (
         globalThis as unknown as {
           axe: {
@@ -83,9 +83,9 @@ test('accesibilidad: la ventana no tiene faltas según axe-core, en claro y en o
           };
         }
       ).axe;
-      const resultado = await axe.run(document, { resultTypes: ['violations'] });
-      return resultado.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`);
+      const outcome = await axe.run(document, { resultTypes: ['violations'] });
+      return outcome.violations.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`);
     });
-    expect(faltas, `tema ${tema}`).toEqual([]);
+    expect(violations, `tema ${theme}`).toEqual([]);
   }
 });

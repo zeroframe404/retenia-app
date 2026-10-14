@@ -1,14 +1,16 @@
-// Lee el JSON que Claude Code le pasa a un gancho por la entrada estándar.
-export async function leerEntrada() {
-  let texto = '';
-  for await (const parte of process.stdin) {
-    texto += parte;
+// Lee el JSON que Claude Code le pasa a un gancho por la entrada estándar. No importa nada del
+// proyecto, para que el gancho pueda arrancar aunque el resto de la red no cargue.
+/** @returns {Promise<any>} */
+export async function readHookInput() {
+  let text = '';
+  for await (const chunk of process.stdin) {
+    text += chunk;
   }
-  if (texto.trim() === '') {
+  if (text.trim() === '') {
     return {};
   }
   try {
-    return JSON.parse(texto);
+    return JSON.parse(text);
   } catch {
     return {};
   }

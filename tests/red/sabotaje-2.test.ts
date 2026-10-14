@@ -1,36 +1,36 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { binario, correr } from '../../tools/lib/proceso.mjs';
-import { borrarCopia, copiarProyecto, git, redEn, veredicto } from '../apoyo/red';
-import { aplicarSabotaje } from '../sabotage/sabotajes.mjs';
+import { packageBin, run } from '../../tools/lib/proceso.mjs';
+import { copyProject, git, removeCopy, runNetworkIn, verdictLines } from '../apoyo/red';
+import { applySabotage } from '../sabotage/sabotajes.mjs';
 
 describe('sabotaje 2', () => {
-  let copia = '';
+  let copy = '';
   beforeAll(async () => {
-    copia = await copiarProyecto();
+    copy = await copyProject();
     // Los ganchos de git instalados en la copia, como en tu PC.
-    await correr(process.execPath, [binario('lefthook', 'lefthook', copia), 'install'], {
-      cwd: copia,
+    await run(process.execPath, [packageBin('lefthook', 'lefthook', copy), 'install'], {
+      cwd: copy,
     });
   });
-  afterAll(() => borrarCopia(copia));
+  afterAll(() => removeCopy(copy));
 
   it('[CA-004] sabotaje 2: una clave falsa en un archivo frena el commit y la red da ROJO nombrando «secreto», y al revertir vuelve a VERDE', async () => {
-    const { archivos, revertir } = aplicarSabotaje(2, copia);
+    const { files, revert } = applySabotage(2, copy);
 
-    await git(copia, 'add', ...archivos);
-    const commit = await git(copia, 'commit', '-m', 'sabotaje 2');
-    expect(commit.codigo).not.toBe(0);
-    expect(`${commit.salida}\n${commit.errores}`).toContain('secreto');
-    const historial = await git(copia, 'rev-list', '--count', 'HEAD');
-    expect(historial.salida.trim()).toBe('1');
+    await git(copy, 'add', ...files);
+    const commit = await git(copy, 'commit', '-m', 'sabotaje 2');
+    expect(commit.code).not.toBe(0);
+    expect(`${commit.stdout}\n${commit.stderr}`).toContain('secreto');
+    const history = await git(copy, 'rev-list', '--count', 'HEAD');
+    expect(history.stdout.trim()).toBe('1');
 
-    const rojo = veredicto((await redEn(copia)).salida);
-    expect(rojo[0], rojo.join('\n')).toMatch(/^ROJO · /);
-    expect(rojo.join('\n')).toContain('secreto');
+    const red = verdictLines((await runNetworkIn(copy)).stdout);
+    expect(red[0], red.join('\n')).toMatch(/^ROJO · /);
+    expect(red.join('\n')).toContain('secreto');
 
-    await git(copia, 'reset', '-q', '--', ...archivos);
-    revertir();
-    const verde = veredicto((await redEn(copia)).salida);
-    expect(verde[0], verde.join('\n')).toMatch(/^VERDE · /);
+    await git(copy, 'reset', '-q', '--', ...files);
+    revert();
+    const green = verdictLines((await runNetworkIn(copy)).stdout);
+    expect(green[0], green.join('\n')).toMatch(/^VERDE · /);
   });
 });

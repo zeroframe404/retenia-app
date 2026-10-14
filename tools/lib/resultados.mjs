@@ -1,6 +1,15 @@
 import { existsSync, readFileSync } from 'node:fs';
 
-const CAPAS = {
+/**
+ * @typedef {{ table: string, input: string, expected: string, actual: string }} TableCase
+ * @typedef {'passed' | 'failed' | 'skipped'} Status
+ * @typedef {{ title: string, file: string, layer: string, status: Status, messages: string[], tableCase: TableCase | null, durationMs: number }} TestResult
+ * @typedef {{ tests: TestResult[], brokenFiles: { file: string, message: string }[] }} Report
+ * @typedef {{ title: string, file: string, layer: string }} ListedTest
+ */
+
+/** @type {Record<string, string>} */
+const LAYERS = {
   unitarias: 'Unitaria',
   propiedades: 'Propiedades',
   contrato: 'Contrato del puente',
@@ -10,121 +19,128 @@ const CAPAS = {
   e2e: 'Punta a punta',
 };
 
-export function capaDeArchivo(archivo) {
-  const carpeta = /(?:^|[\\/])tests[\\/]([^\\/]+)[\\/]/.exec(archivo)?.[1];
-  return CAPAS[carpeta] ?? 'Otra';
+/** @param {string} file */
+export function layerOfFile(file) {
+  const folder = /(?:^|[\\/])tests[\\/]([^\\/]+)[\\/]/.exec(file)?.[1] ?? '';
+  return LAYERS[folder] ?? 'Otra';
 }
 
-const ID_AL_PRINCIPIO = /^((?:\[CA-\d{3}\]\s*)+)/;
+const IDS_AT_START = /^((?:\[CA-\d{3}\]\s*)+)/;
 
 // Los criterios que nombra una prueba: los identificadores entre corchetes al principio.
-/** @param {string} titulo @returns {string[]} */
-export function criteriosDelTitulo(titulo) {
-  const prefijo = ID_AL_PRINCIPIO.exec(titulo)?.[1] ?? '';
-  return [...prefijo.matchAll(/CA-\d{3}/g)].map((m) => m[0]);
+/** @param {string} title @returns {string[]} */
+export function criteriaInTitle(title) {
+  const prefix = IDS_AT_START.exec(title)?.[1] ?? '';
+  return [...prefix.matchAll(/CA-\d{3}/g)].map((m) => m[0]);
 }
 
 // Una prueba que menciona un criterio pero no lo pone al principio entre corchetes.
-export function tituloMalFormado(titulo) {
-  return /CA-\d{3}/.test(titulo) && criteriosDelTitulo(titulo).length === 0;
+/** @param {string} title */
+export function isMalformedTitle(title) {
+  return /CA-\d{3}/.test(title) && criteriaInTitle(title).length === 0;
 }
 
-function leerJson(ruta) {
-  return existsSync(ruta) ? JSON.parse(readFileSync(ruta, 'utf8')) : null;
+/** @param {string} path */
+function readJson(path) {
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
 }
 
-const ESTADO_VITEST = {
-  passed: 'paso',
-  failed: 'fallo',
-  skipped: 'salteada',
-  pending: 'salteada',
-  todo: 'salteada',
+/** @type {Record<string, Status>} */
+const VITEST_STATUS = {
+  passed: 'passed',
+  failed: 'failed',
+  skipped: 'skipped',
+  pending: 'skipped',
+  todo: 'skipped',
 };
 
-/**
- * @typedef {{ tabla: string, entrada: string, esperado: string, obtenido: string }} Caso
- * @typedef {{ titulo: string, archivo: string, capa: string, estado: 'paso' | 'fallo' | 'salteada', mensajes: string[], caso: Caso | null, duracionMs: number }} Prueba
- * @typedef {{ pruebas: Prueba[], archivosRotos: { archivo: string, mensaje: string }[] }} Informe
- */
-
 // Informe JSON de Vitest → pruebas normalizadas, más los archivos que no se pudieron cargar.
-/** @param {string} ruta @returns {Informe | null} */
-export function leerInformeDeVitest(ruta) {
-  const informe = leerJson(ruta);
-  if (!informe) {
+/** @param {string} path @returns {Report | null} */
+export function readVitestReport(path) {
+  const report = readJson(path);
+  if (!report) {
     return null;
   }
-  const pruebas = [];
-  const archivosRotos = [];
-  for (const archivo of informe.testResults ?? []) {
-    if (archivo.status === 'failed' && (archivo.assertionResults ?? []).length === 0) {
-      archivosRotos.push({ archivo: archivo.name, mensaje: archivo.message ?? '' });
+  /** @type {TestResult[]} */
+  const tests = [];
+  /** @type {{ file: string, message: string }[]} */
+  const brokenFiles = [];
+  for (const file of report.testResults ?? []) {
+    if (file.status === 'failed' && (file.assertionResults ?? []).length === 0) {
+      brokenFiles.push({ file: file.name, message: file.message ?? '' });
     }
-    for (const prueba of archivo.assertionResults ?? []) {
-      pruebas.push({
-        titulo: prueba.title,
-        archivo: archivo.name,
-        capa: capaDeArchivo(archivo.name),
-        estado: ESTADO_VITEST[prueba.status] ?? 'salteada',
-        mensajes: prueba.failureMessages ?? [],
-        caso: prueba.meta?.caso ?? null,
-        duracionMs: prueba.duration ?? 0,
+    for (const test of file.assertionResults ?? []) {
+      tests.push({
+        title: test.title,
+        file: file.name,
+        layer: layerOfFile(file.name),
+        status: VITEST_STATUS[test.status] ?? 'skipped',
+        messages: test.failureMessages ?? [],
+        tableCase: test.meta?.tableCase ?? null,
+        durationMs: test.duration ?? 0,
       });
     }
   }
-  return { pruebas, archivosRotos };
+  return { tests, brokenFiles };
 }
 
-function recorrerSuites(suites, visitar) {
+/** @param {any[]} suites @param {(spec: any) => void} visit */
+function walkSuites(suites, visit) {
   for (const suite of suites ?? []) {
     for (const spec of suite.specs ?? []) {
-      visitar(spec);
+      visit(spec);
     }
-    recorrerSuites(suite.suites, visitar);
+    walkSuites(suite.suites, visit);
   }
 }
 
 // Informe JSON de Playwright → pruebas normalizadas.
-/** @param {string} ruta @returns {Informe | null} */
-export function leerInformeDePlaywright(ruta) {
-  const informe = leerJson(ruta);
-  if (!informe) {
+/** @param {string} path @returns {Report | null} */
+export function readPlaywrightReport(path) {
+  const report = readJson(path);
+  if (!report) {
     return null;
   }
-  const pruebas = [];
-  recorrerSuites(informe.suites, (spec) => {
-    for (const prueba of spec.tests ?? []) {
-      const ultimo = prueba.results?.at(-1);
-      const estado =
-        prueba.status === 'expected' ? 'paso' : prueba.status === 'skipped' ? 'salteada' : 'fallo';
-      pruebas.push({
-        titulo: spec.title,
-        archivo: `tests/e2e/${spec.file}`,
-        capa: 'Punta a punta',
-        estado,
-        mensajes: (ultimo?.errors ?? []).map((e) => e.message ?? ''),
-        caso: null,
-        duracionMs: ultimo?.duration ?? 0,
+  /** @type {TestResult[]} */
+  const tests = [];
+  walkSuites(report.suites, (spec) => {
+    for (const test of spec.tests ?? []) {
+      const last = test.results?.at(-1);
+      /** @type {Status} */
+      const status =
+        test.status === 'expected' ? 'passed' : test.status === 'skipped' ? 'skipped' : 'failed';
+      tests.push({
+        title: spec.title,
+        file: `tests/e2e/${spec.file}`,
+        layer: 'Punta a punta',
+        status,
+        messages: (last?.errors ?? []).map((/** @type {any} */ e) => e.message ?? ''),
+        tableCase: null,
+        durationMs: last?.duration ?? 0,
       });
     }
   });
-  const erroresGenerales = (informe.errors ?? []).map((e) => e.message ?? String(e));
-  return { pruebas, archivosRotos: erroresGenerales.map((mensaje) => ({ archivo: '', mensaje })) };
+  /** @type {string[]} */
+  const general = (report.errors ?? []).map((/** @type {any} */ e) => e.message ?? String(e));
+  return { tests, brokenFiles: general.map((message) => ({ file: '', message })) };
 }
 
 // Listados sin correr: «vitest list --json» y «playwright test --list --reporter=json».
-export function titulosDeListadoDeVitest(listado) {
-  return listado.map((p) => ({
-    titulo: p.name.split(' > ').at(-1),
-    archivo: p.file,
-    capa: capaDeArchivo(p.file),
+/** @param {any[]} list @returns {ListedTest[]} */
+export function titlesFromVitestList(list) {
+  return list.map((t) => ({
+    title: t.name.split(' > ').at(-1),
+    file: t.file,
+    layer: layerOfFile(t.file),
   }));
 }
 
-export function titulosDeListadoDePlaywright(informe) {
-  const titulos = [];
-  recorrerSuites(informe.suites, (spec) => {
-    titulos.push({ titulo: spec.title, archivo: `tests/e2e/${spec.file}`, capa: 'Punta a punta' });
+/** @param {any} report @returns {ListedTest[]} */
+export function titlesFromPlaywrightList(report) {
+  /** @type {ListedTest[]} */
+  const titles = [];
+  walkSuites(report.suites, (spec) => {
+    titles.push({ title: spec.title, file: `tests/e2e/${spec.file}`, layer: 'Punta a punta' });
   });
-  return titulos;
+  return titles;
 }

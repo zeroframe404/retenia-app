@@ -103,6 +103,13 @@ module.exports = {
       to: { path: '^node_modules/(better-sqlite3|drizzle-orm)/' },
     },
     {
+      name: 'capas-R8-solo-datos-toca-sqlite-de-node',
+      severity: 'error',
+      comment: 'Solo data toca SQLite, tampoco el que trae Node (node:sqlite).',
+      from: { pathNot: '^src/data/' },
+      to: { path: '^(node:)?sqlite$' },
+    },
+    {
       name: 'capas-R9-solo-ia-habla-con-la-ia',
       severity: 'error',
       comment: 'Solo ai usa el SDK de Anthropic.',
