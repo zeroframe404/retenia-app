@@ -97,11 +97,13 @@ Columna «Capa»: la principal, la que cubre lo que el criterio promete. Columna
 | Criterio | Capa | También | Cómo se comprueba |
 |---|---|---|---|
 | CA-009 | E | — | Crea «¿Capital de Francia?», cierra y relanza Retenia con la misma carpeta de datos, la tarjeta está. |
-| CA-010 | E | U | «Repasar», «Mostrar respuesta», «La sabía» → «Próximo repaso: miércoles 17/03/2027»; U cubre la regla fija de 2 días. |
+| CA-010 | E | U | «Repasar», «Mostrar respuesta», «La sabía» → «Próximo repaso: miércoles 17/03/2027»; U cubre la regla de repaso con ts-fsrs (2 días para «La sabía», 1 para «Con dudas» y «No la sabía»). |
 | CA-011 | R | E | El formulario marca «Escribí la pregunta», conserva la respuesta y no llama al puente. |
 | CA-012 | N | — | Instala «Retenia (prueba)» del CI, comprueba el acceso del menú Inicio, la cinta y la carpeta `%APPDATA%\Retenia (prueba)`. |
 | CA-013 | S | N | Escaneo del paquete real (`app.asar` y `resources`) sin «15/03/2027», «DEMOSTRACIÓN», «demo.», nombres del elenco ni archivos de `datos-de-ejemplo`. |
 | CA-014 | N | — | Lanza el ejecutable instalado dos veces: una sola ventana, la existente pasa al frente. |
+
+Cómo quedó en la Fase 03: la capa R usa Testing Library con jsdom contra el puente real y una base real temporal (`tests/componentes`); la E abre `release/prueba/win-unpacked` (el mismo programa que se instala); la N de «Retenia (prueba)» es el humo del instalador (`tests/instalado`), que corre en el CI con Playwright sobre el programa instalado (la variante de prueba mantiene el fuse de inspección encendido); el escaneo de CA-013 lee los dos paquetes ya armados (`tests/paquete`, en `verificar:todo`). WebdriverIO queda para la versión real endurecida (Fase 36).
 
 ### Fase 04 · Libro mayor, copias y deshacer (H-04, H-05, H-06)
 

@@ -1,6 +1,6 @@
 # Versiones verificadas
 
-Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. Cada pieza restante entra en su fase con la versión de esta tabla.
+Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. La Fase 03 sumó, también con la versión exacta de esta tabla: better-sqlite3 con sus tipos, drizzle-orm y drizzle-kit, ts-fsrs, electron-builder, @electron/fuses y @electron/asar (estos tres para armar el instalador y leer el paquete), y para las pruebas de pantallas jsdom, Testing Library (react y dom) y user-event. Cada pieza restante entra en su fase con la versión de esta tabla.
 
 ## Regla para fijar versiones
 
@@ -34,6 +34,8 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | @types/better-sqlite3 | 9.6.0 | 13/10/2026 | MIT | Tipos de TypeScript para better-sqlite3, actualizados el 04/10/2026; el paquete no trae los suyos. |
 | drizzle-orm | 0.45.4 | 13/10/2026 | Apache-2.0 | Consultas tipadas y migraciones SQL legibles sobre better-sqlite3; la 1.0 está en rc. |
 | drizzle-kit | 0.31.11 | 13/10/2026 | MIT | Genera las migraciones comparando esquemas, sin conexión a la base. |
+| ts-fsrs | 5.4.2 | 13/10/2026 | MIT | FSRS-6 con 21 parámetros. Medido el 14/10/2026: con `enable_short_term: false` una tarjeta nueva con «La sabía» vuelve a los 3 días (fuerza intervalos crecientes entre los botones); con `enable_short_term: true` y `learning_steps` y `relearning_steps` vacíos vuelve a los 2 días, y «Con dudas» y «No la sabía» a 1, que es lo que fijan CA-010 y CA-058. Con retención 0,85 da 4 días. Se usa la segunda configuración. |
+| @electron/asar | 4.3.1 | 14/10/2026 | MIT | Oficial del proyecto Electron; solo en pruebas: lee `app.asar` del paquete real para comprobar CA-013. Última publicada el 26/09/2026. |
 | zod | 4.6.7 | 13/10/2026 | MIT | Valida cada mensaje del puente y cada evento; genera los esquemas JSON que exige la IA. |
 | UUID versión 7 | `crypto.randomUUIDv7()` de Node 24.21 | 13/10/2026 | — | Viene con Electron 44: sin dependencia. Plan B: paquete `uuid` 14.0.3 (MIT). |
 | **Contenido y materiales** | | | | |
@@ -58,6 +60,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | vitest, @vitest/coverage-v8 | 5.0.4 | 13/10/2026 | MIT | `latest`; mayor 5 desde el 03/09/2026; corre con Vite 7. |
 | fast-check | 4.10.2 | 13/10/2026 | MIT | Pruebas de propiedades con semilla reproducible. |
 | @testing-library/react | 16.3.3 | 13/10/2026 | MIT | Pruebas de componentes por rol y texto; React 19. |
+| @testing-library/dom | 10.4.2 | 14/10/2026 | MIT | Lo pide @testing-library/react como dependencia par y lo pide user-event; versión `latest`. |
 | @testing-library/user-event | 14.6.7 | 13/10/2026 | MIT | Teclado y mouse realistas; la 14.6.8 salió hoy. |
 | @testing-library/jest-dom | 7.0.1 | 13/10/2026 | MIT | Aserciones sobre el DOM. |
 | axe-core | 4.14.0 | 13/10/2026 | MPL-2.0 | Revisión automática de accesibilidad de la ventana (claro y oscuro) en `verificar:todo`; oficial de Deque, publicado desde 2015, solo en pruebas. Agregado en la Fase 02. |
