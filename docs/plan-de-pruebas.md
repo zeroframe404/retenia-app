@@ -17,7 +17,7 @@ Versión 1 (Fase 01, 13/10/2026). Cómo se comprueba cada uno de los 379 criteri
 | **D** | Medición de rendimiento | Arranque, siguiente tarjeta, abrir Estudiar, buscar, con 10.000 tarjetas; marcas `performance.mark` leídas por `demo.perf.marks`. | Playwright + Node | `tests/rendimiento/` | `verificar:todo` |
 | **M** | Manual | Lo que ninguna capa automática ve: una notificación de Windows en la pantalla, el Narrador, escuchar una voz, una cuenta de Windows nueva, el aviso de editor desconocido, la caza de bugs con personajes. Siempre acompañada de una capa automática que cubre lo demás del criterio. | Vos, con `docs/pruebas-manuales/fase-NN.md` y `docs/especificacion/humo.md` | `docs/pruebas-manuales/` | al cerrar cada fase |
 
-Toda prueba automática lleva en su título el identificador del criterio (`CA-002 · el día de estudio corta a las 04:00`), en castellano. `tools/cobertura-criterios` cruza los títulos con los criterios de las fases cerradas: un criterio sin prueba pone la red en rojo y el tablero (`npm run tablero`) lo muestra por historia.
+Toda prueba automática de un criterio empieza su título con el identificador entre corchetes (`[CA-002] día de estudio: 16/03/2027 02:30 en Buenos Aires cuenta para lunes 15/03/2027`), en castellano. `tools/trace.mjs` (y la capa de trazabilidad de `tools/verify.mjs`) cruza los títulos con los criterios: un criterio de una fase cerrada sin prueba pone la red en rojo, los de la fase en curso se exigen en `verificar:todo`, y un identificador mal puesto o inexistente también es rojo. El tablero (`npm run tablero`) lo muestra por historia.
 
 ## 2. Qué queda afuera y por qué
 
@@ -33,7 +33,7 @@ Toda prueba automática lleva en su título el identificador del criterio (`CA-0
 
 ## 3. Reloj, azar y datos
 
-- **Reloj.** Un `Clock` (`now()`, `studyDay()`, `zone`) inyectado en `core` y `data`. En producción es el reloj real con la zona `America/Argentina/Buenos_Aires`; en la variante de prueba, 15/03/2027 más los días sumados; en las pruebas U, P, I y C, un reloj congelado que cada prueba fija. El corte del día a las 04:00 se calcula con `Intl.DateTimeFormat`; no hay biblioteca de fechas ni dependencia de la zona de la PC.
+- **Reloj.** Un `Clock` (`now()`) de `core/clock`, inyectado en `core` y `data`; el día de estudio lo calcula `core/study-day` a partir de un instante. En producción es el reloj real con la zona `America/Argentina/Buenos_Aires`; en la variante de prueba, 15/03/2027 más los días sumados; en las pruebas U, P, I y C, un reloj congelado que cada prueba fija. El corte del día a las 04:00 se calcula con `Intl.DateTimeFormat`; no hay biblioteca de fechas ni dependencia de la zona de la PC.
 - **Azar.** Un generador propio con semilla (`core/random`) inyectado donde hace falta elegir (intercalado, variantes, 1 de cada 5 intentos, palabras de la prueba de ubicación). Las pruebas fijan la semilla; fast-check imprime la suya al fallar y se puede repetir con `--seed`.
 - **Datos.** Cada prueba I crea su propia base en un archivo temporal con las migraciones reales y la borra al terminar; cada prueba E arranca Retenia con una carpeta de datos nueva (`RETENIA_DATOS`) y el elenco cargado; nada se comparte entre pruebas. Sin esperas fijas: Playwright espera condiciones, Vitest usa `expect.poll`.
 - **Orden.** Las pruebas se pueden correr en cualquier orden y en paralelo (3 trabajadores para E, los hilos disponibles para el resto).

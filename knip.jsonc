@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "entry": [
+    "src/main/index.ts",
+    "src/preload/index.ts",
+    "src/renderer/main.tsx",
+    "tools/*.mjs",
+    "tools/hooks/*.mjs",
+    "tests/sabotage/*.mjs"
+  ],
+  "project": ["src/**/*.{ts,tsx}", "tools/**/*.mjs", "tests/**/*.{ts,mjs}"],
+  // La red los corre por su ruta (tools/lib/proceso.mjs) y secretlint carga su conjunto de
+  // reglas desde .secretlintrc.json: knip no puede verlos solo.
+  "ignoreDependencies": ["secretlint", "@secretlint/secretlint-rule-preset-recommend"],
+  // Programas de Windows que usan el tablero (abrir el navegador) y el corte de procesos.
+  "ignoreBinaries": ["explorer.exe", "taskkill"]
+}

@@ -1,0 +1,19 @@
+# Ganchos de git. Antes del commit: revisión estática y escáner de secretos sobre lo que entra
+# en el commit. Antes de subir: la red rápida entera («npm run verificar»).
+
+# Solo lo que dicen las revisiones, sin los adornos de lefthook.
+output:
+  - execution_out
+pre-commit:
+  parallel: true
+  jobs:
+    - name: revision-estatica
+      glob: "*.{ts,tsx,js,mjs,cjs,json,jsonc,css,grit}"
+      run: node node_modules/@biomejs/biome/bin/biome check --error-on-warnings --no-errors-on-unmatched --colors=off {staged_files}
+    - name: secretos
+      run: node tools/hooks/secretos.mjs {staged_files}
+
+pre-push:
+  jobs:
+    - name: verificar
+      run: node tools/verify.mjs

@@ -1,0 +1,13 @@
+.ribbon {
+  background: var(--color-cinta-fondo);
+  color: var(--color-cinta-tinta);
+  padding: 0.4rem 1rem;
+  text-align: center;
+}
+
+.text {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}

@@ -6,6 +6,9 @@
       "Bash(npm run verificar:todo)",
       "Bash(npm run datos:reiniciar)",
       "Bash(npm run tablero)",
+      "Bash(npm run construir)",
+      "Bash(npm run trazabilidad:*)",
+      "Bash(npm run sabotaje:*)",
       "Bash(git:*)",
       "Bash(gh:*)",
       "PowerShell(npm run iniciar)",
@@ -13,14 +16,39 @@
       "PowerShell(npm run verificar:todo)",
       "PowerShell(npm run datos:reiniciar)",
       "PowerShell(npm run tablero)",
+      "PowerShell(npm run construir)",
+      "PowerShell(npm run trazabilidad:*)",
+      "PowerShell(npm run sabotaje:*)",
       "PowerShell(git:*)",
       "PowerShell(gh:*)"
     ],
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(**/.env)",
-      "Read(**/.env.*)"
+    "deny": ["Read(./.env)", "Read(./.env.*)", "Read(**/.env)", "Read(**/.env.*)"]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/tools/hooks/post-edit.mjs"],
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PROJECT_DIR}/tools/hooks/stop.mjs"],
+            "timeout": 600
+          }
+        ]
+      }
     ]
   }
 }

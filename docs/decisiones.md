@@ -63,3 +63,45 @@ Cada línea: qué se eligió, por qué y qué se descartó. Las versiones exacta
 - Sin biblioteca de fechas (`Intl` con Buenos Aires, que no cambia de horario), sin enrutador ni gestor de estado, CSS modules con variables de diseño, íconos lucide-react. Descartado: Tailwind.
 - Dependencias se actualizan solo en las ventanas de las Fases 02, 13, 24, 35 y 40.
 - Cuatro pruebas descartables fuera del repositorio dieron bien el 13/10/2026 (Electron + better-sqlite3 + trigram; Playwright + Electron; sherpa-onnx en un `utilityProcess`; Opengrep en Windows); los resultados están en `docs/versiones.md` y la carpeta temporal se borró.
+
+## 13/10/2026 · Fase 02
+
+- La rama `fase-02` nace de `fase-01` y su pull request apunta a `fase-01`, porque la 00 y la 01 todavía no están fusionadas.
+- Se instala solo lo que usa esta fase, con la versión exacta de `docs/versiones.md`; el resto entra en su fase. knip pone la red en rojo con dependencias sin uso.
+- `@vitejs/plugin-react` 5.2.0 en lugar de 6.1.2: toda la línea 6 pide Vite 8 (comprobado en npm) y electron-vite 5 no acepta Vite 8. La 5.2.0 es la más alta que acepta Vite 7.
+- axe-core 4.14.0 (oficial de Deque, MPL-2.0, solo en pruebas) para revisar la accesibilidad de la ventana en claro y en oscuro dentro de `verificar:todo`.
+- npm 11 frena los scripts de instalación no aprobados: los de esbuild, @swc/core y lefthook quedan denegados porque sus binarios vienen aparte. Electron 44 baja su ejecutable la primera vez que se usa (el CI lo hace en un paso propio).
+- Saltos de línea universales (LF) fijados en `.gitattributes`, para que el formato dé igual en tu PC y en el CI. Reemplaza en este repositorio el efecto de `core.autocrlf`.
+- La regla del reloj tiene dos partes. Una es un verificador propio que lee el código como árbol (con swc, que ya estaba instalado), corre en `verificar` y no se puede apagar con comentarios: fuera de `src/core/clock`, `Date` solo sirve para armar fechas a mano (`new Date(algo)`, `Date.UTC`, `Date.parse`). La otra es un complemento de Biome para el aviso inmediato al editar. Las dos cubren todos los archivos de código, también los de la raíz. Hasta los scripts de la red piden la hora al reloj único: Node 24 importa TypeScript directamente.
+- Por eso TypeScript corre con `erasableSyntaxOnly`: nada de sintaxis que Node no sepa borrar (como `enum`). Y si igual algo impidiera cargar la red, `verify.mjs` escribe la línea ROJO con el motivo y el freno de cierre frena: ninguno se apaga en silencio.
+- El canal «ping» devuelve además la variante y el día de estudio. La cinta de demostración lo usa, así que verla prueba de punta a punta el puente, la validación y el reloj. `app.info` y `demo.state` llegan en la Fase 03.
+- Variante por compilación: sin variable se compila la real (para no llevar la demostración por descuido). `iniciar` y la punta a punta usan la de prueba. Salida en `out/prueba` y `out/real`.
+- El puente se compila como un solo archivo CommonJS con Zod adentro, porque la ventana corre con sandbox. El catálogo de textos vive en `src/preload/contract/texts.ts`, el único lugar que pueden usar la ventana y el principal.
+- Se quitó el menú de Electron (estaba en inglés). La política de contenido va por etiqueta en esta fase; la de cabecera llega con los protocolos propios.
+- La punta a punta corre sobre la variante de prueba compilada sin empaquetar (`out/prueba`) hasta que la Fase 03 traiga el instalador y `win-unpacked`.
+- `datos:reiniciar` deja `datos-locales/demostracion` (ignorada por git, la que usa `iniciar`) vacía con un `LEEME.txt`: es el estado conocido de esta fase. Desde la Fase 03 suma el elenco.
+- El escáner de secretos corre también en `verificar` (tarda menos de un segundo), además de en el gancho de commit; así el sabotaje 2 se ve en la red rápida. Opengrep y `npm audit` corren solo en `verificar:todo`.
+- «X de Y criterios cubiertos» cuenta las fases cerradas (tag `fase-NN-ok`) y la en curso (por el nombre de la rama). Los de la fase en curso se exigen solo en `verificar:todo`, que es el cierre; los de fases cerradas, siempre.
+- La cantidad de pruebas de cada orden queda guardada en el mensaje del tag `fase-NN-ok`, que pone `npm run cerrar-fase -- NN` después de tu aprobación (con la red completa en VERDE). La red compara contra el último tag. Un tag sin cantidades (las Fases 00 y 01 no tenían pruebas) cuenta como 0. Descartado: un archivo con el conteo, porque cada corrida lo reescribía y ensuciaba el árbol.
+- Las pruebas que no comprueban por sí solas un criterio (reloj, contrato del puente, ventana aislada, accesibilidad, lectura de la especificación, ganchos) van sin identificador. Un identificador mal puesto o inexistente da rojo.
+- «Criterios cubiertos» quiere decir que el criterio tiene al menos una prueba con su identificador. En `verificar` cuentan también las pruebas que solo corren en `verificar:todo` (los sabotajes); el tablero muestra cuándo corrió cada una.
+- Umbral de ramas del núcleo: 90 %.
+- La línea ROJO tiene formato fijo; lo que se nombra («día de estudio», «secreto», «1 salteada», «capas») aparece en el resumen de debajo.
+- Los sabotajes automáticos corren en una copia temporal del proyecto, con su propio git y `node_modules` enlazado: nunca tocan tu carpeta. El guion para vos (`npm run sabotaje -- N`) sí usa tu carpeta, con respaldo en disco para revertir aunque se corte.
+- El sabotaje 2 escribe la clave falsa en `ajustes-ia.json`. La clave se arma en el momento, así nunca queda escrita en el repositorio.
+- Ganchos de Claude Code en forma «programa + argumentos» con `${CLAUDE_PROJECT_DIR}`, la forma recomendada en Windows. El de edición mira `Edit`, `Write` y `NotebookEdit`.
+- CI: un solo trabajo en `windows-latest`, acciones fijadas por su huella, adjuntos por 2 días. En cada pull request los sabotajes corren como pruebas dentro de `verificar:todo`; el guion de los cuatro se repite en la corrida semanal.
+- lefthook muestra solo lo que dicen las revisiones, sin sus adornos (tenían emojis).
+- El subagente revisor recién se carga al reiniciar Claude Code; en esta fase corrió como agente general con exactamente las mismas instrucciones.
+- knip corre sin su «transferencia directa» (`KNIP_DISABLE_RAW_TRANSFER=1`): ese modo reserva 6 GiB por proceso y Windows los cuenta contra el límite de memoria, así que con varias corridas a la vez fallaba en el CI. Mismo comportamiento en tu PC y en la nube.
+- Las copias temporales de la red se crean en su ruta larga canónica: en el CI la carpeta temporal viene con nombres cortos de Windows (`RUNNER~1`) y la cobertura no reconocía los archivos.
+- Identificadores de código en inglés también en `tools` y `tests`, como pide el CLAUDE.md (el revisor lo marcó). Los nombres de archivos y carpetas de pruebas siguen los que fija `docs/plan-de-pruebas.md` (`tests/unitarias`, `tests/apoyo`…), igual que las variables de entorno y la constante `__VARIANTE__` que fija la arquitectura.
+- La regla de capas también prohíbe `node:sqlite` fuera de `src/data` (Node 24 trae su propio SQLite).
+- `datos:reiniciar` solo borra una carpeta que reconoce como de demostración: la del proyecto, una vacía o una con el `LEEME.txt` que deja el reinicio.
+- Las carpetas `src/data`, `src/ai`, `src/ingest` y `datos-de-ejemplo` existen con un `LEEME.md` que dice qué va ahí y en qué fase llega (git no guarda carpetas vacías).
+- El resumen debajo del ROJO traduce las fallas de las pruebas y conserva el mensaje propio de cada una (ahí suele estar la causa). Los mensajes de las herramientas (Biome, TypeScript, Playwright) van tal cual, en inglés, dentro de ese resumen: son para Claude Code.
+- Las pruebas de los ganchos usan una copia mínima del proyecto en una carpeta temporal, nunca archivos reales.
+- `npm run trazabilidad` muestra los problemas de trazabilidad y termina con error si hay alguno.
+- La regla del reloj vigila, además de `Date`, a `performance`, `process`, `Temporal` y el objeto global: solo se usan leyendo una propiedad fija permitida (`process.env` sí, `performance.now` no). Guardarlos en otra variable, desarmarlos, pasarlos o leerlos con un nombre armado en el momento es falta; también importar `perf_hooks` o `process`. No distingue una variable propia llamada `global` o `window` del objeto global: por eso esas variables llevan otro nombre.
+- Un tag `fase-NN-ok` de la Fase 02 en adelante sin la cantidad de pruebas da ROJO: así el control de «no baja la cantidad de pruebas» no se apaga en silencio si alguien pone el tag a mano.
+- Límite conocido de la regla del reloj: el análisis estático no puede seguir un nombre de módulo armado en el momento (`import(variable)`, `createRequire(…)(…)`, `const r = require; r(…)`), ni el método de un formateador separado de su objeto o llamado con argumentos forzados (`const { format } = …; format()`, `.format.call(…)`, `.format(...[])`). `Function('return this')` lo prohíbe Opengrep, que ahora revisa también `tests`. Son evasiones deliberadas; la revisión del código las ve.

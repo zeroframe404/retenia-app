@@ -1,0 +1,8 @@
+# Saltos de línea universales (LF) en tu PC y en el CI, para que el formato dé igual en los dos lados.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.exe binary
+*.pdf binary
+*.zip binary

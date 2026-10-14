@@ -1,0 +1,19 @@
+// Regla «reloj del sistema»: solo src/core/clock puede leer la hora del sistema.
+// biome.json la aplica a src, tests y tools, menos a src/core/clock.
+language js
+
+or {
+  `Date.now`,
+  `$_.Date.now`,
+  `new Date()`,
+  `new Date`,
+  `new $_.Date()`,
+  `new $_.Date`,
+  `Date()`,
+  `performance.now`,
+  `$_.performance.now`,
+  `process.hrtime`,
+  `Temporal.Now`
+} as $lectura where {
+  register_diagnostic(span=$lectura, message="Reloj del sistema: solo src/core/clock puede leer la hora. Recibí un Clock por parámetro.", severity="error")
+}
