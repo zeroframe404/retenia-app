@@ -26,6 +26,23 @@ const READS = [
   'export const m = process.hrtime.bigint();',
   'export const n = Temporal.Now.instant();',
   "export const o = new Intl.DateTimeFormat('es-AR').format();",
+  // Las que encontró el revisor en la segunda pasada.
+  'const g = globalThis; export const p = g.Date.now();',
+  'export const q = globalThis[`Date`].now();',
+  "export const r = globalThis['Da' + 'te'].now();",
+  "export const s = new Intl.DateTimeFormat('es-AR').format(undefined);",
+  "export const t = new Intl.DateTimeFormat('es-AR').formatToParts(void 0);",
+  'const { now } = performance; export const u = now();',
+  'const p = performance; export const v = p.now();',
+  "import { performance as w } from 'node:perf_hooks';",
+  "import * as x from 'node:perf_hooks';",
+  "import { hrtime } from 'node:process';",
+  'const { hrtime: y } = process;',
+  'export const z = new Date(...[]);',
+  'const { Now } = Temporal;',
+  "export const aa = require('node:perf_hooks').performance.now();",
+  "export const bb = await import('perf_hooks');",
+  'export const cc = window.Date.now();',
 ];
 
 // Fechas armadas a mano: están permitidas en todos lados.
@@ -36,6 +53,12 @@ const ALLOWED = [
   'export function d(x: Date): Date { return new Date(x.getTime()); }',
   "export const e = new Intl.DateTimeFormat('es-AR').format(new Date(0));",
   'export const f = { Date: 1 };',
+  // Leer propiedades fijas que no dan la hora también está permitido.
+  'export const g = process.env.RETENIA_DATOS ?? process.argv[2];',
+  "export const h = performance.mark('arranque');",
+  'export const i = (globalThis as { require?: unknown }).require;',
+  'export const j = window.retenia;',
+  'export const k = { ...process.env };',
 ];
 
 const sample = mkdtempSync(join(tmpdir(), 'retenia-reloj-'));
@@ -53,6 +76,9 @@ describe('regla «reloj del sistema»', () => {
     for (const code of ALLOWED) {
       expect(findSystemClockReads(code, 'src/main/muestra.ts'), code).toEqual([]);
     }
+    expect(
+      findSystemClockReads('export const A = () => <p>{Date.now()}</p>;', 'src/muestra.jsx'),
+    ).not.toEqual([]);
   });
 
   it('un comentario no apaga la regla, y apagar la de Biome también es una falta', () => {

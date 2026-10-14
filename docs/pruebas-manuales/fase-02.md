@@ -7,7 +7,7 @@ Los textos de abajo son los que muestra el programa hoy. Una aclaración sobre M
 ## M02.1 · El veredicto en una línea · CA-001
 
 - Hacé: en la terminal, `npm run verificar`. Mirá el reloj al empezar y al terminar.
-- Tenés que ver: menos de 2 minutos (en esta PC tarda unos 2 segundos) y una última línea que empieza con «VERDE ·», por ejemplo «VERDE · 56 pruebas · 0 fallas · 0 salteadas · 8 de 8 criterios cubiertos».
+- Tenés que ver: menos de 2 minutos (en esta PC tarda unos 2 segundos) y una última línea que empieza con «VERDE ·», por ejemplo «VERDE · 57 pruebas · 0 fallas · 0 salteadas · 8 de 8 criterios cubiertos».
 
 ## M02.2 · Abre la ventana
 

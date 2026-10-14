@@ -33,9 +33,9 @@ export const test = base.extend<Fixtures>({
     await app.close();
   },
   appWindow: async ({ app }, use) => {
-    const window = await app.firstWindow();
-    await window.waitForLoadState('domcontentloaded');
-    await use(window);
+    const page = await app.firstWindow();
+    await page.waitForLoadState('domcontentloaded');
+    await use(page);
   },
 });
 

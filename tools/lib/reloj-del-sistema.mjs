@@ -1,19 +1,32 @@
 // Regla «reloj del sistema», hecha de forma independiente de Biome: lee el código como árbol
-// (los comentarios no la pueden apagar). Fuera de src/core/clock, `Date` solo se usa para
-// armar fechas a mano: `new Date(algo)`, `Date.UTC(…)` y `Date.parse(…)`. Cualquier otro uso
-// (`Date.now`, `new Date()`, `Date()`, guardarlo en una variable, pasarlo a otra función…),
-// `performance.now`, `performance.timeOrigin`, `process.hrtime`, `Temporal.Now` y un
-// formateador llamado sin fecha (`.format()`) son faltas. También lo es apagar la regla de
-// Biome con un comentario.
+// (los comentarios no la pueden apagar). Fuera de src/core/clock:
+// - `Date` solo sirve para armar fechas a mano: `new Date(algo)`, `Date.UTC(…)`, `Date.parse(…)`.
+// - `performance`, `process` y `Temporal` solo se usan leyendo una propiedad fija que no da la
+//   hora (`process.env` sí; `performance.now`, `performance.timeOrigin`, `process.hrtime` y
+//   `Temporal.Now` no).
+// - El objeto global (`globalThis`, `window`, `self`, `global`) solo se usa leyendo una
+//   propiedad fija; si esa propiedad es una de las de arriba, rige lo mismo.
+// - Guardar cualquiera de ellos en otra variable, desarmarlo, pasarlo a una función o leerlo con
+//   un nombre armado en el momento es falta, porque así se escaparía de la regla.
+// - Importar `perf_hooks` o `process`, y llamar a un formateador sin fecha (`.format()`), también.
+// - Apagar la regla de Biome con un comentario, también.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseSync } from '@swc/core';
 import { projectFiles } from './archivos.mjs';
 
-const CODE = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
+const CODE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 const EXEMPT = 'src/core/clock/';
 const GLOBAL_OBJECTS = new Set(['globalThis', 'window', 'self', 'global']);
-const DATE_STATIC_ALLOWED = new Set(['UTC', 'parse']);
+const WATCHED = new Set(['Date', 'performance', 'process', 'Temporal']);
+const FORBIDDEN_MODULES = new Set(['perf_hooks', 'node:perf_hooks', 'process', 'node:process']);
+/** @type {Record<string, (name: string | null) => boolean>} */
+const ALLOWED_PROPERTY = {
+  Date: (name) => name === 'UTC' || name === 'parse',
+  performance: (name) => name !== null && name !== 'now' && name !== 'timeOrigin',
+  process: (name) => name !== null && name !== 'hrtime',
+  Temporal: (name) => name !== null && name !== 'Now',
+};
 // Se arma por partes para que este archivo no contenga el comentario que prohíbe.
 const SUPPRESSION = new RegExp(`${'biome'}-ignore(?:-all|-start)?\\s+lint/plugin`);
 const TYPE_WRAPPERS = new Set([
@@ -24,30 +37,43 @@ const TYPE_WRAPPERS = new Set([
   'TsConstAssertion',
   'TsInstantiation',
 ]);
-const NOT_A_REFERENCE_KEYS = new Set(['key', 'id', 'label', 'local', 'imported', 'exported']);
+const TRANSPARENT = new Set(['ParenthesisExpression', ...TYPE_WRAPPERS]);
+const BINDING_KEYS = new Set([
+  'key',
+  'id',
+  'label',
+  'local',
+  'imported',
+  'exported',
+  'pat',
+  'params',
+  'param',
+]);
 
+// El nombre fijo de una propiedad: `x.a`, `x['a']`, x[`a`]. Si se arma en el momento, null.
 /** @param {any} node @returns {string | null} */
-function propertyName(node) {
+function staticName(node) {
   if (node?.type === 'Identifier') {
     return node.value;
   }
-  if (node?.type === 'Computed' && node.expression?.type === 'StringLiteral') {
-    return node.expression.value;
+  if (node?.type !== 'Computed') {
+    return null;
+  }
+  const e = node.expression;
+  if (e?.type === 'StringLiteral') {
+    return e.value;
+  }
+  if (e?.type === 'TemplateLiteral' && (e.expressions ?? []).length === 0) {
+    return e.quasis?.[0]?.cooked ?? null;
   }
   return null;
 }
 
-// ¿El nodo nombra a un global? `Date`, `globalThis.Date`, `window['Date']`…
-/** @param {any} node @param {string} name */
-function isGlobal(node, name) {
-  if (node?.type === 'Identifier') {
-    return node.value === name;
-  }
+/** @param {any} node */
+function isUndefinedValue(node) {
   return (
-    node?.type === 'MemberExpression' &&
-    node.object?.type === 'Identifier' &&
-    GLOBAL_OBJECTS.has(node.object.value) &&
-    propertyName(node.property) === name
+    (node?.type === 'Identifier' && node.value === 'undefined') ||
+    (node?.type === 'UnaryExpression' && node.operator === 'void')
   );
 }
 
@@ -72,7 +98,7 @@ export function findSystemClockReads(source, file) {
   const module = parseSync(anchored, {
     syntax: typescript ? 'typescript' : 'ecmascript',
     tsx: file.endsWith('.tsx'),
-    jsx: false,
+    jsx: file.endsWith('.jsx'),
     target: 'es2024',
   });
   const base = module.span.start + 1;
@@ -83,33 +109,47 @@ export function findSystemClockReads(source, file) {
     findings.push({ line, text });
   };
 
-  // `ref` es un nodo que nombra a Date y `key` dónde está dentro de su padre; decide según
-  // cómo lo usa el padre (saltando paréntesis).
-  /** @param {any} ref @param {string} key @param {any[]} ancestors */
-  const checkDateUse = (ref, key, ancestors) => {
+  // `ref` nombra a uno de los globales vigilados (`name`) y está en `key` de su padre. Decide si
+  // ese uso está permitido mirando al padre, sin contar paréntesis ni anotaciones de tipos.
+  /** @param {string} name @param {any} ref @param {string} key @param {any[]} ancestors */
+  const checkUse = (name, ref, key, ancestors) => {
     let childKey = key;
     let index = ancestors.length - 1;
-    while (ancestors[index]?.node?.type === 'ParenthesisExpression') {
+    while (TRANSPARENT.has(ancestors[index]?.node?.type)) {
       childKey = ancestors[index].key;
       index--;
     }
-    const p = ancestors[index]?.node;
-    if (p?.type === 'NewExpression' && childKey === 'callee') {
-      if ((p.arguments ?? []).length > 0) {
-        return;
+    const parent = ancestors[index]?.node;
+    const asObject = parent?.type === 'MemberExpression' && childKey === 'object';
+    const property = asObject ? staticName(parent.property) : null;
+    if (GLOBAL_OBJECTS.has(name)) {
+      if (!asObject) {
+        report(
+          ref,
+          `el objeto global (\`${name}\`) usado como valor (si es una variable propia, usá otro nombre)`,
+        );
+      } else if (property === null) {
+        report(ref, `el objeto global (\`${name}\`) leído con un nombre armado en el momento`);
       }
-      report(ref, '`new Date()` sin fecha lee la hora del sistema');
       return;
     }
-    if (p?.type === 'MemberExpression' && childKey === 'object') {
-      const name = propertyName(p.property);
-      if (name !== null && DATE_STATIC_ALLOWED.has(name)) {
-        return;
+    if (name === 'Date' && parent?.type === 'NewExpression' && childKey === 'callee') {
+      const args = parent.arguments ?? [];
+      if (args.length === 0 || args.some((/** @type {any} */ a) => a.spread)) {
+        report(ref, '`new Date()` sin fecha lee la hora del sistema');
       }
-      report(ref, `\`Date.${name ?? '[…]'}\` no está permitido fuera del reloj`);
       return;
     }
-    report(ref, '`Date` usado como valor (llamado, guardado o pasado a otra función)');
+    if (asObject) {
+      if (!ALLOWED_PROPERTY[name]?.(property)) {
+        report(ref, `\`${name}.${property ?? '[…]'}\` no está permitido fuera del reloj`);
+      }
+      return;
+    }
+    report(
+      ref,
+      `\`${name}\` usado como valor (llamado, guardado, desarmado o pasado a otra función)`,
+    );
   };
 
   /** @param {any} node @param {any[]} ancestors @param {string} key */
@@ -133,31 +173,38 @@ export function findSystemClockReads(source, file) {
     const parent = ancestors.at(-1)?.node;
     const isPropertyName =
       parent?.type === 'MemberExpression' && key === 'property' && type === 'Identifier';
-    if (type === 'Identifier' && !isPropertyName && !NOT_A_REFERENCE_KEYS.has(key)) {
-      if (node.value === 'Date') {
-        checkDateUse(node, key, ancestors);
+    if (type === 'Identifier' && !isPropertyName && !BINDING_KEYS.has(key)) {
+      if (WATCHED.has(node.value) || GLOBAL_OBJECTS.has(node.value)) {
+        checkUse(node.value, node, key, ancestors);
       }
     }
     if (type === 'MemberExpression') {
-      const name = propertyName(node.property);
-      if (isGlobal(node, 'Date')) {
-        checkDateUse(node, key, ancestors);
-      }
-      if (isGlobal(node.object, 'performance') && (name === 'now' || name === 'timeOrigin')) {
-        report(node, `\`performance.${name}\` lee el reloj del sistema`);
-      }
-      if (isGlobal(node.object, 'process') && name === 'hrtime') {
-        report(node, '`process.hrtime` lee el reloj del sistema');
-      }
-      if (isGlobal(node.object, 'Temporal') && name === 'Now') {
-        report(node, '`Temporal.Now` lee el reloj del sistema');
+      const object = node.object?.type === 'Identifier' ? node.object.value : null;
+      const name = staticName(node.property);
+      if (object !== null && GLOBAL_OBJECTS.has(object) && name !== null) {
+        if (WATCHED.has(name) || GLOBAL_OBJECTS.has(name)) {
+          checkUse(name, node, key, ancestors);
+        }
       }
     }
-    if (type === 'CallExpression' && node.callee?.type === 'MemberExpression') {
-      const name = propertyName(node.callee.property);
-      if ((name === 'format' || name === 'formatToParts') && (node.arguments ?? []).length === 0) {
-        report(node, `\`.${name}()\` sin fecha formatea la hora del sistema`);
+    if (type === 'CallExpression') {
+      const callee = node.callee;
+      const args = node.arguments ?? [];
+      const method = callee?.type === 'MemberExpression' ? staticName(callee.property) : null;
+      const noDate =
+        args.length === 0 || (args.length === 1 && isUndefinedValue(args[0]?.expression));
+      if ((method === 'format' || method === 'formatToParts') && noDate) {
+        report(node, `\`.${method}()\` sin fecha formatea la hora del sistema`);
       }
+      const loads =
+        (callee?.type === 'Identifier' && callee.value === 'require') || callee?.type === 'Import';
+      const target = args[0]?.expression;
+      if (loads && target?.type === 'StringLiteral' && FORBIDDEN_MODULES.has(target.value)) {
+        report(node, `carga «${target.value}», que da acceso al reloj del sistema`);
+      }
+    }
+    if (type === 'ImportDeclaration' && FORBIDDEN_MODULES.has(node.source?.value)) {
+      report(node, `importa «${node.source.value}», que da acceso al reloj del sistema`);
     }
     const next = [...ancestors, { node, key }];
     for (const [childKey, value] of Object.entries(node)) {

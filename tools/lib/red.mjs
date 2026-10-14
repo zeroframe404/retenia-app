@@ -12,10 +12,10 @@ import { readPlaywrightReport, readVitestReport } from './resultados.mjs';
 import { crossCheck } from './trazabilidad.mjs';
 import {
   buildVerdict,
-  compareWithTag,
   explainFailure,
   findMarkers,
   skippedProblem,
+  tagCountProblem,
 } from './veredicto.mjs';
 
 /**
@@ -540,8 +540,13 @@ export async function runNetwork({ full }) {
     if (!last) {
       return [];
     }
-    const atTag = (await testCountsAtTag(ROOT, last.tag))[mode];
-    const notice = compareWithTag({ current: ranCount, atTag, tag: last.tag });
+    const counts = await testCountsAtTag(ROOT, last.tag);
+    const notice = tagCountProblem({
+      tag: last.tag,
+      phase: last.number,
+      atTag: counts?.[mode] ?? null,
+      current: ranCount,
+    });
     return notice ? [notice] : [];
   });
 

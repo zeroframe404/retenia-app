@@ -9,6 +9,7 @@ import {
   redLine,
   skippedProblem,
   startupFailure,
+  tagCountProblem,
 } from '../../../tools/lib/veredicto.mjs';
 
 const counts = { run: 31, failed: 0, skipped: 0, covered: 8, criteria: 8 };
@@ -127,7 +128,20 @@ describe('veredicto de la red', () => {
       'Fase 02 aprobada.\n\nPruebas de verificar: 44\nPruebas de verificar:todo: 57',
     );
     expect(parseTagCounts(message)).toEqual({ verificar: 44, 'verificar:todo': 57 });
-    // Las Fases 00 y 01 no tenían pruebas: un tag sin cantidades cuenta como 0.
-    expect(parseTagCounts('')).toEqual({ verificar: 0, 'verificar:todo': 0 });
+    expect(parseTagCounts('Fase 02 aprobada.')).toBeNull();
+  });
+
+  it('[CA-001] un tag de cierre sin la cantidad de pruebas es una falla desde la Fase 02, para que el control no se apague solo', () => {
+    // Las Fases 00 y 01 no tenían pruebas: sus tags no guardan cantidades y está bien.
+    expect(
+      tagCountProblem({ tag: 'fase-01-ok', phase: '01', atTag: null, current: 50 }),
+    ).toBeNull();
+    expect(tagCountProblem({ tag: 'fase-02-ok', phase: '02', atTag: null, current: 50 })).toContain(
+      'el tag fase-02-ok no tiene guardada la cantidad de pruebas',
+    );
+    expect(tagCountProblem({ tag: 'fase-02-ok', phase: '02', atTag: 56, current: 55 })).toContain(
+      'tenía 56 y ahora hay 55',
+    );
+    expect(tagCountProblem({ tag: 'fase-02-ok', phase: '02', atTag: 56, current: 56 })).toBeNull();
   });
 });

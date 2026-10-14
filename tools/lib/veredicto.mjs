@@ -88,6 +88,19 @@ export function compareWithTag({ current, atTag, tag }) {
   return `bajó la cantidad de pruebas: el tag ${tag} tenía ${atTag} y ahora hay ${current}. No se borran ni se saltean pruebas para que pase la red.`;
 }
 
+// Con el último tag fase-NN-ok: si guardó la cantidad de pruebas, no puede bajar. Si no la
+// guardó, solo pasa para las Fases 00 y 01, que no tenían pruebas; desde la 02 es una falla,
+// porque si no el control se apagaría en silencio.
+/** @param {{ tag: string, phase: string, atTag: number | null, current: number }} options */
+export function tagCountProblem({ tag, phase, atTag, current }) {
+  if (atTag === null) {
+    return Number(phase) >= 2
+      ? `el tag ${tag} no tiene guardada la cantidad de pruebas, así que no puedo comprobar que no haya bajado. Los tags de cierre se ponen con «npm run cerrar-fase -- NN».`
+      : null;
+  }
+  return compareWithTag({ current, atTag, tag });
+}
+
 // El aviso de pruebas salteadas: las que el corredor salteó y las marcadas en archivos que no
 // corrieron. Cada salteada suma una falla.
 /**

@@ -34,12 +34,15 @@ export async function closedPhaseTags(root) {
 
 // El mensaje de un tag fase-NN-ok que crea «npm run cerrar-fase» guarda cuántas pruebas
 // tenía cada orden: «Pruebas de verificar: 44» y «Pruebas de verificar:todo: 57».
-// Un tag sin esos renglones (las Fases 00 y 01 no tenían pruebas) cuenta como 0.
-/** @param {string} message @returns {{ 'verificar': number, 'verificar:todo': number }} */
+// Un tag sin esos renglones devuelve null: qué hacer lo decide tagCountProblem.
+/** @param {string} message @returns {{ 'verificar': number, 'verificar:todo': number } | null} */
 export function parseTagCounts(message) {
   const fast = /^Pruebas de verificar: (\d+)$/m.exec(message)?.[1];
   const full = /^Pruebas de verificar:todo: (\d+)$/m.exec(message)?.[1];
-  return { verificar: Number(fast ?? 0), 'verificar:todo': Number(full ?? 0) };
+  if (fast === undefined || full === undefined) {
+    return null;
+  }
+  return { verificar: Number(fast), 'verificar:todo': Number(full) };
 }
 
 /** @param {{ 'verificar': number, 'verificar:todo': number }} counts @param {string} phase */

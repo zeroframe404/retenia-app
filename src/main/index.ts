@@ -22,7 +22,7 @@ const handlers = createHandlers({
 });
 
 function createWindow(): void {
-  const window = new BrowserWindow({
+  const mainWindow = new BrowserWindow({
     title: texts.appName,
     width: 1100,
     height: 720,
@@ -39,10 +39,10 @@ function createWindow(): void {
       spellcheck: false,
     },
   });
-  window.once('ready-to-show', () => window.show());
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', (event) => event.preventDefault());
-  void window.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
+  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
+  void mainWindow.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
 }
 
 app.whenReady().then(() => {
