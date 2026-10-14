@@ -8,10 +8,11 @@
   },
   "include": [
     "src/core/**/*.ts",
+    "src/data/**/*.ts",
     "src/main/**/*.ts",
     "src/preload/**/*.ts",
     "tests/**/*.ts",
     "*.config.ts"
   ],
-  "exclude": ["tests/e2e/**"]
+  "exclude": ["tests/e2e/**", "tests/componentes/**", "tests/instalado/**"]
 }

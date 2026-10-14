@@ -20,6 +20,17 @@ export default defineConfig({
       },
       { extends: true, test: { name: 'contrato', include: ['tests/contrato/**/*.test.ts'] } },
       {
+        // Las pantallas de la ventana (capa R): Testing Library con jsdom.
+        extends: true,
+        esbuild: { jsx: 'automatic' },
+        test: {
+          name: 'componentes',
+          include: ['tests/componentes/**/*.test.tsx'],
+          environment: 'jsdom',
+          testTimeout: 30_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'integracion',

@@ -25,7 +25,14 @@ import {
  */
 
 const CORE_BRANCH_THRESHOLD = 90;
-const FAST_PROJECTS = ['unitarias', 'propiedades', 'contrato', 'integracion', 'estaticas'];
+const FAST_PROJECTS = [
+  'unitarias',
+  'propiedades',
+  'contrato',
+  'componentes',
+  'integracion',
+  'estaticas',
+];
 const BINARY = /\.(png|jpe?g|gif|ico|exe|dll|pdf|zip|woff2?|ttf|db|onnx)$/i;
 
 /** @param {{ full: boolean }} options @returns {Promise<number>} el código de salida */
@@ -99,7 +106,12 @@ export async function runNetwork({ full }) {
   };
 
   const types = async () => {
-    const configs = ['tsconfig.json', 'tsconfig.web.json', 'tsconfig.e2e.json'];
+    const configs = [
+      'tsconfig.json',
+      'tsconfig.web.json',
+      'tsconfig.e2e.json',
+      'tsconfig.componentes.json',
+    ];
     const results = await Promise.all(
       configs.map((c) =>
         runPackage('typescript', 'tsc', ['-p', c, '--noEmit', '--pretty', 'false']),

@@ -1,11 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import { demoClock } from '../../src/core/clock';
-import { createHandlers, handleMessage } from '../../src/main/bridge';
+import { afterAll, describe, expect, it } from 'vitest';
+import { handleMessage } from '../../src/main/bridge';
 import { buildApi } from '../../src/preload/api';
+import { openBridge } from '../apoyo/puente';
 
 // El puente armado con el manejador real del principal, sin ventana: lo que pasa entre los
 // dos lados es exactamente lo que pasaría por ipcRenderer.invoke.
-const handlers = createHandlers({ clock: demoClock(), variant: 'prueba' });
+// (El principal ahora también abre la base: la de esta prueba es un archivo temporal real.)
+const bridge = openBridge();
+afterAll(() => bridge.close());
+const handlers = bridge.handlers;
 const api = buildApi((channel, request) => handleMessage(handlers, channel, request));
 
 describe('contrato del puente: canal «ping»', () => {
