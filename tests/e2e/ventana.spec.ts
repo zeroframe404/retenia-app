@@ -35,7 +35,16 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
   expect(inWindow).toEqual({
     require: 'undefined',
     process: 'undefined',
-    bridge: ['ping', 'app.info', 'cards.create', 'cards.list', 'cards.review', 'demo.state'],
+    bridge: [
+      'ping',
+      'app.info',
+      'cards.create',
+      'cards.list',
+      'cards.review',
+      'cards.edit',
+      'cards.history',
+      'demo.state',
+    ],
   });
   // getLastWebPreferences existe en Electron 44 pero no está en sus tipos.
   const preferences = await app.evaluate(({ BrowserWindow }) => {

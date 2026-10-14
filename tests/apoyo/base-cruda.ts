@@ -24,29 +24,7 @@ export function runRaw(file: string, sql: string, ...params: unknown[]): void {
 }
 
 // Las tablas de eventos: lo que nunca se modifica ni se borra.
-export const EVENT_TABLES = ['observations', 'evaluations', 'operations'] as const;
-
-// Todas las filas de las tablas de Retenia, ordenadas, para comparar dos bases enteras.
-export function dumpTables(file: string): Record<string, Row[]> {
-  const raw = new Database(file, { readonly: true });
-  try {
-    const tables = (
-      raw
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
-        )
-        .all() as { name: string }[]
-    ).map((row) => row.name);
-    return Object.fromEntries(
-      tables.map((table) => [
-        table,
-        raw.prepare(`SELECT * FROM "${table}" ORDER BY 1`).all() as Row[],
-      ]),
-    );
-  } finally {
-    raw.close();
-  }
-}
+const EVENT_TABLES = ['observations', 'evaluations', 'operations'] as const;
 
 // Las filas de eventos por identificador, para ver que ninguna cambió.
 export function eventsById(file: string): Map<string, string> {

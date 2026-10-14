@@ -1,8 +1,11 @@
 import type { z } from 'zod';
 import { appInfoRequest, appInfoResponse } from './app';
 import {
+  cardHistorySchema,
+  cardIdRequest,
   cardSchema,
   cardsCreateRequest,
+  cardsEditRequest,
   cardsListRequest,
   cardsListResponse,
   cardsReviewRequest,
@@ -19,6 +22,8 @@ export const channels = {
   'cards.create': { request: cardsCreateRequest, response: cardSchema },
   'cards.list': { request: cardsListRequest, response: cardsListResponse },
   'cards.review': { request: cardsReviewRequest, response: cardSchema },
+  'cards.edit': { request: cardsEditRequest, response: cardSchema },
+  'cards.history': { request: cardIdRequest, response: cardHistorySchema },
 };
 
 export type Registry = Readonly<Record<string, { request: z.ZodType; response: z.ZodType }>>;

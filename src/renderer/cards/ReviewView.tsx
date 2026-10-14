@@ -27,6 +27,9 @@ export function ReviewView({
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const inFlight = useRef(false);
+  // Identifica este intento: si el repaso llega dos veces (un doble toque, un reintento después
+  // de un error), el principal lo guarda una sola vez.
+  const [attemptId] = useState(() => crypto.randomUUID());
 
   async function grade(value: Grade) {
     if (inFlight.current) {
@@ -36,7 +39,11 @@ export function ReviewView({
     setSaving(true);
     setFailed(false);
     try {
-      const reviewed = await window.retenia['cards.review']({ cardId: card.id, grade: value });
+      const reviewed = await window.retenia['cards.review']({
+        cardId: card.id,
+        grade: value,
+        attemptId,
+      });
       setResult(reviewed);
       setStep('done');
       onReviewed(reviewed);

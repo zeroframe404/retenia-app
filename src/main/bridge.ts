@@ -34,6 +34,8 @@ export function createHandlers({
     'cards.create': async (request) => cards.create(request),
     'cards.list': async () => ({ cards: cards.list() }),
     'cards.review': async (request) => cards.review(request),
+    'cards.edit': async (request) => cards.edit(request),
+    'cards.history': async (request) => cards.history(request),
   };
 }
 

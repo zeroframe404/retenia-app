@@ -27,4 +27,32 @@ export const cardsCreateRequest = z.strictObject({ question: cardText, answer: c
 export const cardsListRequest = z.strictObject({});
 export const cardsListResponse = z.strictObject({ cards: z.array(cardSchema) });
 
-export const cardsReviewRequest = z.strictObject({ cardId: z.uuid(), grade: gradeSchema });
+// `attemptId` lo genera la ventana al abrir el repaso: si el mismo repaso llega dos veces (un
+// doble toque, un reintento), queda una sola vez en el historial.
+export const cardsReviewRequest = z.strictObject({
+  cardId: z.uuid(),
+  grade: gradeSchema,
+  attemptId: z.uuid(),
+});
+
+export const cardsEditRequest = z.strictObject({
+  cardId: z.uuid(),
+  question: cardText,
+  answer: cardText,
+});
+
+export const cardIdRequest = z.strictObject({ cardId: z.uuid() });
+
+// Un renglón del historial: el día de estudio y el resultado que vale. «adopted» son los
+// repasos de antes de que existiera el historial (bases de la Fase 03), sin detalle.
+export const cardHistorySchema = z.strictObject({
+  question: z.string(),
+  entries: z.array(
+    z.strictObject({
+      id: z.uuid(),
+      day: studyDay,
+      result: z.enum(['again', 'hard', 'good', 'adopted']),
+    }),
+  ),
+});
+export type CardHistory = z.output<typeof cardHistorySchema>;
