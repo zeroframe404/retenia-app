@@ -17,7 +17,7 @@ export interface ReteniaDatabase {
   // Pasa todo lo del diario de escritura a la base y lo vacía (antes de cerrar para restaurar).
   checkpoint(): { busy: number; log: number; checkpointed: number };
   // Deja el archivo sin diario de escritura aparte, autosuficiente (la base que se restaura).
-  useRollbackJournal(): void;
+  switchToRollbackJournal(): void;
   integrityCheck(): string;
   close(): void;
 }
@@ -74,7 +74,7 @@ export function openDatabase(
       }[];
       return result ?? { busy: 1, log: -1, checkpointed: -1 };
     },
-    useRollbackJournal: () => {
+    switchToRollbackJournal: () => {
       sqlite.pragma('journal_mode = DELETE');
     },
     integrityCheck: () => String(sqlite.pragma('integrity_check', { simple: true })),

@@ -65,6 +65,30 @@ export function ensureLedgerState(db: Writer, now: Date): void {
     .run();
 }
 
+export function readLedgerState(db: Writer): { deviceId: string; lastSeq: number } {
+  const row = db
+    .select({ deviceId: ledgerState.deviceId, lastSeq: ledgerState.lastSeq })
+    .from(ledgerState)
+    .where(eq(ledgerState.id, 1))
+    .get();
+  if (!row) {
+    throw new Error('El libro mayor no tiene dispositivo');
+  }
+  return row;
+}
+
+// Al restaurar una copia vieja, el dispositivo sigue siendo este y la secuencia sigue desde el
+// número más alto que ya usó: así un par (dispositivo, número) nunca se repite.
+export function continueSequence(db: Writer, live: { deviceId: string; lastSeq: number }): void {
+  db.update(ledgerState)
+    .set({
+      deviceId: live.deviceId,
+      lastSeq: sql`max(${ledgerState.lastSeq}, ${live.lastSeq})`,
+    })
+    .where(eq(ledgerState.id, 1))
+    .run();
+}
+
 function nextSeq(tx: Writer): { deviceId: string; seq: number } {
   const row = tx
     .update(ledgerState)
