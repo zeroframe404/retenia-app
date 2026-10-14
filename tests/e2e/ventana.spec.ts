@@ -30,7 +30,13 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
     process: typeof (globalThis as { process?: unknown }).process,
     bridge: Object.keys(window.retenia),
   }));
-  expect(inWindow).toEqual({ require: 'undefined', process: 'undefined', bridge: ['ping'] });
+  // El puente expone exactamente los canales del contrato más los de demostración, que solo
+  // existen en esta variante (docs/arquitectura.md, sección 3).
+  expect(inWindow).toEqual({
+    require: 'undefined',
+    process: 'undefined',
+    bridge: ['ping', 'app.info', 'cards.create', 'cards.list', 'cards.review', 'demo.state'],
+  });
   // getLastWebPreferences existe en Electron 44 pero no está en sus tipos.
   const preferences = await app.evaluate(({ BrowserWindow }) => {
     const contents = BrowserWindow.getAllWindows()[0]?.webContents as unknown as

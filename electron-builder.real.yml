@@ -9,7 +9,13 @@ directories:
 files:
   - out/real/**/*
   - package.json
+  # Zod, Drizzle y ts-fsrs ya viajan adentro del archivo principal; de better-sqlite3 solo
+  # hace falta lo que usa en Windows de 64 bits.
   - "!node_modules/{drizzle-orm,ts-fsrs,zod}/**"
+  - "!node_modules/better-sqlite3/{deps,src}/**"
+  - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
+  - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"
+  - "!node_modules/better-sqlite3/prebuilds/win32-arm64.node"
 extraMetadata:
   main: out/real/main/index.js
 asar: true

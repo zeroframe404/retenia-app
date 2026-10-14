@@ -119,6 +119,8 @@
   margin: 0;
   padding: 0;
   display: grid;
+  /* Sin esto la columna crece hasta el largo del texto y la lista se desarma. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.5rem;
 }
 

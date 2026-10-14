@@ -317,10 +317,11 @@ export async function runNetwork({ full }) {
     );
   };
 
+  // Las dos variantes compiladas y empaquetadas sin instalar (release/<variante>/win-unpacked):
+  // la punta a punta abre la de prueba y las pruebas del paquete leen las dos.
   const build = async () => {
-    const r = await runPackage('electron-vite', 'electron-vite', ['build'], {
-      env: { ...process.env, RETENIA_VARIANTE: 'prueba' },
-      timeoutMs: 300_000,
+    const r = await run(process.execPath, [join(ROOT, 'tools', 'construir.mjs')], {
+      timeoutMs: 900_000,
     });
     saveLog('compilar', r);
     return r.code === 0 ? [] : [toolFailure('compilar', r)];
@@ -461,7 +462,9 @@ export async function runNetwork({ full }) {
       fastTests = tests;
       return problems;
     }),
-    full ? layer('compilar', 'Compilar la variante de prueba', build) : Promise.resolve([]),
+    full
+      ? layer('compilar', 'Compilar y empaquetar las dos variantes', build)
+      : Promise.resolve([]),
   ]);
 
   /** @type {TestResult[]} */
@@ -473,7 +476,7 @@ export async function runNetwork({ full }) {
     await Promise.all([
       layer('punta-a-punta', 'Punta a punta (ventana real)', async () => {
         if (!built) {
-          return ['no corrió porque no se pudo compilar la variante de prueba.'];
+          return ['no corrió porque no se pudo compilar y empaquetar la variante de prueba.'];
         }
         e2e = testProblems('punta-a-punta', await endToEnd());
         return e2e.problems.filter((p) => !p.text.includes('accesibilidad:'));
@@ -488,8 +491,11 @@ export async function runNetwork({ full }) {
       }
       return e2e.problems.filter((p) => p.text.includes('accesibilidad:'));
     });
-    await layer('red', 'Red completa y sabotajes', async () => {
-      const { tests, problems } = testProblems('red', await runVitest(['red'], 'red'));
+    await layer('red', 'Paquete, red completa y sabotajes', async () => {
+      if (!built) {
+        return ['no corrió porque no se pudo compilar y empaquetar las dos variantes.'];
+      }
+      const { tests, problems } = testProblems('red', await runVitest(['paquete', 'red'], 'red'));
       fullTests = [...e2e.tests, ...tests];
       return problems;
     });

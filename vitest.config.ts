@@ -47,6 +47,16 @@ export default defineConfig({
         },
       },
       {
+        // El programa empaquetado de cada variante, tal como lo deja «npm run construir»
+        // (CA-013, fuses). Solo en «verificar:todo».
+        extends: true,
+        test: {
+          name: 'paquete',
+          include: ['tests/paquete/**/*.test.ts'],
+          testTimeout: 120_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'red',
