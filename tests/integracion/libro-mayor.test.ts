@@ -44,14 +44,16 @@ function tryRaw(file: string, sql: string): string {
   }
 }
 
-// Lo mismo, pero con la conexión que abre Retenia (la de todo el programa).
+// Lo mismo, pero con la conexión que abre Retenia (la de todo el programa). Drizzle envuelve el
+// error de SQLite: interesa el de adentro, el del disparador.
 function tryInRetenia(file: string, statement: string): string {
   const db = openDatabase(file);
   try {
     db.orm.run(sql.raw(statement));
     return 'se pudo';
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause : error;
+    return cause instanceof Error ? cause.message : String(cause);
   } finally {
     db.close();
   }

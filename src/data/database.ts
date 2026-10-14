@@ -46,6 +46,9 @@ export function openDatabase(
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('synchronous = FULL');
     sqlite.pragma('foreign_keys = ON');
+    // Sin esto, un REPLACE borra la fila que choca sin avisar a los disparadores BEFORE DELETE,
+    // y reescribiría un evento o una versión: con esto, el borrado implícito también se rechaza.
+    sqlite.pragma('recursive_triggers = ON');
     applyMigrations(sqlite, clock.now());
     orm.transaction((tx) => {
       ensureLedgerState(tx, clock.now());

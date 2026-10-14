@@ -1,7 +1,15 @@
+import type { ChannelName } from '../preload/contract';
+
 // La compuerta de los pedidos de la ventana. Casi todos son comunes y pueden correr a la vez;
 // restaurar una copia es exclusivo: cierra la base, la reemplaza y la vuelve a abrir, así que
 // espera a que terminen los que están en curso y los que llegan después esperan a que termine.
 // Los que esperan siguen en el orden en que llegaron.
+
+// Los canales que reemplazan la base entera. Con el tipo del contrato, un nombre mal escrito o
+// un canal renombrado no compila.
+const EXCLUSIVE_CHANNELS: ReadonlySet<string> = new Set<ChannelName>(['backups.restore']);
+
+type AnyHandler = (request: never) => Promise<unknown>;
 
 export interface Gate {
   shared<T>(task: () => Promise<T> | T): Promise<T>;
@@ -53,4 +61,20 @@ export function createGate(): Gate {
     shared: (task) => run(false, task),
     exclusive: (task) => run(true, task),
   };
+}
+
+// Cada manejador pasa por la compuerta: restaurar una copia, solo; todo lo demás, en común.
+export function gateHandlers<H extends Readonly<Record<string, AnyHandler>>>(
+  handlers: H,
+  gate: Gate,
+): H {
+  return Object.fromEntries(
+    Object.entries(handlers).map(([name, handler]) => [
+      name,
+      (request: never) =>
+        EXCLUSIVE_CHANNELS.has(name)
+          ? gate.exclusive(() => handler(request))
+          : gate.shared(() => handler(request)),
+    ]),
+  ) as unknown as H;
 }

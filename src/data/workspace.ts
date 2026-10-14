@@ -15,7 +15,7 @@ import {
   type Step,
 } from './backups';
 import { type CardsStore, createCardsStore } from './cards';
-import { openDatabase, type ReteniaDatabase } from './database';
+import { openDatabase } from './database';
 import { newId } from './ids';
 import { continueSequence, readLedgerState } from './ledger';
 import { migrationIds } from './migrations';
@@ -75,13 +75,32 @@ async function renameWithRetries(from: string, to: string): Promise<void> {
   }
 }
 
-// Lo que quedó a medias de una copia o una restauración cortadas.
+// Borra si puede. Lo que Windows tiene tomado (el antivirus, el indexador) queda para la próxima.
+function removeIfPossible(path: string): void {
+  try {
+    rmSync(path, { recursive: true, force: true });
+  } catch {
+    // Los restos llevan nombres únicos: uno que quedó no estorba a las copias nuevas.
+  }
+}
+
+// Lo que quedó a medias de una copia o una restauración cortadas. Nunca impide abrir Retenia.
 function cleanLeftovers(tmpDir: string, copiesDir: string): void {
-  rmSync(tmpDir, { recursive: true, force: true });
-  mkdirSync(tmpDir, { recursive: true });
+  if (existsSync(tmpDir) && statSync(tmpDir).isDirectory()) {
+    for (const entry of readdirSync(tmpDir)) {
+      removeIfPossible(join(tmpDir, entry));
+    }
+  } else {
+    removeIfPossible(tmpDir);
+  }
+  try {
+    mkdirSync(tmpDir, { recursive: true });
+  } catch {
+    // Sin carpeta de trabajo, la próxima copia falla y lo dice; abrir Retenia no depende de eso.
+  }
   if (existsSync(copiesDir)) {
     for (const name of readdirSync(copiesDir).filter((entry) => entry.endsWith('.tmp'))) {
-      rmSync(join(copiesDir, name), { force: true });
+      removeIfPossible(join(copiesDir, name));
     }
   }
 }
@@ -104,42 +123,88 @@ export function openWorkspace({
   const tmpDir = join(dataDir, 'tmp');
   const place = { copiesDir, tmpDir };
   const step: Step = onStep ?? (() => undefined);
+  // Los avisos de después de reemplazar el archivo al restaurar: si uno falla, la restauración
+  // igual quedó hecha.
+  const notifyAfterReplacing = (name: string) => {
+    try {
+      step(name);
+    } catch {
+      // La base ya es la de la copia: un aviso que falla no cambia eso.
+    }
+  };
   cleanLeftovers(tmpDir, copiesDir);
 
-  const open = () => openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
-  const storesOf = (database: ReteniaDatabase) => ({
-    cards: createCardsStore(database, clock),
-    trash: createTrashStore(database, clock),
-    activity: createActivityStore(database, clock),
-  });
-  let db: ReteniaDatabase = open();
-  let stores = storesOf(db);
+  // La base abierta y sus almacenes.
+  const connect = () => {
+    const db = openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
+    return {
+      db,
+      cards: createCardsStore(db, clock),
+      trash: createTrashStore(db, clock),
+      activity: createActivityStore(db, clock),
+    };
+  };
+  type Live = ReturnType<typeof connect>;
+  let live: Live | null = connect();
   let closed = false;
   let automatic: Promise<unknown> = Promise.resolve();
 
-  const reopen = () => {
-    db = open();
-    stores = storesOf(db);
+  // La base para cada pedido. Si después de restaurar no se pudo volver a abrir (Windows la
+  // tenía tomada, por ejemplo), se intenta de nuevo acá: el pedido siguiente la abre.
+  const current = (): Live => {
+    if (closed) {
+      throw new Error('La carpeta de datos ya se cerró');
+    }
+    live ??= connect();
+    return live;
+  };
+  const reopenIfPossible = () => {
+    try {
+      current();
+    } catch {
+      // Queda cerrada: el pedido siguiente vuelve a intentar.
+    }
+  };
+
+  // Cierra la base viva para reemplazarla: todo lo del diario de escritura pasa a la base y no
+  // puede quedar un -wal con contenido.
+  const closeLive = () => {
+    const { db } = current();
+    const checkpoint = db.checkpoint();
+    db.close();
+    live = null;
+    if (checkpoint.busy !== 0) {
+      throw new BackupError('La base estaba ocupada y no se pudo cerrar del todo');
+    }
+    for (const suffix of ['-wal', '-shm']) {
+      const journal = `${dbFile}${suffix}`;
+      if (existsSync(journal)) {
+        if (suffix === '-wal' && statSync(journal).size > 0) {
+          throw new BackupError('Quedó un diario de escritura sin pasar a la base');
+        }
+        rmSync(journal, { force: true });
+      }
+    }
   };
 
   const backup = (kind: 'manual' | 'auto' | 'before_restore') =>
-    createBackup(db, place, { kind, clock, appVersion, onStep: step });
+    createBackup(current().db, place, { kind, clock, appVersion, onStep: step });
 
   return {
     dataDir,
     copiesDir,
     get cards() {
-      return stores.cards;
+      return current().cards;
     },
     get trash() {
-      return stores.trash;
+      return current().trash;
     },
     get activity() {
-      return stores.activity;
+      return current().activity;
     },
-    verifyData: () => verifyData(db),
-    repairData: () => repairData(db),
-    integrityCheck: () => db.integrityCheck(),
+    verifyData: () => verifyData(current().db),
+    repairData: () => repairData(current().db),
+    integrityCheck: () => current().db.integrityCheck(),
     copiesFolder: () => {
       mkdirSync(copiesDir, { recursive: true });
       return copiesDir;
@@ -178,54 +243,39 @@ export function openWorkspace({
       const safety = await backup('before_restore');
 
       const incoming = join(tmpDir, `restaurar-${newId()}.db`);
-      let liveClosed = false;
       try {
         await prepareRestore(chosen.file, incoming, migrationIds());
         step('extraída');
-        const live = readLedgerState(db.orm);
         const prepared = openDatabase(incoming, { clock });
         try {
-          continueSequence(prepared.orm, live);
+          continueSequence(prepared.orm, readLedgerState(current().db.orm));
           prepared.switchToRollbackJournal();
         } finally {
           prepared.close();
         }
         step('preparada');
-
-        const checkpoint = db.checkpoint();
-        db.close();
-        liveClosed = true;
-        if (checkpoint.busy !== 0) {
-          throw new BackupError('La base estaba ocupada y no se pudo cerrar del todo');
-        }
-        for (const suffix of ['-wal', '-shm']) {
-          const journal = `${dbFile}${suffix}`;
-          if (existsSync(journal)) {
-            if (suffix === '-wal' && statSync(journal).size > 0) {
-              throw new BackupError('Quedó un diario de escritura sin pasar a la base');
-            }
-            rmSync(journal, { force: true });
-          }
-        }
+        closeLive();
         step('cerrada');
         await renameWithRetries(incoming, dbFile);
-        step('reemplazada');
       } catch (error) {
+        // Todavía no se reemplazó nada: la base sigue siendo la de antes.
         rmSync(incoming, { force: true });
-        if (liveClosed) {
-          reopen();
-        }
+        reopenIfPossible();
         throw error;
       }
-      reopen();
-      step('reabierta');
+      // Desde acá la base ya es la de la copia: la restauración está hecha, falle lo que falle
+      // después. Si no se puede volver a abrir ahora, la abre el pedido siguiente.
+      notifyAfterReplacing('reemplazada');
+      reopenIfPossible();
+      notifyAfterReplacing('reabierta');
       return { restored, safety };
     },
 
     close() {
       if (!closed) {
         closed = true;
-        db.close();
+        live?.db.close();
+        live = null;
       }
     },
   };

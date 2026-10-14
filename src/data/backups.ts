@@ -4,6 +4,7 @@ import {
   createReadStream,
   createWriteStream,
   existsSync,
+  fstatSync,
   fsyncSync,
   mkdirSync,
   openSync,
@@ -167,14 +168,26 @@ function checkDatabase(path: string, manifest: Manifest): void {
 }
 
 const MANIFEST_PEEK_BYTES = 64 * 1024;
+const GZIP_SIZE_BYTES = 4;
 
-// El manifiesto sin descomprimir la copia entera: el principio del archivo alcanza.
+// El manifiesto sin descomprimir la copia entera: el principio del archivo alcanza. Además, los
+// últimos 4 bytes de un gzip dicen cuánto medía lo comprimido: en una copia que se cortó después
+// de hecha no coinciden con lo que dice el manifiesto, y esa copia ya no se da por buena.
 function readManifest(file: string): Manifest {
   const descriptor = openSync(file, 'r');
   let head: Buffer;
+  const size = Buffer.alloc(GZIP_SIZE_BYTES);
   try {
     head = Buffer.alloc(MANIFEST_PEEK_BYTES);
     head = head.subarray(0, readSync(descriptor, head, 0, MANIFEST_PEEK_BYTES, 0));
+    const fileBytes = fstatSync(descriptor).size;
+    if (
+      fileBytes < GZIP_SIZE_BYTES ||
+      readSync(descriptor, size, 0, GZIP_SIZE_BYTES, fileBytes - GZIP_SIZE_BYTES) !==
+        GZIP_SIZE_BYTES
+    ) {
+      throw new BackupError('La copia está incompleta');
+    }
   } finally {
     closeSync(descriptor);
   }
@@ -183,7 +196,12 @@ function readManifest(file: string): Manifest {
   if (newline < 0) {
     throw new BackupError('La copia no tiene manifiesto');
   }
-  return manifestSchema.parse(JSON.parse(start.subarray(0, newline).toString('utf8')));
+  const manifest = manifestSchema.parse(JSON.parse(start.subarray(0, newline).toString('utf8')));
+  // Lo comprimido es el renglón del manifiesto, su salto de línea y la base (módulo 2^32).
+  if (size.readUInt32LE(0) !== (newline + 1 + manifest.databaseBytes) % 2 ** 32) {
+    throw new BackupError('La copia está incompleta');
+  }
+  return manifest;
 }
 
 // Descomprime la base de una copia en `target` y comprueba que es la misma que se guardó (huella

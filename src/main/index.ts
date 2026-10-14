@@ -9,7 +9,7 @@ import { createHandlers, handleMessage, type Variant } from './bridge';
 import { createDemoHandlers } from './demo';
 import { createDemoDate } from './demo/clock';
 import { seedDemoCards } from './demo/seed';
-import { createGate } from './gate';
+import { createGate, gateHandlers } from './gate';
 
 const variant: Variant = __VARIANTE__;
 const isTest = __VARIANTE__ === 'prueba';
@@ -94,15 +94,7 @@ function start(): void {
 
   // Mientras se restaura una copia, todo lo demás espera (la base se cierra y se reemplaza).
   const gate = createGate();
-  const routes = Object.fromEntries(
-    Object.entries(handlers).map(([name, handler]) => [
-      name,
-      (request: never) =>
-        name === 'backups.restore'
-          ? gate.exclusive(() => handler(request))
-          : gate.shared(() => handler(request)),
-    ]),
-  );
+  const routes = gateHandlers(handlers, gate);
 
   Menu.setApplicationMenu(null);
   session.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) =>

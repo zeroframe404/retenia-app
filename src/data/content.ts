@@ -80,9 +80,10 @@ export function cardOf(db: Writer, cardId: string): Card {
   return toCard(row);
 }
 
-// La entrada vigente de la Papelera de una tarjeta (ni restaurada ni vaciada).
-function activeTrashEntryOf(db: Writer, cardId: string) {
-  return db
+// La entrada vigente de la Papelera de una tarjeta: ni restaurada, ni vaciada, ni vencida (una
+// vencida ya no se ve aunque todavía no se haya purgado).
+function activeTrashEntryOf(db: Writer, cardId: string, now: Date) {
+  const entry = db
     .select()
     .from(trashEntries)
     .where(
@@ -94,10 +95,11 @@ function activeTrashEntryOf(db: Writer, cardId: string) {
       ),
     )
     .get();
+  return entry && !isTrashExpired(new Date(entry.expiresAt), now) ? entry : undefined;
 }
 
 // Cómo está una tarjeta, para saber si un cambio todavía se puede deshacer.
-export function cardState(db: Writer, cardId: string): CardState {
+export function cardState(db: Writer, cardId: string, now: Date): CardState {
   const row = findCard(db, cardId);
   if (!row) {
     return { status: 'gone', content: null, activeTrashEntryId: null };
@@ -109,7 +111,7 @@ export function cardState(db: Writer, cardId: string): CardState {
   return {
     status: 'trashed',
     content,
-    activeTrashEntryId: activeTrashEntryOf(db, cardId)?.id ?? null,
+    activeTrashEntryId: activeTrashEntryOf(db, cardId, now)?.id ?? null,
   };
 }
 

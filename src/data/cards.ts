@@ -16,9 +16,17 @@ import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
 import { cardHistory, recomputeCardSchedule } from './projections';
-import { cards, cardVersions, operations } from './schema';
+import { cards, cardVersions, observations, operations } from './schema';
 
 export { CardNotFoundError };
+
+// El mismo intento llegó con otra tarjeta: no es un repaso repetido, es un pedido equivocado.
+class AttemptConflictError extends Error {
+  constructor() {
+    super('Ese repaso ya se guardó con otra tarjeta');
+    this.name = 'AttemptConflictError';
+  }
+}
 
 export interface CardsStore {
   create(input: { question: string; answer: string }, options?: { source?: EventSource }): Card;
@@ -85,6 +93,16 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
             source: 'user',
           });
           recomputeCardSchedule(tx, cardId);
+        } else {
+          // Un repaso repetido vale solo si es de la misma tarjeta.
+          const saved = tx
+            .select({ cardId: observations.cardId })
+            .from(observations)
+            .where(eq(observations.id, observation.id))
+            .get();
+          if (saved?.cardId !== cardId) {
+            throw new AttemptConflictError();
+          }
         }
         return cardOf(tx, cardId);
       });

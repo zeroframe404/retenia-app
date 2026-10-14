@@ -15,9 +15,11 @@ export interface BackupStamp {
 
 export const BACKUP_EXTENSION = '.retenia-copia';
 
-// Una automática si la última copia (de cualquier tipo) tiene 24 horas o más. «Más de 24
+// Una automática si ninguna copia (de cualquier tipo) es de las últimas 24 horas. «Más de 24
 // horas» se cuenta desde las 24 justas: «+1 día» de la demostración corre el reloj exactamente
-// eso, y la copia del día siguiente tiene que aparecer (M04.8).
+// eso, y la copia del día siguiente tiene que aparecer (M04.8). Una copia con fecha futura no
+// cuenta: si el reloj volvió atrás («Restablecer fecha», una PC que tuvo la hora adelantada),
+// igual se hace la copia del día.
 const AUTOMATIC_BACKUP_INTERVAL_MS = 24 * 3_600_000;
 
 // Se conservan las 14 automáticas más nuevas. Las hechas a mano y las «Antes de restaurar» no
@@ -32,11 +34,10 @@ export function newestFirst<T extends BackupStamp>(backups: readonly T[]): T[] {
 }
 
 export function isAutomaticBackupDue(backups: readonly BackupStamp[], now: Date): boolean {
-  const [latest] = newestFirst(backups);
-  return (
-    latest === undefined ||
-    now.getTime() - latest.createdAt.getTime() >= AUTOMATIC_BACKUP_INTERVAL_MS
-  );
+  return !backups.some((backup) => {
+    const age = now.getTime() - backup.createdAt.getTime();
+    return age >= 0 && age < AUTOMATIC_BACKUP_INTERVAL_MS;
+  });
 }
 
 export function automaticBackupsToPrune<T extends BackupStamp>(

@@ -31,7 +31,7 @@ const RECENT_LIMIT = 50;
 
 type OperationRow = typeof operations.$inferSelect;
 
-function planFor(db: Writer, operation: OperationRow) {
+function planFor(db: Writer, operation: OperationRow, now: Date) {
   return undoPlan(
     {
       kind: operation.kind as OperationKind,
@@ -39,7 +39,7 @@ function planFor(db: Writer, operation: OperationRow) {
       afterContent: versionContent(db, operation.versionAfterId),
       trashEntryId: operation.trashEntryId,
     },
-    cardState(db, operation.entityId),
+    cardState(db, operation.entityId, now),
   );
 }
 
@@ -73,7 +73,7 @@ export function createActivityStore(db: ReteniaDatabase, clock: Clock): Activity
           label: versionContent(orm, row.versionAfterId ?? row.versionBeforeId)?.question ?? null,
           day,
           time,
-          canUndo: planFor(orm, row) !== null,
+          canUndo: planFor(orm, row, clock.now()) !== null,
         };
       });
     },
@@ -84,7 +84,7 @@ export function createActivityStore(db: ReteniaDatabase, clock: Clock): Activity
         if (operation?.source !== 'user') {
           return { undone: false };
         }
-        const plan = planFor(tx, operation);
+        const plan = planFor(tx, operation, clock.now());
         if (plan === null) {
           return { undone: false };
         }
