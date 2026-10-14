@@ -40,6 +40,16 @@ describe('historial de resultados', () => {
     ]);
   });
 
+  it('[CA-008] una prueba con el título armado con una constante se muestra con el título con que corrió', () => {
+    // Vitest lista el título tal como está escrito en el archivo, con la constante sin reemplazar.
+    const template = ['[CA-021] quedan las $', '{KEPT} automáticas más nuevas'].join('');
+    const runTitle = '[CA-021] quedan las 14 automáticas más nuevas';
+    const withRun = new Map([...ran, [runTitle, { title: runTitle }]]);
+    expect(expandTemplates([{ title: template, layer: 'Unitaria' }], withRun)).toEqual([
+      { title: runTitle, layer: 'Unitaria' },
+    ]);
+  });
+
   it('[CA-008] si ningún caso corrió todavía, queda la plantilla para mostrarla «sin correr»', () => {
     const listed = [{ title: '[CA-009] crea $question', layer: 'Punta a punta' }];
     expect(expandTemplates(listed, ran)).toEqual(listed);

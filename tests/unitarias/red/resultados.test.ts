@@ -105,6 +105,8 @@ describe('lectura de informes', () => {
     expect(layerOfFile('H:/Retenia/tests/unitarias/red/x.test.ts')).toBe('Unitaria');
     expect(layerOfFile('tests\\e2e\\ventana.spec.ts')).toBe('Punta a punta');
     expect(layerOfFile('tests/red/sabotaje-1.test.ts')).toBe('Red completa y sabotajes');
+    expect(layerOfFile('tests/componentes/ajustes.test.tsx')).toBe('Pantallas');
+    expect(layerOfFile('tests/paquete/paquete.test.ts')).toBe('Paquete armado');
   });
 
   it('muestra tiempos y fechas en castellano, con coma decimal y hora de Buenos Aires', () => {
