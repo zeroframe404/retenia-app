@@ -56,13 +56,13 @@ const listed = await gh([
 ]);
 if (listed.code !== 0) {
   stop(
-    `No pude consultar las corridas del CI con gh: ${listed.stderr.trim() || listed.stdout.trim()}`,
+    `No pude consultar las pruebas de la nube con gh: ${listed.stderr.trim() || listed.stdout.trim()}`,
   );
 }
 /** @type {{ databaseId: number, status: string, conclusion: string, headSha: string }[]} */
 const runs = JSON.parse(listed.stdout || '[]');
 if (runs.length === 0) {
-  stop(`El CI todavía no corrió para la rama ${branch}.`);
+  stop(`Las pruebas de la nube todavía no corrieron para la rama ${branch}.`);
 }
 
 for (const candidate of runs) {
@@ -90,8 +90,8 @@ for (const candidate of runs) {
   const state =
     candidate.status === 'completed'
       ? candidate.conclusion === 'success'
-        ? 'con el CI en verde'
-        : `con el CI en ${candidate.conclusion}`
+        ? 'con las pruebas de la nube en verde'
+        : 'con las pruebas de la nube en rojo (algo falló en esa corrida)'
       : 'de una corrida que todavía no terminó';
   console.log(`Listo: el instalador quedó en tu Escritorio, ${state}.`);
   console.log(`Se llama: ${file?.name}`);
@@ -102,5 +102,5 @@ for (const candidate of runs) {
 }
 
 stop(
-  `No encontré el adjunto «${ARTIFACT}» en las últimas corridas de ${branch}. Si el CI todavía está corriendo, esperá a que termine el trabajo «Instaladores y humo del instalador»; los adjuntos duran 14 días.`,
+  `No encontré el adjunto «${ARTIFACT}» en las últimas corridas de ${branch}. Si las pruebas de la nube todavía están corriendo, esperá a que termine el trabajo «Instaladores y humo del instalador»; los adjuntos duran 14 días.`,
 );

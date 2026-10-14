@@ -66,15 +66,15 @@ describe('«Bajame el instalador de prueba»', () => {
     const r = await result;
     expect(r.code, r.stdout + r.stderr).toBe(0);
     expect(r.stdout).toContain('Se llama: Retenia-prueba-instalador-0.0.0.exe');
-    expect(r.stdout).toContain('con el CI en verde');
+    expect(r.stdout).toContain('con las pruebas de la nube en verde');
     expect(readdirSync(desktop)).toEqual(['Retenia-prueba-instalador-0.0.0.exe']);
   });
 
-  it('si el CI todavía no corrió para la rama, lo dice y no baja nada', async () => {
+  it('si las pruebas de la nube todavía no corrieron para la rama, lo dice y no baja nada', async () => {
     const { desktop, result } = bajar('sin-corridas');
     const r = await result;
     expect(r.code).toBe(1);
-    expect(r.stdout).toContain('El CI todavía no corrió para la rama fase-03');
+    expect(r.stdout).toContain('Las pruebas de la nube todavía no corrieron para la rama fase-03');
     expect(existsSync(join(desktop, 'Retenia-prueba-instalador-0.0.0.exe'))).toBe(false);
   });
 });
