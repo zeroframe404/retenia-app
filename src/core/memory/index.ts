@@ -68,6 +68,11 @@ export function reviewCard(
   now: Date,
   retention: number = DEFAULT_RETENTION,
 ): CardMemory {
+  // Si el reloj retrocede (la PC se atrasó o se restableció la fecha de demostración), ts-fsrs
+  // rechaza un tiempo negativo: se cuenta desde el último repaso, como si no hubiera pasado nada.
+  if (memory.lastReviewAt && now < memory.lastReviewAt) {
+    now = memory.lastReviewAt;
+  }
   const next = scheduler(retention).next(
     {
       due: memory.dueAt,

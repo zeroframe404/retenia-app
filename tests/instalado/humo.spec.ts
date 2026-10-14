@@ -51,7 +51,14 @@ function runToEnd(command: string, args: string[], timeoutMs: number) {
   });
 }
 
-const state = { dataExistedBefore: false, realDataExistedBefore: false, installed: false };
+// «ready» queda en verdadero recién cuando se comprobó que la PC está limpia: si el humo se niega
+// a correr, no toca nada de lo que ya había (ni siquiera al limpiar al final).
+const state = {
+  ready: false,
+  dataExistedBefore: false,
+  realDataExistedBefore: false,
+  installed: false,
+};
 
 const test = base;
 test.describe.configure({ mode: 'serial' });
@@ -69,10 +76,15 @@ test.beforeAll(() => {
       `Ya hay una instalación o datos de ${PRODUCT} en esta PC (${relative(homedir(), dataFolder)}). El humo del instalador se corre en una Windows limpia, como la del CI.`,
     );
   }
+  state.ready = true;
 });
 
 test.afterAll(async () => {
   // Pase lo que pase, la PC queda como estaba: se desinstala y se borran los datos que creó el humo.
+  // Pero solo si el humo llegó a empezar: Playwright corre esto aunque el beforeAll se haya negado.
+  if (!state.ready) {
+    return;
+  }
   if (existsSync(uninstaller)) {
     await runToEnd(uninstaller, ['/S'], 60_000);
   }

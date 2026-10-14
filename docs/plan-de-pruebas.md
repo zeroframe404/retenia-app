@@ -51,6 +51,7 @@ Solo en las fronteras externas. Cada doble está en esta lista, declarado en el 
 | Avisos de Windows | Envoltura de `Notification` que registra qué se habría mostrado y simula el toque. | `main/notifications/adapter.ts` | Se ve a mano (CA-030, CA-238). |
 | Disco y sistema de archivos | Escritor que devuelve «disco lleno» o «sin permiso»; base dañada a propósito como archivo de prueba. | `tests/apoyo/disco.ts`, `tests/apoyo/base-danada.db` | Nada. |
 | Actualizador | electron-updater apuntado al servidor local. | configuración de prueba | Fase 40 a mano. |
+| GitHub (`gh`) | Guion que contesta lo que contestaría `gh` (corridas del CI y descarga del adjunto) y una carpeta temporal en lugar del Escritorio. | `tests/integracion/bajar-instalador.test.ts`, con `RETENIA_GH_SCRIPT` y `RETENIA_ESCRITORIO` | «Bajame el instalador de prueba» real, a mano, con el pull request de la fase. |
 
 ## 5. Presupuesto de tiempo
 

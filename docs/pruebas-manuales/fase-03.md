@@ -28,6 +28,7 @@ Los textos de abajo son los que muestra el programa hoy, y coinciden letra por l
 
 - Hacé: «Nueva tarjeta»: pegá un texto larguísimo (copiá varias páginas de cualquier lado) con ñ, tildes y un emoji. Hacé doble clic rápido en «Guardar».
 - Tenés que ver: se guarda una sola tarjeta y la lista no se desarma: el texto largo se corta con puntos suspensivos.
+- Aclaración: cada campo acepta hasta 100.000 caracteres (unas 30 páginas). Con más, el programa lo avisa junto al campo, sin perder lo escrito.
 
 ## M03.6 · Volver al estado conocido
 

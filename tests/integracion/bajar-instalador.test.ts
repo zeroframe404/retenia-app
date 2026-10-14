@@ -61,7 +61,7 @@ function bajar(scenario: string) {
 }
 
 describe('«Bajame el instalador de prueba»', () => {
-  it('baja a tu Escritorio el instalador de la corrida más reciente que lo tenga y dice cómo se llama', async () => {
+  it('(simulado) baja a tu Escritorio el instalador de la corrida más reciente que lo tenga y dice cómo se llama', async () => {
     const { desktop, result } = bajar('normal');
     const r = await result;
     expect(r.code, r.stdout + r.stderr).toBe(0);
@@ -70,7 +70,7 @@ describe('«Bajame el instalador de prueba»', () => {
     expect(readdirSync(desktop)).toEqual(['Retenia-prueba-instalador-0.0.0.exe']);
   });
 
-  it('si las pruebas de la nube todavía no corrieron para la rama, lo dice y no baja nada', async () => {
+  it('(simulado) si las pruebas de la nube todavía no corrieron para la rama, lo dice y no baja nada', async () => {
     const { desktop, result } = bajar('sin-corridas');
     const r = await result;
     expect(r.code).toBe(1);
