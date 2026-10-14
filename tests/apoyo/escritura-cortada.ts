@@ -1,16 +1,17 @@
 import { demoClock } from '../../src/core/clock';
-import { createCardsStore } from '../../src/data/cards';
-import { openDatabase } from '../../src/data/database';
+import { openWorkspace } from '../../src/data/workspace';
 
-// Programa hijo de la prueba del corte (CA-017): abre una base, hace una sola escritura real de
-// Retenia y se mata a sí mismo, sin cerrar nada, justo antes de la sentencia número `cortar`
-// (contando desde la primera de la escritura). Con `cortar` = 0 no se corta y cuenta cuántas
-// sentencias hubo; con -1 se corta apenas termina la escritura, ya confirmada.
-// Uso: node escritura-cortada.js <base> <escritura> <cortar> <datos en JSON>
+// Programa hijo de la prueba del corte (CA-017): abre la carpeta de datos como Retenia, hace una
+// sola escritura real y se mata a sí mismo, sin cerrar nada, en el punto pedido. Cuenta
+// sentencias de la base (`unit: 'sentencia'`) o pasos con archivos de una copia o una
+// restauración (`unit: 'paso'`), desde el primero de la escritura. Con `cortar` = 0 no se corta
+// y dice cuántos hubo; con -1 se corta apenas termina la escritura.
+// Uso: node escritura-cortada.js <carpeta de datos> <escritura> <cortar> <datos en JSON>
 
-const [file = '', operation = '', cutText = '0', dataText = '{}'] = process.argv.slice(2);
+const [dataDir = '', operation = '', cutText = '0', dataText = '{}'] = process.argv.slice(2);
 const cutAt = Number(cutText);
 const data = JSON.parse(dataText) as Record<string, string>;
+const unit = data.unit === 'paso' ? 'paso' : 'sentencia';
 
 function die(): never {
   process.kill(process.pid, 'SIGKILL');
@@ -18,29 +19,42 @@ function die(): never {
 }
 
 let armed = false;
-let statements = 0;
-const clock = demoClock(Number(data.days ?? '0'));
-const db = openDatabase(file, {
-  clock,
-  onStatement: () => {
-    if (!armed) {
-      return;
-    }
-    statements += 1;
-    if (statements === cutAt) {
-      die();
-    }
-  },
-});
-const store = createCardsStore(db, clock);
+let count = 0;
+function tick(kind: 'sentencia' | 'paso') {
+  if (!armed || kind !== unit) {
+    return;
+  }
+  count += 1;
+  if (count === cutAt) {
+    die();
+  }
+}
+
 const field = (name: string) => data[name] ?? '';
+const workspace = openWorkspace({
+  dataDir,
+  clock: demoClock(Number(field('days') || '0')),
+  appVersion: '0.0.0-prueba',
+  onStatement: () => tick('sentencia'),
+  onStep: () => tick('paso'),
+});
 
 const operations: Record<string, () => unknown> = {
   review: () =>
-    store.review({ cardId: field('cardId'), grade: 'good', attemptId: field('attemptId') }),
-  create: () => store.create({ question: field('question'), answer: field('answer') }),
+    workspace.cards.review({
+      cardId: field('cardId'),
+      grade: 'good',
+      attemptId: field('attemptId'),
+    }),
+  create: () => workspace.cards.create({ question: field('question'), answer: field('answer') }),
   edit: () =>
-    store.edit({ cardId: field('cardId'), question: field('question'), answer: field('answer') }),
+    workspace.cards.edit({
+      cardId: field('cardId'),
+      question: field('question'),
+      answer: field('answer'),
+    }),
+  backup: () => workspace.createBackup('manual'),
+  restore: () => workspace.restoreBackup(field('backupId')),
 };
 
 const run = operations[operation];
@@ -48,10 +62,10 @@ if (!run) {
   throw new Error(`No conozco la escritura «${operation}»`);
 }
 armed = true;
-run();
+await run();
 armed = false;
 if (cutAt === -1) {
   die();
 }
-db.close();
-process.stdout.write(JSON.stringify({ statements, done: true }));
+workspace.close();
+process.stdout.write(JSON.stringify({ statements: count, done: true }));
