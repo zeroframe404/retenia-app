@@ -47,15 +47,18 @@ export const STATUS_LABELS = {
   'not-run': 'Todavía no corrió',
 };
 
-const PLACEHOLDER = /\$[A-Za-z_][\w.]*|%[sdifjoc#%]/;
+// Un caso de tabla («$input», «%s») o una constante dentro de un título escrito entre comillas
+// invertidas, que Vitest lista sin reemplazar.
+const PLACEHOLDER = /\$\{[^}]*\}|\$[A-Za-z_][\w.]*|%[sdifjoc#%]/;
 
 /** @param {string} text */
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// Las pruebas con tabla de casos se listan con su plantilla («… $input … $expected»):
-// se reemplazan por los casos que corrieron de verdad. Si no corrió ninguno, queda la plantilla.
+// Las pruebas con tabla de casos se listan con su plantilla («… $input … $expected»), y las de
+// título armado con una constante, con la constante sin reemplazar: se reemplazan por los títulos
+// que corrieron de verdad. Si no corrió ninguno, queda la plantilla.
 /**
  * @param {{ title: string, layer: string }[]} listed
  * @param {Map<string, { title: string }>} tests
