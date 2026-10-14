@@ -106,7 +106,16 @@ function start(): void {
 
 if (app.requestSingleInstanceLock()) {
   app.on('second-instance', bringToFront);
-  app.whenReady().then(start);
+  app
+    .whenReady()
+    .then(start)
+    .catch((error: unknown) => {
+      // Sin base no hay programa: se sale en vez de quedar escondida sin ventana y con el candado
+      // de la instancia única tomado. El aviso en castellano y la recuperación llegan en la
+      // Fase 39.
+      console.error('Retenia no pudo abrir su base de datos', error);
+      app.exit(1);
+    });
   app.on('window-all-closed', () => app.quit());
 } else {
   app.quit();
