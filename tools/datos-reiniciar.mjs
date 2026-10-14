@@ -6,7 +6,7 @@ import { ROOT } from './lib/proceso.mjs';
 try {
   resetDemoData();
   console.log(
-    `Listo: la carpeta de datos de demostración (${relative(ROOT, DEMO_DATA_DIR) || DEMO_DATA_DIR}) quedó como nueva. Al abrir Retenia aparecen las tres tarjetas de ejemplo.`,
+    `Listo: la carpeta de datos de demostración (${relative(ROOT, DEMO_DATA_DIR) || DEMO_DATA_DIR}) quedó como nueva. Al abrir Retenia aparecen las tres tarjetas de ejemplo y la fecha vuelve al lunes 15/03/2027.`,
   );
 } catch (error) {
   const code = /** @type {{ code?: string }} */ (error).code;

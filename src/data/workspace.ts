@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync } from
 import { join } from 'node:path';
 import { isAutomaticBackupDue } from '../core/backups';
 import type { Clock } from '../core/clock';
+import { type ActivityStore, createActivityStore } from './activity';
 import {
   BackupError,
   type BackupView,
@@ -19,6 +20,7 @@ import { newId } from './ids';
 import { continueSequence, readLedgerState } from './ledger';
 import { migrationIds } from './migrations';
 import { type DataDifference, repairData, verifyData } from './projections';
+import { createTrashStore, type TrashStore } from './trash';
 
 // La carpeta de datos de Retenia y lo que vive en ella: la base (retenia.db), las copias
 // (copias\) y los archivos de trabajo (tmp\). Es la dueña de la conexión: restaurar una copia
@@ -29,9 +31,13 @@ export interface Workspace {
   readonly dataDir: string;
   readonly copiesDir: string;
   readonly cards: CardsStore;
+  readonly trash: TrashStore;
+  readonly activity: ActivityStore;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
+  // La carpeta de copias, creada si todavía no existe (para «Abrir carpeta de copias»).
+  copiesFolder(): string;
   // La lista de copias. Si la copia automática del arranque está en curso, la espera.
   backups(): Promise<BackupView[]>;
   createBackup(kind: 'manual' | 'auto'): Promise<ReadableBackup>;
@@ -101,14 +107,19 @@ export function openWorkspace({
   cleanLeftovers(tmpDir, copiesDir);
 
   const open = () => openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
+  const storesOf = (database: ReteniaDatabase) => ({
+    cards: createCardsStore(database, clock),
+    trash: createTrashStore(database, clock),
+    activity: createActivityStore(database, clock),
+  });
   let db: ReteniaDatabase = open();
-  let cards = createCardsStore(db, clock);
+  let stores = storesOf(db);
   let closed = false;
   let automatic: Promise<unknown> = Promise.resolve();
 
   const reopen = () => {
     db = open();
-    cards = createCardsStore(db, clock);
+    stores = storesOf(db);
   };
 
   const backup = (kind: 'manual' | 'auto' | 'before_restore') =>
@@ -118,11 +129,21 @@ export function openWorkspace({
     dataDir,
     copiesDir,
     get cards() {
-      return cards;
+      return stores.cards;
+    },
+    get trash() {
+      return stores.trash;
+    },
+    get activity() {
+      return stores.activity;
     },
     verifyData: () => verifyData(db),
     repairData: () => repairData(db),
     integrityCheck: () => db.integrityCheck(),
+    copiesFolder: () => {
+      mkdirSync(copiesDir, { recursive: true });
+      return copiesDir;
+    },
 
     async backups() {
       await automatic.catch(() => undefined);

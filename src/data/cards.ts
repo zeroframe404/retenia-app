@@ -1,96 +1,42 @@
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { count, desc, eq, isNull } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
 import { type Grade, verdictOfGrade } from '../core/memory';
 import { studyDayOf } from '../core/study-day';
 import type { Card, CardHistory } from '../preload/contract/cards';
+import {
+  activeCard,
+  CardNotFoundError,
+  cardOf,
+  findCard,
+  selectCards,
+  toCard,
+  trashCard,
+} from './content';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
-import type { Writer } from './orm';
 import { cardHistory, recomputeCardSchedule } from './projections';
-import { cardSchedule, cards, cardVersions, operations } from './schema';
+import { cards, cardVersions, operations } from './schema';
 
-export class CardNotFoundError extends Error {
-  constructor() {
-    super('No encontré la tarjeta');
-    this.name = 'CardNotFoundError';
-  }
-}
+export { CardNotFoundError };
 
 export interface CardsStore {
   create(input: { question: string; answer: string }, options?: { source?: EventSource }): Card;
   list(): Card[];
   review(input: { cardId: string; grade: Grade; attemptId: string }): Card;
   edit(input: { cardId: string; question: string; answer: string }): Card;
+  // «Eliminar»: a la Papelera por 30 días.
+  remove(input: { cardId: string }): { trashEntryId: string };
   history(input: { cardId: string }): CardHistory;
   count(): number;
   // Nunca tuvo tarjetas ni cambios: recién ahí se siembra el ejemplo de la demostración.
   isPristine(): boolean;
 }
 
-interface Row {
-  id: string;
-  versionId: string;
-  question: string;
-  answer: string;
-  reps: number;
-  dueAt: string;
-  deletedAt: string | null;
-}
-
-// Mientras no se repasó, la tarjeta no tiene próximo repaso que mostrar.
-function toCard(row: Row): Card {
-  return {
-    id: row.id,
-    question: row.question,
-    answer: row.answer,
-    nextReviewDay: row.reps === 0 ? null : studyDayOf(new Date(row.dueAt)),
-  };
-}
-
-// La tarjeta con su versión vigente y su agenda.
-function selectCards(db: Writer) {
-  return db
-    .select({
-      id: cards.id,
-      versionId: cardVersions.id,
-      question: cardVersions.question,
-      answer: cardVersions.answer,
-      reps: cardSchedule.reps,
-      dueAt: cardSchedule.dueAt,
-      deletedAt: cards.deletedAt,
-    })
-    .from(cards)
-    .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
-    .innerJoin(cardSchedule, eq(cardSchedule.cardId, cards.id));
-}
-
-function findCard(db: Writer, cardId: string): Row | undefined {
-  return selectCards(db).where(eq(cards.id, cardId)).get();
-}
-
-// Una tarjeta que está en la lista (no en la Papelera ni eliminada para siempre).
-function activeCard(db: Writer, cardId: string): Row {
-  const row = selectCards(db)
-    .where(and(eq(cards.id, cardId), isNull(cards.deletedAt)))
-    .get();
-  if (!row) {
-    throw new CardNotFoundError();
-  }
-  return row;
-}
-
-function cardOf(db: Writer, cardId: string): Card {
-  const row = findCard(db, cardId);
-  if (!row) {
-    throw new CardNotFoundError();
-  }
-  return toCard(row);
-}
-
-// Cada cambio pasa por el libro mayor: el alta, la edición y el repaso agregan eventos, y la
-// agenda se recalcula desde el historial en la misma transacción (un corte deja todo o nada).
-// Los repasos usan el reloj inyectado: en la variante de prueba, el de la demostración.
+// Cada cambio pasa por el libro mayor: el alta, la edición, el borrado y el repaso agregan
+// eventos, y la agenda se recalcula desde el historial en la misma transacción (un corte deja
+// todo o nada). Los repasos usan el reloj inyectado: en la variante de prueba, el de la
+// demostración.
 export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore {
   const { orm } = db;
 
@@ -171,6 +117,10 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
         });
         return cardOf(tx, cardId);
       });
+    },
+
+    remove({ cardId }) {
+      return orm.transaction((tx) => trashCard(tx, clock, cardId, { source: 'user' }));
     },
 
     history({ cardId }) {
