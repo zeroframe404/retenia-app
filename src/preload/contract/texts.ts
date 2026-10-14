@@ -61,7 +61,7 @@ export const texts = {
     title: 'Historial',
     listLabel: 'Repasos de la tarjeta',
     empty: 'Todavía no la repasaste.',
-    // «15/03/2027 · La sabía». Más adelante suma la ayuda usada.
+    // El día y el resultado de un repaso. Más adelante suma la ayuda usada.
     row: (date: string, result: string) => `${date} · ${result}`,
     adopted: 'Repasos anteriores, sin detalle',
     loadFailed: 'No pude cargar el historial. Probá de nuevo.',
@@ -91,7 +91,7 @@ export const texts = {
     notUndone: 'Ese cambio ya no se puede deshacer.',
     failed: 'No pude deshacer el cambio. Probá de nuevo.',
     loadFailed: 'No pude cargar la actividad. Probá de nuevo.',
-    // «22/03/2027 10:00 · Editaste «¿Qué es la varianza?»».
+    // La fecha y la hora del cambio, y qué cambio fue.
     row: (when: string, what: string) => `${when} · ${what}`,
     // Una tarjeta por su pregunta, o una que se eliminó para siempre.
     cardName: (question: string | null) =>
@@ -134,7 +134,7 @@ export const texts = {
       manual: 'Hecha por vos',
       before_restore: 'Antes de restaurar',
     },
-    // «22/03/2027 10:00 · Hecha por vos · 48 KB».
+    // La fecha y la hora de la copia, quién la hizo y cuánto ocupa.
     copyRow: (date: string, time: string, kind: string, size: string) =>
       `${date} ${time} · ${kind} · ${size}`,
     verified: 'Verificada',
@@ -163,7 +163,7 @@ export function formatLongDate(isoDate: string): string {
   return `${weekday} ${day}/${month}/${year}`;
 }
 
-// «2027-03-15» → «15/03/2027».
+// «AAAA-MM-DD» → «DD/MM/AAAA».
 export function formatShortDate(isoDate: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!match) {

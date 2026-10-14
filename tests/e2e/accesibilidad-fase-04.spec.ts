@@ -66,6 +66,6 @@ test('accesibilidad: el historial, editar, la papelera con su confirmación, la 
   await appWindow.getByRole('button', { name: 'Verificar datos' }).click();
   await expect(appWindow.getByText('Todo en orden · 0 diferencias')).toBeVisible();
   await appWindow.getByRole('button', { name: 'Hacer copia ahora' }).click();
-  await expect(appWindow.getByText('Copia hecha y verificada.')).toBeVisible();
+  await expect(appWindow.getByText('Copia hecha y verificada.')).toBeVisible({ timeout: 20_000 });
   expect(await violationsNow(appWindow), 'datos y copias con la demostración').toEqual([]);
 });

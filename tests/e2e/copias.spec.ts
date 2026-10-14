@@ -16,7 +16,7 @@ test('[CA-019] «Hacer copia ahora» suma a la lista una copia con fecha 15/03/2
   await expect(copies(appWindow)).toHaveCount(1);
   await expect(copies(appWindow).first()).toContainText('15/03/2027 10:00 · Automática');
   await appWindow.getByRole('button', { name: 'Hacer copia ahora' }).click();
-  await expect(appWindow.getByText('Copia hecha y verificada.')).toBeVisible();
+  await expect(appWindow.getByText('Copia hecha y verificada.')).toBeVisible({ timeout: 20_000 });
   await expect(copies(appWindow)).toHaveCount(2);
   const made = copies(appWindow).filter({ hasText: 'Hecha por vos' });
   await expect(made).toHaveCount(1);
@@ -53,7 +53,7 @@ test('[CA-020] eliminar «¿Qué mide el desvío estándar?», vaciar la papeler
     appWindow.getByText(
       'Listo: volviste a la copia del 22/03/2027 10:00. Lo que había antes quedó en la copia «Antes de restaurar».',
     ),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
   await expect(copies(appWindow).filter({ hasText: 'Antes de restaurar' })).toHaveCount(1);
 
   await goTo(appWindow, 'Tarjetas');

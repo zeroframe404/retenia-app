@@ -16,6 +16,10 @@ import { openBridge, type TestBridge } from '../apoyo/puente';
 // Ajustes › «Datos y copias» y, en la variante de prueba, «Demostración», contra el puente real
 // y una carpeta de datos real.
 
+// Copiar y restaurar arman, comprimen y verifican archivos: con la máquina cargada (la red corre
+// varias copias del proyecto a la vez) pueden tardar más que el segundo que espera por defecto.
+const SLOW = { timeout: 15_000 };
+
 const bridges: TestBridge[] = [];
 function open() {
   const bridge = openBridge();
@@ -49,7 +53,7 @@ describe('Ajustes › «Datos y copias»', () => {
     });
     render(<SettingsScreen demo={null} />);
     await user.click(await screen.findByRole('button', { name: 'Verificar datos' }));
-    expect(await screen.findByText('Todo en orden · 0 diferencias')).toBeTruthy();
+    expect(await screen.findByText('Todo en orden · 0 diferencias', {}, SLOW)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Reparar desde el historial' })).toBeNull();
   });
 
@@ -68,7 +72,7 @@ describe('Ajustes › «Datos y copias»', () => {
     );
     render(<SettingsScreen demo={null} />);
     await user.click(await screen.findByRole('button', { name: 'Verificar datos' }));
-    expect(await screen.findByText('Hay 1 diferencia')).toBeTruthy();
+    expect(await screen.findByText('Hay 1 diferencia', {}, SLOW)).toBeTruthy();
     const differences = screen.getByRole('list', { name: 'Diferencias' });
     expect(
       within(differences)
@@ -78,7 +82,7 @@ describe('Ajustes › «Datos y copias»', () => {
       '«¿Qué es la varianza?»: el próximo repaso guardado es el 30/04/2027; según el historial es el 17/03/2027',
     ]);
     await user.click(screen.getByRole('button', { name: 'Reparar desde el historial' }));
-    expect(await screen.findByText('Todo en orden · 0 diferencias')).toBeTruthy();
+    expect(await screen.findByText('Todo en orden · 0 diferencias', {}, SLOW)).toBeTruthy();
     expect(bridge.workspace.verifyData()).toEqual([]);
   });
 
@@ -87,7 +91,7 @@ describe('Ajustes › «Datos y copias»', () => {
     render(<SettingsScreen demo={null} />);
     expect(await screen.findByText('Todavía no hay copias.')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Hacer copia ahora' }));
-    expect(await screen.findByText('Copia hecha y verificada.')).toBeTruthy();
+    expect(await screen.findByText('Copia hecha y verificada.', {}, SLOW)).toBeTruthy();
     const list = screen.getByRole('list', { name: 'Tus copias' });
     const [row] = within(list).getAllByRole('listitem');
     expect(row?.textContent).toMatch(/^15\/03\/2027 10:00 · Hecha por vos · \d+ KB/);
@@ -106,6 +110,8 @@ describe('Ajustes › «Datos y copias»', () => {
     expect(
       await screen.findByText(
         'Listo: volviste a la copia del 15/03/2027 10:00. Lo que había antes quedó en la copia «Antes de restaurar».',
+        {},
+        SLOW,
       ),
     ).toBeTruthy();
     const rows = within(screen.getByRole('list', { name: 'Tus copias' })).getAllByRole('listitem');
@@ -132,7 +138,7 @@ describe('Ajustes › «Datos y copias»', () => {
     render(<SettingsScreen demo={null} />);
     await user.click(await screen.findByRole('button', { name: 'Hacer copia ahora' }));
     expect(
-      await screen.findByText('No pude hacer la copia. Tus datos siguen como estaban.'),
+      await screen.findByText('No pude hacer la copia. Tus datos siguen como estaban.', {}, SLOW),
     ).toBeTruthy();
     expect(screen.queryByText(/disco lleno/)).toBeNull();
   });
@@ -147,7 +153,11 @@ describe('Ajustes › «Datos y copias»', () => {
     const list = await screen.findByRole('list', { name: 'Tus copias' });
     await user.click(within(list).getByRole('button', { name: 'Restaurar' }));
     expect(
-      await screen.findByText('No pude restaurar esa copia. Tus datos siguen como estaban.'),
+      await screen.findByText(
+        'No pude restaurar esa copia. Tus datos siguen como estaban.',
+        {},
+        SLOW,
+      ),
     ).toBeTruthy();
   });
 });

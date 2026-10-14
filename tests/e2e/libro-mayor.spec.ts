@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import { expect, test } from './apoyo';
@@ -76,8 +77,9 @@ test('[CA-017] cortar Retenia a la fuerza apenas se toca «La sabía» deja el r
   const child = first.app.process();
   const exited = new Promise((done) => child.once('exit', done));
   await first.page.getByRole('button', { name: 'La sabía', exact: true }).click();
-  // A la fuerza: sin cerrar la ventana ni la base.
-  child.kill('SIGKILL');
+  // A la fuerza, como «Finalizar árbol de procesos» del Administrador de tareas: Retenia y sus
+  // procesos de la ventana mueren sin cerrar la ventana ni la base.
+  execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
   await exited;
 
   const second = await launch();

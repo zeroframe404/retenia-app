@@ -52,7 +52,7 @@ const KIND_SLUGS: Record<BackupKind, string> = {
   before_restore: 'antes-de-restaurar',
 };
 
-// «2027-03-15-1000-hecha-por-vos-8394a5b6.retenia-copia»: fecha y hora de Buenos Aires, el tipo
+// «AAAA-MM-DD-HHMM-<tipo>-<8 caracteres>.retenia-copia»: fecha y hora de Buenos Aires, el tipo
 // y el final del identificador, para que dos copias del mismo minuto no choquen.
 export function backupFileName(backup: BackupStamp): string {
   const { day, time } = localDateTime(backup.createdAt);
