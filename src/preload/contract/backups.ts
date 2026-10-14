@@ -42,3 +42,4 @@ const differenceSchema = z.strictObject({
 
 export const differencesResponse = z.strictObject({ differences: z.array(differenceSchema) });
 export const openFolderResponse = z.strictObject({});
+export type DataDifference = z.output<typeof differenceSchema>;

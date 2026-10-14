@@ -26,3 +26,4 @@ const activityItemSchema = z.strictObject({
 export const activityRecentResponse = z.strictObject({ items: z.array(activityItemSchema) });
 export const activityUndoRequest = z.strictObject({ operationId: z.uuid() });
 export const activityUndoResponse = z.strictObject({ undone: z.boolean() });
+export type ActivityItem = z.output<typeof activityItemSchema>;

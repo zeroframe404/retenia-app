@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { Card } from '../../preload/contract/cards';
 import { formatLongDate, texts } from '../../preload/contract/texts';
-import styles from './Cards.module.css';
+import styles from '../ui.module.css';
 
 type Grade = 'again' | 'hard' | 'good';
 

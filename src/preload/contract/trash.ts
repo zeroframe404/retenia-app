@@ -16,3 +16,4 @@ export const trashListResponse = z.strictObject({ items: z.array(trashItemSchema
 export const trashRestoreRequest = z.strictObject({ entryId: z.uuid() });
 export const trashRestoreResponse = z.strictObject({ restored: z.boolean() });
 export const trashEmptyResponse = z.strictObject({ purged: z.number().int().nonnegative() });
+export type TrashItem = z.output<typeof trashItemSchema>;
