@@ -24,7 +24,8 @@ const FORBIDDEN_MODULES = new Set(['perf_hooks', 'node:perf_hooks', 'process', '
 const ALLOWED_PROPERTY = {
   Date: (name) => name === 'UTC' || name === 'parse',
   performance: (name) => name !== null && name !== 'now' && name !== 'timeOrigin',
-  process: (name) => name !== null && name !== 'hrtime',
+  // getBuiltinModule carga cualquier módulo de Node por nombre, perf_hooks incluido.
+  process: (name) => name !== null && name !== 'hrtime' && name !== 'getBuiltinModule',
   Temporal: (name) => name !== null && name !== 'Now',
 };
 // Se arma por partes para que este archivo no contenga el comentario que prohíbe.
@@ -75,6 +76,18 @@ function isUndefinedValue(node) {
     (node?.type === 'Identifier' && node.value === 'undefined') ||
     (node?.type === 'UnaryExpression' && node.operator === 'void')
   );
+}
+
+// El nombre fijo de un módulo: 'x' o `x` sin variables. Si se arma en el momento, null.
+/** @param {any} node @returns {string | null} */
+function moduleName(node) {
+  if (node?.type === 'StringLiteral') {
+    return node.value;
+  }
+  if (node?.type === 'TemplateLiteral' && (node.expressions ?? []).length === 0) {
+    return node.quasis?.[0]?.cooked ?? null;
+  }
+  return null;
 }
 
 /**
@@ -198,13 +211,19 @@ export function findSystemClockReads(source, file) {
       }
       const loads =
         (callee?.type === 'Identifier' && callee.value === 'require') || callee?.type === 'Import';
-      const target = args[0]?.expression;
-      if (loads && target?.type === 'StringLiteral' && FORBIDDEN_MODULES.has(target.value)) {
-        report(node, `carga «${target.value}», que da acceso al reloj del sistema`);
+      const target = moduleName(args[0]?.expression);
+      if (loads && target !== null && FORBIDDEN_MODULES.has(target)) {
+        report(node, `carga «${target}», que da acceso al reloj del sistema`);
       }
     }
-    if (type === 'ImportDeclaration' && FORBIDDEN_MODULES.has(node.source?.value)) {
-      report(node, `importa «${node.source.value}», que da acceso al reloj del sistema`);
+    const fromModule =
+      type === 'ImportDeclaration' ||
+      type === 'ExportAllDeclaration' ||
+      type === 'ExportNamedDeclaration'
+        ? moduleName(node.source)
+        : null;
+    if (fromModule !== null && FORBIDDEN_MODULES.has(fromModule)) {
+      report(node, `importa o reexporta «${fromModule}», que da acceso al reloj del sistema`);
     }
     const next = [...ancestors, { node, key }];
     for (const [childKey, value] of Object.entries(node)) {

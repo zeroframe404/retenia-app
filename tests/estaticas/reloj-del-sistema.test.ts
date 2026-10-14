@@ -43,6 +43,10 @@ const READS = [
   "export const aa = require('node:perf_hooks').performance.now();",
   "export const bb = await import('perf_hooks');",
   'export const cc = window.Date.now();',
+  // Y las de la tercera pasada.
+  "export const dd = process.getBuiltinModule('node:perf_hooks').performance.now();",
+  "export * from 'node:perf_hooks';",
+  'export const ee = require(`node:perf_hooks`).performance.now();',
 ];
 
 // Fechas armadas a mano: están permitidas en todos lados.

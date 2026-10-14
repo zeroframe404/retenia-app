@@ -362,7 +362,16 @@ export async function runNetwork({ full }) {
     }
     const r = await run(
       exe,
-      ['scan', '--config', 'tools/opengrep/reglas.yml', '--json', '--quiet', 'src', 'tools'],
+      [
+        'scan',
+        '--config',
+        'tools/opengrep/reglas.yml',
+        '--json',
+        '--quiet',
+        'src',
+        'tools',
+        'tests',
+      ],
       { timeoutMs: 300_000 },
     );
     saveLog('seguridad-estatica', r);
