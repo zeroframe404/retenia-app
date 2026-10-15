@@ -107,6 +107,7 @@ describe('lectura de informes', () => {
     expect(layerOfFile('tests/red/sabotaje-1.test.ts')).toBe('Red completa y sabotajes');
     expect(layerOfFile('tests/componentes/ajustes.test.tsx')).toBe('Pantallas');
     expect(layerOfFile('tests/paquete/paquete.test.ts')).toBe('Paquete armado');
+    expect(layerOfFile('tests/corte/corte.test.ts')).toBe('Corte a la fuerza');
   });
 
   it('muestra tiempos y fechas en castellano, con coma decimal y hora de Buenos Aires', () => {
