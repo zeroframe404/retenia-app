@@ -68,8 +68,10 @@ Si una orden supera su tope, se divide o se paraleliza; nunca se saltea ni se af
 Cómo quedó en la Fase 04 (el CI la marcó por tiempo, no por una falla): en la máquina del CI, con dos núcleos, Vitest corría los archivos de a uno y la prueba del corte a la fuerza (CA-017, cientos de procesos) tardaba 81 s dentro de `verificar`; como cada sabotaje repite `verificar` adentro, la capa de sabotajes pasó su tope de 15 minutos. Se dividió y se paralelizó, sin tocar ninguna prueba:
 
 - El corte a la fuerza pasó a `tests/corte/` y corre en `verificar:todo`, en una capa propia («Corte a la fuerza»), sola.
-- La medición de CA-001 (que `verificar` tarde menos de 2 minutos) corre sola, en la capa «Tiempo de la red rápida», antes de los sabotajes: antes competía por el procesador con las redes que ellos corren.
+- La medición de CA-001 (que `verificar` tarde menos de 2 minutos) corre sola, en la capa «Tiempo de la red rápida», antes de los sabotajes: antes competía por el procesador con las redes que ellos corren. Y la corrida medida escribe sus informes en `.cache` del proyecto, como `npm run verificar` de verdad: en la carpeta temporal del sistema (en el CI, otro disco más lento) tardaba 180 s; en `.cache`, menos de 120. El límite no cambió.
 - Vitest usa al menos dos trabajadores aunque la máquina tenga pocos núcleos.
+- La prueba del archivo tomado por Windows dejó de arrancar un PowerShell (con el CI cargado tardaba más de 20 s) y toma el archivo desde el mismo proceso.
+- El margen de CA-001 en el CI es chico: la red rápida crece con cada fase y la máquina del CI es unas 10 veces más lenta que esta PC. Cuando no alcance, la decisión es tuya (ver `docs/decisiones.md`).
 
 ## 6. Topes de rendimiento y cómo se miden
 
@@ -134,7 +136,7 @@ Cómo quedó en la Fase 04:
 - CA-017 en I (`tests/corte/corte.test.ts`, en `verificar:todo`; ver sección 5): un programa hijo armado una vez por corrida con Vite (`src/data` usa `import.meta.glob`) abre una copia de una base preparada y se mata a sí mismo justo antes de cada sentencia de cada escritura (repasar, crear, editar, eliminar, restaurar de la Papelera, deshacer, vaciar) o entre los pasos con archivos de una copia y de una restauración; al reabrir, `integrity_check` da ok, el cambio está entero o no está y «Verificar datos» da 0.
 - Fuera de los criterios: contrato (C) de cada canal nuevo, componentes (R) de cada pantalla nueva, el catálogo de textos de la Fase 04 letra por letra, accesibilidad en claro y en oscuro de las pantallas nuevas, y una prueba estática (S) que compara cada migración que alguna vez entró al historial de git con su primer commit.
 - «Abrir carpeta de copias» usa el doble del Explorador de Windows (sección 4).
-- Un archivo tomado por Windows (como lo dejan el antivirus o el indexador) no es un doble: una prueba de integración lo toma de verdad con un PowerShell que lo abre sin compartirlo (`tests/apoyo/archivo-tomado.ts`).
+- Un archivo tomado por Windows (como lo dejan el antivirus o el indexador) no es un doble: una prueba de integración lo toma de verdad abriéndolo sin compartirlo con nadie, con la marca exclusiva de Windows que trae libuv (`tests/apoyo/archivo-tomado.ts`); mientras está tomado, nadie lo puede borrar, tampoco el mismo proceso.
 
 ### Fase 05 · Laboratorio de piezas riesgosas (H-07)
 
