@@ -8,7 +8,7 @@ Versión 1 (Fase 01, 13/10/2026). Cómo se comprueba cada uno de los 379 criteri
 |---|---|---|---|---|---|
 | **U** | Unitaria | Reglas puras de `src/core`: memoria, carga, dominio, planificador, regreso, medidas, texto, idiomas. Sin base, sin pantalla, con reloj y azar inyectados. | Vitest 5 | `tests/unitarias/` | `verificar` |
 | **P** | Propiedades | Las mismas reglas con cientos de casos generados con semilla: invariantes (un fallo nunca lleva a «Sin iniciar»; el recálculo da lo mismo en cualquier orden; la suma de hebras da los minutos de la sesión). | fast-check 4 | `tests/propiedades/` | `verificar` |
-| **I** | Integración con base real | `src/data`, `src/ingest` y `src/ai` contra una base SQLite real en un archivo temporal con las migraciones reales, archivos reales del elenco, el modelo de voz real con audio fijo y la compuerta de IA con respuestas grabadas. | Vitest 5 + better-sqlite3 | `tests/integracion/` | `verificar` |
+| **I** | Integración con base real | `src/data`, `src/ingest` y `src/ai` contra una base SQLite real en un archivo temporal con las migraciones reales, archivos reales del elenco, el modelo de voz real con audio fijo y la compuerta de IA con respuestas grabadas. | Vitest 5 + better-sqlite3 | `tests/integracion/`; el corte a la fuerza de CA-017, en `tests/corte/` | `verificar`; el corte a la fuerza, en `verificar:todo` (Fase 04) |
 | **C** | Contrato del puente | Cada canal de `src/preload/contract`: esquema de petición y de respuesta, manejador real del principal sin ventana, rechazo de cargas inválidas, rutas trampa en los protocolos propios, envolturas de avisos de Windows. | Vitest 5 | `tests/contrato/` | `verificar` |
 | **R** | Componentes de la ventana | Pantallas y componentes de React por rol y texto: estados vacíos, formato de resultados, teclado dentro de un componente, render de fórmulas, textos sin «undefined». | Testing Library + jsdom | `tests/componentes/` | `verificar` |
 | **E** | Punta a punta | Retenia (prueba) entero, sin instalar (carpeta `win-unpacked`), con el elenco, la fecha fija, la IA simulada y «Simular sin conexión»; selectores por rol y texto visible, exactamente los de `pantallas.md`. | Playwright 1.64 (`_electron`) | `tests/e2e/` | `verificar:todo` |
@@ -64,6 +64,12 @@ Solo en las fronteras externas. Cada doble está en esta lista, declarado en el 
 | `npm run verificar:mutaciones` | Stryker sobre `src/core`, modo incremental | sin tope; al cerrar cada fase y una vez por semana | 10 a 30 min la primera vez; minutos después |
 
 Si una orden supera su tope, se divide o se paraleliza; nunca se saltea ni se afloja una prueba. `verificar` mide cada bloque y el tablero muestra los tiempos.
+
+Cómo quedó en la Fase 04 (el CI la marcó por tiempo, no por una falla): en la máquina del CI, con dos núcleos, Vitest corría los archivos de a uno y la prueba del corte a la fuerza (CA-017, cientos de procesos) tardaba 81 s dentro de `verificar`; como cada sabotaje repite `verificar` adentro, la capa de sabotajes pasó su tope de 15 minutos. Se dividió y se paralelizó, sin tocar ninguna prueba:
+
+- El corte a la fuerza pasó a `tests/corte/` y corre en `verificar:todo`, en una capa propia («Corte a la fuerza»), sola.
+- La medición de CA-001 (que `verificar` tarde menos de 2 minutos) corre sola, en la capa «Tiempo de la red rápida», antes de los sabotajes: antes competía por el procesador con las redes que ellos corren.
+- Vitest usa al menos dos trabajadores aunque la máquina tenga pocos núcleos.
 
 ## 6. Topes de rendimiento y cómo se miden
 
@@ -125,7 +131,7 @@ Cómo quedó en la Fase 04:
 
 - Cada criterio tiene además prueba en la capa E con los pasos de las pruebas manuales (`tests/e2e/libro-mayor.spec.ts`, `copias.spec.ts`, `papelera-deshacer.spec.ts`), incluidos CA-017 (se mata el árbol entero de procesos de Retenia apenas se toca «La sabía», como «Finalizar árbol de procesos») y CA-021 («+1 día», cerrar y abrir: aparece la copia automática del 16/03/2027).
 - CA-015 y CA-018 suman propiedades (P): ninguna secuencia al azar de operaciones (alta, editar, eliminar, restaurar, vaciar, repasar, repetir un repaso, deshacer, reparar, correr el reloj) modifica ni borra un evento ya guardado, y guardar dos veces cualquier repaso deja una sola entrada sin gastar número de secuencia. CA-016 suma que los eventos en cualquier orden de entrada dan la misma agenda.
-- CA-017 en I (`tests/integracion/corte.test.ts`): un programa hijo armado una vez por corrida con Vite (`src/data` usa `import.meta.glob`) abre una copia de una base preparada y se mata a sí mismo justo antes de cada sentencia de cada escritura (repasar, crear, editar, eliminar, restaurar de la Papelera, deshacer, vaciar) o entre los pasos con archivos de una copia y de una restauración; al reabrir, `integrity_check` da ok, el cambio está entero o no está y «Verificar datos» da 0.
+- CA-017 en I (`tests/corte/corte.test.ts`, en `verificar:todo`; ver sección 5): un programa hijo armado una vez por corrida con Vite (`src/data` usa `import.meta.glob`) abre una copia de una base preparada y se mata a sí mismo justo antes de cada sentencia de cada escritura (repasar, crear, editar, eliminar, restaurar de la Papelera, deshacer, vaciar) o entre los pasos con archivos de una copia y de una restauración; al reabrir, `integrity_check` da ok, el cambio está entero o no está y «Verificar datos» da 0.
 - Fuera de los criterios: contrato (C) de cada canal nuevo, componentes (R) de cada pantalla nueva, el catálogo de textos de la Fase 04 letra por letra, accesibilidad en claro y en oscuro de las pantallas nuevas, y una prueba estática (S) que compara cada migración que alguna vez entró al historial de git con su primer commit.
 - «Abrir carpeta de copias» usa el doble del Explorador de Windows (sección 4).
 - Un archivo tomado por Windows (como lo dejan el antivirus o el indexador) no es un doble: una prueba de integración lo toma de verdad con un PowerShell que lo abre sin compartirlo (`tests/apoyo/archivo-tomado.ts`).

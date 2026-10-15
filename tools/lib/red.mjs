@@ -492,12 +492,30 @@ export async function runNetwork({ full }) {
       }
       return e2e.problems.filter((p) => p.text.includes('accesibilidad:'));
     });
+    // El corte a la fuerza (CA-017) lanza cientos de procesos: va solo, sin competir con la
+    // punta a punta ni con los sabotajes por el procesador.
+    /** @type {TestResult[]} */
+    let cutTests = [];
+    await layer('corte', 'Corte a la fuerza', async () => {
+      const { tests, problems } = testProblems('corte', await runVitest(['corte'], 'corte'));
+      cutTests = tests;
+      return problems;
+    });
+    // CA-001 mide el tiempo de «verificar»: va solo, antes de los sabotajes.
+    /** @type {TestResult[]} */
+    let timingTests = [];
+    await layer('tiempo', 'Tiempo de la red rápida', async () => {
+      const { tests, problems } = testProblems('tiempo', await runVitest(['tiempo'], 'tiempo'));
+      timingTests = tests;
+      return problems;
+    });
+    fullTests = [...e2e.tests, ...cutTests, ...timingTests];
     await layer('red', 'Paquete, red completa y sabotajes', async () => {
       if (!built) {
         return ['no corrió porque no se pudo compilar y empaquetar las dos variantes.'];
       }
       const { tests, problems } = testProblems('red', await runVitest(['paquete', 'red'], 'red'));
-      fullTests = [...e2e.tests, ...tests];
+      fullTests = [...e2e.tests, ...cutTests, ...timingTests, ...tests];
       return problems;
     });
   }

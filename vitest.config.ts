@@ -1,9 +1,10 @@
+import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 // Capas de la red (docs/plan-de-pruebas.md, sección 1). Las rápidas corren en
-// «verificar»; «red» (los sabotajes y las pruebas que corren la red entera)
-// solo en «verificar:todo».
+// «verificar»; «corte», «paquete» y «red» (los sabotajes y las pruebas que corren la red
+// entera) solo en «verificar:todo».
 export default defineConfig({
   // Cada corrida aislada de la red (RETENIA_RUN_DIR) usa su propia caché, para que varias
   // corridas en paralelo no se pisen.
@@ -12,6 +13,9 @@ export default defineConfig({
     allowOnly: false,
     passWithNoTests: false,
     environment: 'node',
+    // Vitest usa por defecto un trabajador menos que los núcleos: en la máquina del CI (dos
+    // núcleos) corría los archivos de a uno. Con dos como mínimo usa la máquina entera.
+    maxWorkers: Math.max(2, availableParallelism() - 1),
     projects: [
       { extends: true, test: { name: 'unitarias', include: ['tests/unitarias/**/*.test.ts'] } },
       {
@@ -47,6 +51,18 @@ export default defineConfig({
         },
       },
       {
+        // El corte a la fuerza (CA-017): cientos de procesos que se matan en cada punto de cada
+        // escritura. Solo en «verificar:todo»: en la máquina del CI, dentro de «verificar»,
+        // dejaba a la red rápida fuera de su tope de 2 minutos.
+        extends: true,
+        test: {
+          name: 'corte',
+          include: ['tests/corte/**/*.test.ts'],
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+        },
+      },
+      {
         // El programa empaquetado de cada variante, tal como lo deja «npm run construir»
         // (CA-013, fuses). Solo en «verificar:todo».
         extends: true,
@@ -58,10 +74,22 @@ export default defineConfig({
         },
       },
       {
+        // CA-001 mide cuánto tarda «verificar»: corre solo, antes de los sabotajes, para que la
+        // medición no compita por el procesador con las otras redes que ellos corren.
+        extends: true,
+        test: {
+          name: 'tiempo',
+          include: ['tests/red/verificar.test.ts'],
+          testTimeout: 600_000,
+          hookTimeout: 600_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'red',
           include: ['tests/red/**/*.test.ts'],
+          exclude: ['tests/red/verificar.test.ts'],
           testTimeout: 600_000,
           hookTimeout: 600_000,
           maxWorkers: 3,
