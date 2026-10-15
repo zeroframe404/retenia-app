@@ -1,5 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { readProjectSpec } from '../../tools/lib/especificacion.mjs';
@@ -13,7 +12,11 @@ const GREEN =
   /^VERDE · (\d+) pruebas? · 0 fallas · 0 salteadas · (\d+) de (\d+) criterios? cubiertos?$/;
 
 describe('npm run verificar', () => {
-  const runDir = mkdtempSync(join(tmpdir(), 'retenia-verificar-'));
+  // Los informes de la corrida medida van donde los deja «npm run verificar» de verdad: en
+  // .cache, dentro del proyecto. En el CI la carpeta temporal del sistema está en otro disco,
+  // más lento, y la medición no sería la del uso real.
+  mkdirSync(join(ROOT, '.cache', 'red'), { recursive: true });
+  const runDir = mkdtempSync(join(ROOT, '.cache', 'red', 'medida-'));
   afterAll(() => rmSync(runDir, { recursive: true, force: true }));
 
   it('[CA-001] «npm run verificar» termina en menos de 2 minutos con una sola línea de veredicto VERDE con las cifras reales', async () => {

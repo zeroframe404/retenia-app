@@ -26,8 +26,6 @@ import { inBuenosAires } from '../apoyo/fechas';
 // Todo con la base real y archivos reales en una carpeta de datos temporal.
 
 const HOUR_MS = 3_600_000;
-// Arrancar un PowerShell que tome un archivo lleva un par de segundos.
-const SLOW_MS = 20_000;
 const folders: ReturnType<typeof tempDataFolder>[] = [];
 const open: Workspace[] = [];
 afterEach(() => {
@@ -504,26 +502,22 @@ describe('restos de una copia o una restauración cortadas', () => {
     expect(reopened.verifyData()).toEqual([]);
   });
 
-  it(
-    'un resto de una copia cortada que Windows tiene tomado no impide abrir Retenia',
-    async () => {
-      const { folder } = dataFolder();
-      closeWorkspace(workspaceAt(folder));
-      mkdirSync(join(folder, 'tmp'), { recursive: true });
-      const leftover = join(folder, 'tmp', 'copia-cortada.db');
-      writeFileSync(leftover, 'a medias');
-      const held = await holdFile(leftover);
-      try {
-        const reopened = workspaceAt(folder);
-        expect(reopened.cards.list()).toEqual([]);
-        expect(await reopened.createBackup('manual')).toMatchObject({ kind: 'manual' });
-        closeWorkspace(reopened);
-      } finally {
-        await held.release();
-      }
-    },
-    SLOW_MS,
-  );
+  it('un resto de una copia cortada que Windows tiene tomado no impide abrir Retenia', async () => {
+    const { folder } = dataFolder();
+    closeWorkspace(workspaceAt(folder));
+    mkdirSync(join(folder, 'tmp'), { recursive: true });
+    const leftover = join(folder, 'tmp', 'copia-cortada.db');
+    writeFileSync(leftover, 'a medias');
+    const held = holdFile(leftover);
+    try {
+      const reopened = workspaceAt(folder);
+      expect(reopened.cards.list()).toEqual([]);
+      expect(await reopened.createBackup('manual')).toMatchObject({ kind: 'manual' });
+      closeWorkspace(reopened);
+    } finally {
+      held.release();
+    }
+  });
 
   it('si la carpeta de trabajo es un enlace a otra carpeta, al abrir se saca el enlace y lo de la otra carpeta no se toca', () => {
     const { folder } = dataFolder();
