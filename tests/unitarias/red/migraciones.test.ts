@@ -38,7 +38,9 @@ async function repoWithMigration() {
   return { repo, folder };
 }
 
-describe('migraciones que no cambian', () => {
+// Cada prueba arranca git varias veces: con el CI cargado (los sabotajes corren redes enteras en
+// paralelo) los 5 segundos de una prueba unitaria no alcanzan. El mismo margen que integración.
+describe('migraciones que no cambian', { timeout: 60_000 }, () => {
   it('sin cambios no hay nada que decir', async () => {
     const { repo } = await repoWithMigration();
     expect(await changedMigrations(repo)).toEqual([]);
