@@ -246,6 +246,9 @@ describe('micrófono', () => {
     expect(microphoneAccess('restricted', undefined)).toBe('denied');
     // La variante de prueba lo puede simular bloqueado (punta a punta).
     expect(microphoneAccess('granted', 'bloqueado')).toBe('denied');
+    // Con el micrófono de prueba de Chromium (un archivo), lo que diga Windows no cuenta: en la
+    // máquina del CI Windows lo informa bloqueado aunque el de prueba ande.
+    expect(microphoneAccess('denied', 'archivo')).toBe('granted');
   });
 });
 
