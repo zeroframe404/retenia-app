@@ -39,12 +39,29 @@ interface Launched {
   close: () => Promise<void>;
 }
 
+// `args` son interruptores de Chromium para quien necesita una pantalla idéntica en cualquier
+// máquina (las capturas de referencia) o una escala de Windows distinta.
+type Launch = (folder?: string, env?: Record<string, string>, args?: string[]) => Promise<Launched>;
+
 type Fixtures = {
   dataDir: string;
-  launch: (folder?: string, env?: Record<string, string>) => Promise<Launched>;
+  // Abre Retenia en su pantalla inicial (Estudiar), tal como la ve quien la abre.
+  launchFromStart: Launch;
+  // Abre Retenia y deja a la vista la lista de tarjetas (Apuntes › «Tarjetas»): donde empezaban las
+  // pruebas de las Fases 03 a 05, antes de que existiera el riel.
+  launch: Launch;
   app: ElectronApplication;
   appWindow: Page;
 };
+
+// Apuntes › «Tarjetas», por el riel y por el nombre que se ve.
+async function openCards(page: Page): Promise<void> {
+  await page
+    .getByRole('navigation', { name: 'Riel lateral' })
+    .getByRole('button', { name: 'Apuntes', exact: true })
+    .click();
+  await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
+}
 
 // Cada prueba abre Retenia con su propia carpeta de datos y deja la traza como adjunto.
 export const test = base.extend<Fixtures>({
@@ -54,14 +71,14 @@ export const test = base.extend<Fixtures>({
     mkdirSync(dataDir, { recursive: true });
     await use(dataDir);
   },
-  launch: async ({ dataDir }, use, testInfo) => {
+  launchFromStart: async ({ dataDir }, use, testInfo) => {
     const open: Launched[] = [];
     let count = 0;
-    await use(async (folder = dataDir, env = {}) => {
+    await use(async (folder = dataDir, env = {}, args = []) => {
       count += 1;
       const app = await electron.launch({
         executablePath: EXECUTABLE,
-        args: [],
+        args,
         env: reteniaEnv(folder, env),
       });
       await app.context().tracing.start({ screenshots: true, snapshots: true });
@@ -91,6 +108,13 @@ export const test = base.extend<Fixtures>({
     for (const launched of open) {
       await launched.close().catch(() => undefined);
     }
+  },
+  launch: async ({ launchFromStart }, use) => {
+    await use(async (folder, env, args) => {
+      const launched = await launchFromStart(folder, env, args);
+      await openCards(launched.page);
+      return launched;
+    });
   },
   app: async ({ launch }, use) => {
     await use((await launch()).app);
