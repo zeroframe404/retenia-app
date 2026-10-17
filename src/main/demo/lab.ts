@@ -47,13 +47,17 @@ const LIMITS = { voice: 60_000, pdfPage: 30_000, ocrPage: 120_000 };
 
 // Lo que dice Windows del micrófono (systemPreferences.getMediaAccessStatus) se traduce en
 // permitido o bloqueado. La variante de prueba lo puede simular bloqueado (RETENIA_SIMULAR_
-// MICROFONO=bloqueado, en la punta a punta).
+// MICROFONO=bloqueado, en la punta a punta); con el micrófono de prueba de Chromium («archivo»)
+// lo que diga Windows no cuenta, porque no se usa ningún micrófono de verdad.
 export function microphoneAccess(
   windowsStatus: string,
   simulated: string | undefined,
 ): 'granted' | 'denied' {
   if (simulated === 'bloqueado') {
     return 'denied';
+  }
+  if (simulated === 'archivo') {
+    return 'granted';
   }
   return windowsStatus === 'denied' || windowsStatus === 'restricted' ? 'denied' : 'granted';
 }

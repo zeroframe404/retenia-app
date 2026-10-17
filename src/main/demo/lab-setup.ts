@@ -68,7 +68,7 @@ export function startLab({
     microphoneAccess: () =>
       microphoneAccess(
         systemPreferences.getMediaAccessStatus('microphone'),
-        process.env.RETENIA_SIMULAR_MICROFONO,
+        process.env.RETENIA_MICROFONO_ARCHIVO ? 'archivo' : process.env.RETENIA_SIMULAR_MICROFONO,
       ),
     openMicrophoneSettings: () => shell.openExternal('ms-settings:privacy-microphone'),
   });
