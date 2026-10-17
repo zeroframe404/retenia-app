@@ -5,6 +5,7 @@ import { projectFiles, projectFingerprint } from './archivos.mjs';
 import { readProjectSpec } from './especificacion.mjs';
 import { closedPhaseTags, currentPhase, testCountsAtTag } from './fases.mjs';
 import { listTitles } from './listado.mjs';
+import { devModelsReady, prepareDevModels } from './preparar-modelos.mjs';
 import { firstJson, npmCliPath, ROOT, run, runPackage, stripColors } from './proceso.mjs';
 import { formatDuration, now, stopwatch } from './reloj.mjs';
 import { scanProjectForSystemClock } from './reloj-del-sistema.mjs';
@@ -444,6 +445,27 @@ export async function runNetwork({ full }) {
   /** @type {{ line: number, marker: string, kind: string, file: string }[]} */
   let markers = [];
 
+  // Los modelos de voz de desarrollo (Kokoro y Whisper), verificados por huella, que usan las
+  // pruebas «sin red» y la punta a punta (solo en «verificar:todo»); la primera vez se bajan (unos
+  // 500 MB) mientras corre lo demás.
+  /** @type {Promise<string | null>} */
+  const voiceModels =
+    !full || devModelsReady()
+      ? Promise.resolve(null)
+      : (async () => {
+          /** @type {string[]} */
+          const lines = [];
+          const problem = await prepareDevModels({ log: (line) => lines.push(line) });
+          saveLog('modelos-de-voz', {
+            code: problem ? 1 : 0,
+            stdout: lines.join('\n'),
+            stderr: '',
+            durationMs: 0,
+            timedOut: false,
+          });
+          return problem;
+        })();
+
   const [listed] = await Promise.all([
     (async () => {
       const result = await listing();
@@ -472,6 +494,20 @@ export async function runNetwork({ full }) {
   let fullTests = [];
   if (full) {
     const built = layers.find((l) => l.id === 'compilar')?.problems.length === 0;
+    // Las piezas que tienen que andar sin internet (voz, transcripción, PDF y escaneos) con sus
+    // modelos reales: pesadas para la máquina del CI, por eso no van en «verificar» (decidido con
+    // el dueño el 17/10/2026). Van antes de la punta a punta, que también usa los modelos.
+    const missingModels = await voiceModels;
+    /** @type {TestResult[]} */
+    let offlineTests = [];
+    await layer('sin-red', 'Piezas sin red (voz, PDF y escaneos)', async () => {
+      if (missingModels) {
+        return [missingModels];
+      }
+      const { tests, problems } = testProblems('sin-red', await runVitest(['sin-red'], 'sin-red'));
+      offlineTests = tests;
+      return problems;
+    });
     /** @type {{ tests: TestResult[], problems: Problem[] }} */
     let e2e = { tests: [], problems: [] };
     await Promise.all([
@@ -509,13 +545,13 @@ export async function runNetwork({ full }) {
       timingTests = tests;
       return problems;
     });
-    fullTests = [...e2e.tests, ...cutTests, ...timingTests];
+    fullTests = [...offlineTests, ...e2e.tests, ...cutTests, ...timingTests];
     await layer('red', 'Paquete, red completa y sabotajes', async () => {
       if (!built) {
         return ['no corrió porque no se pudo compilar y empaquetar las dos variantes.'];
       }
       const { tests, problems } = testProblems('red', await runVitest(['paquete', 'red'], 'red'));
-      fullTests = [...e2e.tests, ...cutTests, ...timingTests, ...tests];
+      fullTests = [...offlineTests, ...e2e.tests, ...cutTests, ...timingTests, ...tests];
       return problems;
     });
   }

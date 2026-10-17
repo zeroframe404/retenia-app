@@ -20,8 +20,14 @@
     "cerrar-fase": "node tools/cerrar-fase.mjs"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "1.0.0",
+    "@tesseract.js-data/spa": "1.0.0",
     "better-sqlite3": "13.0.3",
     "drizzle-orm": "0.45.4",
+    "pdfjs-dist": "6.4.299",
+    "sherpa-onnx-node": "1.13.8",
+    "tesseract.js": "7.0.0",
+    "tesseract.js-core": "7.0.0",
     "ts-fsrs": "5.4.2",
     "zod": "4.6.7"
   },
@@ -61,7 +67,8 @@
   "allowScripts": {
     "@swc/core": false,
     "esbuild": false,
-    "lefthook": false
+    "lefthook": false,
+    "tesseract.js": false
   },
   "author": "zeroframe404"
 }

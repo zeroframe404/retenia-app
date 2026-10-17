@@ -3,6 +3,9 @@ import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { test as base, _electron as electron, expect } from '@playwright/test';
+import { DEV_MODELS_DIR } from '../../tools/lib/modelos.mjs';
+import { ROOT } from '../../tools/lib/proceso.mjs';
+import { serveModels } from '../apoyo/servidor-de-modelos';
 
 // Humo del instalador (capa N): instala «Retenia (prueba)» en silencio como lo haría una persona
 // en una Windows limpia, la abre, crea una tarjeta, la cierra, la abre de nuevo, la abre por
@@ -190,6 +193,83 @@ test('[CA-014] abrir el programa instalado por segunda vez pasa al frente la ven
     await expect.poll(windowState).toEqual({ count: 1, minimized: false });
   } finally {
     await app.close();
+  }
+});
+
+// El Laboratorio (H-07) dentro del programa instalado: las cinco piezas con los procesos de
+// trabajo del paquete instalado (sherpa-onnx fuera del asar, tesseract.js con sus idiomas
+// adentro). En el CI no hay micrófono ni parlantes: la descarga viene de un servidor local que
+// sirve los modelos de desarrollo con las direcciones de la página real, el micrófono es el de
+// prueba de Chromium con el audio de ejemplo «good morning», y la voz se comprueba por el audio
+// que arma (su duración), no escuchándolo.
+test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda en el programa instalado: baja los modelos, habla, transcribe el audio de ejemplo, lee el PDF y el escaneo y manda el aviso (simulado)', async () => {
+  // Bajar 506 MB, cargar los modelos y reconocer una página en la máquina del CI lleva minutos.
+  test.setTimeout(900_000);
+  const server = await serveModels(DEV_MODELS_DIR);
+  const app = await electron.launch({
+    executablePath: installedExe,
+    args: [],
+    env: {
+      ...installedEnv(),
+      RETENIA_MODELOS_ORIGEN: server.origin,
+      RETENIA_MICROFONO_ARCHIVO: join(ROOT, 'datos-de-ejemplo', 'good-morning.wav'),
+    },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole('navigation', { name: 'Secciones' })
+      .getByRole('button', { name: 'Ajustes' })
+      .click();
+    await page.getByRole('button', { name: 'Laboratorio' }).click();
+    const region = (name: string) => page.getByRole('region', { name });
+    // De 10 segundos para arriba va sin decimal («Tardó 17 s» en la máquina del CI).
+    const elapsed = /^Tardó \d+(,\d)? s$/;
+
+    const voice = region('Voz');
+    await voice.getByRole('button', { name: 'Descargar modelos' }).click();
+    await expect(voice.getByRole('progressbar', { name: 'Descarga de los modelos' })).toBeVisible();
+    await expect(voice.getByText('Modelos listos')).toBeVisible({ timeout: 240_000 });
+    await voice.getByRole('textbox', { name: 'Frase en inglés' }).fill('The weather is nice today');
+    await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
+    await expect(voice.getByText(elapsed)).toBeVisible({ timeout: 120_000 });
+    await expect
+      .poll(() => voice.locator('audio').evaluate((a: HTMLAudioElement) => a.duration))
+      .toBeGreaterThan(1);
+
+    const transcription = region('Transcripción');
+    await transcription.getByRole('button', { name: 'Grabar' }).click();
+    await expect(transcription.getByText(/^Grabando… 2 s\./)).toBeVisible({ timeout: 30_000 });
+    await transcription.getByRole('button', { name: 'Detener' }).click();
+    await expect(transcription.getByText('Entendí: “good morning”')).toBeVisible({
+      timeout: 120_000,
+    });
+
+    const pdf = region('PDF');
+    await pdf.getByRole('button', { name: 'Leer PDF de prueba' }).click();
+    await expect(pdf.getByText(/Capítulo 1 · Población, muestra y estimadores/)).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(
+      pdf
+        .getByRole('figure', { name: 'Página 1 con la frase resaltada' })
+        .getByRole('img', { name: 'Frase resaltada' }),
+    ).toHaveCount(2);
+
+    const scan = region('Escaneo');
+    await scan.getByRole('button', { name: 'Leer página escaneada' }).click();
+    await expect(scan.getByText(/La hipótesis nula y la alternativa/)).toBeVisible({
+      timeout: 180_000,
+    });
+
+    const notice = region('Aviso');
+    await notice.getByRole('button', { name: 'Probar aviso' }).click();
+    await expect(
+      notice.getByText('Aviso enviado. Minimizá Retenia y tocalo: Retenia vuelve al frente.'),
+    ).toBeVisible({ timeout: 30_000 });
+  } finally {
+    await app.close();
+    await server.close();
   }
 });
 

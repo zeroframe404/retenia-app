@@ -16,15 +16,20 @@ export const EXECUTABLE = resolve(
   '../../release/prueba/win-unpacked/Retenia (prueba).exe',
 );
 
-// El entorno de un proceso de Retenia: el de esta PC, con una carpeta de datos propia.
-export function reteniaEnv(dataDir: string): Record<string, string> {
+// El entorno de un proceso de Retenia: el de esta PC, con una carpeta de datos propia y, si la
+// prueba lo pide, las variables de la variante de prueba que usa el Laboratorio (de dónde bajar
+// los modelos, el micrófono de prueba).
+export function reteniaEnv(
+  dataDir: string,
+  extra: Record<string, string> = {},
+): Record<string, string> {
   const env: Record<string, string> = { RETENIA_DATOS: dataDir };
   for (const [key, value] of Object.entries(process.env)) {
     if (value !== undefined && key !== 'ELECTRON_RUN_AS_NODE' && key !== 'RETENIA_DATOS') {
       env[key] = value;
     }
   }
-  return env;
+  return { ...env, ...extra };
 }
 
 interface Launched {
@@ -36,7 +41,7 @@ interface Launched {
 
 type Fixtures = {
   dataDir: string;
-  launch: (folder?: string) => Promise<Launched>;
+  launch: (folder?: string, env?: Record<string, string>) => Promise<Launched>;
   app: ElectronApplication;
   appWindow: Page;
 };
@@ -52,12 +57,12 @@ export const test = base.extend<Fixtures>({
   launch: async ({ dataDir }, use, testInfo) => {
     const open: Launched[] = [];
     let count = 0;
-    await use(async (folder = dataDir) => {
+    await use(async (folder = dataDir, env = {}) => {
       count += 1;
       const app = await electron.launch({
         executablePath: EXECUTABLE,
         args: [],
-        env: reteniaEnv(folder),
+        env: reteniaEnv(folder, env),
       });
       await app.context().tracing.start({ screenshots: true, snapshots: true });
       const page = await app.firstWindow();

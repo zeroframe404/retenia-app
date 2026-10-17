@@ -22,6 +22,7 @@ import {
 } from './cards';
 import { noRequest } from './common';
 import type { demoChannels } from './demo';
+import type { labChannels } from './lab';
 import { pingRequest, pingResponse } from './ping';
 import {
   trashEmptyResponse,
@@ -60,6 +61,7 @@ export type Registry = Readonly<Record<string, { request: z.ZodType; response: z
 type Channels = typeof channels;
 export type ChannelName = keyof Channels;
 type DemoRegistry = ReturnType<typeof demoChannels>;
+type LabRegistry = ReturnType<typeof labChannels>;
 
 // Lo que ve el manejador del principal (la petición ya validada) y lo que devuelve (antes
 // de validar la respuesta).
@@ -69,4 +71,4 @@ export type HandlerResponse<K extends ChannelName> = z.input<Channels[K]['respon
 export type ApiOf<R extends Registry> = {
   [K in keyof R]: (request: z.input<R[K]['request']>) => Promise<z.output<R[K]['response']>>;
 };
-export type ReteniaApi = ApiOf<Channels> & ApiOf<DemoRegistry>;
+export type ReteniaApi = ApiOf<Channels> & ApiOf<DemoRegistry> & ApiOf<LabRegistry>;

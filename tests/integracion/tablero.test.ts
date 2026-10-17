@@ -49,10 +49,18 @@ describe('tablero', () => {
       expect(STATES, `estado de ${id}`).toContain(heading.exec(html)?.[1]);
     }
 
-    // Ningún nombre de archivo del proyecto ni rutas de carpetas.
+    // Ningún nombre de archivo del proyecto ni rutas de carpetas. Los archivos de ejemplo que
+    // nombran los criterios (como «Inferencia — capítulos 1 a 4.pdf») son parte de lo que se lee
+    // y pueden aparecer, pero solo los que figuran en el elenco (decidido el 17/10/2026).
     const text = html.replace(/<style>[\s\S]*?<\/style>/, '').replace(/<[^>]+>/g, ' ');
-    const names = new Set((await projectFiles(ROOT)).map((f) => basename(f)));
-    expect([...names].filter((name) => text.includes(name))).toEqual([]);
+    const files = await projectFiles(ROOT);
+    const samples = new Set(
+      files.filter((f) => f.startsWith('datos-de-ejemplo/')).map((f) => basename(f)),
+    );
+    const shown = [...new Set(files.map((f) => basename(f)))].filter((name) => text.includes(name));
+    expect(shown.filter((name) => !samples.has(name))).toEqual([]);
+    const cast = readFileSync(join(ROOT, 'docs', 'especificacion', 'elenco.md'), 'utf8');
+    expect(shown.filter((name) => !cast.includes(`| ${name} |`))).toEqual([]);
     expect(text).not.toMatch(/\b(src|tests|tools|docs)[\\/]/);
     expect(text).not.toMatch(/\.(tsx?|mjs|cjs|json|ya?ml)\b/);
   });

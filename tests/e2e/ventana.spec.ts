@@ -58,6 +58,18 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'demo.state',
       'demo.advanceDays',
       'demo.resetDate',
+      // «Simular sin conexión» y el Laboratorio (Fase 05).
+      'demo.connection',
+      'demo.setConnection',
+      'demo.lab.modelsStatus',
+      'demo.lab.downloadModels',
+      'demo.lab.speak',
+      'demo.lab.microphone',
+      'demo.lab.openMicrophoneSettings',
+      'demo.lab.transcribe',
+      'demo.lab.readPdf',
+      'demo.lab.ocrPage',
+      'demo.lab.notify',
     ],
   });
   // getLastWebPreferences existe en Electron 44 pero no está en sus tipos.

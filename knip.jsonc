@@ -5,6 +5,9 @@
     "src/preload/index.ts",
     "src/renderer/main.tsx",
     "src/renderer/globals.d.ts",
+    // Los procesos de trabajo: Vite los arma como entradas aparte (electron.vite.config.ts).
+    "src/main/workers/voice.ts",
+    "src/main/workers/materials.ts",
     "tools/*.mjs",
     "tools/hooks/*.mjs",
     "playwright.instalado.config.ts",
@@ -17,7 +20,12 @@
   // La red los corre por su ruta (tools/lib/proceso.mjs; así se arma el instalador con
   // electron-builder) y secretlint carga su conjunto de reglas desde .secretlintrc.json: knip
   // no puede verlos solo.
+  // Los datos de idioma de tesseract.js se buscan por nombre en el momento (src/ingest/ocr.ts) y
+  // tesseract.js-core lo carga tesseract.js: van fijados en package.json igual.
   "ignoreDependencies": [
+    "@tesseract.js-data/eng",
+    "@tesseract.js-data/spa",
+    "tesseract.js-core",
     "secretlint",
     "@secretlint/secretlint-rule-preset-recommend",
     "electron-builder"

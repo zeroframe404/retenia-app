@@ -1,6 +1,6 @@
 # Versiones verificadas
 
-Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. La Fase 03 sumó, también con la versión exacta de esta tabla: better-sqlite3 con sus tipos, drizzle-orm y drizzle-kit, ts-fsrs, electron-builder, @electron/fuses y @electron/asar (estos tres para armar el instalador y leer el paquete), y para las pruebas de pantallas jsdom, Testing Library (react y dom) y user-event. Cada pieza restante entra en su fase con la versión de esta tabla.
+Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. La Fase 03 sumó, también con la versión exacta de esta tabla: better-sqlite3 con sus tipos, drizzle-orm y drizzle-kit, ts-fsrs, electron-builder, @electron/fuses y @electron/asar (estos tres para armar el instalador y leer el paquete), y para las pruebas de pantallas jsdom, Testing Library (react y dom) y user-event. La Fase 05 sumó, con la versión de esta tabla: sherpa-onnx-node (con sherpa-onnx-win-x64), pdfjs-dist, tesseract.js, tesseract.js-core y los datos de idioma `@tesseract.js-data/eng` y `@tesseract.js-data/spa` (fila nueva). Cada pieza restante entra en su fase con la versión de esta tabla.
 
 ## Regla para fijar versiones
 
@@ -41,8 +41,9 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | **Contenido y materiales** | | | | |
 | @tiptap/core, @tiptap/pm, @tiptap/react, @tiptap/starter-kit, @tiptap/extension-image, @tiptap/extension-mathematics, @tiptap/extension-mention, @tiptap/suggestion | 3.31.4 | 13/10/2026 | MIT | Editor por bloques con React 19, imágenes, fórmulas (KaTeX) y menciones con disparador propio (`[[`); todos de código abierto. La 3.32.0 salió hoy. |
 | katex | 0.18.11 | 13/10/2026 | MIT | Render de fórmulas sin ejecutar nada, con fuentes dentro del paquete; la 0.19.0 queda fuera del rango que acepta TipTap. |
-| pdfjs-dist | 6.4.299 | 13/10/2026 | Apache-2.0 | Texto y render de PDF; la 6.x eliminó el último uso de `eval` y su API nunca ejecuta el JavaScript de un PDF. En Node, compilación `legacy`. |
-| tesseract.js, tesseract.js-core | 7.0.0 | 13/10/2026 | Apache-2.0 | Reconocimiento de escaneos en WebAssembly, sin internet con datos locales; hilos de trabajo en Node. |
+| pdfjs-dist | 6.4.299 | 13/10/2026 | Apache-2.0 | Texto y render de PDF; la 6.x eliminó el último uso de `eval` (ya no tiene la opción `isEvalSupported`; una prueba busca `eval` y `new Function` en su código) y su API nunca ejecuta el JavaScript de un PDF. En Node, compilación `legacy`; dentro de un `utilityProcess` hay que indicarle su hilo de trabajo (Fase 05). Trae `@napi-rs/canvas` como opcional: no se usa y no viaja en el instalador. |
+| tesseract.js, tesseract.js-core | 7.0.0 | 13/10/2026 | Apache-2.0 | Reconocimiento de escaneos en WebAssembly, sin internet con datos locales; hilos de trabajo en Node. Comprobado en la Fase 05: en Node carga siempre el núcleo completo (un error de la 7.0.0), así que viaja ese; su script de instalación (un aviso de donaciones) queda denegado. |
+| @tesseract.js-data/eng, @tesseract.js-data/spa | 1.0.0 | 17/10/2026 | MIT | Los datos de inglés y español que tesseract.js usa por defecto (versión entera comprimida, 2,9 y 2,1 MB), del mismo proyecto (naptha/tessdata). Publicados en 2023: son datos que no cambian. Van en el instalador (tu pedido de la Fase 05), no en la descarga única. |
 | mammoth | 1.13.0 | 13/10/2026 | BSD-2-Clause | Word a texto con títulos, activo. |
 | @mozilla/readability | 0.6.0 | 13/10/2026 | Apache-2.0 | Extrae el texto principal de una página web; es el de Firefox. |
 | jsdom | 30.1.2 | 13/10/2026 | MIT | DOM en Node para readability y DOMPurify; también entorno de las pruebas de componentes. |
@@ -50,7 +51,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | yauzl | 3.4.0 | 13/10/2026 | MIT | Lee comprimidos por partes y rechaza nombres con `..`, rutas absolutas y barras invertidas. |
 | yazl | 3.3.1 | 13/10/2026 | MIT | Escribe comprimidos por partes (exportaciones y copias). |
 | **Voz** | | | | |
-| sherpa-onnx-node, sherpa-onnx-win-x64 | 1.13.8 | 13/10/2026 | Apache-2.0 | Voz y transcripción sin internet con modelos abiertos; complemento Node-API. Comprobado en esta PC dentro de un proceso de trabajo de Electron. |
+| sherpa-onnx-node, sherpa-onnx-win-x64 | 1.13.8 | 13/10/2026 | Apache-2.0 | Voz y transcripción sin internet con modelos abiertos; complemento Node-API. Comprobado en esta PC dentro de un proceso de trabajo de Electron, empaquetado e instalado (Fase 05): las DLL viajan fuera del asar y se encuentran solas. Abre sus archivos con rutas de 8 bits: Retenia le pasa rutas relativas a la carpeta de modelos (una carpeta con «í» lo tumbaba). |
 | **IA** | | | | |
 | @anthropic-ai/sdk | 0.133.0 | 13/10/2026 | MIT | `latest`; salidas con esquema definitivas, caché de prompts, API de modelos. |
 | claude-opus-5-5 | identificador vigente | 13/10/2026 | — | Tu decisión para corregir, tutor, escritura y conversación. USD 4 por millón de tokens de entrada y 20 de salida; retiro no antes del 22/09/2027. |
@@ -94,17 +95,26 @@ Fijadas por la huella del commit de su versión (verificadas el 13/10/2026 con l
 
 ## Modelos y datos que se descargan una sola vez
 
-No son paquetes npm. Se publican reempaquetados (solo los archivos que se usan, con su licencia adjunta) en el repositorio público `retenia-releases`, y Retenia los baja desde Ajustes › «Voz» verificando la huella SHA-256 de cada archivo contra un manifiesto que vive en este repositorio. La elección final se hace en la Fase 05 escuchando y midiendo.
+No son paquetes npm. Elegidos en la Fase 05 midiendo en esta PC (`docs/laboratorio.md`). Retenia los baja una sola vez de los repositorios oficiales del proyecto sherpa-onnx en Hugging Face, cada archivo fijado por su revisión y aceptado solo si su tamaño y su huella SHA-256 coinciden con el manifiesto de este repositorio (`src/main/voice-models/manifest.ts`); solo los archivos que se usan. En la Fase 05 se bajan desde el Laboratorio; desde la Fase 28, también desde Ajustes › «Voz». El repositorio propio `retenia-releases` que estaba previsto todavía no existe (ver `docs/decisiones.md`, Fase 05).
 
-| Modelo | Candidatos | Tamaño | Licencia | Para qué |
+| Modelo | Elegido | Tamaño | Licencia | Para qué |
 |---|---|---|---|---|
-| Voz en inglés (Kokoro 82M, vía sherpa-onnx) | `kokoro-int8-multi-lang-v1_0` (28 voces en inglés) o `kokoro-int8-en-v0_19` (11 voces) | 132 MB o 103 MB comprimidos | Apache-2.0 | «Decir en voz alta», al menos 4 voces (CA-305). La v1_1 queda descartada: 3 voces en inglés, todas femeninas. |
-| Transcripción en inglés (Whisper, vía sherpa-onnx) | `base.en` o `small.en`, solo la variante int8 | el paquete completo pesa 209 MB o 636 MB; la variante int8 sola es menor y se mide en la Fase 05 | MIT | «Entendí: …», «Mantener para hablar», transcribir audios propios. Solo hasta 30 s por pasada: los audios largos se cortan con el detector de voz. |
-| Detector de voz (Silero VAD, vía sherpa-onnx) | `silero_vad.onnx` | del orden de 2 MB | MIT | Cortar audios largos en frases para Whisper. |
-| Datos de reconocimiento de escaneos (tessdata_best) | `eng.traineddata`, `spa.traineddata` | 14,7 MB y 12,9 MB (unos 25 MB comprimidos) | Apache-2.0 | «Intentar reconocimiento» sin internet. |
-| Plan B de transcripción | Moonshine base en (cuantizado 2026-02-27) | 111 MB | MIT | Si Whisper resulta lento o pesado en la Fase 05. |
+| Voz en inglés (Kokoro 82M, vía sherpa-onnx) | `csukuangfj/kokoro-int8-multi-lang-v1_0`, revisión `2a360693d79b88b49b88e29aec2b53577f41f206`: modelo, voces, símbolos, los dos léxicos en inglés, lo que usa el inglés de espeak-ng y la licencia (14 archivos) | 148 MB | Apache-2.0 | «Decir en voz alta», 28 voces en inglés; el Laboratorio usa cuatro (CA-305 pide al menos 4). Descartadas: la `en-v0_19` (ya no está en Hugging Face con esa forma) y la v1_1 (3 voces en inglés, todas femeninas). |
+| Transcripción (Whisper multilingüe, vía sherpa-onnx) | `csukuangfj/sherpa-onnx-whisper-small`, revisión `8f3c18b358db4d1f2fc1eae49d75cd20989e4309`: codificador y decodificador int8 y los símbolos (3 archivos) | 358 MB | MIT | «Entendí: …», «Mantener para hablar», transcribir audios propios. Elegido sobre tiny (98 MB) y base (153 MB): fue el único que entendió bien cuatro frases con ruido, y tarda medio segundo por frase. Solo hasta 30 s por pasada. |
+| Detector de voz (Silero VAD, vía sherpa-onnx) | todavía no: llega con CA-288 (Fase 30), para cortar audios largos | del orden de 2 MB | MIT | Cortar audios largos en frases para Whisper. |
+| Plan B de transcripción | Moonshine base en (cuantizado 2026-02-27) | 111 MB | MIT | No hizo falta: Whisper small entra en tiempo y en tamaño. |
 
-Total previsto: entre 300 y 450 MB según la combinación, dentro de los 300 a 600 MB que fija `no-funcionales.md`.
+Total: 506 MB (531 millones de bytes), dentro de los 300 a 600 MB que fija `no-funcionales.md`. Los datos de reconocimiento de escaneos ya no están en esta lista: viajan en el instalador (`@tesseract.js-data`, fila de arriba).
+
+## Comprobado en esta PC (17/10/2026, Fase 05)
+
+Dentro de Retenia (prueba), empaquetada y como la abre `npm run iniciar`; detalle en `docs/laboratorio.md`:
+
+1. **sherpa-onnx-node 1.13.8 con Kokoro v1.0 y Whisper small** en un `utilityProcess` empaquetado: carga sola sus DLL desde fuera del asar; Kokoro dice «The weather is nice today» en 0,9 a 1,8 s y Whisper entiende «good morning» en 0,2 a 1,2 s.
+2. **pdf.js 6.4.299** en el proceso de materiales: texto y posiciones de una página en 0,1 s; en la ventana dibuja la página con su hilo de trabajo.
+3. **tesseract.js 7.0.0** con los datos empaquetados: reconoce la página escaneada en 0,8 s, con un 98,4 % de parecido al original, con la red bloqueada.
+4. **Avisos de Windows** desde Electron 44: Windows confirma que mostró el aviso, empaquetado y sin empaquetar.
+5. **Descarga de los modelos** desde Hugging Face con el manifiesto: 506 MB en 35 s, cada huella coincide.
 
 ## Comprobado en esta PC (13/10/2026)
 
@@ -122,9 +132,9 @@ Cuatro pruebas descartables en una carpeta temporal fuera del repositorio, borra
 | Monto mínimo de carga de crédito en la consola de Anthropic | No está publicado en la documentación ni en el soporte; solo se ve en el formulario de compra. | La página para humanos dice «crédito prepago» sin monto; lo anotás vos al cargarlo. | Fase 19 |
 | Si GitHub sigue contando doble los minutos de Windows | La documentación quitó la tabla de multiplicadores; las facturas que reportan los usuarios siguen mostrando el doble. | Se presupuesta como doble (unos 1.000 minutos de Windows por mes); si se agotan, la red completa corre en tu PC. | Fase 02 |
 | Que una actualización bajada por Retenia no dispare el aviso de Windows | Es un razonamiento sobre la marca de origen de los archivos (la escriben los navegadores, no Node), sin prueba empírica. | Se comprueba a mano en la Fase 40; si aparece, la Ayuda lo explica. | Fase 40 |
-| Velocidad de Kokoro y Whisper en una PC de escritorio | Solo hay cifras oficiales para Raspberry Pi. En esta PC el modelo chico de prueba generó 1,86 s de audio en 0,8 s. | Se mide en la Fase 05; si Kokoro tarda más de 2 s por frase, se usa la variante más chica o Piper. | Fase 05 |
-| sherpa-onnx dentro del programa empaquetado | Hay reportes abiertos de «Could not find sherpa-onnx-node» en programas empaquetados; la prueba de hoy corrió sin empaquetar. | `asarUnpack` de sus dos paquetes y carga por ruta absoluta; si falla, ejecutables de sherpa-onnx como proceso aparte. | Fase 05 |
-| Tamaño exacto de la variante int8 de Whisper | Los paquetes traen fp32 e int8 juntos. | Se mide al reempaquetar en la Fase 05. | Fase 05 |
+| Velocidad de Kokoro y Whisper en una PC de escritorio | Resuelto en la Fase 05: Kokoro 0,9 a 1,4 s por frase (1,8 s la primera) y Whisper small 0,2 a 0,5 s por frase (`docs/laboratorio.md`). | — | Fase 05 |
+| sherpa-onnx dentro del programa empaquetado | Resuelto en la Fase 05: anda empaquetado e instalado (en el CI), con sus dos paquetes fuera del asar. Lo que sí falló fue una carpeta con «í»: se resolvió con rutas relativas. | — | Fase 05 |
+| Tamaño exacto de la variante int8 de Whisper | Resuelto en la Fase 05: small int8, 358 MB (sin los fp32, que no se bajan). | — | Fase 05 |
 | Disparador `[[` en las menciones de TipTap | Funciona por construcción (el disparador se escapa en una expresión regular) pero no está documentado. | Si no anda, un disparador de un carácter (`[`) con filtro propio. | Fase 07 |
 
 ## Herramientas de esta PC (desarrollo)

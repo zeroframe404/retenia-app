@@ -4,10 +4,12 @@ import { systemClock } from '../core/clock';
 import { openWorkspace } from '../data/workspace';
 import { channels, type Registry } from '../preload/contract';
 import { demoChannels } from '../preload/contract/demo';
+import { labChannels } from '../preload/contract/lab';
 import { texts } from '../preload/contract/texts';
 import { createHandlers, handleMessage, type Variant } from './bridge';
 import { createDemoHandlers } from './demo';
 import { createDemoDate } from './demo/clock';
+import { prepareLabSwitches, startLab } from './demo/lab-setup';
 import { seedDemoCards } from './demo/seed';
 import { createGate, gateHandlers } from './gate';
 
@@ -16,6 +18,16 @@ const isTest = __VARIANTE__ === 'prueba';
 const productName = isTest ? texts.appNameTest : texts.appName;
 
 app.setName(productName);
+// El identificador con el que el instalador deja el acceso del menú Inicio: Windows lo usa para
+// mostrar los avisos con el nombre del programa y para traerlo al frente al tocarlos.
+if (app.isPackaged) {
+  app.setAppUserModelId(
+    isTest ? 'io.github.zeroframe404.retenia-prueba' : 'io.github.zeroframe404.retenia',
+  );
+}
+if (__VARIANTE__ === 'prueba') {
+  prepareLabSwitches();
+}
 
 // Los datos viven en la carpeta de datos de aplicaciones de la cuenta de Windows, una por
 // variante («Retenia» y «Retenia (prueba)»), nunca dentro de la carpeta del programa. La
@@ -88,8 +100,10 @@ function start(): void {
   });
   let registry: Registry = channels;
   if (__VARIANTE__ === 'prueba' && demo) {
-    handlers = { ...handlers, ...createDemoHandlers(demo) };
-    registry = { ...channels, ...demoChannels() };
+    const lab = startLab({ dataDir, bringToFront });
+    app.on('quit', lab.stop);
+    handlers = { ...handlers, ...createDemoHandlers(demo), ...lab.handlers };
+    registry = { ...channels, ...demoChannels(), ...labChannels() };
   }
 
   // Mientras se restaura una copia, todo lo demás espera (la base se cierra y se reemplaza).
@@ -97,9 +111,17 @@ function start(): void {
   const routes = gateHandlers(handlers, gate);
 
   Menu.setApplicationMenu(null);
-  session.defaultSession.setPermissionRequestHandler((_contents, _permission, decide) =>
-    decide(false),
-  );
+  // Todo permiso se niega, salvo el micrófono (solo audio) que pide la ventana de Retenia al
+  // tocar «Grabar» en el Laboratorio de la variante de prueba. Si Windows lo tiene bloqueado,
+  // Chromium igual no lo consigue y la ventana muestra cómo habilitarlo (CA-027).
+  session.defaultSession.setPermissionRequestHandler((contents, permission, decide, details) => {
+    const audioOnly =
+      permission === 'media' &&
+      'mediaTypes' in details &&
+      details.mediaTypes?.length === 1 &&
+      details.mediaTypes[0] === 'audio';
+    decide(__VARIANTE__ === 'prueba' && audioOnly && contents === mainWindow?.webContents);
+  });
   const known = registry;
   for (const channel of Object.keys(known)) {
     ipcMain.handle(channel, (_event, request: unknown) =>

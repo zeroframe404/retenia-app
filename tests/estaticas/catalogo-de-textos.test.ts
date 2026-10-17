@@ -30,6 +30,11 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.data.unreadableCopy': ['48 KB'],
   'texts.data.restored': ['22/03/2027', '10:00'],
   'demoTexts.ribbon': ['lunes 15/03/2027'],
+  'demoTexts.lab.elapsed': [1140],
+  'demoTexts.lab.heard': ['good morning'],
+  'demoTexts.lab.voice.downloading': [50],
+  'demoTexts.lab.transcription.recording': [2],
+  'demoTexts.lab.pdf.phrase': ['Una muestra es una parte de la población'],
 };
 
 function collect(value: unknown, path: string, out: { path: string; text: string }[]): void {
@@ -137,6 +142,38 @@ describe('catálogo de textos', () => {
     expect(demoTexts.section).toBe('Demostración');
     expect(demoTexts.advance).toEqual({ 1: '+1 día', 7: '+7 días', 35: '+35 días' });
     expect(demoTexts.reset).toBe('Restablecer fecha');
+  });
+
+  it('los textos de la Fase 05 son exactamente los de las pruebas manuales y los criterios', () => {
+    const lab = demoTexts.lab;
+    expect(lab.open).toBe('Laboratorio');
+    expect(lab.title).toBe('Laboratorio');
+    expect(lab.voice.download).toBe('Descargar modelos');
+    expect(lab.voice.ready).toBe('Modelos listos');
+    expect(lab.voice.missing).toBe(
+      'Para usar la voz hay que descargar los modelos una vez. Conectate y tocá Descargar.',
+    );
+    expect(lab.voice.speak).toBe('Decir en voz alta');
+    expect(lab.transcription.record).toBe('Grabar');
+    expect(lab.transcription.stop).toBe('Detener');
+    expect(lab.heard('good morning')).toBe('Entendí: “good morning”');
+    expect(lab.transcription.blocked).toBe('Sin acceso al micrófono no podemos escucharte');
+    expect(lab.transcription.howTo).toBe('Cómo habilitarlo');
+    expect(lab.pdf.read).toBe('Leer PDF de prueba');
+    expect(lab.scan.read).toBe('Leer página escaneada');
+    expect(lab.notice.send).toBe('Probar aviso');
+    expect(`${lab.notificationTitle} · ${lab.notificationBody}`).toBe(
+      'Retenia · Esto es una prueba',
+    );
+    expect(demoTexts.offline).toBe('Simular sin conexión');
+  });
+
+  it('cuánto tardó se dice en segundos con coma decimal, y nunca «0 s»', () => {
+    expect(demoTexts.lab.elapsed(1140)).toBe('Tardó 1,1 s');
+    expect(demoTexts.lab.elapsed(4200)).toBe('Tardó 4,2 s');
+    expect(demoTexts.lab.elapsed(12)).toBe('Tardó 0,1 s');
+    expect(demoTexts.lab.elapsed(75_000)).toBe('Tardó 75 s');
+    expect(demoTexts.lab.voice.downloading(49.6)).toBe('Bajando los modelos: 50 %');
   });
 
   it('las diferencias se cuentan en singular y en plural', () => {

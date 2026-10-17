@@ -3,8 +3,12 @@
 #   dos variantes), con el informe y las trazas de punta a punta como adjuntos.
 # - En cada pull request, trabajo «instalador»: arma los dos instaladores (NSIS), mide su tamaño,
 #   instala "Retenia (prueba)" en silencio en una Windows limpia, la abre, crea una tarjeta, la
-#   cierra, la abre de nuevo y la desinstala. Deja el instalador de prueba como adjunto
-#   («instalador-prueba»): es el que baja "Bajame el instalador de prueba".
+#   cierra, la abre de nuevo, recorre el Laboratorio (baja los modelos de un servidor local, habla,
+#   transcribe el audio de ejemplo, lee el PDF y el escaneo y manda el aviso) y la desinstala.
+#   Deja el instalador de prueba como adjunto («instalador-prueba»): es el que baja "Bajame el
+#   instalador de prueba".
+# - Los dos trabajos guardan entre corridas los modelos de voz de desarrollo (unos 500 MB): se
+#   bajan de nuevo solo cuando cambia su manifiesto.
 # - Una vez por semana (y a pedido): todo lo anterior solo, más los cuatro sabotajes.
 # Las acciones van fijadas por su huella; al lado, la versión.
 name: Red de pruebas
@@ -52,7 +56,13 @@ jobs:
           path: tools/bin
           key: opengrep-v1.30.2-windows
 
-      - name: Preparar Opengrep (se acepta solo si su huella coincide)
+      - name: Recordar los modelos de voz de desarrollo entre corridas
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/Retenia-desarrollo/modelos
+          key: modelos-de-voz-${{ hashFiles('src/main/voice-models/manifest.ts') }}
+
+      - name: Preparar Opengrep y los modelos de voz (se aceptan solo si su huella coincide)
         run: node tools/preparar.mjs
 
       - name: Red completa (verificar:todo)
@@ -101,6 +111,15 @@ jobs:
       - name: Instalar las dependencias del lockfile
         run: npm ci
 
+      - name: Recordar los modelos de voz de desarrollo entre corridas
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/AppData/Local/Retenia-desarrollo/modelos
+          key: modelos-de-voz-${{ hashFiles('src/main/voice-models/manifest.ts') }}
+
+      - name: Preparar los modelos de voz de desarrollo (los sirve el servidor local del humo)
+        run: node tools/preparar.mjs --modelos
+
       - name: Armar los dos instaladores y medir su tamaño (tope 150 MB)
         run: npm run construir -- --instalador
 
@@ -113,7 +132,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Humo del instalador (instalar en silencio, abrir, crear una tarjeta, cerrar, abrir, desinstalar)
+      - name: Humo del instalador (instalar en silencio, abrir, crear una tarjeta, cerrar, abrir, el Laboratorio, desinstalar)
         shell: bash
         env:
           RETENIA_RUN_DIR: ${{ github.workspace }}/.cache/red/instalado

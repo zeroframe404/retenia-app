@@ -11,6 +11,26 @@ export function systemClock(): Clock {
   return { now: () => new Date() };
 }
 
+// Un cronómetro: cuánto tardó algo, en milisegundos. No da la hora, solo mide; por eso la
+// variante de prueba lo usa de verdad aunque su reloj esté quieto en la fecha de demostración
+// (el Laboratorio dice «Tardó 1,1 s»).
+export interface Stopwatch {
+  start(): () => number;
+}
+
+export function systemStopwatch(): Stopwatch {
+  return {
+    start() {
+      const started = performance.now();
+      return () => Math.max(0, performance.now() - started);
+    },
+  };
+}
+
+export function fixedStopwatch(elapsedMs: number): Stopwatch {
+  return { start: () => () => elapsedMs };
+}
+
 export function fixedClock(instant: Date): Clock {
   const epochMs = instant.getTime();
   return { now: () => new Date(epochMs) };

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { demoClock, fixedClock, systemClock } from '../../src/core/clock';
+import {
+  demoClock,
+  fixedClock,
+  fixedStopwatch,
+  systemClock,
+  systemStopwatch,
+} from '../../src/core/clock';
 import { studyDayOf } from '../../src/core/study-day';
 import { formatLongDate } from '../../src/preload/contract/texts';
 import { inBuenosAires } from '../apoyo/fechas';
@@ -29,5 +35,18 @@ describe('reloj', () => {
     expect(demoClock(35).now()).toEqual(inBuenosAires('19/04/2027 10:00'));
     expect(formatLongDate(studyDayOf(demoClock(7).now()))).toBe('lunes 22/03/2027');
     expect(formatLongDate(studyDayOf(demoClock(8).now()))).toBe('martes 23/03/2027');
+  });
+});
+
+describe('cronómetro', () => {
+  it('mide cuánto tardó algo aunque el reloj de la demostración esté quieto', () => {
+    const elapsed = fixedStopwatch(1250).start();
+    expect(elapsed()).toBe(1250);
+  });
+
+  it('el cronómetro del sistema nunca da un tiempo negativo', () => {
+    const elapsed = systemStopwatch().start();
+    expect(elapsed()).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(elapsed())).toBe(true);
   });
 });

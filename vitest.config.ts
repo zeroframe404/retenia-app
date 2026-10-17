@@ -22,7 +22,16 @@ export default defineConfig({
         extends: true,
         test: { name: 'propiedades', include: ['tests/propiedades/**/*.test.ts'] },
       },
-      { extends: true, test: { name: 'contrato', include: ['tests/contrato/**/*.test.ts'] } },
+      {
+        // Abren una base real y hacen copias y restauraciones: dentro de un sabotaje, con tres
+        // redes a la vez en la máquina del CI, pasaban los 5 s que Vitest da por defecto.
+        extends: true,
+        test: {
+          name: 'contrato',
+          include: ['tests/contrato/**/*.test.ts'],
+          testTimeout: 30_000,
+        },
+      },
       {
         // Las pantallas de la ventana (capa R): Testing Library con jsdom.
         extends: true,
@@ -40,6 +49,20 @@ export default defineConfig({
           name: 'integracion',
           include: ['tests/integracion/**/*.test.ts'],
           testTimeout: 60_000,
+        },
+      },
+      {
+        // Las piezas del Laboratorio que tienen que andar sin internet (voz, transcripción, PDF
+        // y escaneos): cada proceso de pruebas arranca con la red bloqueada, y Node repite el
+        // bloqueo en cada hilo que abra (tests/apoyo/sin-red.cjs). Solo en «verificar:todo»: con
+        // los modelos reales, dejaban a la red rápida fuera de su tope en la máquina del CI.
+        extends: true,
+        test: {
+          name: 'sin-red',
+          include: ['tests/sin-red/**/*.test.ts'],
+          execArgv: ['--require', join(import.meta.dirname, 'tests', 'apoyo', 'sin-red.cjs')],
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
         },
       },
       {

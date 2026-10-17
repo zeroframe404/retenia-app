@@ -17,11 +17,42 @@ files:
   - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
   - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"
   - "!node_modules/better-sqlite3/prebuilds/win32-arm64.node"
+  # El Laboratorio (Fase 05). De pdf.js viaja solo lo que usa el proceso de materiales (la
+  # ventana lleva su parte adentro de su propio archivo), sin el lienzo nativo, que no se usa.
+  - "!node_modules/pdfjs-dist/{build,cmaps,iccs,image_decoders,standard_fonts,types,wasm,web}/**"
+  - "!node_modules/pdfjs-dist/legacy/{image_decoders,web}/**"
+  - "!node_modules/pdfjs-dist/legacy/build/*.{map,d.mts}"
+  - "!node_modules/pdfjs-dist/legacy/build/pdf.{min,sandbox,sandbox.min,worker.min}.mjs"
+  - "!node_modules/pdfjs-dist/{webpack.mjs,legacy/webpack.mjs,README.md,CODE_OF_CONDUCT.md}"
+  - "!node_modules/@napi-rs/**"
+  # tesseract.js usa el fetch de Node: su respaldo node-fetch y lo que arrastra no hacen falta.
+  - "!node_modules/{node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall}/**"
+  # Lo que tesseract.js usa solo en el navegador.
+  - "!node_modules/{zlibjs,idb-keyval}/**"
+  # De tesseract.js-core, solo los núcleos que carga en Node: tesseract.js 7.0.0 elige siempre
+  # el completo (no el «solo LSTM») sin importar el modo pedido. De los idiomas, solo la versión
+  # entera comprimida que usa (no la grande).
+  - "!node_modules/tesseract.js-core/*.wasm.js"
+  - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}-lstm.{js,wasm}"
+  - "!node_modules/@tesseract.js-data/*/4.0.0/**"
 extraMetadata:
   main: out/prueba/main/index.js
 asar: true
+# Fuera del asar: el módulo nativo de la base; el complemento nativo de sherpa-onnx con sus DLL
+# (voz y transcripción); y tesseract.js, que corre en hilos de Node que leen sus archivos del
+# disco, con los datos de español e inglés que vienen en el instalador (escaneos).
 asarUnpack:
   - node_modules/better-sqlite3/**
+  - node_modules/sherpa-onnx-node/**
+  - node_modules/sherpa-onnx-win-x64/**
+  - node_modules/tesseract.js/**
+  - node_modules/tesseract.js-core/**
+  - node_modules/@tesseract.js-data/**
+  - node_modules/{wasm-feature-detect,regenerator-runtime,is-url,bmp-js}/**
+# El PDF de ejemplo de «Leer PDF de prueba» y «Leer página escaneada».
+extraResources:
+  - from: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"
+    to: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"
 npmRebuild: false
 compression: normal
 artifactName: Retenia-prueba-instalador-${version}.${ext}

@@ -291,3 +291,88 @@ describe('paquete: fuses de seguridad (docs/arquitectura.md, sección 4)', () =>
     }
   });
 });
+
+describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
+  const unpackedIn = (variant: 'prueba' | 'real', ...path: string[]) =>
+    join(requirePackage(variant).folder, 'resources', 'app.asar.unpacked', 'node_modules', ...path);
+
+  it('[CA-025] la variante de prueba trae sherpa-onnx con sus DLL fuera del asar y su proceso de voz', () => {
+    for (const file of [
+      'sherpa-onnx.node',
+      'onnxruntime.dll',
+      'sherpa-onnx-c-api.dll',
+      'sherpa-onnx-cxx-api.dll',
+    ]) {
+      expect(existsSync(unpackedIn('prueba', 'sherpa-onnx-win-x64', file)), file).toBe(true);
+    }
+    const prueba = readPackage(requirePackage('prueba').folder).map((f) => f.path);
+    expect(prueba).toEqual(
+      expect.arrayContaining([
+        'app.asar/out/prueba/main/voice.js',
+        'app.asar/out/prueba/main/materials.js',
+      ]),
+    );
+  });
+
+  it('[CA-029] la variante de prueba trae los datos de español e inglés de tesseract.js, sin bajar nada', () => {
+    for (const lang of ['eng', 'spa']) {
+      const data = unpackedIn(
+        'prueba',
+        '@tesseract.js-data',
+        lang,
+        '4.0.0_best_int',
+        `${lang}.traineddata.gz`,
+      );
+      expect(existsSync(data), lang).toBe(true);
+      expect(statSync(data).size).toBeGreaterThan(1_000_000);
+    }
+    expect(existsSync(unpackedIn('prueba', 'tesseract.js-core', 'tesseract-core-simd.wasm'))).toBe(
+      true,
+    );
+  });
+
+  it('[CA-028] el PDF de ejemplo está en la variante de prueba y no en la real', () => {
+    const sample = ['datos-de-ejemplo', 'Inferencia — capítulos 1 a 4.pdf'];
+    expect(existsSync(join(requirePackage('prueba').folder, 'resources', ...sample))).toBe(true);
+    expect(existsSync(join(requirePackage('real').folder, 'resources', ...sample))).toBe(false);
+  });
+
+  it('la versión de uso real no trae las piezas del Laboratorio ni sus procesos de trabajo', () => {
+    const real = readPackage(requirePackage('real').folder).map((f) => f.path);
+    const pieces = real.filter((path) =>
+      /sherpa-onnx|tesseract|pdfjs-dist|@napi-rs|\/voice\.js$|\/materials\.js$/.test(path),
+    );
+    expect(pieces).toEqual([]);
+  });
+
+  it('la ventana de la versión de uso real no lleva pdf.js ni su hilo de trabajo, con ningún nombre', () => {
+    const real = readPackage(requirePackage('real').folder);
+    const withPdfjs = real
+      .filter(
+        (file) =>
+          /pdf\.worker/i.test(file.path) ||
+          file.text?.includes('GlobalWorkerOptions') ||
+          file.text?.includes('pdfjsVersion'),
+      )
+      .map((file) => file.path);
+    expect(withPdfjs).toEqual([]);
+    // Control: en la variante de prueba sí se encuentra (si no, la búsqueda no probaría nada).
+    const prueba = readPackage(requirePackage('prueba').folder);
+    expect(prueba.some((file) => file.text?.includes('GlobalWorkerOptions'))).toBe(true);
+  });
+
+  it('del lector de PDF viaja solo lo que usa el proceso de materiales, sin el lienzo nativo', () => {
+    const prueba = readPackage(requirePackage('prueba').folder).map((f) => f.path);
+    // Solo los archivos: las carpetas del asar también aparecen en la lista.
+    const inPdfjs = prueba.filter((path) => path.includes('node_modules/pdfjs-dist/'));
+    const pdfjs = inPdfjs.filter((path) => !inPdfjs.some((other) => other.startsWith(`${path}/`)));
+    expect(pdfjs.length).toBeGreaterThan(0);
+    expect(
+      pdfjs.filter(
+        (path) =>
+          !/pdfjs-dist\/(package\.json|LICENSE|legacy\/build\/pdf(\.worker)?\.mjs)$/.test(path),
+      ),
+    ).toEqual([]);
+    expect(prueba.filter((path) => path.includes('@napi-rs'))).toEqual([]);
+  });
+});

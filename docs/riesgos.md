@@ -29,7 +29,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** sherpa-onnx-node es un complemento nativo con DLL de 25 MB; hay reportes abiertos de «Could not find sherpa-onnx-node» cuando el programa está empaquetado en asar; en Electron hay que pasar `enableExternalBuffer: false` en todas las llamadas; los modelos pesan entre 300 y 600 MB y se cargan en un proceso de trabajo que además tiene que reiniciarse solo si se cuelga (CA-359). Whisper acepta como máximo 30 s por pasada.
 - **Cómo nos damos cuenta.** El Laboratorio de la Fase 05 (CA-024 a CA-027) corre dentro del programa instalado, no en desarrollo. Los tiempos se miden ahí.
 - **Plan B.** Para la voz, `kokoro-js` (Apache-2.0, corre sobre onnxruntime en Node, sin internet); para transcribir, Whisper vía `@huggingface/transformers`; o invocar los ejecutables oficiales de sherpa-onnx como proceso aparte, hablando por archivos. Ninguna de las tres cambia la pantalla ni los criterios.
-- **Estado hoy.** Comprobado en esta PC el 13/10/2026 dentro de un `utilityProcess` de Electron 44 sin empaquetar: modelo cargado en 941 ms, frase generada en 833 ms, DLL encontradas solas. Falta lo mismo empaquetado y con Kokoro y Whisper.
+- **Estado hoy.** Cerrado en la Fase 05 (17/10/2026), sin plan B: Kokoro v1.0 y Whisper small corren en el proceso de voz del programa empaquetado (y del instalado, en el CI). Kokoro tarda de 0,9 a 1,8 s por frase y Whisper de 0,2 a 1,2 s; los modelos pesan 506 MB. Apareció un riesgo que no estaba anotado: sherpa-onnx no encontraba los modelos en una carpeta con «í» (una cuenta de Windows con tilde) y el proceso se caía; se resolvió con rutas relativas y tiene su prueba. Detalle en `docs/laboratorio.md`.
 - **Se comprueba en** la Fase 05.
 
 ## 3. Reconocimiento de escaneos sin internet
@@ -37,6 +37,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** tesseract.js carga un núcleo WebAssembly de 45 MB y los datos de idioma desde rutas que dentro del asar no existen; un PDF escaneado de 300 páginas puede llevar decenas de minutos; el reconocimiento consume CPU y puede trabar el proceso de trabajo.
 - **Cómo nos damos cuenta.** CA-029 (Fase 05) sobre el programa instalado y CA-114 y CA-347 (Fases 14 y 38) con el PDF de 300 páginas.
 - **Plan B.** Correr tesseract.js en una ventana oculta de Electron (modo navegador, que es el más probado del proyecto) en vez de en Node; reconocer solo las páginas marcadas «No extraído» y una por vez, con avance visible; tope de tiempo por página con «Requiere revisión».
+- **Estado hoy.** La parte de la Fase 05 quedó cerrada (17/10/2026), sin plan B: tesseract.js corre en los hilos de Node del proceso de materiales, empaquetado, con los datos de español e inglés dentro del instalador, y reconoce la página 9 en 0,8 s con un 98,4 % de parecido al original, con la red bloqueada. tesseract.js 7.0.0 carga en Node siempre su núcleo completo (viaja ese). Queda para la Fase 14 el PDF de 300 páginas.
 - **Se comprueba en** las Fases 05 y 14.
 
 ## 4. Tamaño del instalador
@@ -44,7 +45,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** Electron ocupa unos 100 MB instalado; sherpa-onnx suma 25 MB de DLL; pdf.js, KaTeX con sus fuentes, el núcleo de tesseract.js y el curso de inglés suman más. Un instalador de 200 MB hace lenta cada actualización y cada corrida del CI.
 - **Cómo nos damos cuenta.** El CI mide el tamaño del instalador en cada pull request desde la Fase 03 y falla si supera 150 MB.
 - **Plan B.** Mover sherpa-onnx (las DLL, no solo los modelos) a la descarga única; comprimir el instalador con LZMA (lo hace NSIS); dejar el núcleo de tesseract.js fuera del asar pero dentro del instalador, que es más chico que descargarlo.
-- **Estado hoy.** El instalador de «Retenia (prueba)» pesa unos 116 MB (14/10/2026), con Electron, la base de datos y las pantallas; el CI lo mide y falla si pasa de 150 MB. Falta lo que traen las fases siguientes (sherpa-onnx, pdf.js, KaTeX, el curso de inglés).
+- **Estado hoy.** Con la Fase 05 (17/10/2026), el instalador de «Retenia (prueba)» pesa 131,6 MB: sumó sherpa-onnx (23 MB de DLL), tesseract.js con su núcleo y los datos de español e inglés (17 MB) y pdf.js (5 MB); los modelos de voz (506 MB) siguen en la descarga única. El de «Retenia» sigue en 116 MB porque todavía no lleva esas piezas: van a entrar con sus fases (13, 14 y 28) y ahí se vuelve a medir. Faltan además KaTeX y el curso de inglés. Margen hasta el tope: unos 18 MB.
 - **Se comprueba en** la Fase 03 (y en cada pull request después).
 
 ## 5. Costo de la IA
@@ -67,6 +68,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** Los botones «Empezar» y «Posponer» del aviso (CA-238, CA-239) dependen de que el acceso del menú Inicio lleve el identificador de aplicación correcto, de `Notification.handleActivation` (que Electron documenta para Windows) y de que Retenia quede en la bandeja del sistema. Si alguno falla, el aviso sale sin botones o el toque no llega.
 - **Cómo nos damos cuenta.** CA-030 (Fase 05) prueba el aviso básico y el toque; CA-238 a CA-246 (Fase 26) los botones.
 - **Plan B.** Aviso sin botones: tocarlo abre Estudiar con la sesión ya iniciada; «Posponer» se hace desde Estudiar. Cumple el espíritu de H-53 con un paso más.
+- **Estado hoy.** El aviso básico quedó comprobado en la Fase 05 (17/10/2026): Windows confirma que lo mostró, empaquetado y sin empaquetar, y la envoltura trae Retenia al frente al tocarlo; el toque de verdad lo comprobás vos (M05.8). Los botones siguen para la Fase 26.
 - **Se comprueba en** las Fases 05 y 26.
 
 ## 8. Formatos de Anki y RemNote
