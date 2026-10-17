@@ -13,6 +13,8 @@
 | 05 · Laboratorio de piezas riesgosas | En revisión: pull request abierto (rama `fase-05` sobre `main`), faltan tus pruebas manuales |
 | 06 · Sistema de diseño y armazón | Sigue después de cerrar la 05 |
 
+Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 646 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (2 min 30 s). En el CI del pull request #6, la red completa terminó en «VERDE · 645 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (23 min 19 s en su máquina) y el humo del instalador pasó sus 6 pasos, incluido el Laboratorio en «Retenia (prueba)» instalada: bajó los modelos de un servidor local, dijo una frase, transcribió el audio de ejemplo con el micrófono de prueba, leyó el PDF y el escaneo y Windows confirmó el aviso. Instaladores del CI: 129,8 MB el de prueba y 114,9 MB el real.
+
 Cuando apruebes la Fase 05: fusionar el pull request y pedirme el tag; lo pone `npm run cerrar-fase -- 05`, que antes corre la red completa y guarda en el tag cuántas pruebas había.
 
 ## Qué hay hoy
