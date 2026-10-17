@@ -195,10 +195,27 @@ describe('aviso de Windows', () => {
     });
     await notifier.show({ title: 'Retenia', body: 'Esto es una prueba' });
     // Windows lo saca de la pantalla por tiempo: avisa «close», pero todavía se puede tocar.
-    created[0]?.emit('close');
+    created[0]?.emit('close', {}, { reason: 'timedOut' });
     expect(notifier.held()).toBe(1);
     created[0]?.emit('click');
     expect(fronts).toEqual([1]);
+    expect(notifier.held()).toBe(0);
+  });
+
+  it('[CA-030] un aviso que la persona descartó con la X ya no se guarda (simulado)', async () => {
+    const created: FakeNotification[] = [];
+    const notifier = createNotifier({
+      create: (options) => {
+        const notification = new FakeNotification(options, 'show');
+        created.push(notification);
+        return notification;
+      },
+      bringToFront: () => undefined,
+    });
+    await notifier.show({ title: 'Retenia', body: 'Esto es una prueba' });
+    await notifier.show({ title: 'Retenia', body: 'Esto es una prueba' });
+    created[0]?.emit('close', {}, { reason: 'userCanceled' });
+    created[1]?.emit('close', {}, {});
     expect(notifier.held()).toBe(0);
   });
 });
