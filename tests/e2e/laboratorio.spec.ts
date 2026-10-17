@@ -50,7 +50,7 @@ test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, 
     // Con lo que bajó, ya habla.
     await voice.getByRole('textbox', { name: 'Frase en inglés' }).fill('Good morning');
     await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
-    await expect(voice.getByText(/^Tardó \d+,\d s$/)).toBeVisible({ timeout: 60_000 });
+    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 60_000 });
   } finally {
     await server.close();
   }
@@ -93,7 +93,7 @@ test('[CA-025] «Decir en voz alta» dice «The weather is nice today» con dos 
   for (const name of ['Mujer, Estados Unidos', 'Hombre, Reino Unido']) {
     await voice.getByRole('radio', { name }).check();
     await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
-    await expect(voice.getByText(/^Tardó \d+,\d s$/)).toBeVisible({ timeout: 60_000 });
+    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 60_000 });
     const audio = voice.locator('audio');
     await expect(audio).toHaveAttribute('src', /^blob:/);
     await expect.poll(() => audio.evaluate((a: HTMLAudioElement) => a.duration)).toBeGreaterThan(1);
@@ -123,7 +123,7 @@ test('[CA-026] «Grabar», decir «good morning» y «Detener» muestran «Enten
   await expect(field).toHaveValue('good morning');
   await field.fill('good evening');
   await expect(transcription.getByText('Entendí: “good evening”')).toBeVisible();
-  await expect(transcription.getByText(/^Tardó \d+,\d s$/)).toBeVisible();
+  await expect(transcription.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible();
 });
 
 test('[CA-027] con el micrófono bloqueado en Windows, «Grabar» muestra «Sin acceso al micrófono no podemos escucharte» y «Cómo habilitarlo» (simulado)', async ({
@@ -192,7 +192,7 @@ test('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y una fra
       expect(box.y + box.height).toBeLessThanOrEqual(page.y + page.height);
     }
   }
-  await expect(pdf.getByText(/^Tardó \d+,\d s$/)).toBeVisible();
+  await expect(pdf.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible();
 });
 
 test('[CA-029] «Leer página escaneada» muestra el texto de la página 9 aunque es una imagen', async ({
@@ -207,7 +207,7 @@ test('[CA-029] «Leer página escaneada» muestra el texto de la página 9 aunqu
     timeout: 120_000,
   });
   await expect(scan.getByText(/se llama hipótesis nula/)).toBeVisible();
-  await expect(scan.getByText(/^Tardó \d+,\d s$/)).toBeVisible();
+  await expect(scan.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible();
 });
 
 test('[CA-030] «Probar aviso» manda el aviso de Windows y lo dice', async ({ appWindow }) => {
@@ -217,5 +217,5 @@ test('[CA-030] «Probar aviso» manda el aviso de Windows y lo dice', async ({ a
   await expect(
     notice.getByText('Aviso enviado. Minimizá Retenia y tocalo: Retenia vuelve al frente.'),
   ).toBeVisible({ timeout: 20_000 });
-  await expect(notice.getByText(/^Tardó \d+,\d s$/)).toBeVisible();
+  await expect(notice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible();
 });

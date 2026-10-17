@@ -43,7 +43,7 @@ El instalador de «Retenia (prueba)» pasó de 116 MB a 131,6 MB (tope 150 MB); 
 | small (elegido) | 358 MB | 1,3 s | 0,48 s | 4 de 4 |
 
 - **Medido en el Laboratorio.** «Grabar» dos segundos y «Detener»: 1,1 a 1,2 s la primera vez, 0,2 s después; entiende «good morning».
-- **Micrófono.** El permiso se pide recién al tocar «Grabar». Si Windows lo bloquea: «Sin acceso al micrófono no podemos escucharte» y «Cómo habilitarlo» con los pasos. Una grabación dura como mucho 30 s. Con el micrófono de esta PC y nadie hablando, dice «No escuché nada. Probá de nuevo, más cerca del micrófono.».
+- **Micrófono.** El permiso se pide recién al tocar «Grabar». Si Windows lo bloquea: «Sin acceso al micrófono no podemos escucharte» y «Cómo habilitarlo» con los pasos. Una grabación corta sola a los 29 s (Whisper acepta hasta 30 de una vez). Con el micrófono de esta PC y nadie hablando, dice «No escuché nada. Probá de nuevo, más cerca del micrófono.».
 - **Lo que hubo que resolver.** Whisper escribe «[BLANK_AUDIO]» cuando no oye voz: ya no se muestra como palabras. Grabar mientras sonaba la frase de «Decir en voz alta» mezclaba las voces (el cancelador de eco): ahora «Grabar» la calla.
 - **Plan B (no hizo falta).** Moonshine base (111 MB) o Whisper con `@huggingface/transformers`.
 

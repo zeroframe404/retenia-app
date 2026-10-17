@@ -223,7 +223,8 @@ test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda 
       .click();
     await page.getByRole('button', { name: 'Laboratorio' }).click();
     const region = (name: string) => page.getByRole('region', { name });
-    const elapsed = /^Tardó \d+,\d s$/;
+    // De 10 segundos para arriba va sin decimal («Tardó 17 s» en la máquina del CI).
+    const elapsed = /^Tardó \d+(,\d)? s$/;
 
     const voice = region('Voz');
     await voice.getByRole('button', { name: 'Descargar modelos' }).click();

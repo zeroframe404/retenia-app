@@ -35,7 +35,7 @@ Los textos de abajo son los que muestra el programa hoy y coinciden letra por le
 
 - Hacé: tocá «Grabar», decí good morning y tocá «Detener».
 - Tenés que ver: «Entendí: “good morning”» en un campo donde podés corregir el texto.
-- Aclaración: la primera vez Windows o Retenia pueden tardar un instante en abrir el micrófono. Mientras graba dice «Grabando… 2 s. Decí la frase y tocá «Detener».» (los segundos suben; corta solo a los 30). El campo para corregir se llama «Lo que entendí (podés corregirlo)»: si lo cambiás, el «Entendí» de arriba cambia con él. Si tocás «Grabar» mientras suena una frase de M05.2, la frase se calla para no grabarla encima. Si no dijiste nada, dice «No escuché nada. Probá de nuevo, más cerca del micrófono.».
+- Aclaración: la primera vez Windows o Retenia pueden tardar un instante en abrir el micrófono. Mientras graba dice «Grabando… 2 s. Decí la frase y tocá «Detener».» (los segundos suben; corta solo a los 29). El campo para corregir se llama «Lo que entendí (podés corregirlo)»: si lo cambiás, el «Entendí» de arriba cambia con él. Si tocás «Grabar» mientras suena una frase de M05.2, la frase se calla para no grabarla encima. Si no dijiste nada, dice «No escuché nada. Probá de nuevo, más cerca del micrófono.».
 
 ## M05.5 · Micrófono bloqueado · CA-027
 
@@ -65,7 +65,7 @@ Los textos de abajo son los que muestra el programa hoy y coinciden letra por le
 
 - Hacé: en Claude Code escribí: Bajame el instalador de prueba. Instalalo, abrí «Retenia (prueba)», andá al Laboratorio y repetí «Decir en voz alta» y «Leer PDF de prueba».
 - Tenés que ver: las dos cosas funcionan igual que recién.
-- Aclaración: el programa instalado tiene su propia carpeta de datos, así que antes de «Decir en voz alta» tocá «Descargar modelos» (lo mismo que en M05.1). El instalador se llama `Retenia-prueba-instalador-0.0.0.exe`; si Windows muestra «Windows protegió su PC», tocá «Más información» y «Ejecutar de todas formas».
+- Aclaración: el programa instalado tiene su propia carpeta de datos, así que antes de «Decir en voz alta» tocá «Descargar modelos» (lo mismo que en M05.1). Si podés, repetí ahí también M05.8 («Probar aviso», minimizar y tocar la notificación): instalado, el aviso sale con el nombre «Retenia (prueba)» del menú Inicio, que es como lo vas a ver siempre; con `npm run iniciar` sale con el nombre de Electron. El instalador se llama `Retenia-prueba-instalador-0.0.0.exe`; si Windows muestra «Windows protegió su PC», tocá «Más información» y «Ejecutar de todas formas».
 
 ## Libre · Uso libre · 5 minutos
 
