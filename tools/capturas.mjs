@@ -236,7 +236,7 @@ async function phase05(first) {
   await pdf.getByRole('button', { name: 'Leer PDF de prueba' }).click();
   await pdf.getByRole('img', { name: 'Frase resaltada' }).first().waitFor({ timeout: 30_000 });
   await pdf
-    .getByRole('img', { name: 'Página 1 con la frase resaltada' })
+    .getByRole('figure', { name: 'Página 1 con la frase resaltada' })
     .evaluate((element) => element.scrollIntoView({ block: 'center' }));
   await shoot(page, '6-pdf');
 

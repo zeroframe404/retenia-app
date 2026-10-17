@@ -143,6 +143,18 @@ describe('canales del Laboratorio', () => {
         .success,
     ).toBe(false);
   });
+
+  it('[CA-026] la grabación no puede venir vacía ni traer valores que no son números', () => {
+    const transcribe = registry['demo.lab.transcribe'].request;
+    expect(transcribe.safeParse({ samples: new Float32Array(0), sampleRate: 16000 }).success).toBe(
+      false,
+    );
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const samples = new Float32Array(16000);
+      samples[100] = bad;
+      expect(transcribe.safeParse({ samples, sampleRate: 16000 }).success).toBe(false);
+    }
+  });
 });
 
 describe('aviso de Windows', () => {
@@ -168,6 +180,55 @@ describe('aviso de Windows', () => {
       }),
     });
     expect(await call('demo.lab.notify')).toEqual({ ok: false });
+  });
+
+  it('[CA-030] un aviso que Windows pasó al centro de notificaciones sigue guardado hasta que lo tocan (simulado)', async () => {
+    const fronts: number[] = [];
+    const created: FakeNotification[] = [];
+    const notifier = createNotifier({
+      create: (options) => {
+        const notification = new FakeNotification(options, 'show');
+        created.push(notification);
+        return notification;
+      },
+      bringToFront: () => fronts.push(1),
+    });
+    await notifier.show({ title: 'Retenia', body: 'Esto es una prueba' });
+    // Windows lo saca de la pantalla por tiempo: avisa «close», pero todavía se puede tocar.
+    created[0]?.emit('close');
+    expect(notifier.held()).toBe(1);
+    created[0]?.emit('click');
+    expect(fronts).toEqual([1]);
+    expect(notifier.held()).toBe(0);
+  });
+});
+
+describe('lo que devuelven los procesos de trabajo', () => {
+  it('[CA-025] una respuesta mal formada del proceso de voz no llega a la ventana (simulado)', async () => {
+    const dataDir = folder();
+    const models = createModelStore({ dir: join(dataDir, 'modelos'), files: MODEL_FILES });
+    const { call } = lab({
+      models: { ...models, status: () => ({ ready: true, doneBytes: 1, totalBytes: 1 }) },
+      voice: {
+        request: async () => ({ wav: 'esto no es audio' }),
+        stop: () => undefined,
+      },
+    });
+    expect(await call('demo.lab.speak', { text: 'Hi', voice: 0 })).toEqual({
+      ok: false,
+      problem: 'failed',
+    });
+    expect(
+      await call('demo.lab.transcribe', { samples: new Float32Array(16000), sampleRate: 16000 }),
+    ).toEqual({ ok: false, problem: 'failed' });
+  });
+
+  it('[CA-028] una respuesta mal formada del proceso de materiales no llega a la ventana (simulado)', async () => {
+    const { call } = lab({
+      materials: { request: async () => ({ items: 'nada' }), stop: () => undefined },
+    });
+    expect(await call('demo.lab.readPdf')).toEqual({ ok: false });
+    expect(await call('demo.lab.ocrPage')).toEqual({ ok: false });
   });
 });
 

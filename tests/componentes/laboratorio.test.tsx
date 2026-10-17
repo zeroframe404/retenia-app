@@ -268,6 +268,57 @@ describe('Laboratorio', () => {
     expect(within(transcription).queryByText(/^Entendí/)).toBeNull();
   });
 
+  it('[CA-026] un segundo toque en «Grabar» mientras se pide el micrófono no abre otra grabación (simulado)', async () => {
+    let open: (value: typeof recording) => void = () => undefined;
+    microphone.startRecording.mockImplementationOnce(
+      () => new Promise((resolve) => (open = resolve)),
+    );
+    const { user } = fakeLab({ statuses: [ready] });
+    render(<LabScreen onBack={() => undefined} />);
+    const transcription = block('Transcripción');
+    const button = within(transcription).getByRole('button', { name: 'Grabar' });
+    await user.click(button);
+    await user.click(button);
+    expect(microphone.startRecording).toHaveBeenCalledOnce();
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    open(recording);
+    expect(await within(transcription).findByRole('button', { name: 'Detener' })).toBeTruthy();
+  });
+
+  it('[CA-026] si la grabación llega a pasarse de 30 segundos, se manda solo lo que entra (simulado)', async () => {
+    recording.stop.mockResolvedValueOnce(new Float32Array(16000 * 30 + 320));
+    const { api, user } = fakeLab({ statuses: [ready] });
+    render(<LabScreen onBack={() => undefined} />);
+    const transcription = block('Transcripción');
+    await user.click(within(transcription).getByRole('button', { name: 'Grabar' }));
+    await user.click(await within(transcription).findByRole('button', { name: 'Detener' }));
+    expect(await within(transcription).findByText('Entendí: “good morning”')).toBeTruthy();
+    const sent = api['demo.lab.transcribe'].mock.calls[0]?.[0] as unknown as {
+      samples: Float32Array;
+    };
+    expect(sent.samples.length).toBe(16000 * 30);
+  });
+
+  it('[CA-024] mientras se bajan los modelos, «Grabar» y «Decir en voz alta» piden esperar (simulado)', async () => {
+    const downloading: Status = { state: 'downloading', doneBytes: 1000, totalBytes: TOTAL };
+    const { api, user } = fakeLab({ statuses: [downloading] });
+    api['demo.lab.speak'].mockResolvedValueOnce({ ok: false, problem: 'noModels' } as never);
+    render(<LabScreen onBack={() => undefined} />);
+    const voice = block('Voz');
+    await within(voice).findByRole('progressbar', { name: 'Descarga de los modelos' });
+    await user.type(within(voice).getByRole('textbox', { name: 'Frase en inglés' }), 'Hello');
+    await user.click(within(voice).getByRole('button', { name: 'Decir en voz alta' }));
+    expect(
+      await within(voice).findByText('Esperá a que terminen de bajar los modelos.'),
+    ).toBeTruthy();
+    const transcription = block('Transcripción');
+    await user.click(within(transcription).getByRole('button', { name: 'Grabar' }));
+    expect(
+      await within(transcription).findByText('Esperá a que terminen de bajar los modelos.'),
+    ).toBeTruthy();
+    expect(microphone.startRecording).not.toHaveBeenCalled();
+  });
+
   it('[CA-027] con el micrófono bloqueado en Windows muestra el aviso y «Cómo habilitarlo» con los pasos (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready], access: 'denied' });
     render(<LabScreen onBack={() => undefined} />);
@@ -314,7 +365,7 @@ describe('Laboratorio', () => {
     expect(
       within(pdf).getByText('Frase resaltada: “Una muestra es una parte de la población”'),
     ).toBeTruthy();
-    const page = within(pdf).getByRole('img', { name: 'Página 1 con la frase resaltada' });
+    const page = within(pdf).getByRole('figure', { name: 'Página 1 con la frase resaltada' });
     expect(within(page).getAllByRole('img', { name: 'Frase resaltada' })).toHaveLength(1);
     expect(within(pdf).getByText('Tardó 0,3 s')).toBeTruthy();
   });

@@ -251,7 +251,7 @@ test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda 
     });
     await expect(
       pdf
-        .getByRole('img', { name: 'Página 1 con la frase resaltada' })
+        .getByRole('figure', { name: 'Página 1 con la frase resaltada' })
         .getByRole('img', { name: 'Frase resaltada' }),
     ).toHaveCount(2);
 

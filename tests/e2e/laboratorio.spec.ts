@@ -160,7 +160,7 @@ test('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y una fra
       'Frase resaltada: “Una muestra es una parte de la población que se elige para observarla y sacar conclusiones sobre el todo.”',
     ),
   ).toBeVisible();
-  const image = pdf.getByRole('img', { name: 'Página 1 con la frase resaltada' });
+  const image = pdf.getByRole('figure', { name: 'Página 1 con la frase resaltada' });
   await expect(image).toBeVisible();
   // La página está dibujada (no es un recuadro en blanco)…
   await expect

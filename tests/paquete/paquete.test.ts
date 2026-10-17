@@ -345,6 +345,22 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
     expect(pieces).toEqual([]);
   });
 
+  it('la ventana de la versión de uso real no lleva pdf.js ni su hilo de trabajo, con ningún nombre', () => {
+    const real = readPackage(requirePackage('real').folder);
+    const withPdfjs = real
+      .filter(
+        (file) =>
+          /pdf\.worker/i.test(file.path) ||
+          file.text?.includes('GlobalWorkerOptions') ||
+          file.text?.includes('pdfjsVersion'),
+      )
+      .map((file) => file.path);
+    expect(withPdfjs).toEqual([]);
+    // Control: en la variante de prueba sí se encuentra (si no, la búsqueda no probaría nada).
+    const prueba = readPackage(requirePackage('prueba').folder);
+    expect(prueba.some((file) => file.text?.includes('GlobalWorkerOptions'))).toBe(true);
+  });
+
   it('del lector de PDF viaja solo lo que usa el proceso de materiales, sin el lienzo nativo', () => {
     const prueba = readPackage(requirePackage('prueba').folder).map((f) => f.path);
     // Solo los archivos: las carpetas del asar también aparecen en la lista.

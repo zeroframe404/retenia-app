@@ -1,4 +1,12 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -35,5 +43,25 @@ describe('reconocimiento de escaneos', () => {
       'eng.traineddata.gz',
       'spa.traineddata.gz',
     ]);
+  });
+
+  it('[CA-029] un idioma que quedó copiado a medias (un corte, el disco lleno) se vuelve a copiar', async () => {
+    const own = mkdtempSync(join(tmpdir(), 'retenia-escaneo-cortado-'));
+    try {
+      mkdirSync(join(own, 'idiomas'), { recursive: true });
+      writeFileSync(join(own, 'idiomas', 'spa.traineddata.gz'), Buffer.alloc(1000, 7));
+      const pdf = new Uint8Array(
+        readFileSync(join(ROOT, 'datos-de-ejemplo', 'Inferencia — capítulos 1 a 4.pdf')),
+      );
+      const image = await pdfPageImage(pdf, 9);
+      if (!image) {
+        throw new Error('La página 9 del PDF de ejemplo no trae la imagen del escaneo.');
+      }
+      const text = await recognize(image, { workDir: own });
+      expect(text).toContain('hipótesis nula');
+      expect(statSync(join(own, 'idiomas', 'spa.traineddata.gz')).size).toBeGreaterThan(1_000_000);
+    } finally {
+      rmSync(own, { recursive: true, force: true });
+    }
   });
 });

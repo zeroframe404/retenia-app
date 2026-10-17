@@ -47,7 +47,7 @@ test('accesibilidad: el Laboratorio, con la voz lista, el PDF leído y los pasos
 
   const pdf = page.getByRole('region', { name: 'PDF' });
   await pdf.getByRole('button', { name: 'Leer PDF de prueba' }).click();
-  await expect(pdf.getByRole('img', { name: 'Página 1 con la frase resaltada' })).toBeVisible({
+  await expect(pdf.getByRole('figure', { name: 'Página 1 con la frase resaltada' })).toBeVisible({
     timeout: 30_000,
   });
   const transcription = page.getByRole('region', { name: 'Transcripción' });
