@@ -28,7 +28,7 @@ async function violationsNow(page: Page): Promise<string[]> {
   return found;
 }
 
-test('accesibilidad: el Laboratorio, con la voz lista, el PDF leído y los pasos del micrófono abiertos, no tiene faltas según axe-core, en claro y en oscuro', async ({
+test('accesibilidad: el Laboratorio, con la voz lista, el PDF leído y los pasos del micrófono abiertos, no tiene faltas según axe-core, en claro y en oscuro (simulado)', async ({
   launch,
 }) => {
   const { page } = await launch(undefined, {

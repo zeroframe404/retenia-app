@@ -202,7 +202,9 @@ test('[CA-014] abrir el programa instalado por segunda vez pasa al frente la ven
 // sirve los modelos de desarrollo con las direcciones de la página real, el micrófono es el de
 // prueba de Chromium con el audio de ejemplo «good morning», y la voz se comprueba por el audio
 // que arma (su duración), no escuchándolo.
-test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda en el programa instalado: baja los modelos, habla, transcribe el audio de ejemplo, lee el PDF y el escaneo y manda el aviso', async () => {
+test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda en el programa instalado: baja los modelos, habla, transcribe el audio de ejemplo, lee el PDF y el escaneo y manda el aviso (simulado)', async () => {
+  // Bajar 506 MB, cargar los modelos y reconocer una página en la máquina del CI lleva minutos.
+  test.setTimeout(900_000);
   const server = await serveModels(DEV_MODELS_DIR);
   const app = await electron.launch({
     executablePath: installedExe,

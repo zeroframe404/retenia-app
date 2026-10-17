@@ -146,7 +146,7 @@ describe('canales del Laboratorio', () => {
 });
 
 describe('aviso de Windows', () => {
-  it('[CA-030] «Probar aviso» muestra la notificación «Retenia · Esto es una prueba» y al tocarla Retenia pasa al frente', async () => {
+  it('[CA-030] «Probar aviso» muestra la notificación «Retenia · Esto es una prueba» y al tocarla Retenia pasa al frente (simulado)', async () => {
     const { call, created, fronts } = lab();
     expect(await call('demo.lab.notify')).toEqual({ ok: true, ms: 1100 });
     expect(created).toHaveLength(1);
@@ -160,7 +160,7 @@ describe('aviso de Windows', () => {
     expect(fronts).toEqual([1]);
   });
 
-  it('[CA-030] si Windows no muestra el aviso, el Laboratorio lo dice', async () => {
+  it('[CA-030] si Windows no muestra el aviso, el Laboratorio lo dice (simulado)', async () => {
     const { call } = lab({
       notifier: createNotifier({
         create: (options) => new FakeNotification(options, 'failed'),
@@ -172,7 +172,7 @@ describe('aviso de Windows', () => {
 });
 
 describe('micrófono', () => {
-  it('[CA-027] con el micrófono bloqueado en Windows, «Grabar» se entera antes de pedirlo', async () => {
+  it('[CA-027] con el micrófono bloqueado en Windows, «Grabar» se entera antes de pedirlo (simulado)', async () => {
     const { call } = lab({ microphoneAccess: () => 'denied' });
     expect(await call('demo.lab.microphone')).toEqual({ access: 'denied' });
   });
@@ -189,7 +189,7 @@ describe('micrófono', () => {
 });
 
 describe('modelos y conexión', () => {
-  it('[CA-024] sin modelos, el Laboratorio lo dice y «Decir en voz alta» pide descargarlos sin llamar a la voz', async () => {
+  it('[CA-024] sin modelos, el Laboratorio lo dice y «Decir en voz alta» pide descargarlos sin llamar a la voz (simulado)', async () => {
     const { call } = lab();
     expect(await call('demo.lab.modelsStatus')).toMatchObject({ state: 'missing', doneBytes: 0 });
     expect(await call('demo.lab.speak', { text: 'Hi', voice: 0 })).toEqual({
@@ -201,7 +201,7 @@ describe('modelos y conexión', () => {
     ).toEqual({ ok: false, problem: 'noModels' });
   });
 
-  it('[CA-024] con «Simular sin conexión», «Descargar modelos» termina en «sin conexión» sin salir a la red', async () => {
+  it('[CA-024] con «Simular sin conexión», «Descargar modelos» termina en «sin conexión» sin salir a la red (simulado)', async () => {
     const { call, fetched } = lab();
     expect(await call('demo.connection')).toEqual({ offline: false });
     expect(await call('demo.setConnection', { offline: true })).toEqual({ offline: true });

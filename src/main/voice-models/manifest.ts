@@ -21,10 +21,6 @@ export interface ModelFile {
 
 export const MODELS_ORIGIN = 'https://huggingface.co';
 
-export function modelUrl(origin: string, model: ModelFile): string {
-  return `${origin}/${model.source}/resolve/${model.revision}/${model.file}`;
-}
-
 const KOKORO = {
   source: 'csukuangfj/kokoro-int8-multi-lang-v1_0',
   revision: '2a360693d79b88b49b88e29aec2b53577f41f206',

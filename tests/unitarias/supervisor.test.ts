@@ -43,7 +43,7 @@ afterEach(() => {
 });
 
 describe('supervisor de procesos de trabajo', () => {
-  it('no abre el proceso hasta el primer pedido y después lo reusa', async () => {
+  it('no abre el proceso hasta el primer pedido y después lo reusa (simulado)', async () => {
     const worker = client();
     expect(spawned).toHaveLength(0);
     const first = worker.request({ kind: 'uno' }, 60_000);
@@ -57,7 +57,7 @@ describe('supervisor de procesos de trabajo', () => {
     expect(spawned[0]?.sent.map((m) => m.kind)).toEqual(['uno', 'dos']);
   });
 
-  it('cada respuesta llega a su pedido aunque vuelvan en otro orden', async () => {
+  it('cada respuesta llega a su pedido aunque vuelvan en otro orden (simulado)', async () => {
     const worker = client();
     const a = worker.request({ kind: 'a' }, 60_000);
     const b = worker.request({ kind: 'b' }, 60_000);
@@ -66,14 +66,14 @@ describe('supervisor de procesos de trabajo', () => {
     await expect(Promise.all([a, b])).resolves.toEqual(['A', 'B']);
   });
 
-  it('un problema que informa el proceso llega al pedido con su nombre', async () => {
+  it('un problema que informa el proceso llega al pedido con su nombre (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'decir' }, 60_000);
     spawned[0]?.reply(0, { ok: false, problem: 'noModels' });
     await expect(pending).rejects.toEqual(new WorkerProblem('noModels'));
   });
 
-  it('si un pedido vence su tiempo límite, corta el proceso y el próximo pedido abre otro', async () => {
+  it('si un pedido vence su tiempo límite, corta el proceso y el próximo pedido abre otro (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'lento' }, 60_000);
     const failed = expect(pending).rejects.toEqual(new WorkerProblem('timeout'));
@@ -86,7 +86,7 @@ describe('supervisor de procesos de trabajo', () => {
     await expect(next).resolves.toBe('bien');
   });
 
-  it('si el proceso se cae, lo pendiente falla y el próximo pedido abre uno nuevo', async () => {
+  it('si el proceso se cae, lo pendiente falla y el próximo pedido abre uno nuevo (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'algo' }, 60_000);
     spawned[0]?.emit('exit', 3);
@@ -97,7 +97,7 @@ describe('supervisor de procesos de trabajo', () => {
     await expect(next).resolves.toBeNull();
   });
 
-  it('un mensaje mal formado del proceso se ignora', async () => {
+  it('un mensaje mal formado del proceso se ignora (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'algo' }, 60_000);
     spawned[0]?.emit('message', 'cualquier cosa');
@@ -106,7 +106,7 @@ describe('supervisor de procesos de trabajo', () => {
     await expect(pending).resolves.toBe('el bueno');
   });
 
-  it('después de cinco minutos sin pedidos apaga el proceso', async () => {
+  it('después de cinco minutos sin pedidos apaga el proceso (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'algo' }, 60_000);
     spawned[0]?.reply(0, { ok: true, result: 1 });
@@ -117,7 +117,7 @@ describe('supervisor de procesos de trabajo', () => {
     expect(spawned[0]?.killed).toBe(true);
   });
 
-  it('apagarlo a mano corta el proceso y rechaza lo pendiente', async () => {
+  it('apagarlo a mano corta el proceso y rechaza lo pendiente (simulado)', async () => {
     const worker = client();
     const pending = worker.request({ kind: 'algo' }, 60_000);
     worker.stop();

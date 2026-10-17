@@ -89,7 +89,7 @@ afterEach(() => {
 });
 
 describe('Laboratorio', () => {
-  it('«Demostración» tiene «Laboratorio» y «Simular sin conexión»', async () => {
+  it('«Demostración» tiene «Laboratorio» y «Simular sin conexión» (simulado)', async () => {
     const { api, user } = fakeLab();
     const open = vi.fn();
     render(<DemoSection onOpenLab={open} />);
@@ -101,7 +101,7 @@ describe('Laboratorio', () => {
     expect(api['demo.setConnection']).toHaveBeenCalledWith({ offline: true });
   });
 
-  it('muestra sus cinco bloques: voz, transcripción, PDF, escaneo y aviso, y vuelve a Ajustes', async () => {
+  it('muestra sus cinco bloques: voz, transcripción, PDF, escaneo y aviso, y vuelve a Ajustes (simulado)', async () => {
     const { user } = fakeLab();
     const back = vi.fn();
     render(<LabScreen onBack={back} />);
@@ -113,7 +113,7 @@ describe('Laboratorio', () => {
     expect(back).toHaveBeenCalledOnce();
   });
 
-  it('[CA-024] sin modelos lo dice; «Descargar modelos» muestra una barra que avanza y al terminar «Modelos listos»', async () => {
+  it('[CA-024] sin modelos lo dice; «Descargar modelos» muestra una barra que avanza y al terminar «Modelos listos» (simulado)', async () => {
     const half: Status = { state: 'downloading', doneBytes: TOTAL / 2, totalBytes: TOTAL };
     const { api, user } = fakeLab({ statuses: [missing, half, half, ready] });
     render(<LabScreen onBack={() => undefined} />);
@@ -136,7 +136,7 @@ describe('Laboratorio', () => {
     expect(within(voice).queryByRole('progressbar')).toBeNull();
   });
 
-  it('[CA-024] si la descarga falla por falta de conexión, vuelve a pedir que te conectes', async () => {
+  it('[CA-024] si la descarga falla por falta de conexión, vuelve a pedir que te conectes (simulado)', async () => {
     const offline: Status = { ...missing, state: 'failed', problem: 'offline' };
     const { user } = fakeLab({ statuses: [missing, offline] });
     render(<LabScreen onBack={() => undefined} />);
@@ -152,7 +152,7 @@ describe('Laboratorio', () => {
     expect(within(voice).getByRole('button', { name: 'Descargar modelos' })).toBeTruthy();
   });
 
-  it('[CA-024] si llega un archivo dañado, lo dice y deja volver a descargar', async () => {
+  it('[CA-024] si llega un archivo dañado, lo dice y deja volver a descargar (simulado)', async () => {
     const corrupt: Status = { ...missing, state: 'failed', problem: 'corrupt' };
     const { user } = fakeLab({ statuses: [missing, corrupt] });
     render(<LabScreen onBack={() => undefined} />);
@@ -167,7 +167,7 @@ describe('Laboratorio', () => {
     ).toBeTruthy();
   });
 
-  it('[CA-025] «Decir en voz alta» manda la frase y la voz elegida, deja el audio para escuchar y dice cuánto tardó', async () => {
+  it('[CA-025] «Decir en voz alta» manda la frase y la voz elegida, deja el audio para escuchar y dice cuánto tardó (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready] });
     render(<LabScreen onBack={() => undefined} />);
     const voice = block('Voz');
@@ -189,7 +189,7 @@ describe('Laboratorio', () => {
     expect(audio?.getAttribute('aria-label')).toBe('Audio de la frase');
   });
 
-  it('[CA-025] sin modelos, «Decir en voz alta» muestra el mensaje para descargarlos', async () => {
+  it('[CA-025] sin modelos, «Decir en voz alta» muestra el mensaje para descargarlos (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [missing] });
     api['demo.lab.speak'].mockResolvedValueOnce({ ok: false, problem: 'noModels' } as never);
     render(<LabScreen onBack={() => undefined} />);
@@ -203,7 +203,7 @@ describe('Laboratorio', () => {
     ).not.toHaveLength(0);
   });
 
-  it('[CA-025] sin frase no manda nada y pide escribirla', async () => {
+  it('[CA-025] sin frase no manda nada y pide escribirla (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready] });
     render(<LabScreen onBack={() => undefined} />);
     const voice = block('Voz');
@@ -212,7 +212,7 @@ describe('Laboratorio', () => {
     expect(api['demo.lab.speak']).not.toHaveBeenCalled();
   });
 
-  it('[CA-026] «Grabar» y «Detener» muestran «Entendí: “good morning”» y un campo para corregir el texto', async () => {
+  it('[CA-026] «Grabar» y «Detener» muestran «Entendí: “good morning”» y un campo para corregir el texto (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready] });
     render(<LabScreen onBack={() => undefined} />);
     const transcription = block('Transcripción');
@@ -234,7 +234,7 @@ describe('Laboratorio', () => {
     expect(within(transcription).getByText('Tardó 0,5 s')).toBeTruthy();
   });
 
-  it('[CA-027] con el micrófono bloqueado en Windows muestra el aviso y «Cómo habilitarlo» con los pasos', async () => {
+  it('[CA-027] con el micrófono bloqueado en Windows muestra el aviso y «Cómo habilitarlo» con los pasos (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready], access: 'denied' });
     render(<LabScreen onBack={() => undefined} />);
     const transcription = block('Transcripción');
@@ -255,7 +255,7 @@ describe('Laboratorio', () => {
     expect(api['demo.lab.openMicrophoneSettings']).toHaveBeenCalledOnce();
   });
 
-  it('[CA-027] si Windows niega el micrófono recién al pedirlo, muestra el mismo aviso', async () => {
+  it('[CA-027] si Windows niega el micrófono recién al pedirlo, muestra el mismo aviso (simulado)', async () => {
     const { user } = fakeLab({ statuses: [ready] });
     microphone.startRecording.mockRejectedValueOnce(
       Object.assign(new Error('permiso'), { name: 'NotAllowedError' }),
@@ -269,7 +269,7 @@ describe('Laboratorio', () => {
     expect(within(transcription).getByRole('link', { name: 'Cómo habilitarlo' })).toBeTruthy();
   });
 
-  it('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y la frase resaltada sobre la imagen de la página', async () => {
+  it('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y la frase resaltada sobre la imagen de la página (simulado)', async () => {
     const { user } = fakeLab();
     render(<LabScreen onBack={() => undefined} />);
     const pdf = block('PDF');
@@ -285,7 +285,7 @@ describe('Laboratorio', () => {
     expect(within(pdf).getByText('Tardó 0,3 s')).toBeTruthy();
   });
 
-  it('[CA-029] «Leer página escaneada» muestra el texto reconocido y cuánto tardó', async () => {
+  it('[CA-029] «Leer página escaneada» muestra el texto reconocido y cuánto tardó (simulado)', async () => {
     const { user } = fakeLab();
     render(<LabScreen onBack={() => undefined} />);
     const scan = block('Escaneo');
@@ -294,7 +294,7 @@ describe('Laboratorio', () => {
     expect(within(scan).getByText('Tardó 4,2 s')).toBeTruthy();
   });
 
-  it('[CA-030] «Probar aviso» dice que el aviso salió y cuánto tardó', async () => {
+  it('[CA-030] «Probar aviso» dice que el aviso salió y cuánto tardó (simulado)', async () => {
     const { api, user } = fakeLab();
     render(<LabScreen onBack={() => undefined} />);
     const notice = block('Aviso');

@@ -1,4 +1,3 @@
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { useEffect, useRef } from 'react';
 import styles from './PdfPage.module.css';
 
@@ -41,8 +40,12 @@ export function PdfPage({
     let destroy: (() => Promise<void>) | null = null;
     void (async () => {
       try {
-        const pdfjs = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+        // pdf.js y su hilo se cargan recién al dibujar la primera página.
+        const [pdfjs, worker] = await Promise.all([
+          import('pdfjs-dist'),
+          import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+        ]);
+        pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
         const loading = pdfjs.getDocument({
           data: pdf.slice(),
           enableXfa: false,

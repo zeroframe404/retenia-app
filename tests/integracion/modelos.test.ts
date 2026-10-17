@@ -121,7 +121,7 @@ function folder(): string {
 const TOTAL = Object.values(CONTENT).reduce((sum, data) => sum + data.length, 0);
 
 describe('descarga única de los modelos', () => {
-  it('[CA-024] baja los modelos que faltan con un avance que crece, verifica cada huella y quedan listos', async () => {
+  it('[CA-024] baja los modelos que faltan con un avance que crece, verifica cada huella y quedan listos (simulado)', async () => {
     const server = await fakeServer();
     const dir = folder();
     const store = createModelStore({ dir, files: manifest(), origin: server.origin });
@@ -140,7 +140,7 @@ describe('descarga única de los modelos', () => {
     expect(readdirSync(dir).sort()).toEqual(['kokoro', 'verificados.json', 'whisper']);
   });
 
-  it('[CA-024] rechaza un modelo cuya huella no coincide: no lo deja en la carpeta y avisa que llegó dañado', async () => {
+  it('[CA-024] rechaza un modelo cuya huella no coincide: no lo deja en la carpeta y avisa que llegó dañado (simulado)', async () => {
     const server = await fakeServer();
     server.behaviour.set('encoder.onnx', { tampered: true });
     const dir = folder();
@@ -152,7 +152,7 @@ describe('descarga única de los modelos', () => {
     expect(store.status()).toEqual({ ready: false, doneBytes: 200_000, totalBytes: TOTAL });
   });
 
-  it('[CA-024] un modelo cambiado después de bajarlo deja de estar listo y se vuelve a bajar solo ese', async () => {
+  it('[CA-024] un modelo cambiado después de bajarlo deja de estar listo y se vuelve a bajar solo ese (simulado)', async () => {
     const server = await fakeServer();
     const dir = folder();
     const store = createModelStore({ dir, files: manifest(), origin: server.origin });
@@ -173,7 +173,7 @@ describe('descarga única de los modelos', () => {
     ).toBe(true);
   });
 
-  it('[CA-024] si se corta la conexión a mitad, la próxima vez sigue desde donde quedó', async () => {
+  it('[CA-024] si se corta la conexión a mitad, la próxima vez sigue desde donde quedó (simulado)', async () => {
     const server = await fakeServer();
     server.behaviour.set('modelo.onnx', { cutAfter: 64_000 });
     const dir = folder();
@@ -194,7 +194,7 @@ describe('descarga única de los modelos', () => {
     ).toBe(true);
   });
 
-  it('[CA-024] sin conexión avisa que falta internet y no deja nada a medias', async () => {
+  it('[CA-024] sin conexión avisa que falta internet y no deja nada a medias (simulado)', async () => {
     const server = await fakeServer();
     await server.close();
     servers.length = 0;
@@ -204,21 +204,21 @@ describe('descarga única de los modelos', () => {
     expect(store.status()).toEqual({ ready: false, doneBytes: 0, totalBytes: TOTAL });
   });
 
-  it('[CA-024] con «Simular sin conexión» avisa que falta internet sin salir a la red', async () => {
+  it('[CA-024] con «Simular sin conexión» avisa que falta internet sin salir a la red (simulado)', async () => {
     const server = await fakeServer();
     const store = createModelStore({ dir: folder(), files: manifest(), origin: server.origin });
     await expect(store.download({ offline: true })).rejects.toEqual(new ModelsError('offline'));
     expect(server.seen).toEqual([]);
   });
 
-  it('[CA-024] si el servidor no tiene el archivo, lo dice aparte de la falta de conexión', async () => {
+  it('[CA-024] si el servidor no tiene el archivo, lo dice aparte de la falta de conexión (simulado)', async () => {
     const server = await fakeServer();
     server.behaviour.set('modelo.onnx', { status: 404 });
     const store = createModelStore({ dir: folder(), files: manifest(), origin: server.origin });
     await expect(store.download({})).rejects.toEqual(new ModelsError('server'));
   });
 
-  it('[CA-024] sin lugar en el disco no empieza a bajar', async () => {
+  it('[CA-024] sin lugar en el disco no empieza a bajar (simulado)', async () => {
     const server = await fakeServer();
     const store = createModelStore({
       dir: folder(),

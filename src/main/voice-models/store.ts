@@ -38,7 +38,7 @@ export class ModelsError extends Error {
   }
 }
 
-export interface ModelsStatus {
+interface ModelsStatus {
   ready: boolean;
   doneBytes: number;
   totalBytes: number;
@@ -67,7 +67,7 @@ const DOWNLOADS = '.descargas';
 // Además de lo que falta bajar, se pide este margen libre en el disco.
 const DISK_MARGIN = 50 * 1024 * 1024;
 
-export function modelUrl(origin: string, model: ModelFile): string {
+function modelUrl(origin: string, model: ModelFile): string {
   return `${origin}/${model.source}/resolve/${model.revision}/${model.file}`;
 }
 

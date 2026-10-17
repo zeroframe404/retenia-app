@@ -26,7 +26,7 @@ async function openLab(page: Page) {
 
 const block = (page: Page, name: string) => page.getByRole('region', { name });
 
-test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, verifica cada huella y termina en «Modelos listos»', async ({
+test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, verifica cada huella y termina en «Modelos listos» (simulado)', async ({
   launch,
 }, testInfo) => {
   // Bajar, verificar y guardar 506 MB lleva su tiempo, sobre todo en el CI.
@@ -56,7 +56,7 @@ test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, 
   }
 });
 
-test('[CA-024] sin modelos y con «Simular sin conexión», «Descargar modelos» pide conectarse y no baja nada', async ({
+test('[CA-024] sin modelos y con «Simular sin conexión», «Descargar modelos» pide conectarse y no baja nada (simulado)', async ({
   launch,
 }, testInfo) => {
   const server = await serveModels(DEV_MODELS_DIR);
@@ -104,7 +104,7 @@ test('[CA-025] «Decir en voz alta» dice «The weather is nice today» con dos 
   expect(durations[0]).not.toBe(durations[1]);
 });
 
-test('[CA-026] «Grabar», decir «good morning» y «Detener» muestran «Entendí: “good morning”» en un campo que se puede corregir', async ({
+test('[CA-026] «Grabar», decir «good morning» y «Detener» muestran «Entendí: “good morning”» en un campo que se puede corregir (simulado)', async ({
   launch,
 }) => {
   const { page } = await launch(undefined, {
@@ -126,7 +126,7 @@ test('[CA-026] «Grabar», decir «good morning» y «Detener» muestran «Enten
   await expect(transcription.getByText(/^Tardó \d+,\d s$/)).toBeVisible();
 });
 
-test('[CA-027] con el micrófono bloqueado en Windows, «Grabar» muestra «Sin acceso al micrófono no podemos escucharte» y «Cómo habilitarlo»', async ({
+test('[CA-027] con el micrófono bloqueado en Windows, «Grabar» muestra «Sin acceso al micrófono no podemos escucharte» y «Cómo habilitarlo» (simulado)', async ({
   launch,
 }) => {
   const { page } = await launch(undefined, {
