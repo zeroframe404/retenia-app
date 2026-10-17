@@ -28,15 +28,18 @@ const UNIT_ICONS = { covered: CircleCheck, partial: Minus, missing: CircleDashed
 export function UnidadesDeIdea({
   units,
   headingLevel = 3,
+  hideHeading = false,
 }: {
   units: readonly IdeaUnit[];
   headingLevel?: 3 | 4;
+  // El título sigue ahí para el lector de pantalla cuando el de al lado ya dice lo mismo.
+  hideHeading?: boolean;
 }) {
   const titleId = useId();
   const Heading = headingLevel === 3 ? 'h3' : 'h4';
   return (
     <section aria-labelledby={titleId} data-component="idea-units">
-      <Heading id={titleId} className={styles.title}>
+      <Heading id={titleId} className={hideHeading ? 'visually-hidden' : styles.title}>
         {texts.ui.ideaUnits.label}
       </Heading>
       <ol className={styles.units}>

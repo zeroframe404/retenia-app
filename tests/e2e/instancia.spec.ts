@@ -26,7 +26,7 @@ test('[CA-014] abrir Retenia por segunda vez pasa al frente la ventana que ya es
   appWindow,
   dataDir,
 }) => {
-  await expect(appWindow.getByRole('heading', { level: 2, name: 'Tarjetas' })).toBeVisible();
+  await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
 
   // La ventana está minimizada: «pasar al frente» tiene que devolverla.
   const windowState = () =>

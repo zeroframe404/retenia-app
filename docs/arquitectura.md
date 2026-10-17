@@ -327,7 +327,7 @@ Qué trae la variante de prueba y dónde vive:
 | Elenco | `datos-de-ejemplo/elenco/` (JSON) y `main/demo/seed.ts` | En el primer arranque de la variante, si la base está vacía, se carga el elenco de `elenco.md`: materias, temas, notas, tarjetas con su historial (fechas relativas a la fecha fija), materiales, curso de inglés. «Cargar 10.000 tarjetas» genera tarjetas y repasos con semilla fija. |
 | IA simulada | `main/demo/ai.ts` | La compuerta de IA recibe un adaptador que responde con respuestas grabadas en `datos-de-ejemplo/ia/` indexadas por propósito y huella del pedido; sin clave, sin red, sin costo. Los 60 casos trampa usan el mismo mecanismo en la red. |
 | Simular sin conexión | `main/demo/connectivity.ts` | El servicio de conectividad del principal (el único que decide si hay red) se fuerza a «sin conexión»; todo lo que depende de red queda «Pendiente» y se reanuda al apagar la simulación. |
-| Galería | `renderer/demo/galeria` | Muestra los seis estados de pantalla con datos fijos. |
+| Galería | `renderer/demo/gallery` | Muestra los 18 componentes con sus variantes, el armazón y los seis estados de pantalla, con datos de ejemplo. |
 | Laboratorio | `renderer/demo/laboratorio` y `main/demo/lab.ts` | Botones de CA-024 a CA-030; usan los mismos procesos de trabajo y avisos que la versión real. |
 | Marcas de rendimiento | `main/demo/perf.ts` | `demo.perf.marks` devuelve `performance.mark` del arranque, siguiente tarjeta, abrir Estudiar y buscar. |
 | Carpeta de datos por variable de entorno | `main/demo/paths.ts` | `RETENIA_DATOS`. |

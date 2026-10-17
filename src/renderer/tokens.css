@@ -31,6 +31,8 @@
   /* Los colores de las sombras (parte de los tokens: la sombra se ve más en claro que en oscuro). */
   --color-sombra-leve: light-dark(rgb(21 24 29 / 8%), rgb(0 0 0 / 35%));
   --color-sombra-marcada: light-dark(rgb(21 24 29 / 18%), rgb(0 0 0 / 60%));
+  /* El velo que tapa lo demás mientras hay un diálogo: oscurece en los dos temas. */
+  --color-velo: light-dark(rgb(21 24 29 / 45%), rgb(0 0 0 / 65%));
 
   /* Tipografías */
   --fuente-titulos: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;

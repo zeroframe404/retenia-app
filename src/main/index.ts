@@ -2,6 +2,7 @@ import { join, resolve } from 'node:path';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
 import { systemClock } from '../core/clock';
 import { effectiveTheme, PAPER_COLOR, type ThemeChoice } from '../core/theme';
+import { zoomStep } from '../core/zoom';
 import { openWorkspace } from '../data/workspace';
 import { channels, type Registry } from '../preload/contract';
 import { demoChannels } from '../preload/contract/demo';
@@ -56,7 +57,9 @@ function createWindow(paper: string): void {
     title: texts.appName,
     width: 1100,
     height: 720,
-    // La ventana más angosta que se deja es de 400 píxeles (docs/especificacion/no-funcionales.md).
+    // Los tamaños son los del contenido, sin el marco: así la ventana más angosta que se deja es de
+    // 400 píxeles de verdad (docs/especificacion/no-funcionales.md).
+    useContentSize: true,
     minWidth: 400,
     minHeight: 360,
     show: false,
@@ -112,6 +115,15 @@ function start(): void {
     version: app.getVersion(),
     openFolder: (path) => shell.openPath(path),
     onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
+    zoom: (direction) => {
+      const contents = mainWindow?.webContents;
+      if (!contents) {
+        return 1;
+      }
+      const factor = zoomStep(contents.getZoomFactor(), direction);
+      contents.setZoomFactor(factor);
+      return factor;
+    },
   });
   let registry: Registry = channels;
   if (__VARIANTE__ === 'prueba' && demo) {

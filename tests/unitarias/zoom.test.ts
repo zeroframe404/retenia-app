@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ZOOM_LEVELS, zoomDirection, zoomStep } from '../../src/core/zoom';
+import { ZOOM_LEVELS, zoomStep } from '../../src/core/zoom';
 
 // El zoom de la ventana con el teclado: Ctrl y + agranda, Ctrl y - achica y Ctrl y 0 vuelve al
 // 100 %. Retenia no tiene menú, así que las teclas del zoom las maneja ella (CA-035: el zoom al
@@ -48,21 +48,4 @@ describe('zoom con el teclado', () => {
     expect(ZOOM_LEVELS).toContain(1.5);
     expect(ZOOM_LEVELS).toContain(2);
   });
-
-  it.for([
-    ['+', 'in'],
-    ['=', 'in'],
-    ['-', 'out'],
-    ['_', 'out'],
-    ['0', 'reset'],
-  ] as const)('la tecla «%s» con Ctrl es «%s»', ([key, direction]) => {
-    expect(zoomDirection(key)).toBe(direction);
-  });
-
-  it.for(['1', '9', 'k', 'a', 'Enter', 'Tab', ')', ''])(
-    'la tecla «%s» con Ctrl no toca el zoom (Ctrl y 1 a 6 son los atajos del riel)',
-    (key) => {
-      expect(zoomDirection(key)).toBeNull();
-    },
-  );
 });

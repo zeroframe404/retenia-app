@@ -1,6 +1,7 @@
 import type { Clock } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
 import type { ThemeChoice } from '../core/theme';
+import type { ZoomDirection } from '../core/zoom';
 import type { BackupView } from '../data/backups';
 import type { Workspace } from '../data/workspace';
 import {
@@ -43,6 +44,7 @@ export function createHandlers({
   version,
   openFolder,
   onAppearanceChange,
+  zoom,
 }: {
   clock: Clock;
   variant: Variant;
@@ -51,6 +53,8 @@ export function createHandlers({
   openFolder: (path: string) => Promise<string>;
   // Para que el principal cambie el marco de la ventana cuando se elige otra apariencia.
   onAppearanceChange?: (choice: ThemeChoice) => void;
+  // Cambia el zoom de la ventana y devuelve el factor que quedó (sin ventana, 1).
+  zoom?: (direction: ZoomDirection) => number;
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
@@ -85,6 +89,7 @@ export function createHandlers({
     },
     'backups.verifyData': async () => ({ differences: workspace.verifyData() }),
     'backups.repairData': async () => ({ differences: workspace.repairData() }),
+    'window.zoom': async ({ direction }) => ({ factor: zoom ? zoom(direction) : 1 }),
     'backups.openFolder': async () => {
       const problem = await openFolder(workspace.copiesFolder());
       if (problem !== '') {

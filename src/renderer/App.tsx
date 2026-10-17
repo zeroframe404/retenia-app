@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { texts } from '../preload/contract/texts';
 import styles from './App.module.css';
 import { applyTheme } from './appearance';
@@ -10,6 +10,7 @@ import { EmptyDestination } from './screens/EmptyDestination';
 import { NotesScreen } from './screens/NotesScreen';
 import { SearchDialog } from './screens/SearchDialog';
 import { SettingsScreen } from './settings/SettingsScreen';
+import { zoomDirection } from './shortcuts';
 import { DESTINATIONS, type Destination, SideRail } from './ui/Frame';
 
 // Dentro de Ajustes (solo en la variante de prueba): el Laboratorio y la Galería cuelgan de
@@ -25,6 +26,7 @@ export function App() {
   // Al llegar a una pantalla por el riel o por un atajo, el foco pasa a su título; al abrir
   // Retenia, no.
   const [navigated, setNavigated] = useState(false);
+  const content = useRef<HTMLElement>(null);
 
   const go = useCallback((next: Destination) => {
     setDestination(next);
@@ -41,9 +43,30 @@ export function App() {
       });
   }, []);
 
+  // Cada pantalla arranca desde arriba, aunque la anterior estuviera desplazada.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se vuelve arriba cuando cambia la pantalla.
+  useEffect(() => {
+    if (content.current) {
+      content.current.scrollTop = 0;
+    }
+  }, [destination, settingsView]);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (!event.ctrlKey || event.shiftKey || event.altKey || event.metaKey || searching) {
+      if (!event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+      }
+      // El zoom: Retenia no tiene menú, así que las teclas las atrapa la ventana y el principal
+      // cambia el zoom (con el cuadro «Buscar» abierto también anda).
+      const direction = zoomDirection(event.key);
+      if (direction !== null) {
+        event.preventDefault();
+        window.retenia['window.zoom']({ direction }).catch((error: unknown) => {
+          console.error('La ventana no pudo cambiar el zoom por el puente', error);
+        });
+        return;
+      }
+      if (event.shiftKey || searching) {
         return;
       }
       if (event.key.toLowerCase() === 'k') {
@@ -62,14 +85,13 @@ export function App() {
   }, [go, searching]);
 
   const goToNotes = () => go('notes');
-  const demo = __VARIANTE__ === 'prueba';
 
   return (
     <div className={styles.app}>
-      {demo ? <DemoRibbon /> : null}
+      {__VARIANTE__ === 'prueba' ? <DemoRibbon /> : null}
       <div className={styles.body}>
         <SideRail current={destination} onChange={go} onSearch={() => setSearching(true)} />
-        <main className={styles.content} aria-label={texts.appName}>
+        <main ref={content} className={styles.content} aria-label={texts.appName}>
           {destination === 'study' ? (
             <EmptyDestination
               title={texts.nav.study}
@@ -107,7 +129,7 @@ export function App() {
             <SettingsScreen
               focusTitle={navigated}
               demo={
-                demo ? (
+                __VARIANTE__ === 'prueba' ? (
                   <DemoSection
                     onOpenLab={() => setSettingsView('lab')}
                     onOpenGallery={() => setSettingsView('gallery')}
@@ -116,10 +138,10 @@ export function App() {
               }
             />
           ) : null}
-          {demo && destination === 'settings' && settingsView === 'lab' ? (
+          {__VARIANTE__ === 'prueba' && destination === 'settings' && settingsView === 'lab' ? (
             <LabScreen focusTitle onBack={() => setSettingsView('settings')} />
           ) : null}
-          {demo && destination === 'settings' && settingsView === 'gallery' ? (
+          {__VARIANTE__ === 'prueba' && destination === 'settings' && settingsView === 'gallery' ? (
             <GalleryScreen focusTitle onBack={() => setSettingsView('settings')} />
           ) : null}
         </main>

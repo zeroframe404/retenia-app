@@ -25,7 +25,7 @@ const itemWith = (page: Page, text: string) => page.getByRole('listitem').filter
 test('una carpeta de datos nueva arranca con las tres tarjetas de ejemplo, con «¿Qué mide el desvío estándar?» primera', async ({
   appWindow,
 }) => {
-  await expect(appWindow.getByRole('heading', { level: 2, name: 'Tarjetas' })).toBeVisible();
+  await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
   const items = appWindow.getByRole('listitem');
   await expect(items).toHaveCount(3);
   await expect(items.first()).toContainText('¿Qué mide el desvío estándar?');
@@ -133,7 +133,7 @@ test('un doble clic en «Guardar» crea una sola tarjeta y no abre ningún repas
   await expect(appWindow.getByText('Tarjeta guardada')).toBeVisible();
   await expect(appWindow.getByRole('listitem')).toHaveCount(4);
   await expect(itemWith(appWindow, '¿Capital de Francia?')).toHaveCount(1);
-  await expect(appWindow.getByRole('heading', { level: 2, name: 'Tarjetas' })).toBeVisible();
+  await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
 });
 
 test('un doble clic en «La sabía» cuenta un solo repaso', async ({ appWindow }) => {

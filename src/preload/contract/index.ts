@@ -31,6 +31,7 @@ import {
   trashRestoreRequest,
   trashRestoreResponse,
 } from './trash';
+import { zoomRequest, zoomResponse } from './window';
 
 // El contrato del puente: por cada canal, el esquema de la petición y el de la respuesta.
 // El puente y el proceso principal se arman recorriendo este mapa; no hay listas a mano.
@@ -57,6 +58,7 @@ export const channels = {
   'backups.verifyData': { request: noRequest, response: differencesResponse },
   'backups.repairData': { request: noRequest, response: differencesResponse },
   'backups.openFolder': { request: noRequest, response: openFolderResponse },
+  'window.zoom': { request: zoomRequest, response: zoomResponse },
 };
 
 export type Registry = Readonly<Record<string, { request: z.ZodType; response: z.ZodType }>>;

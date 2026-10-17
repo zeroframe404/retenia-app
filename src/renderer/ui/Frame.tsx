@@ -47,8 +47,9 @@ export function SideRail({
 }) {
   return (
     <div className={styles.rail}>
-      <h1 className={styles.brand}>{texts.appName}</h1>
+      {/* El nombre va adentro del riel: todo el contenido de la página queda dentro de una región. */}
       <nav className={styles.navigation} aria-label={texts.nav.label}>
+        <h1 className={styles.brand}>{texts.appName}</h1>
         <button
           type="button"
           className={styles.search}

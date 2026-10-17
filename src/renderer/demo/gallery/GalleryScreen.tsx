@@ -28,16 +28,17 @@ import styles from './gallery.module.css';
 
 const g = demoTexts.gallery;
 
-// Un componente con su nombre y, adentro, cada variante con el suyo.
+// Un componente con su nombre y, adentro, cada variante con el suyo. Es un artículo y no una región:
+// algunos componentes llevan adentro su propia región con el mismo nombre.
 function Component({ name, children }: { name: string; children: ReactNode }) {
   const id = useId();
   return (
-    <section className={styles.component} aria-labelledby={id}>
+    <article className={styles.component} aria-labelledby={id}>
       <h3 id={id} className={styles.name}>
         {name}
       </h3>
       <div className={styles.variants}>{children}</div>
-    </section>
+    </article>
   );
 }
 
@@ -210,6 +211,7 @@ export function GalleryScreen({
         <Component name={g.names.ideaUnits}>
           <UnidadesDeIdea
             headingLevel={4}
+            hideHeading
             units={[
               { text: g.sample.ideaOne, status: 'covered', quote: g.sample.ideaOneQuote },
               { text: g.sample.ideaTwo, status: 'partial', quote: g.sample.ideaTwoQuote },

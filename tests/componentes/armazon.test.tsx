@@ -211,6 +211,36 @@ describe('atajos de teclado y cuadro de búsqueda', () => {
   });
 });
 
+describe('zoom con el teclado', () => {
+  const zooms = (bridge: TestBridge) =>
+    bridge.sent
+      .filter((message) => message.channel === 'window.zoom')
+      .map((message) => (message.request as { direction: string }).direction);
+
+  it('[CA-035] Ctrl y + (con o sin Mayús) agranda, Ctrl y - achica y Ctrl y 0 vuelve al 100 %', async () => {
+    const { bridge, user } = openApp('real');
+    render(<App />);
+    await user.keyboard('{Control>}={/Control}');
+    await user.keyboard('{Control>}{Shift>}+{/Shift}{/Control}');
+    await user.keyboard('{Control>}-{/Control}');
+    await user.keyboard('{Control>}0{/Control}');
+    await waitFor(() => expect(zooms(bridge)).toEqual(['in', 'in', 'out', 'reset']));
+  });
+
+  it('[CA-035] el zoom anda también con el cuadro «Buscar» abierto, y no confunde las teclas de los destinos', async () => {
+    const { bridge, user } = openApp('real');
+    render(<App />);
+    await user.keyboard('{Control>}k{/Control}');
+    await screen.findByRole('dialog', { name: 'Buscar' });
+    await user.keyboard('{Control>}={/Control}');
+    await waitFor(() => expect(zooms(bridge)).toEqual(['in']));
+    await user.keyboard('{Escape}');
+    await user.keyboard('{Control>}1{/Control}');
+    await user.keyboard('{Alt>}={/Alt}');
+    expect(zooms(bridge)).toEqual(['in']);
+  });
+});
+
 describe('Ajustes › «Apariencia»', () => {
   it('[CA-032] «Oscuro» cambia el tema al instante y se guarda; «Claro» lo vuelve; «Según el sistema» lo suelta', async () => {
     const { bridge, user } = openApp('real');

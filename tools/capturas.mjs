@@ -2,8 +2,9 @@
 // release/prueba/win-unpacked que arma «npm run construir»), con una carpeta de datos temporal, y
 // saca capturas de las pantallas de esa fase en claro y en oscuro en docs/pruebas-manuales/capturas.
 // Sirven para que una persona (y quien revisa) mire cómo se ve antes de aprobar; no se comparan
-// con nada: la red no usa capturas de píxeles. Fases: fase-03, fase-04 y fase-05 (esta usa los
-// modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»).
+// con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
+// Fases: fase-03, fase-04, fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs
+// --modelos») y fase-06.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -25,8 +26,11 @@ for (const [key, value] of Object.entries(process.env)) {
 }
 env.RETENIA_DATOS = dataDir;
 
-/** @param {Record<string, string>} [extra] variables de la variante de prueba (Laboratorio) */
-async function launch(extra = {}) {
+/**
+ * @param {Record<string, string>} [extra] variables de la variante de prueba (Laboratorio)
+ * @param {boolean} [toCards] deja a la vista Apuntes › «Tarjetas»; sin eso, la pantalla inicial
+ */
+async function launch(extra = {}, toCards = true) {
   const app = await electron.launch({
     executablePath: join(ROOT, 'release', 'prueba', 'win-unpacked', 'Retenia (prueba).exe'),
     args: [],
@@ -34,7 +38,10 @@ async function launch(extra = {}) {
   });
   const page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
-  await page.getByRole('heading', { level: 2, name: 'Tarjetas' }).waitFor();
+  await page.getByRole('heading', { level: 2, name: 'Estudiar' }).waitFor();
+  if (toCards) {
+    await goTo(page, 'Tarjetas');
+  }
   return { app, page };
 }
 
@@ -52,13 +59,28 @@ async function shoot(page, screen) {
 /** @param {import('@playwright/test').Page} page @param {string} text */
 const itemWith = (page, text) => page.getByRole('listitem').filter({ hasText: text });
 
+/** @param {import('@playwright/test').Page} page @param {string} destination */
+async function goToDestination(page, destination) {
+  await page
+    .getByRole('navigation', { name: 'Riel lateral' })
+    .getByRole('button', { name: destination, exact: true })
+    .click();
+  await page.getByRole('heading', { level: 2, name: destination }).waitFor();
+}
+
+// «Tarjetas», «Papelera» y «Actividad reciente» viven adentro de Apuntes; «Ajustes» es del riel.
 /** @param {import('@playwright/test').Page} page @param {string} section */
 async function goTo(page, section) {
+  if (section === 'Ajustes') {
+    await goToDestination(page, 'Ajustes');
+    return;
+  }
+  await goToDestination(page, 'Apuntes');
   await page
-    .getByRole('navigation', { name: 'Secciones' })
-    .getByRole('button', { name: section })
+    .getByRole('navigation', { name: 'Secciones de Apuntes' })
+    .getByRole('button', { name: section, exact: true })
     .click();
-  await page.getByRole('heading', { level: 2, name: section }).waitFor();
+  await page.getByRole('heading', { level: 3, name: section }).waitFor();
 }
 
 /** @param {import('@playwright/test').Page} page @param {string} question @param {string} grade */
@@ -267,9 +289,57 @@ async function phase05(first) {
   return third.app;
 }
 
-let { app, page } = await launch();
+// Las pantallas nuevas de la Fase 06: el riel con sus seis destinos, Apuntes, Ajustes con
+// «Apariencia», el cuadro «Buscar», la «Galería» y, al final, todo en oscuro elegido a mano.
+/** @param {import('@playwright/test').Page} page */
+async function phase06(page) {
+  await page.mouse.move(560, 4);
+  await shoot(page, '1-estudiar');
+  await goToDestination(page, 'Apuntes');
+  await page.getByRole('listitem').first().waitFor();
+  await shoot(page, '2-apuntes');
+  await goToDestination(page, 'Materiales');
+  await shoot(page, '3-materiales');
+  await goToDestination(page, 'Idiomas');
+  await shoot(page, '4-idiomas');
+  await goToDestination(page, 'Progreso');
+  await shoot(page, '5-progreso');
+  await goToDestination(page, 'Ajustes');
+  await shoot(page, '6-ajustes');
+  await page.keyboard.press('Control+K');
+  await page.getByRole('dialog', { name: 'Buscar' }).waitFor();
+  await shoot(page, '7-buscar');
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Galería' }).click();
+  await page.getByRole('heading', { level: 2, name: 'Galería' }).waitFor();
+  const main = page.getByRole('main');
+  const { height, total } = await main.evaluate((element) => ({
+    height: element.clientHeight,
+    total: element.scrollHeight,
+  }));
+  const slices = Math.ceil(total / height);
+  // En la guía de pruebas, el principio de la galería y sus seis estados (al final); las demás
+  // partes están en las capturas de referencia (tests/e2e/capturas-de-referencia).
+  for (const slice of [0, slices - 1]) {
+    await main.evaluate((element, top) => element.scrollTo(0, top), slice * height);
+    await page.evaluate(() => /** @type {HTMLElement | null} */ (document.activeElement)?.blur());
+    await shoot(page, slice === 0 ? '8-galeria-principio' : '8-galeria-estados');
+  }
+
+  // El tema oscuro elegido en «Apariencia» (no el del sistema): se aplica en el acto.
+  await page.getByRole('button', { name: 'Volver a Ajustes' }).click();
+  await page.getByRole('radio', { name: 'Oscuro' }).check();
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.screenshot({ path: join(out, `${name}-9-oscuro-elegido.png`) });
+  await page.getByRole('radio', { name: 'Según el sistema' }).check();
+}
+
+let { app, page } = await launch({}, name !== 'fase-06');
 try {
-  if (name === 'fase-05') {
+  if (name === 'fase-06') {
+    await phase06(page);
+  } else if (name === 'fase-05') {
     app = await phase05({ app, page });
   } else if (name === 'fase-04') {
     app = await phase04(page, app);
