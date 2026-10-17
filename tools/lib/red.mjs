@@ -5,6 +5,7 @@ import { projectFiles, projectFingerprint } from './archivos.mjs';
 import { readProjectSpec } from './especificacion.mjs';
 import { closedPhaseTags, currentPhase, testCountsAtTag } from './fases.mjs';
 import { listTitles } from './listado.mjs';
+import { devModelsReady, prepareDevModels } from './preparar-modelos.mjs';
 import { firstJson, npmCliPath, ROOT, run, runPackage, stripColors } from './proceso.mjs';
 import { formatDuration, now, stopwatch } from './reloj.mjs';
 import { scanProjectForSystemClock } from './reloj-del-sistema.mjs';
@@ -445,6 +446,25 @@ export async function runNetwork({ full }) {
   /** @type {{ line: number, marker: string, kind: string, file: string }[]} */
   let markers = [];
 
+  // Los modelos de voz de desarrollo (Kokoro y Whisper), verificados por huella; la primera vez
+  // se bajan (unos 500 MB). Las pruebas los esperan; lo demás arranca enseguida.
+  /** @type {Promise<string | null>} */
+  const voiceModels = devModelsReady()
+    ? Promise.resolve(null)
+    : (async () => {
+        /** @type {string[]} */
+        const lines = [];
+        const problem = await prepareDevModels({ log: (line) => lines.push(line) });
+        saveLog('modelos-de-voz', {
+          code: problem ? 1 : 0,
+          stdout: lines.join('\n'),
+          stderr: '',
+          durationMs: 0,
+          timedOut: false,
+        });
+        return problem;
+      })();
+
   const [listed] = await Promise.all([
     (async () => {
       const result = await listing();
@@ -458,6 +478,11 @@ export async function runNetwork({ full }) {
     layer('codigo-muerto', 'Código muerto', deadCode),
     layer('secretos', 'Escáner de secretos', secrets),
     layer('pruebas', 'Pruebas unitarias y de integración', async () => {
+      // Las pruebas de voz usan los modelos de desarrollo: si faltan, se bajan una sola vez.
+      const missingModels = await voiceModels;
+      if (missingModels) {
+        return [{ layer: 'Pruebas', text: missingModels }];
+      }
       const outcome = await runVitest(FAST_PROJECTS, 'pruebas');
       coverageDir = outcome.coverageDir;
       const { tests, problems } = testProblems('pruebas', outcome);

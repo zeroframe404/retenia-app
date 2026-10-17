@@ -80,9 +80,20 @@ describe('lectura de PDF', () => {
     expect(await pdfPageImage(sample(INFERENCE), 1)).toBeNull();
   });
 
-  it('el PDF se abre sin ejecutar nada de lo que trae adentro', () => {
-    expect(PDF_OPTIONS.isEvalSupported).toBe(false);
+  it('el PDF se abre sin ejecutar nada de lo que trae adentro: ni formularios dinámicos ni código', () => {
     expect(PDF_OPTIONS.enableXfa).toBe(false);
+    // pdf.js 6 ya no tiene cómo ejecutar texto como código: ni la parte de Node que usa el
+    // proceso de materiales ni la de dibujo que usa la ventana.
+    for (const file of [
+      'legacy/build/pdf.mjs',
+      'legacy/build/pdf.worker.mjs',
+      'build/pdf.mjs',
+      'build/pdf.worker.min.mjs',
+    ]) {
+      const code = readFileSync(join(ROOT, 'node_modules', 'pdfjs-dist', file), 'utf8');
+      expect(code, file).not.toMatch(/\beval\s*\(/);
+      expect(code, file).not.toMatch(/\bnew\s+Function\s*\(/);
+    }
   });
 
   it('un archivo que no es un PDF se rechaza sin colgarse', async () => {

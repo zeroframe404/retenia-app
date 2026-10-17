@@ -176,7 +176,7 @@ test('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y una fra
     )
     .toBeGreaterThan(2000);
   // …y la frase resaltada cae sobre ella.
-  const marks = image.getByRole('mark');
+  const marks = image.getByRole('img', { name: 'Frase resaltada' });
   await expect(marks).toHaveCount(2);
   const page = await image.boundingBox();
   for (const mark of await marks.all()) {

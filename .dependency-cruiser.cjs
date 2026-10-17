@@ -31,7 +31,18 @@ module.exports = {
       comment:
         'La ventana no puede usar Electron, Node ni paquetes con disco o red: todo pasa por el puente.',
       from: { path: '^src/renderer/' },
-      to: { path: `^node_modules/(electron|${STORAGE_OR_NETWORK})/` },
+      to: {
+        path: `^node_modules/(electron|${STORAGE_OR_NETWORK})/`,
+        pathNot: '^node_modules/pdfjs-dist/',
+      },
+    },
+    {
+      name: 'capas-R1-ventana-pdf',
+      severity: 'error',
+      comment:
+        'De pdf.js la ventana usa solo la parte de dibujo, y solo desde el visor (renderer/visor).',
+      from: { path: '^src/renderer/', pathNot: '^src/renderer/visor/' },
+      to: { path: '^node_modules/pdfjs-dist/' },
     },
     {
       name: 'capas-R2-puente',

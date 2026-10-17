@@ -14,6 +14,7 @@ import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import { channels } from '../../src/preload/contract';
 import { demoChannels } from '../../src/preload/contract/demo';
 import { demoTexts } from '../../src/preload/contract/demo-texts';
+import { labChannels } from '../../src/preload/contract/lab';
 import { HIGHLIGHT_PHRASE } from '../../tools/datos-de-ejemplo/contenido.mjs';
 import { ROOT } from '../../tools/lib/proceso.mjs';
 
@@ -22,7 +23,7 @@ import { ROOT } from '../../tools/lib/proceso.mjs';
 // (runMaterialsTask); la voz no se usa en esta capa. El aviso de Windows y el micrófono son
 // fronteras externas: dobles declarados en docs/plan-de-pruebas.md.
 
-const registry = { ...channels, ...demoChannels() };
+const registry = { ...channels, ...demoChannels(), ...labChannels() };
 const LAB_CHANNELS = [
   'demo.connection',
   'demo.setConnection',
@@ -112,7 +113,7 @@ function lab(overrides: Partial<LabDeps> = {}) {
 
 describe('canales del Laboratorio', () => {
   it('existen solo en la variante de prueba', () => {
-    const demo = Object.keys(demoChannels());
+    const demo = Object.keys(labChannels());
     for (const channel of LAB_CHANNELS) {
       expect(demo).toContain(channel);
       expect(Object.keys(channels)).not.toContain(channel);

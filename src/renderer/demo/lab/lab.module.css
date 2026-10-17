@@ -1,0 +1,150 @@
+/* El Laboratorio (Ajustes › «Demostración» › «Laboratorio»): cinco bloques apilados. Sin rojo. */
+.intro {
+  margin: 0.5rem 0 0;
+  color: var(--color-tinta-suave);
+}
+
+.block {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.5rem;
+}
+
+.block h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.block h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.label {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.input {
+  font: inherit;
+  font-weight: 400;
+  color: var(--color-tinta);
+  background: var(--color-fondo);
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-borde-fuerte);
+  border-radius: 0.4rem;
+}
+
+.input:focus-visible,
+.link:focus-visible,
+.voices input:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.voices {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+
+.voices legend {
+  padding: 0;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.voices label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.voices input {
+  margin: 0;
+  accent-color: var(--color-primario-fondo);
+}
+
+.progress {
+  width: 100%;
+  height: 0.9rem;
+  accent-color: var(--color-primario-fondo);
+}
+
+.status {
+  margin: 0;
+  font-weight: 600;
+}
+
+.elapsed {
+  margin: 0;
+  color: var(--color-tinta-suave);
+  font-weight: 600;
+}
+
+.message {
+  margin: 0;
+  color: var(--color-aviso);
+  font-weight: 600;
+}
+
+.heard {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.text {
+  margin: 0;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.6rem 0.75rem;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  border-radius: 0.4rem;
+}
+
+.text:focus-visible {
+  outline: 3px solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.link {
+  color: var(--color-foco);
+  font-weight: 600;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.audio {
+  width: 100%;
+  max-width: 28rem;
+}
+
+/* «Cómo habilitarlo»: los pasos se muestran cuando el enlace lleva a ellos. */
+.howTo {
+  display: none;
+  gap: 0.75rem;
+}
+
+.howTo:target {
+  display: grid;
+}

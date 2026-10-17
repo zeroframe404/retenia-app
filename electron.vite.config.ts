@@ -13,9 +13,22 @@ export default defineConfig({
     define,
     build: {
       outDir: resolve(out, 'main'),
-      // Todo va adentro del archivo menos better-sqlite3, que trae su parte nativa y viaja
-      // aparte (asarUnpack en electron-builder).
+      // Todo va adentro del archivo menos los paquetes con partes nativas o archivos propios
+      // (better-sqlite3, sherpa-onnx, tesseract.js y sus idiomas, pdf.js), que viajan aparte.
       externalizeDeps: { exclude: ['drizzle-orm', 'ts-fsrs', 'zod'] },
+      rollupOptions: {
+        // Los procesos de trabajo de voz y de materiales: por ahora los usa solo el
+        // Laboratorio, que existe solo en la variante de prueba.
+        input: {
+          index: resolve(import.meta.dirname, 'src/main/index.ts'),
+          ...(variant === 'prueba'
+            ? {
+                voice: resolve(import.meta.dirname, 'src/main/workers/voice.ts'),
+                materials: resolve(import.meta.dirname, 'src/main/workers/materials.ts'),
+              }
+            : {}),
+        },
+      },
     },
   },
   preload: {

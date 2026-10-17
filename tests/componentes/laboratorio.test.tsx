@@ -281,7 +281,7 @@ describe('Laboratorio', () => {
       within(pdf).getByText('Frase resaltada: “Una muestra es una parte de la población”'),
     ).toBeTruthy();
     const page = within(pdf).getByRole('img', { name: 'Página 1 con la frase resaltada' });
-    expect(within(page).getAllByRole('mark')).toHaveLength(1);
+    expect(within(page).getAllByRole('img', { name: 'Frase resaltada' })).toHaveLength(1);
     expect(within(pdf).getByText('Tardó 0,3 s')).toBeTruthy();
   });
 

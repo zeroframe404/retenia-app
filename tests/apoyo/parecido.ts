@@ -2,7 +2,7 @@
 // que cambiar, sacar o poner) dividida por el largo del más largo. Antes de comparar se pasan a
 // minúsculas y se juntan los espacios, porque el reconocimiento de escaneos corta los renglones
 // donde los ve.
-export function normalizeForComparison(text: string): string {
+function normalizeForComparison(text: string): string {
   return text.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 

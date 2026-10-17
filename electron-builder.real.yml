@@ -16,6 +16,9 @@ files:
   - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
   - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"
   - "!node_modules/better-sqlite3/prebuilds/win32-arm64.node"
+  # Las piezas del Laboratorio (voz, PDF, escaneos) todavía no las usa la versión real: llegan
+  # con sus fases (13, 14 y 28).
+  - "!node_modules/{sherpa-onnx-node,sherpa-onnx-win-x64,tesseract.js,tesseract.js-core,@tesseract.js-data,pdfjs-dist,@napi-rs,bmp-js,idb-keyval,is-url,node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall,regenerator-runtime,wasm-feature-detect,zlibjs}/**"
 extraMetadata:
   main: out/real/main/index.js
 asar: true
