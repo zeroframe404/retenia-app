@@ -234,6 +234,25 @@ describe('Laboratorio', () => {
     expect(within(transcription).getByText('Tardó 0,5 s')).toBeTruthy();
   });
 
+  it('[CA-026] al tocar «Grabar» se calla la frase que estaba sonando, para no grabarla encima de la voz (simulado)', async () => {
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+    const { user } = fakeLab({ statuses: [ready] });
+    render(<LabScreen onBack={() => undefined} />);
+    const voice = block('Voz');
+    await user.type(
+      within(voice).getByRole('textbox', { name: 'Frase en inglés' }),
+      'The weather is nice today',
+    );
+    await user.click(within(voice).getByRole('button', { name: 'Decir en voz alta' }));
+    expect(await within(voice).findByText('Tardó 1,1 s')).toBeTruthy();
+    expect(pause).not.toHaveBeenCalled();
+    await user.click(within(block('Transcripción')).getByRole('button', { name: 'Grabar' }));
+    expect(pause).toHaveBeenCalled();
+    expect(pause.mock.contexts[0]).toBe(voice.querySelector('audio'));
+    expect(microphone.startRecording).toHaveBeenCalledOnce();
+    pause.mockRestore();
+  });
+
   it('[CA-026] si la grabación no tenía voz, dice que no escuchó nada en vez de «Entendí» (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready] });
     api['demo.lab.transcribe'].mockResolvedValueOnce({ ok: true, text: '', ms: 300 });

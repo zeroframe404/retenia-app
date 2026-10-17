@@ -2,12 +2,14 @@
 // release/prueba/win-unpacked que arma «npm run construir»), con una carpeta de datos temporal, y
 // saca capturas de las pantallas de esa fase en claro y en oscuro en docs/pruebas-manuales/capturas.
 // Sirven para que una persona (y quien revisa) mire cómo se ve antes de aprobar; no se comparan
-// con nada: la red no usa capturas de píxeles. Fases: fase-03 y fase-04.
+// con nada: la red no usa capturas de píxeles. Fases: fase-03, fase-04 y fase-05 (esta usa los
+// modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»).
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { _electron as electron } from '@playwright/test';
 import Database from 'better-sqlite3';
+import { DEV_MODELS_DIR } from './lib/modelos.mjs';
 import { ROOT } from './lib/proceso.mjs';
 
 const name = process.argv[2] ?? 'fase-03';
@@ -23,11 +25,12 @@ for (const [key, value] of Object.entries(process.env)) {
 }
 env.RETENIA_DATOS = dataDir;
 
-async function launch() {
+/** @param {Record<string, string>} [extra] variables de la variante de prueba (Laboratorio) */
+async function launch(extra = {}) {
   const app = await electron.launch({
     executablePath: join(ROOT, 'release', 'prueba', 'win-unpacked', 'Retenia (prueba).exe'),
     args: [],
-    env,
+    env: { ...env, ...extra },
   });
   const page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
@@ -174,9 +177,101 @@ async function phase04(page, app) {
   return again.app;
 }
 
+// Las pantallas de la Fase 05: Ajustes con «Demostración» y el Laboratorio, sin modelos, con cada
+// resultado (modelos de desarrollo y micrófono de prueba) y con el micrófono bloqueado.
+/** @param {{ app: import('@playwright/test').ElectronApplication, page: import('@playwright/test').Page }} first */
+async function phase05(first) {
+  /** @param {import('@playwright/test').Page} page */
+  const openLab = async (page) => {
+    await goTo(page, 'Ajustes');
+    await page.getByRole('button', { name: 'Laboratorio' }).click();
+    await page.getByRole('heading', { level: 2, name: 'Laboratorio' }).waitFor();
+  };
+  /** @param {import('@playwright/test').Page} page @param {string} region */
+  const showRegion = (page, region) =>
+    page
+      .getByRole('region', { name: region })
+      .evaluate((element) => element.scrollIntoView({ block: 'start' }));
+
+  await goTo(first.page, 'Ajustes');
+  await first.page
+    .getByRole('heading', { name: 'Demostración' })
+    .evaluate((element) => element.scrollIntoView({ block: 'start' }));
+  await shoot(first.page, '1-ajustes-demostracion');
+  await first.page.getByRole('button', { name: 'Laboratorio' }).click();
+  await first.page
+    .getByText(
+      'Para usar la voz hay que descargar los modelos una vez. Conectate y tocá Descargar.',
+    )
+    .waitFor();
+  await shoot(first.page, '2-laboratorio-sin-modelos');
+  await first.app.close();
+
+  const second = await launch({
+    RETENIA_MODELOS: DEV_MODELS_DIR,
+    RETENIA_MICROFONO_ARCHIVO: join(ROOT, 'datos-de-ejemplo', 'good-morning.wav'),
+  });
+  const page = second.page;
+  await openLab(page);
+  const voice = page.getByRole('region', { name: 'Voz' });
+  await voice.getByText('Modelos listos').waitFor();
+  await voice.getByRole('textbox', { name: 'Frase en inglés' }).fill('The weather is nice today');
+  await voice.getByRole('radio', { name: 'Hombre, Reino Unido' }).check();
+  await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
+  await voice.getByText(/^Tardó /).waitFor({ timeout: 60_000 });
+  await showRegion(page, 'Voz');
+  await shoot(page, '3-voz');
+
+  const transcription = page.getByRole('region', { name: 'Transcripción' });
+  await transcription.getByRole('button', { name: 'Grabar' }).click();
+  await transcription.getByText(/^Grabando… 2 s\./).waitFor({ timeout: 20_000 });
+  await showRegion(page, 'Transcripción');
+  await shoot(page, '4-grabando');
+  await transcription.getByRole('button', { name: 'Detener' }).click();
+  await transcription.getByText(/^Entendí: /).waitFor({ timeout: 60_000 });
+  await showRegion(page, 'Transcripción');
+  await shoot(page, '5-transcripcion');
+
+  const pdf = page.getByRole('region', { name: 'PDF' });
+  await pdf.getByRole('button', { name: 'Leer PDF de prueba' }).click();
+  await pdf.getByRole('img', { name: 'Frase resaltada' }).first().waitFor({ timeout: 30_000 });
+  await pdf
+    .getByRole('img', { name: 'Página 1 con la frase resaltada' })
+    .evaluate((element) => element.scrollIntoView({ block: 'center' }));
+  await shoot(page, '6-pdf');
+
+  const scan = page.getByRole('region', { name: 'Escaneo' });
+  await scan.getByRole('button', { name: 'Leer página escaneada' }).click();
+  await scan.getByText(/La hipótesis nula y la alternativa/).waitFor({ timeout: 120_000 });
+  await showRegion(page, 'Escaneo');
+  await shoot(page, '7-escaneo');
+
+  const notice = page.getByRole('region', { name: 'Aviso' });
+  await notice.getByRole('button', { name: 'Probar aviso' }).click();
+  await notice.getByText(/^Aviso enviado/).waitFor({ timeout: 20_000 });
+  await showRegion(page, 'Aviso');
+  await shoot(page, '8-aviso');
+  await second.app.close();
+
+  const third = await launch({
+    RETENIA_MODELOS: DEV_MODELS_DIR,
+    RETENIA_SIMULAR_MICROFONO: 'bloqueado',
+  });
+  await openLab(third.page);
+  const blocked = third.page.getByRole('region', { name: 'Transcripción' });
+  await blocked.getByRole('button', { name: 'Grabar' }).click();
+  await blocked.getByRole('link', { name: 'Cómo habilitarlo' }).click();
+  await blocked.getByText('Volvé a Retenia y tocá «Grabar».').waitFor();
+  await showRegion(third.page, 'Transcripción');
+  await shoot(third.page, '9-microfono-bloqueado');
+  return third.app;
+}
+
 let { app, page } = await launch();
 try {
-  if (name === 'fase-04') {
+  if (name === 'fase-05') {
+    app = await phase05({ app, page });
+  } else if (name === 'fase-04') {
     app = await phase04(page, app);
   } else {
     await phase03(page);

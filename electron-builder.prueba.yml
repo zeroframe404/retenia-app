@@ -27,6 +27,8 @@ files:
   - "!node_modules/@napi-rs/**"
   # tesseract.js usa el fetch de Node: su respaldo node-fetch y lo que arrastra no hacen falta.
   - "!node_modules/{node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall}/**"
+  # Lo que tesseract.js usa solo en el navegador.
+  - "!node_modules/{zlibjs,idb-keyval}/**"
   # De tesseract.js-core, solo los núcleos que carga en Node: tesseract.js 7.0.0 elige siempre
   # el completo (no el «solo LSTM») sin importar el modo pedido. De los idiomas, solo la versión
   # entera comprimida que usa (no la grande).
@@ -46,7 +48,7 @@ asarUnpack:
   - node_modules/tesseract.js/**
   - node_modules/tesseract.js-core/**
   - node_modules/@tesseract.js-data/**
-  - node_modules/{wasm-feature-detect,regenerator-runtime,is-url,bmp-js,zlibjs,idb-keyval}/**
+  - node_modules/{wasm-feature-detect,regenerator-runtime,is-url,bmp-js}/**
 # El PDF de ejemplo de «Leer PDF de prueba» y «Leer página escaneada».
 extraResources:
   - from: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"
