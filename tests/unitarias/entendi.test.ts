@@ -28,6 +28,14 @@ describe('lo que entendió la transcripción', () => {
     expect(heardText('A cat.')).toBe('a cat');
   });
 
+  it('[CA-026] las marcas que pone Whisper para lo que no es voz no cuentan como palabras', () => {
+    expect(heardText('[BLANK_AUDIO]')).toBe('');
+    expect(heardText(' [MUSIC] Good morning. ')).toBe('good morning');
+    expect(heardText('(silence)')).toBe('');
+    expect(heardText('Good morning. [ Silence ]')).toBe('good morning');
+    expect(heardText('*coughs* Hello there.')).toBe('hello there');
+  });
+
   it('[CA-026] sin palabras queda vacío', () => {
     expect(heardText('')).toBe('');
     expect(heardText('  . ')).toBe('');

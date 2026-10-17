@@ -234,6 +234,21 @@ describe('Laboratorio', () => {
     expect(within(transcription).getByText('Tardó 0,5 s')).toBeTruthy();
   });
 
+  it('[CA-026] si la grabación no tenía voz, dice que no escuchó nada en vez de «Entendí» (simulado)', async () => {
+    const { api, user } = fakeLab({ statuses: [ready] });
+    api['demo.lab.transcribe'].mockResolvedValueOnce({ ok: true, text: '', ms: 300 });
+    render(<LabScreen onBack={() => undefined} />);
+    const transcription = block('Transcripción');
+    await user.click(within(transcription).getByRole('button', { name: 'Grabar' }));
+    await user.click(await within(transcription).findByRole('button', { name: 'Detener' }));
+    expect(
+      await within(transcription).findByText(
+        'No escuché nada. Probá de nuevo, más cerca del micrófono.',
+      ),
+    ).toBeTruthy();
+    expect(within(transcription).queryByText(/^Entendí/)).toBeNull();
+  });
+
   it('[CA-027] con el micrófono bloqueado en Windows muestra el aviso y «Cómo habilitarlo» con los pasos (simulado)', async () => {
     const { api, user } = fakeLab({ statuses: [ready], access: 'denied' });
     render(<LabScreen onBack={() => undefined} />);
