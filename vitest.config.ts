@@ -45,7 +45,8 @@ export default defineConfig({
       {
         // Las piezas del Laboratorio que tienen que andar sin internet (voz, transcripción, PDF
         // y escaneos): cada proceso de pruebas arranca con la red bloqueada, y Node repite el
-        // bloqueo en cada hilo que abra (tests/apoyo/sin-red.cjs).
+        // bloqueo en cada hilo que abra (tests/apoyo/sin-red.cjs). Solo en «verificar:todo»: con
+        // los modelos reales, dejaban a la red rápida fuera de su tope en la máquina del CI.
         extends: true,
         test: {
           name: 'sin-red',

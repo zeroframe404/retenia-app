@@ -50,7 +50,7 @@ test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, 
     // Con lo que bajó, ya habla.
     await voice.getByRole('textbox', { name: 'Frase en inglés' }).fill('Good morning');
     await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
-    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 60_000 });
+    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 120_000 });
   } finally {
     await server.close();
   }
@@ -82,6 +82,8 @@ test('[CA-024] sin modelos y con «Simular sin conexión», «Descargar modelos�
 test('[CA-025] «Decir en voz alta» dice «The weather is nice today» con dos voces distintas y muestra cuánto tardó', async ({
   launch,
 }) => {
+  // Cargar Kokoro en la máquina del CI lleva varios segundos.
+  test.setTimeout(180_000);
   const { page } = await launch(undefined, WITH_MODELS);
   await openLab(page);
   const voice = block(page, 'Voz');
@@ -93,7 +95,7 @@ test('[CA-025] «Decir en voz alta» dice «The weather is nice today» con dos 
   for (const name of ['Mujer, Estados Unidos', 'Hombre, Reino Unido']) {
     await voice.getByRole('radio', { name }).check();
     await voice.getByRole('button', { name: 'Decir en voz alta' }).click();
-    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 60_000 });
+    await expect(voice.getByText(/^Tardó \d+(,\d)? s$/)).toBeVisible({ timeout: 120_000 });
     const audio = voice.locator('audio');
     await expect(audio).toHaveAttribute('src', /^blob:/);
     await expect.poll(() => audio.evaluate((a: HTMLAudioElement) => a.duration)).toBeGreaterThan(1);
@@ -107,6 +109,8 @@ test('[CA-025] «Decir en voz alta» dice «The weather is nice today» con dos 
 test('[CA-026] «Grabar», decir «good morning» y «Detener» muestran «Entendí: “good morning”» en un campo que se puede corregir (simulado)', async ({
   launch,
 }) => {
+  // Cargar Whisper en la máquina del CI lleva varios segundos.
+  test.setTimeout(180_000);
   const { page } = await launch(undefined, {
     ...WITH_MODELS,
     RETENIA_MICROFONO_ARCHIVO: join(ROOT, 'datos-de-ejemplo', 'good-morning.wav'),
