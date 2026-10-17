@@ -100,11 +100,21 @@ No son paquetes npm. Elegidos en la Fase 05 midiendo en esta PC (`docs/laborator
 | Modelo | Elegido | Tamaño | Licencia | Para qué |
 |---|---|---|---|---|
 | Voz en inglés (Kokoro 82M, vía sherpa-onnx) | `csukuangfj/kokoro-int8-multi-lang-v1_0`, revisión `2a360693d79b88b49b88e29aec2b53577f41f206`: modelo, voces, símbolos, los dos léxicos en inglés, lo que usa el inglés de espeak-ng y la licencia (14 archivos) | 148 MB | Apache-2.0 | «Decir en voz alta», 28 voces en inglés; el Laboratorio usa cuatro (CA-305 pide al menos 4). Descartadas: la `en-v0_19` (ya no está en Hugging Face con esa forma) y la v1_1 (3 voces en inglés, todas femeninas). |
-| Transcripción (Whisper multilingüe, vía sherpa-onnx) | `csukuangfj/sherpa-onnx-whisper-small`, revisión `8f3c18b358db4d1f2fc1eae49d75cd20989e4309`: codificador y decodificador int8 y los símbolos (3 archivos) | 358 MB | MIT | «Entendí: …», «Mantener para hablar», transcribir audios propios. Elegido sobre tiny (98 MB) y base (152 MB): fue el único que entendió bien cuatro frases con ruido, y tarda medio segundo por frase. Solo hasta 30 s por pasada. |
+| Transcripción (Whisper multilingüe, vía sherpa-onnx) | `csukuangfj/sherpa-onnx-whisper-small`, revisión `8f3c18b358db4d1f2fc1eae49d75cd20989e4309`: codificador y decodificador int8 y los símbolos (3 archivos) | 358 MB | MIT | «Entendí: …», «Mantener para hablar», transcribir audios propios. Elegido sobre tiny (98 MB) y base (153 MB): fue el único que entendió bien cuatro frases con ruido, y tarda medio segundo por frase. Solo hasta 30 s por pasada. |
 | Detector de voz (Silero VAD, vía sherpa-onnx) | todavía no: llega con CA-288 (Fase 30), para cortar audios largos | del orden de 2 MB | MIT | Cortar audios largos en frases para Whisper. |
 | Plan B de transcripción | Moonshine base en (cuantizado 2026-02-27) | 111 MB | MIT | No hizo falta: Whisper small entra en tiempo y en tamaño. |
 
 Total: 506 MB (531 millones de bytes), dentro de los 300 a 600 MB que fija `no-funcionales.md`. Los datos de reconocimiento de escaneos ya no están en esta lista: viajan en el instalador (`@tesseract.js-data`, fila de arriba).
+
+## Comprobado en esta PC (17/10/2026, Fase 05)
+
+Dentro de Retenia (prueba), empaquetada y como la abre `npm run iniciar`; detalle en `docs/laboratorio.md`:
+
+1. **sherpa-onnx-node 1.13.8 con Kokoro v1.0 y Whisper small** en un `utilityProcess` empaquetado: carga sola sus DLL desde fuera del asar; Kokoro dice «The weather is nice today» en 0,9 a 1,8 s y Whisper entiende «good morning» en 0,2 a 1,2 s.
+2. **pdf.js 6.4.299** en el proceso de materiales: texto y posiciones de una página en 0,1 s; en la ventana dibuja la página con su hilo de trabajo.
+3. **tesseract.js 7.0.0** con los datos empaquetados: reconoce la página escaneada en 0,8 s, con un 98,4 % de parecido al original, con la red bloqueada.
+4. **Avisos de Windows** desde Electron 44: Windows confirma que mostró el aviso, empaquetado y sin empaquetar.
+5. **Descarga de los modelos** desde Hugging Face con el manifiesto: 506 MB en 35 s, cada huella coincide.
 
 ## Comprobado en esta PC (13/10/2026)
 
@@ -122,9 +132,9 @@ Cuatro pruebas descartables en una carpeta temporal fuera del repositorio, borra
 | Monto mínimo de carga de crédito en la consola de Anthropic | No está publicado en la documentación ni en el soporte; solo se ve en el formulario de compra. | La página para humanos dice «crédito prepago» sin monto; lo anotás vos al cargarlo. | Fase 19 |
 | Si GitHub sigue contando doble los minutos de Windows | La documentación quitó la tabla de multiplicadores; las facturas que reportan los usuarios siguen mostrando el doble. | Se presupuesta como doble (unos 1.000 minutos de Windows por mes); si se agotan, la red completa corre en tu PC. | Fase 02 |
 | Que una actualización bajada por Retenia no dispare el aviso de Windows | Es un razonamiento sobre la marca de origen de los archivos (la escriben los navegadores, no Node), sin prueba empírica. | Se comprueba a mano en la Fase 40; si aparece, la Ayuda lo explica. | Fase 40 |
-| Velocidad de Kokoro y Whisper en una PC de escritorio | Solo hay cifras oficiales para Raspberry Pi. En esta PC el modelo chico de prueba generó 1,86 s de audio en 0,8 s. | Se mide en la Fase 05; si Kokoro tarda más de 2 s por frase, se usa la variante más chica o Piper. | Fase 05 |
-| sherpa-onnx dentro del programa empaquetado | Hay reportes abiertos de «Could not find sherpa-onnx-node» en programas empaquetados; la prueba de hoy corrió sin empaquetar. | `asarUnpack` de sus dos paquetes y carga por ruta absoluta; si falla, ejecutables de sherpa-onnx como proceso aparte. | Fase 05 |
-| Tamaño exacto de la variante int8 de Whisper | Los paquetes traen fp32 e int8 juntos. | Se mide al reempaquetar en la Fase 05. | Fase 05 |
+| Velocidad de Kokoro y Whisper en una PC de escritorio | Resuelto en la Fase 05: Kokoro 0,9 a 1,4 s por frase (1,8 s la primera) y Whisper small 0,2 a 0,5 s por frase (`docs/laboratorio.md`). | — | Fase 05 |
+| sherpa-onnx dentro del programa empaquetado | Resuelto en la Fase 05: anda empaquetado e instalado (en el CI), con sus dos paquetes fuera del asar. Lo que sí falló fue una carpeta con «í»: se resolvió con rutas relativas. | — | Fase 05 |
+| Tamaño exacto de la variante int8 de Whisper | Resuelto en la Fase 05: small int8, 358 MB (sin los fp32, que no se bajan). | — | Fase 05 |
 | Disparador `[[` en las menciones de TipTap | Funciona por construcción (el disparador se escapa en una expresión regular) pero no está documentado. | Si no anda, un disparador de un carácter (`[`) con filtro propio. | Fase 07 |
 
 ## Herramientas de esta PC (desarrollo)

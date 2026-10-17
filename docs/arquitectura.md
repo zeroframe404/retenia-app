@@ -291,11 +291,13 @@ Vive en la carpeta de datos de aplicaciones de la cuenta de Windows (`%APPDATA%`
     AAAA-MM-DD-HHMM[-nombre].retenia-copia     instantánea de la base (VACUUM INTO) comprimida, con manifiesto
     blobs\<sha256>                    originales e imágenes referenciados por alguna copia, guardados una sola vez
   modelos\
-    manifiesto.json                   qué modelos hay, versión y huella
-    kokoro\…  whisper\…  vad\…  tessdata\…
+    verificados.json                  qué archivos se bajaron y verificaron (tamaño, fecha, huella)
+    kokoro\…  whisper\…              (el manifiesto vive en el código: src/main/voice-models)
+    .descargas\                       lo que se está bajando; se reanuda desde ahí
   registros\retenia.log, retenia.1.log … retenia.5.log
   diagnosticos\AAAA-MM-DD-HHMM.txt
-  tmp\                                trabajo de los procesos (extracciones, importaciones); se limpia al arrancar
+  tmp\                                trabajo de los procesos (extracciones, importaciones, los idiomas del
+                                      reconocimiento de escaneos); se limpia al arrancar
 ```
 
 Decisiones sobre la carpeta:
@@ -371,11 +373,11 @@ Un solo módulo, `src/ai`, habla con el SDK de Anthropic. Nadie más lo importa 
 
 ## 10. Voz
 
-- El `voice-worker` carga una vez por proceso el modelo de voz (Kokoro int8), el detector de voz (Silero VAD) y el modelo de transcripción (Whisper int8, inglés), desde `modelos\`. Si falta algo, responde «Para usar la voz hay que descargar los modelos una vez. Conectate y tocá Descargar.» (CA-024).
+- El `voice-worker` carga una vez por proceso, recién cuando hace falta, el modelo de voz (Kokoro 82M int8 v1.0) y el de transcripción (Whisper small int8, multilingüe, con el idioma fijado en inglés), desde `modelos\`; el detector de voz (Silero VAD) llega con CA-288. Si falta algo, la ventana muestra «Para usar la voz hay que descargar los modelos una vez. Conectate y tocá Descargar.» (CA-024). sherpa-onnx abre sus archivos con rutas de 8 bits: el proceso le pasa rutas relativas a la carpeta de modelos, así anda aunque la cuenta de Windows tenga tilde (Fase 05).
 - Decir en voz alta: texto → WAV 24 kHz; la ventana lo reproduce con `<audio>`. Las voces disponibles son las inglesas del modelo; «Pronunciar» rota al menos 4 (CA-305).
 - Transcribir: la ventana graba con `MediaRecorder`, decodifica a PCM mono 16 kHz y lo envía por `ArrayBuffer`; el proceso corta en frases con el detector de voz (Whisper acepta hasta 30 s por pasada), transcribe cada frase y devuelve texto con segmentos; lo que el detector no reconoce como voz queda «[inaudible]» (CA-288). Micrófono bloqueado en Windows: `getUserMedia` falla con permiso denegado y la pantalla dice «Sin acceso al micrófono no podemos escucharte» con «Cómo habilitarlo» (CA-027, CA-308).
 - Toda llamada a sherpa-onnx lleva `enableExternalBuffer: false` (obligatorio en Electron). Los dos paquetes de sherpa-onnx quedan fuera del asar.
-- Descarga única: `voice.downloadModels` baja desde las releases de `retenia-releases` lo que falta según `manifiesto.json`, comprueba la huella SHA-256 de cada archivo antes de moverlo a `modelos\`, muestra progreso y termina con «Modelos listos» (CA-024). También baja los datos de reconocimiento de escaneos.
+- Descarga única (Fase 05): baja de los repositorios oficiales de sherpa-onnx en Hugging Face, cada archivo fijado por su revisión, lo que falta según el manifiesto del código (`src/main/voice-models/manifest.ts`); calcula la huella SHA-256 mientras llega y solo si coincide lo mueve a `modelos\`; reanuda una descarga cortada; muestra progreso y termina con «Modelos listos» (CA-024). Hoy la usa el Laboratorio; Ajustes › «Voz» llega en la Fase 28. Los datos de reconocimiento de escaneos ya no se bajan: viajan en el instalador (decisión de la Fase 05).
 
 ## 11. Rendimiento
 
