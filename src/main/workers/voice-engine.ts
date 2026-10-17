@@ -38,8 +38,22 @@ export function createVoiceEngine(
   let tts: InstanceType<typeof sherpa.OfflineTts> | null = null;
   let asr: InstanceType<typeof sherpa.OfflineRecognizer> | null = null;
 
-  const kokoro = (file: string) => join(modelsDir, 'kokoro', file);
-  const whisper = (file: string) => join(modelsDir, 'whisper', file);
+  // sherpa-onnx abre sus archivos con rutas de 8 bits: con letras fuera del inglés en la carpeta
+  // (una cuenta de Windows «Martín») no los encuentra y el proceso se cae. Por eso recibe rutas
+  // relativas mientras el proceso está parado en la carpeta de modelos, y eso vale también al
+  // decir cada frase, porque la pronunciación vuelve a leer sus archivos.
+  const kokoro = (file: string) => join('kokoro', file);
+  const whisper = (file: string) => join('whisper', file);
+  const exists = (paths: string[]) => requireFiles(paths.map((path) => join(modelsDir, path)));
+  const inModels = <T>(work: () => T): T => {
+    const before = process.cwd();
+    process.chdir(modelsDir);
+    try {
+      return work();
+    } finally {
+      process.chdir(before);
+    }
+  };
 
   function voiceModel() {
     if (!tts) {
@@ -50,7 +64,7 @@ export function createVoiceEngine(
         dataDir: kokoro('espeak-ng-data'),
         lexicon: `${kokoro('lexicon-us-en.txt')},${kokoro('lexicon-gb-en.txt')}`,
       };
-      requireFiles([
+      exists([
         files.model,
         files.voices,
         files.tokens,
@@ -58,10 +72,13 @@ export function createVoiceEngine(
         kokoro('lexicon-us-en.txt'),
         kokoro('lexicon-gb-en.txt'),
       ]);
-      tts = new sherpa.OfflineTts({
-        model: { kokoro: { ...files, lang: 'en-us' }, numThreads: threads, provider: 'cpu' },
-        maxNumSentences: 1,
-      });
+      tts = inModels(
+        () =>
+          new sherpa.OfflineTts({
+            model: { kokoro: { ...files, lang: 'en-us' }, numThreads: threads, provider: 'cpu' },
+            maxNumSentences: 1,
+          }),
+      );
     }
     return tts;
   }
@@ -73,22 +90,25 @@ export function createVoiceEngine(
         decoder: whisper('small-decoder.int8.onnx'),
         tokens: whisper('small-tokens.txt'),
       };
-      requireFiles(Object.values(files));
-      asr = new sherpa.OfflineRecognizer({
-        featConfig: { sampleRate: 16000, featureDim: 80 },
-        modelConfig: {
-          whisper: {
-            encoder: files.encoder,
-            decoder: files.decoder,
-            language: 'en',
-            task: 'transcribe',
-          },
-          tokens: files.tokens,
-          numThreads: threads,
-          provider: 'cpu',
-          debug: 0,
-        },
-      });
+      exists(Object.values(files));
+      asr = inModels(
+        () =>
+          new sherpa.OfflineRecognizer({
+            featConfig: { sampleRate: 16000, featureDim: 80 },
+            modelConfig: {
+              whisper: {
+                encoder: files.encoder,
+                decoder: files.decoder,
+                language: 'en',
+                task: 'transcribe',
+              },
+              tokens: files.tokens,
+              numThreads: threads,
+              provider: 'cpu',
+              debug: 0,
+            },
+          }),
+      );
     }
     return asr;
   }
@@ -99,7 +119,10 @@ export function createVoiceEngine(
       if (!Number.isInteger(voice) || sid === undefined) {
         throw new RangeError(`No hay una voz número ${voice}`);
       }
-      const audio = voiceModel().generate({ text, sid, speed: 1, enableExternalBuffer: false });
+      const model = voiceModel();
+      const audio = inModels(() =>
+        model.generate({ text, sid, speed: 1, enableExternalBuffer: false }),
+      );
       return {
         wav: encodeWav(audio.samples, audio.sampleRate),
         seconds: audio.samples.length / audio.sampleRate,
