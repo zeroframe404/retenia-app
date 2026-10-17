@@ -22,7 +22,16 @@ export default defineConfig({
         extends: true,
         test: { name: 'propiedades', include: ['tests/propiedades/**/*.test.ts'] },
       },
-      { extends: true, test: { name: 'contrato', include: ['tests/contrato/**/*.test.ts'] } },
+      {
+        // Abren una base real y hacen copias y restauraciones: dentro de un sabotaje, con tres
+        // redes a la vez en la máquina del CI, pasaban los 5 s que Vitest da por defecto.
+        extends: true,
+        test: {
+          name: 'contrato',
+          include: ['tests/contrato/**/*.test.ts'],
+          testTimeout: 30_000,
+        },
+      },
       {
         // Las pantallas de la ventana (capa R): Testing Library con jsdom.
         extends: true,
