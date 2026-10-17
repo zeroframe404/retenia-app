@@ -36,6 +36,7 @@ export const demoTexts = {
       downloading: (percent: number) => `Bajando los modelos: ${Math.round(percent)} %`,
       progressLabel: 'Descarga de los modelos',
       ready: 'Modelos listos',
+      wait: 'Esperá a que terminen de bajar los modelos.',
       corrupt: 'Un archivo llegó dañado y lo descarté. Tocá «Descargar modelos» de nuevo.',
       server: 'No pude bajar los modelos. Probá de nuevo en un rato.',
       disk: 'No hay lugar en el disco para los modelos: hacen falta unos 560 MB libres.',

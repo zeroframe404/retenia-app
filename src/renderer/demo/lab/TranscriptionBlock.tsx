@@ -6,10 +6,14 @@ import styles from './lab.module.css';
 import { type Recording, startRecording } from './microphone';
 
 const t = demoTexts.lab;
-const MAX_SECONDS = 30;
+// El contador corta a los 29 segundos y se manda como mucho lo que entra en 30 (lo que Whisper
+// acepta de una vez): el grabador arranca un poco antes que el contador.
+const MAX_SECONDS = 29;
+const MAX_SAMPLES = 16_000 * 30;
 
 type State =
   | { kind: 'idle' }
+  | { kind: 'starting' }
   | { kind: 'recording'; seconds: number }
   | { kind: 'transcribing' }
   | { kind: 'heard'; text: string; ms: number }
@@ -35,6 +39,9 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
   const [state, setState] = useState<State>({ kind: 'idle' });
   const recording = useRef<Recording | null>(null);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Un solo pedido de micrófono por vez, y nada que quede abierto si se sale del Laboratorio.
+  const starting = useRef(false);
+  const mounted = useRef(true);
 
   const stopTicker = () => {
     if (ticker.current) {
@@ -44,15 +51,16 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
   };
 
   // Al salir del Laboratorio se corta todo: el contador y la grabación.
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       if (ticker.current) {
         clearInterval(ticker.current);
       }
       recording.current?.cancel();
-    },
-    [],
-  );
+    };
+  }, []);
 
   async function stop() {
     const current = recording.current;
@@ -63,7 +71,8 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
     }
     setState({ kind: 'transcribing' });
     try {
-      const samples = await current.stop();
+      const recorded = await current.stop();
+      const samples = recorded.length > MAX_SAMPLES ? recorded.slice(0, MAX_SAMPLES) : recorded;
       const answer = await window.retenia['demo.lab.transcribe']({ samples, sampleRate: 16000 });
       if (!answer.ok) {
         setState({
@@ -81,22 +90,36 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
   }
 
   async function record() {
-    onRecord();
-    if (models.status?.state !== 'ready') {
-      setState({ kind: 'problem', message: t.voice.missing });
+    if (starting.current || recording.current) {
       return;
     }
+    onRecord();
+    if (models.status?.state !== 'ready') {
+      const downloading = models.status?.state === 'downloading';
+      setState({ kind: 'problem', message: downloading ? t.voice.wait : t.voice.missing });
+      return;
+    }
+    starting.current = true;
+    setState({ kind: 'starting' });
+    let opened: Recording;
     try {
       const { access } = await window.retenia['demo.lab.microphone']({});
       if (access === 'denied') {
         setState({ kind: 'blocked' });
         return;
       }
-      recording.current = await startRecording();
+      opened = await startRecording();
     } catch (error) {
       setState(microphoneProblem(error));
       return;
+    } finally {
+      starting.current = false;
     }
+    if (!mounted.current) {
+      opened.cancel();
+      return;
+    }
+    recording.current = opened;
     setState({ kind: 'recording', seconds: 0 });
     // Cuenta los segundos (sin leer la hora) y corta solo a los 30.
     let seconds = 0;
@@ -120,7 +143,7 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
           <button
             type="button"
             className={ui.primary}
-            disabled={state.kind === 'transcribing'}
+            disabled={state.kind === 'transcribing' || state.kind === 'starting'}
             onClick={() => void record()}
           >
             {t.transcription.record}

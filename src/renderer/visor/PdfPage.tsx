@@ -76,8 +76,7 @@ export function PdfPage({
   }, [pdf, page, scale]);
 
   return (
-    <div
-      role="img"
+    <figure
       aria-label={label}
       className={styles.page}
       style={{ width: DISPLAY_WIDTH, height: Math.round(height * scale) }}
@@ -97,6 +96,6 @@ export function PdfPage({
           }}
         />
       ))}
-    </div>
+    </figure>
   );
 }

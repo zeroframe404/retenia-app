@@ -46,7 +46,14 @@ export function VoiceBlock({
         const url = URL.createObjectURL(new Blob([answer.audio.slice()], { type: 'audio/wav' }));
         setSpoken({ url, ms: answer.ms });
       } else {
-        setProblem(answer.problem === 'noModels' ? t.voice.missing : t.voice.failed);
+        const downloading = models.status?.state === 'downloading';
+        setProblem(
+          answer.problem === 'noModels'
+            ? downloading
+              ? t.voice.wait
+              : t.voice.missing
+            : t.voice.failed,
+        );
       }
     } catch {
       setProblem(t.voice.failed);

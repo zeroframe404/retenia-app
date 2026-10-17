@@ -3,7 +3,7 @@
 // (@tesseract.js-data, la versión entera comprimida que usa tesseract.js por defecto) y se copian
 // una vez a la carpeta de trabajo, que es de donde tesseract.js los lee. Nunca se le deja pedir
 // nada a la red: la carpeta de idiomas es local y no se usa su caché.
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { copyFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 // tesseract.js es CommonJS: dentro del programa empaquetado sus nombres sueltos no llegan, así que
@@ -34,10 +34,14 @@ export async function recognize(
 ): Promise<string> {
   const languages = join(workDir, 'idiomas');
   mkdirSync(languages, { recursive: true });
+  // Se copia a un archivo aparte y se renombra al final; uno que quedó a medias (un corte, el
+  // disco lleno) no tiene el tamaño del original y se vuelve a copiar.
   for (const language of LANGUAGES) {
+    const source = packagedData(language);
     const target = join(languages, `${language}.traineddata.gz`);
-    if (!existsSync(target)) {
-      copyFileSync(packagedData(language), target);
+    if (statSync(target, { throwIfNoEntry: false })?.size !== statSync(source).size) {
+      copyFileSync(source, `${target}.parcial`);
+      renameSync(`${target}.parcial`, target);
     }
   }
   const worker = await Tesseract.createWorker([...LANGUAGES], Tesseract.OEM.LSTM_ONLY, {

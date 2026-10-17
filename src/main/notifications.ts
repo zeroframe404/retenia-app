@@ -1,8 +1,9 @@
 // Los avisos de Windows (docs/arquitectura.md, sección 8): una envoltura de la notificación de
 // Electron para que el contrato pueda probar qué se muestra y qué pasa al tocarlo sin depender de
 // Windows (el doble está declarado en docs/plan-de-pruebas.md). Tocar el aviso trae Retenia al
-// frente. Mientras el aviso vive se guarda una referencia: si no, Electron lo puede soltar y el
-// toque se pierde.
+// frente. Se guarda una referencia a cada aviso mostrado hasta que lo tocan: si no, Electron lo
+// puede soltar y el toque se pierde. Windows avisa «close» también cuando lo saca de la pantalla y
+// lo pasa al centro de notificaciones, donde todavía se puede tocar: eso no lo suelta.
 
 export interface NotificationLike {
   show(): void;
@@ -11,6 +12,8 @@ export interface NotificationLike {
 
 export interface Notifier {
   show(content: { title: string; body: string }): Promise<{ shown: boolean }>;
+  // Cuántos avisos mostrados siguen esperando un toque.
+  held(): number;
 }
 
 export function createNotifier({
@@ -24,6 +27,7 @@ export function createNotifier({
 }): Notifier {
   const alive = new Set<NotificationLike>();
   return {
+    held: () => alive.size,
     show({ title, body }) {
       return new Promise((resolve) => {
         const notification = create({ title, body });
@@ -48,7 +52,6 @@ export function createNotifier({
           alive.delete(notification);
           bringToFront();
         });
-        notification.on('close', () => alive.delete(notification));
         notification.show();
       });
     },

@@ -1,6 +1,7 @@
 /* La hoja es papel: blanca también en oscuro, con un borde para que se vea dónde termina. */
 .page {
   position: relative;
+  margin: 0;
   max-width: 100%;
   background: #ffffff;
   border: 1px solid var(--color-borde-fuerte);

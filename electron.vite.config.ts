@@ -1,12 +1,27 @@
 import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'electron-vite';
+import type { Plugin } from 'vite';
 
 // Variante de compilación: «prueba» trae el modo demostración; «real» no lo trae.
 // Sin variable de entorno se compila la real, para no llevar la demostración por descuido.
 const variant = process.env.RETENIA_VARIANTE === 'prueba' ? 'prueba' : 'real';
 const out = resolve(import.meta.dirname, 'out', variant);
 const define = { __VARIANTE__: JSON.stringify(variant) };
+
+// La versión real todavía no dibuja PDF (el visor lo usa solo el Laboratorio). Su pantalla se
+// descarta al compilar, pero Vite igual copiaría el hilo de trabajo de pdf.js a la ventana: en la
+// real, pdf.js se reemplaza por un módulo vacío.
+const EMPTY_PDFJS = '\0retenia-sin-pdfjs';
+const withoutPdfjs: Plugin = {
+  name: 'retenia-sin-pdfjs',
+  enforce: 'pre',
+  resolveId: (id) => (id.startsWith('pdfjs-dist') ? EMPTY_PDFJS : null),
+  load: (id) =>
+    id === EMPTY_PDFJS
+      ? 'export default ""; export const GlobalWorkerOptions = {}; export function getDocument() { throw new Error("pdf.js no viene en esta versión"); }'
+      : null,
+};
 
 export default defineConfig({
   main: {
@@ -43,7 +58,7 @@ export default defineConfig({
   },
   renderer: {
     define,
-    plugins: [react()],
+    plugins: [react(), ...(variant === 'real' ? [withoutPdfjs] : [])],
     build: { outDir: resolve(out, 'renderer') },
   },
 });

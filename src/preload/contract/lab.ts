@@ -52,7 +52,14 @@ export function labChannels() {
       request: z.strictObject({
         samples: z
           .instanceof(Float32Array)
-          .refine((samples) => samples.length <= MAX_SAMPLES, 'Grabación demasiado larga'),
+          .refine(
+            (samples) => samples.length > 0 && samples.length <= MAX_SAMPLES,
+            'Grabación vacía o demasiado larga',
+          )
+          .refine(
+            (samples) => samples.every((sample) => Number.isFinite(sample)),
+            'Grabación con valores que no son números',
+          ),
         sampleRate: z.literal(16000),
       }),
       response: z.union([

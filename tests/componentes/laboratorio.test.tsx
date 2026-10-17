@@ -293,10 +293,8 @@ describe('Laboratorio', () => {
     await user.click(within(transcription).getByRole('button', { name: 'Grabar' }));
     await user.click(await within(transcription).findByRole('button', { name: 'Detener' }));
     expect(await within(transcription).findByText('Entendí: “good morning”')).toBeTruthy();
-    const sent = api['demo.lab.transcribe'].mock.calls[0]?.[0] as unknown as {
-      samples: Float32Array;
-    };
-    expect(sent.samples.length).toBe(16000 * 30);
+    const calls = api['demo.lab.transcribe'].mock.calls as unknown as [{ samples: Float32Array }][];
+    expect(calls[0]?.[0].samples.length).toBe(16000 * 30);
   });
 
   it('[CA-024] mientras se bajan los modelos, «Grabar» y «Decir en voz alta» piden esperar (simulado)', async () => {

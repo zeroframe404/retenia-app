@@ -35,6 +35,27 @@ export const materialsTask = z.discriminatedUnion('kind', [
   }),
 ]);
 
+// Lo que devuelve cada tarea: el principal lo valida antes de usarlo.
+export const speakResult = z.strictObject({
+  wav: z.instanceof(Uint8Array),
+  seconds: z.number().nonnegative(),
+});
+export const textResult = z.strictObject({ text: z.string() });
+export const pdfPageResult = z.strictObject({
+  pageCount: z.number().int().positive(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+  items: z.array(
+    z.strictObject({
+      text: z.string(),
+      x: z.number(),
+      y: z.number(),
+      width: z.number(),
+      height: z.number(),
+    }),
+  ),
+});
+
 // Lo que puede salir mal en un proceso de trabajo, además de su respuesta.
 const workerProblem = z.enum(['noModels', 'failed', 'timeout', 'crashed']);
 export type WorkerProblemName = z.infer<typeof workerProblem>;

@@ -2,13 +2,14 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { z } from 'zod';
 import type { Stopwatch } from '../../core/clock';
-import { locatePhrase, type TextItem } from '../../core/highlight';
+import { locatePhrase } from '../../core/highlight';
 import { heardText } from '../../core/speech';
 import { demoTexts } from '../../preload/contract/demo-texts';
 import type { labChannels } from '../../preload/contract/lab';
 import type { Notifier } from '../notifications';
 import { type WorkerClient, WorkerProblem } from '../supervisor';
 import { type ModelStore, ModelsError, type ModelsProblem } from '../voice-models/store';
+import { pdfPageResult, speakResult, textResult } from '../workers/protocol';
 
 // El Laboratorio (H-07, solo en «Retenia (prueba)»): los botones de Ajustes › «Demostración» ›
 // «Laboratorio». Usa las mismas piezas que la versión real va a usar en sus fases: la carpeta de
@@ -133,10 +134,12 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
       }
       const elapsed = deps.stopwatch.start();
       try {
-        const spoken = (await deps.voice.request(
-          { kind: 'speak', modelsDir: deps.models.dir, text, voice },
-          LIMITS.voice,
-        )) as { wav: Uint8Array<ArrayBuffer> };
+        const spoken = speakResult.parse(
+          await deps.voice.request(
+            { kind: 'speak', modelsDir: deps.models.dir, text, voice },
+            LIMITS.voice,
+          ),
+        );
         return { ok: true, audio: spoken.wav, ms: elapsed() };
       } catch (error) {
         return { ok: false, problem: voiceProblem(error) };
@@ -153,10 +156,12 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
       }
       const elapsed = deps.stopwatch.start();
       try {
-        const heard = (await deps.voice.request(
-          { kind: 'transcribe', modelsDir: deps.models.dir, samples, sampleRate },
-          LIMITS.voice,
-        )) as { text: string };
+        const heard = textResult.parse(
+          await deps.voice.request(
+            { kind: 'transcribe', modelsDir: deps.models.dir, samples, sampleRate },
+            LIMITS.voice,
+          ),
+        );
         return { ok: true, text: heardText(heard.text), ms: elapsed() };
       } catch (error) {
         return { ok: false, problem: voiceProblem(error) };
@@ -165,10 +170,12 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
     'demo.lab.readPdf': async () => {
       const elapsed = deps.stopwatch.start();
       try {
-        const page = (await deps.materials.request(
-          { kind: 'readPdfPage', file: deps.samplePdf, page: 1 },
-          LIMITS.pdfPage,
-        )) as { width: number; height: number; items: TextItem[] };
+        const page = pdfPageResult.parse(
+          await deps.materials.request(
+            { kind: 'readPdfPage', file: deps.samplePdf, page: 1 },
+            LIMITS.pdfPage,
+          ),
+        );
         const pdf = new Uint8Array(await readFile(deps.samplePdf));
         return {
           ok: true,
@@ -187,15 +194,17 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
     'demo.lab.ocrPage': async () => {
       const elapsed = deps.stopwatch.start();
       try {
-        const scanned = (await deps.materials.request(
-          {
-            kind: 'ocrPdfPage',
-            file: deps.samplePdf,
-            page: 9,
-            workDir: join(deps.dataDir, 'tmp', 'escaneos'),
-          },
-          LIMITS.ocrPage,
-        )) as { text: string };
+        const scanned = textResult.parse(
+          await deps.materials.request(
+            {
+              kind: 'ocrPdfPage',
+              file: deps.samplePdf,
+              page: 9,
+              workDir: join(deps.dataDir, 'tmp', 'escaneos'),
+            },
+            LIMITS.ocrPage,
+          ),
+        );
         return { ok: true, ms: elapsed(), text: scanned.text };
       } catch {
         return { ok: false };
