@@ -31,6 +31,7 @@ const FAST_PROJECTS = [
   'contrato',
   'componentes',
   'integracion',
+  'sin-red',
   'estaticas',
 ];
 const BINARY = /\.(png|jpe?g|gif|ico|exe|dll|pdf|zip|woff2?|ttf|db|onnx)$/i;

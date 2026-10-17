@@ -24,21 +24,21 @@ const SCAN_HEIGHT = 2339;
 /** @param {string} html */
 const dataUrl = (html) => `data:text/html;base64,${Buffer.from(html, 'utf8').toString('base64')}`;
 
-/** @param {import('electron').BrowserWindow} window */
-const waitForTitle = (window) =>
+/** @param {import('electron').BrowserWindow} page */
+const waitForTitle = (page) =>
   new Promise((resolve) => {
     const check = () =>
-      window.webContents.getTitle() === 'listo' ? resolve(undefined) : setTimeout(check, 50);
+      page.webContents.getTitle() === 'listo' ? resolve(undefined) : setTimeout(check, 50);
     check();
   });
 
 /** @param {typeof import('electron').BrowserWindow} BrowserWindow */
 async function scanImage(BrowserWindow) {
-  const window = new BrowserWindow({ show: false });
-  await window.loadURL(dataUrl(scanHtml(content.SCANNED_PAGE, SCAN_WIDTH, SCAN_HEIGHT)));
-  await waitForTitle(window);
-  const jpeg = String(await window.webContents.executeJavaScript('window.escaneo'));
-  window.destroy();
+  const page = new BrowserWindow({ show: false });
+  await page.loadURL(dataUrl(scanHtml(content.SCANNED_PAGE, SCAN_WIDTH, SCAN_HEIGHT)));
+  await waitForTitle(page);
+  const jpeg = String(await page.webContents.executeJavaScript('window.escaneo'));
+  page.destroy();
   return Buffer.from(jpeg.replace(/^data:image\/jpeg;base64,/, ''), 'base64');
 }
 
@@ -47,7 +47,7 @@ async function scanImage(BrowserWindow) {
  * @param {{ title: string, pages: any[][], file: string, scan: Buffer }} doc
  */
 async function printPdf(BrowserWindow, { title, pages, file, scan }) {
-  const window = new BrowserWindow({ show: false });
+  const page = new BrowserWindow({ show: false });
   // El documento y la imagen del escaneo van por una carpeta temporal: con la imagen adentro,
   // el documento es demasiado grande para una dirección «data:».
   const folder = mkdtempSync(join(tmpdir(), 'retenia-ejemplo-'));
@@ -57,18 +57,18 @@ async function printPdf(BrowserWindow, { title, pages, file, scan }) {
     html,
     documentHtml(title, pages, () => 'escaneo.jpg'),
   );
-  await window.loadFile(html);
-  await window.webContents.executeJavaScript(
+  await page.loadFile(html);
+  await page.webContents.executeJavaScript(
     'Promise.all([document.fonts.ready, ...[...document.images].map((i) => i.decode())]).then(() => true)',
   );
-  const pdf = await window.webContents.printToPDF({
+  const pdf = await page.webContents.printToPDF({
     printBackground: true,
     preferCSSPageSize: true,
     displayHeaderFooter: false,
     generateTaggedPDF: false,
     generateDocumentOutline: false,
   });
-  window.destroy();
+  page.destroy();
   rmSync(folder, { recursive: true, force: true });
   writeFileSync(join(OUT, file), pdf);
   console.log(`  ${file} (${Math.round(pdf.length / 1024)} KB)`);

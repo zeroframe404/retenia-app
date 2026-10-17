@@ -61,3 +61,44 @@ describe('instaladores: dos productos, dos carpetas de datos', () => {
     }
   });
 });
+
+describe('piezas del Laboratorio en los instaladores (Fase 05)', () => {
+  const unpacked = (text: string) =>
+    (/asarUnpack:\s*\n((?:\s*- .+\n)+)/.exec(text)?.[1] ?? '')
+      .split('\n')
+      .map((line) => line.replace(/^\s*- /, '').trim())
+      .filter(Boolean);
+
+  it('[CA-025] sherpa-onnx (voz y transcripción) viaja fuera del asar, con sus DLL, en la variante de prueba', () => {
+    expect(unpacked(test.text)).toEqual(
+      expect.arrayContaining([
+        'node_modules/sherpa-onnx-node/**',
+        'node_modules/sherpa-onnx-win-x64/**',
+      ]),
+    );
+  });
+
+  it('[CA-029] los datos de español e inglés de tesseract.js viajan dentro del instalador de prueba, fuera del asar', () => {
+    expect(unpacked(test.text)).toEqual(
+      expect.arrayContaining([
+        'node_modules/tesseract.js/**',
+        'node_modules/tesseract.js-core/**',
+        'node_modules/@tesseract.js-data/**',
+      ]),
+    );
+    // Solo los datos que usa (enteros comprimidos), no la versión grande.
+    expect(test.text).toContain('"!node_modules/@tesseract.js-data/*/4.0.0/**"');
+  });
+
+  it('[CA-028] el PDF de ejemplo viaja solo con la variante de prueba', () => {
+    expect(test.text).toContain('from: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"');
+    expect(real.text).not.toContain('datos-de-ejemplo');
+  });
+
+  it('la versión de uso real no lleva las piezas del Laboratorio', () => {
+    for (const name of ['sherpa-onnx', 'tesseract', 'pdfjs-dist']) {
+      expect(unpacked(real.text).join('\n')).not.toContain(name);
+    }
+    expect(real.text).toContain('"!node_modules/{sherpa-onnx-node,sherpa-onnx-win-x64');
+  });
+});

@@ -43,6 +43,19 @@ export default defineConfig({
         },
       },
       {
+        // Las piezas del Laboratorio que tienen que andar sin internet (voz, transcripción, PDF
+        // y escaneos): cada proceso de pruebas arranca con la red bloqueada, y Node repite el
+        // bloqueo en cada hilo que abra (tests/apoyo/sin-red.cjs).
+        extends: true,
+        test: {
+          name: 'sin-red',
+          include: ['tests/sin-red/**/*.test.ts'],
+          execArgv: ['--require', join(import.meta.dirname, 'tests', 'apoyo', 'sin-red.cjs')],
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+        },
+      },
+      {
         extends: true,
         test: {
           name: 'estaticas',
