@@ -27,10 +27,11 @@ files:
   - "!node_modules/@napi-rs/**"
   # tesseract.js usa el fetch de Node: su respaldo node-fetch y lo que arrastra no hacen falta.
   - "!node_modules/{node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall}/**"
-  # De tesseract.js-core, solo los núcleos que reconocen con la red neuronal (LSTM); de los
-  # idiomas, solo la versión entera comprimida que usa (no la grande).
+  # De tesseract.js-core, solo los núcleos que carga en Node: tesseract.js 7.0.0 elige siempre
+  # el completo (no el «solo LSTM») sin importar el modo pedido. De los idiomas, solo la versión
+  # entera comprimida que usa (no la grande).
   - "!node_modules/tesseract.js-core/*.wasm.js"
-  - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}.{js,wasm}"
+  - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}-lstm.{js,wasm}"
   - "!node_modules/@tesseract.js-data/*/4.0.0/**"
 extraMetadata:
   main: out/prueba/main/index.js

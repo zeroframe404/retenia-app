@@ -6,7 +6,9 @@
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { createWorker, OEM } from 'tesseract.js';
+// tesseract.js es CommonJS: dentro del programa empaquetado sus nombres sueltos no llegan, así que
+// se usa el módulo entero.
+import Tesseract from 'tesseract.js';
 import type { GrayImage } from './pdf';
 
 const require = createRequire(import.meta.url);
@@ -38,7 +40,7 @@ export async function recognize(
       copyFileSync(packagedData(language), target);
     }
   }
-  const worker = await createWorker([...LANGUAGES], OEM.LSTM_ONLY, {
+  const worker = await Tesseract.createWorker([...LANGUAGES], Tesseract.OEM.LSTM_ONLY, {
     langPath: languages,
     cacheMethod: 'none',
     gzip: true,

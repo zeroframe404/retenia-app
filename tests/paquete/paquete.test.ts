@@ -326,9 +326,9 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
       expect(existsSync(data), lang).toBe(true);
       expect(statSync(data).size).toBeGreaterThan(1_000_000);
     }
-    expect(
-      existsSync(unpackedIn('prueba', 'tesseract.js-core', 'tesseract-core-simd-lstm.wasm')),
-    ).toBe(true);
+    expect(existsSync(unpackedIn('prueba', 'tesseract.js-core', 'tesseract-core-simd.wasm'))).toBe(
+      true,
+    );
   });
 
   it('[CA-028] el PDF de ejemplo está en la variante de prueba y no en la real', () => {

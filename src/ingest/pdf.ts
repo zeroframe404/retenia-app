@@ -2,8 +2,12 @@
 // proceso de trabajo de materiales): el texto de una página con la caja de cada renglón en la
 // hoja, y la imagen de una página escaneada para reconocerla. Las cajas van en puntos, con el
 // origen arriba a la izquierda, como las dibuja la ventana.
-import { getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { GlobalWorkerOptions, getDocument, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { TextItem } from '../core/highlight';
+
+// Dentro del proceso de trabajo de Electron, pdf.js no se reconoce en Node y busca su hilo de
+// trabajo como en un navegador: se le indica el suyo, que corre en este mismo proceso.
+GlobalWorkerOptions.workerSrc = import.meta.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
 
 // Nada de lo que trae el PDF se ejecuta: ni código (eval), ni formularios dinámicos (XFA), ni
 // fuentes del sistema; tampoco se piden recursos aparte.

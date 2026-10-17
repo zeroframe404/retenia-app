@@ -12,7 +12,12 @@ export function serve(
     const { id, task } = splitRequest(event.data);
     run(task).then(
       (result) => port.postMessage({ id, ok: true, result }),
-      (error: unknown) => port.postMessage({ id, ok: false, problem: problemOf(error) }),
+      (error: unknown) => {
+        // Queda en el registro del programa para diagnosticar; el aviso en castellano y la
+        // recuperación llegan en la Fase 39.
+        console.error('Retenia: una tarea del proceso de trabajo no terminó', error);
+        port.postMessage({ id, ok: false, problem: problemOf(error) });
+      },
     );
   });
 }

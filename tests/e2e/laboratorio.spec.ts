@@ -29,6 +29,8 @@ const block = (page: Page, name: string) => page.getByRole('region', { name });
 test('[CA-024] «Descargar modelos» baja los modelos con una barra que avanza, verifica cada huella y termina en «Modelos listos»', async ({
   launch,
 }, testInfo) => {
+  // Bajar, verificar y guardar 506 MB lleva su tiempo, sobre todo en el CI.
+  test.setTimeout(300_000);
   const server = await serveModels(DEV_MODELS_DIR);
   try {
     const { page } = await launch(undefined, {
@@ -196,6 +198,8 @@ test('[CA-028] «Leer PDF de prueba» muestra el texto de la página 1 y una fra
 test('[CA-029] «Leer página escaneada» muestra el texto de la página 9 aunque es una imagen', async ({
   appWindow,
 }) => {
+  // Reconocer una página entera lleva varios segundos, más en el CI.
+  test.setTimeout(180_000);
   await openLab(appWindow);
   const scan = block(appWindow, 'Escaneo');
   await scan.getByRole('button', { name: 'Leer página escaneada' }).click();
