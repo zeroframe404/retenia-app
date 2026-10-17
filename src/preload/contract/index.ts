@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import { activityRecentResponse, activityUndoRequest, activityUndoResponse } from './activity';
 import { appInfoRequest, appInfoResponse } from './app';
+import { appearanceGetRequest, appearanceResponse, appearanceSetRequest } from './appearance';
 import {
   backupsCreateResponse,
   backupsListResponse,
@@ -37,6 +38,8 @@ import {
 export const channels = {
   ping: { request: pingRequest, response: pingResponse },
   'app.info': { request: appInfoRequest, response: appInfoResponse },
+  'appearance.get': { request: appearanceGetRequest, response: appearanceResponse },
+  'appearance.set': { request: appearanceSetRequest, response: appearanceResponse },
   'cards.create': { request: cardsCreateRequest, response: cardSchema },
   'cards.list': { request: cardsListRequest, response: cardsListResponse },
   'cards.review': { request: cardsReviewRequest, response: cardSchema },

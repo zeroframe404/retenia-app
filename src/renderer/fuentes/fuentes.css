@@ -1,0 +1,45 @@
+/* Las tres tipografías de Retenia, empaquetadas como archivos locales: funcionan sin internet.
+   Solo el juego «latin» (castellano completo). Licencias en LICENCIAS.md. */
+
+/* Títulos. Una sola fuente variable cubre todos los pesos (650 y 700 entre ellos). */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("./bricolage-grotesque-latin-wght-normal.woff2") format("woff2-variations");
+}
+
+/* Texto. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./atkinson-hyperlegible-next-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Atkinson Hyperlegible Next";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2");
+}
+
+/* Código. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./atkinson-hyperlegible-mono-latin-400-normal.woff2") format("woff2");
+}

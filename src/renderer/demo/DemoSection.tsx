@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from 'react';
 import { demoTexts } from '../../preload/contract/demo-texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import styles from '../ui/Content.module.css';
+import { ScreenFrame } from '../ui/Frame';
+import { BannerEstado } from '../ui/Process';
 import { setDemoToday } from './demoDate';
 
 const STEPS = [1, 7, 35] as const;
 
 // Ajustes › «Demostración» (solo en «Retenia (prueba)»): corre la fecha de la demostración para
 // probar el espaciado y las copias sin esperar (la cinta lo dice al instante), simula que no hay
-// conexión y abre el «Laboratorio».
-export function DemoSection({ onOpenLab }: { onOpenLab?: () => void }) {
+// conexión y abre el «Laboratorio» y la «Galería».
+export function DemoSection({
+  onOpenLab,
+  onOpenGallery,
+}: {
+  onOpenLab?: () => void;
+  onOpenGallery?: () => void;
+}) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [offline, setOffline] = useState<boolean | null>(null);
@@ -60,31 +69,26 @@ export function DemoSection({ onOpenLab }: { onOpenLab?: () => void }) {
   }
 
   return (
-    <section className={styles.section} aria-labelledby="titulo-demostracion">
-      <h3 id="titulo-demostracion">{demoTexts.section}</h3>
+    <ScreenFrame level={3} title={demoTexts.section}>
       <div className={styles.actions}>
         {STEPS.map((days) => (
-          <button
+          <Boton
             key={days}
-            type="button"
-            className={styles.secondary}
             disabled={busy}
             onClick={() => void change(() => window.retenia['demo.advanceDays']({ days }))}
           >
             {demoTexts.advance[days]}
-          </button>
+          </Boton>
         ))}
-        <button
-          type="button"
-          className={styles.secondary}
+        <Boton
           disabled={busy}
           onClick={() => void change(() => window.retenia['demo.resetDate']({}))}
         >
           {demoTexts.reset}
-        </button>
+        </Boton>
       </div>
-      {failed ? <p className={styles.formError}>{demoTexts.failed}</p> : null}
-      <label className={styles.check}>
+      {failed ? <BannerEstado tone="attention">{demoTexts.failed}</BannerEstado> : null}
+      <label className={styles.checkbox}>
         <input
           type="checkbox"
           checked={offline ?? false}
@@ -93,13 +97,12 @@ export function DemoSection({ onOpenLab }: { onOpenLab?: () => void }) {
         />
         {demoTexts.offline}
       </label>
-      {onOpenLab ? (
+      {onOpenLab || onOpenGallery ? (
         <div className={styles.actions}>
-          <button type="button" className={styles.secondary} onClick={onOpenLab}>
-            {demoTexts.lab.open}
-          </button>
+          {onOpenGallery ? <Boton onClick={onOpenGallery}>{demoTexts.gallery.open}</Boton> : null}
+          {onOpenLab ? <Boton onClick={onOpenLab}>{demoTexts.lab.open}</Boton> : null}
         </div>
       ) : null}
-    </section>
+    </ScreenFrame>
   );
 }

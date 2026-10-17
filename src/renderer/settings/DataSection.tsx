@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Backup, DataDifference } from '../../preload/contract/backups';
 import { formatShortDate, formatSize, texts } from '../../preload/contract/texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import styles from '../ui/Content.module.css';
+import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
+import { ViewState } from '../ui/ViewStates';
 
 // Lo que dice una diferencia de «Verificar datos», sin términos técnicos.
 function describe(difference: DataDifference): string {
@@ -105,102 +108,84 @@ export function DataSection() {
     }
   };
 
+  const verdict = verifyFailed
+    ? { tone: 'attention' as const, text: texts.data.verifyFailed }
+    : differences !== null && differences.length === 0
+      ? { tone: 'success' as const, text: texts.data.allGood }
+      : differences !== null
+        ? { tone: 'info' as const, text: texts.data.differencesFound(differences.length) }
+        : null;
+
   return (
-    <section className={styles.section} aria-labelledby="titulo-datos">
-      <h3 id="titulo-datos">{texts.data.title}</h3>
+    <ScreenFrame level={3} title={texts.data.title}>
       <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.secondary}
-          disabled={busy}
-          onClick={() => void verify('backups.verifyData')}
-        >
+        <Boton disabled={busy} onClick={() => void verify('backups.verifyData')}>
           {texts.data.verify}
-        </button>
+        </Boton>
       </div>
-      <div role="status" className={styles.result}>
-        {verifyFailed ? texts.data.verifyFailed : null}
-        {differences !== null && differences.length === 0 ? texts.data.allGood : null}
-        {differences !== null && differences.length > 0
-          ? texts.data.differencesFound(differences.length)
-          : null}
-      </div>
+      <Toast tone={verdict?.tone}>{verdict?.text}</Toast>
       {differences !== null && differences.length > 0 ? (
         <>
-          <ul className={styles.list} aria-label={texts.data.differencesLabel}>
+          <ItemList label={texts.data.differencesLabel}>
             {differences.map((difference) => (
-              <li key={`${difference.cardId}-${difference.kind}`} className={styles.item}>
-                {describe(difference)}
-              </li>
+              <ListItem
+                key={`${difference.cardId}-${difference.kind}`}
+                text={describe(difference)}
+              />
             ))}
-          </ul>
+          </ItemList>
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.secondary}
-              disabled={busy}
-              onClick={() => void verify('backups.repairData')}
-            >
+            <Boton disabled={busy} onClick={() => void verify('backups.repairData')}>
               {texts.data.repair}
-            </button>
+            </Boton>
           </div>
         </>
       ) : null}
 
-      <h4>{texts.data.copiesTitle}</h4>
-      <div className={styles.actions}>
-        <button
-          type="button"
-          className={styles.primary}
-          disabled={busy}
-          onClick={() => void makeCopy()}
-        >
-          {texts.data.makeCopy}
-        </button>
-        <button type="button" className={styles.secondary} onClick={() => void openFolder()}>
-          {texts.data.openFolder}
-        </button>
-      </div>
-      <div role="status" className={styles.notice}>
-        {notice}
-      </div>
-      {backups !== null && backups.length === 0 ? (
-        <p className={styles.empty}>{texts.data.noCopies}</p>
-      ) : null}
-      {backups !== null && backups.length > 0 ? (
-        <ul className={styles.list} aria-label={texts.data.copiesLabel}>
-          {backups.map((backup, index) =>
-            backup.readable ? (
-              <li key={backup.id} className={styles.item}>
-                <span className={styles.copyText}>
-                  {texts.data.copyRow(
+      <div className={styles.section}>
+        <h4>{texts.data.copiesTitle}</h4>
+        <div className={styles.actions}>
+          <Boton variant="primary" disabled={busy} onClick={() => void makeCopy()}>
+            {texts.data.makeCopy}
+          </Boton>
+          <Boton onClick={() => void openFolder()}>{texts.data.openFolder}</Boton>
+        </div>
+        <Toast>{notice}</Toast>
+        {backups !== null && backups.length === 0 ? (
+          <ViewState kind="empty" phrase={texts.data.noCopies} />
+        ) : null}
+        {backups !== null && backups.length > 0 ? (
+          <ItemList label={texts.data.copiesLabel}>
+            {backups.map((backup, index) =>
+              backup.readable ? (
+                <ListItem
+                  key={backup.id}
+                  text={texts.data.copyRow(
                     formatShortDate(backup.day),
                     backup.time,
                     texts.data.kinds[backup.kind],
                     formatSize(backup.sizeBytes),
                   )}
-                </span>
-                <span className={styles.verified}>{texts.data.verified}</span>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  disabled={busy}
-                  onClick={() => void restore(backup.id)}
-                >
-                  {texts.data.restore}
-                </button>
-              </li>
-            ) : (
-              // biome-ignore lint/suspicious/noArrayIndexKey: una copia ilegible no tiene identificador.
-              <li key={`ilegible-${index}`} className={styles.item}>
-                <span className={styles.copyText}>
-                  {texts.data.unreadableCopy(formatSize(backup.sizeBytes))}
-                </span>
-              </li>
-            ),
-          )}
-        </ul>
-      ) : null}
-    </section>
+                  actions={
+                    <>
+                      <span className={styles.verified}>{texts.data.verified}</span>
+                      <Boton disabled={busy} onClick={() => void restore(backup.id)}>
+                        {texts.data.restore}
+                      </Boton>
+                    </>
+                  }
+                />
+              ) : (
+                <ListItem
+                  // biome-ignore lint/suspicious/noArrayIndexKey: una copia ilegible no tiene identificador.
+                  key={`ilegible-${index}`}
+                  text={texts.data.unreadableCopy(formatSize(backup.sizeBytes))}
+                />
+              ),
+            )}
+          </ItemList>
+        ) : null}
+      </div>
+    </ScreenFrame>
   );
 }

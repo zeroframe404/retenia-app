@@ -1,13 +1,17 @@
+/* La cinta de «Retenia (prueba)»: un aviso permanente, provisorio por naturaleza, así que va con
+   trazo punteado. */
 .ribbon {
-  background: var(--color-cinta-fondo);
-  color: var(--color-cinta-tinta);
-  padding: 0.4rem 1rem;
+  padding: var(--espacio-4) var(--espacio-16);
   text-align: center;
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie-hundida);
+  border-bottom: var(--trazo-punteado) var(--color-linea-fuerte);
 }
 
 .text {
   margin: 0;
-  font-size: 0.875rem;
+  font: var(--tipo-pequeno);
   font-weight: 600;
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }

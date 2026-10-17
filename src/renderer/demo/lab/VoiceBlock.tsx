@@ -1,6 +1,7 @@
 import { type RefObject, useEffect, useId, useState } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
-import ui from '../../ui.module.css';
+import { Boton } from '../../ui/Boton';
+import ui from '../../ui/Content.module.css';
 import { Block, Elapsed, type Models, ModelsState } from './common';
 import styles from './lab.module.css';
 
@@ -91,9 +92,9 @@ export function VoiceBlock({
         ))}
       </fieldset>
       <div className={ui.actions}>
-        <button type="button" className={ui.primary} disabled={busy} onClick={() => void speak()}>
+        <Boton disabled={busy} onClick={() => void speak()}>
           {t.voice.speak}
-        </button>
+        </Boton>
       </div>
       {busy ? <p className={styles.status}>{t.voice.speaking}</p> : null}
       {problem ? <p className={styles.message}>{problem}</p> : null}

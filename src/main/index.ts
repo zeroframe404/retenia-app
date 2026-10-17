@@ -1,11 +1,13 @@
 import { join, resolve } from 'node:path';
 import { app, BrowserWindow, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
 import { systemClock } from '../core/clock';
+import { effectiveTheme, PAPER_COLOR, type ThemeChoice } from '../core/theme';
 import { openWorkspace } from '../data/workspace';
 import { channels, type Registry } from '../preload/contract';
 import { demoChannels } from '../preload/contract/demo';
 import { labChannels } from '../preload/contract/lab';
 import { texts } from '../preload/contract/texts';
+import { createAppearanceStore } from './appearance';
 import { createHandlers, handleMessage, type Variant } from './bridge';
 import { createDemoHandlers } from './demo';
 import { createDemoDate } from './demo/clock';
@@ -41,13 +43,24 @@ app.setPath('userData', dataDir);
 
 let mainWindow: BrowserWindow | null = null;
 
-function createWindow(): void {
+// La apariencia elegida también manda sobre el marco de la ventana (la barra de título) y sobre lo
+// que el sistema le dice a la página (`prefers-color-scheme`). Devuelve el papel del tema que
+// queda, para que la ventana arranque con ese fondo y no con un destello del otro.
+function applyFrameTheme(choice: ThemeChoice): string {
+  nativeTheme.themeSource = choice === 'system' ? 'system' : choice;
+  return PAPER_COLOR[effectiveTheme(choice, nativeTheme.shouldUseDarkColors)];
+}
+
+function createWindow(paper: string): void {
   mainWindow = new BrowserWindow({
     title: texts.appName,
     width: 1100,
     height: 720,
+    // La ventana más angosta que se deja es de 400 píxeles (docs/especificacion/no-funcionales.md).
+    minWidth: 400,
+    minHeight: 360,
     show: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#16171a' : '#f7f6f2',
+    backgroundColor: paper,
     webPreferences: {
       preload: resolve(import.meta.dirname, '../preload/index.cjs'),
       contextIsolation: true,
@@ -91,12 +104,14 @@ function start(): void {
     seedDemoCards(workspace.cards);
   }
 
+  const paper = applyFrameTheme(createAppearanceStore(dataDir).get());
   let handlers: Record<string, (request: never) => Promise<unknown>> = createHandlers({
     clock,
     variant,
     workspace,
     version: app.getVersion(),
     openFolder: (path) => shell.openPath(path),
+    onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
   });
   let registry: Registry = channels;
   if (__VARIANTE__ === 'prueba' && demo) {
@@ -128,7 +143,7 @@ function start(): void {
       handleMessage(routes, channel, request, known),
     );
   }
-  createWindow();
+  createWindow(paper);
 
   // Al abrir: la copia automática (si la última tiene 24 horas o más) y, recién después, lo que
   // venció en la Papelera; si la copia falla, lo vencido espera a la próxima vez.

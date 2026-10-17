@@ -10,13 +10,153 @@ const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 
 export const texts = {
   appName: 'Retenia',
   appNameTest: 'Retenia (prueba)',
-  // La barra de secciones provisoria (el riel llega en la Fase 06).
+  // El riel lateral (H-08): los seis destinos, en este orden, y «Buscar» arriba.
   nav: {
-    label: 'Secciones',
+    label: 'Riel lateral',
+    study: 'Estudiar',
+    notes: 'Apuntes',
+    materials: 'Materiales',
+    languages: 'Idiomas',
+    progress: 'Progreso',
+    settings: 'Ajustes',
+    search: 'Buscar',
+    searchShortcut: 'Ctrl+K',
+  },
+  // Lo que todavía no existe dice «Todavía no disponible» y lleva a lo que sí se puede hacer.
+  screens: {
+    study: 'Todavía no disponible. Acá vas a ver qué estudiar hoy.',
+    materials: 'Todavía no disponible. Acá vas a guardar tus PDF, textos y páginas web.',
+    languages: 'Todavía no disponible. Acá vas a seguir el curso de inglés, de cero a C2.',
+    progress: 'Todavía no disponible. Acá vas a ver cuánto conservás y qué podés hacer.',
+    goToNotes: 'Ir a Apuntes',
+  },
+  // Apuntes, por ahora, tiene adentro la lista de tarjetas, la Papelera y la Actividad reciente.
+  notes: {
+    tabsLabel: 'Secciones de Apuntes',
     cards: 'Tarjetas',
     trash: 'Papelera',
     activity: 'Actividad reciente',
-    settings: 'Ajustes',
+  },
+  // Ctrl+K: por ahora abre un cuadro sin búsqueda.
+  search: {
+    notAvailable: 'La búsqueda todavía no está disponible.',
+  },
+  // Ajustes › «Apariencia».
+  appearance: {
+    title: 'Apariencia',
+    legend: 'Tema de la interfaz',
+    light: 'Claro',
+    dark: 'Oscuro',
+    system: 'Según el sistema',
+    saveFailed: 'No pude guardar la apariencia. Probá de nuevo.',
+  },
+  // Los componentes del sistema de diseño. Ningún componente lleva texto escrito adentro: todo
+  // lo que se ve sale de acá.
+  ui: {
+    close: 'Cerrar',
+    panelClose: 'Cerrar el panel',
+    modes: {
+      help: 'PRÁCTICA CON AYUDA',
+      autonomous: 'PRÁCTICA AUTÓNOMA',
+      evaluation: 'EVALUACIÓN',
+    },
+    dataLabels: {
+      observed: 'Observado',
+      estimated: 'Estimado',
+      insufficient: 'Datos insuficientes',
+    },
+    // «Observado · 84 datos».
+    dataWithCount: (label: string, count: number) =>
+      `${label} · ${count === 1 ? '1 dato' : `${numberFormat.format(count)} datos`}`,
+    example: 'EJEMPLO',
+    draft: {
+      saving: 'Guardando…',
+      draftSaved: 'Borrador guardado',
+      saved: 'Guardado',
+    },
+    proposal: {
+      title: (minutes: number) => `Sesión recomendada · ${minutes} min`,
+      why: (reason: string) => `Por qué: ${reason}`,
+      start: 'Empezar',
+      shortVersion: 'Versión corta (10 min)',
+    },
+    commitment: (done: number, goal: number) => `Compromiso semanal: ${done} de ${goal} días`,
+    helpBar: {
+      label: 'Ayuda',
+      hint: 'Pista',
+      example: 'Ver un ejemplo',
+      source: 'Fuente',
+      tutor: 'Preguntar al tutor',
+      noIdea: 'No sé por dónde empezar',
+    },
+    confidence: {
+      question: '¿Cuánta confianza tenés?',
+      guessing: 'Adivinando',
+      probably: 'Creo que sí',
+      sure: 'Seguro',
+    },
+    ideaUnits: {
+      label: 'Unidades de idea',
+      covered: 'Cubierta',
+      partial: 'Parcial',
+      missing: 'Falta',
+      quoted: (phrase: string) => `Frase citada: “${phrase}”`,
+    },
+    verdicts: {
+      correct: 'Correcto.',
+      onTrack: 'Vas bien.',
+      notYet: 'Todavía no.',
+      unsure: 'No pude evaluarla con seguridad.',
+    },
+    provisional: 'Provisional',
+    correctedNotice: {
+      change: (before: string, after: string) => `${before} → ${after}`,
+      understood: 'Entendido',
+      undo: 'Deshacer',
+    },
+    rating: {
+      question: '¿Cómo estuvo?',
+      easy: 'Fácil',
+      fair: 'Justo',
+      hard: 'Difícil',
+    },
+    closing: {
+      title: (minutes: number) => `Sesión terminada · ${minutes} min`,
+      results: 'Tarjetas por resultado',
+      count: (label: string, count: number) => `${label}: ${numberFormat.format(count)}`,
+      difficulties: 'Dificultades',
+      nextStep: 'Próximo paso',
+      note: 'Completar la sesión no equivale a dominar el tema',
+      finish: 'Terminar',
+      saveDoubt: 'Guardar una duda',
+      adjustPlan: 'Ajustar el plan',
+    },
+    mastery: {
+      label: 'Estado de dominio',
+      notStarted: 'Sin iniciar',
+      inPractice: 'En práctica',
+      toReview: 'A revisar',
+      enough: 'Suficiente para avanzar',
+      consolidated: 'Consolidado',
+      toVerify: '(por verificar)',
+      step: (position: number, total: number) => `Escalón ${position} de ${total}`,
+    },
+    proposalItem: {
+      tag: 'Propuesta',
+      accept: 'Aceptar',
+      edit: 'Editar',
+      discard: 'Descartar',
+    },
+    stages: {
+      label: 'Etapas del procesamiento',
+      done: 'Hecho',
+      current: 'En curso',
+      pending: 'Pendiente',
+      saved: 'Archivo guardado',
+      extracted: (done: number, total: number) => `Texto extraído (${done} de ${total} páginas)`,
+      sections: 'Secciones detectadas',
+      ready: 'Listo',
+    },
   },
   cards: {
     title: 'Tarjetas',

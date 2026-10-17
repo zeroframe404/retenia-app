@@ -1,0 +1,59 @@
+/* Rótulo: 12/16, peso 700, en mayúsculas, con espaciado 0,06em. */
+.label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--espacio-24);
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+  white-space: nowrap;
+}
+
+.label[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.label[data-mode="help"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+}
+
+.label[data-mode="autonomous"] {
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+}
+
+.label[data-mode="evaluation"] {
+  color: var(--color-sobre-marca);
+  background: var(--color-marca);
+  border-color: var(--color-marca);
+}
+
+.label[data-label="data"][data-kind="observed"] {
+  color: var(--color-tinta);
+}
+
+.label[data-label="example"] {
+  color: var(--color-parcial);
+  background: var(--color-parcial-suave);
+  border-color: var(--color-parcial);
+}
+
+.draft {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-4);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.draft[data-draft="saved"],
+.draft[data-draft="draft"] {
+  color: var(--color-correcta);
+}

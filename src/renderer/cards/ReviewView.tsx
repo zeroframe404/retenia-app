@@ -1,7 +1,10 @@
 import { useRef, useState } from 'react';
 import type { Card } from '../../preload/contract/cards';
 import { formatLongDate, texts } from '../../preload/contract/texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import styles from '../ui/Content.module.css';
+import { ScreenFrame } from '../ui/Frame';
+import { BannerEstado } from '../ui/Process';
 
 type Grade = 'again' | 'hard' | 'good';
 
@@ -55,51 +58,48 @@ export function ReviewView({
   }
 
   return (
-    <section className={styles.review} aria-labelledby="titulo-repaso">
-      <h2 id="titulo-repaso">{texts.cards.reviewTitle}</h2>
-      <p className={styles.reviewText}>{card.question}</p>
-      {step === 'question' ? (
-        <div className={styles.actions}>
-          <button type="button" className={styles.primary} onClick={() => setStep('answer')}>
-            {texts.cards.showAnswer}
-          </button>
-        </div>
-      ) : (
-        <p className={styles.reviewText}>{card.answer}</p>
-      )}
-      {step === 'answer' ? (
-        <>
-          {failed ? <p className={styles.formError}>{texts.cards.reviewFailed}</p> : null}
-          <fieldset className={styles.grades}>
-            <legend>{texts.cards.gradeGroup}</legend>
-            <div className={styles.actions}>
-              {GRADES.map(({ grade: value, label }) => (
-                <button
-                  key={value}
-                  type="button"
-                  className={styles.secondary}
-                  disabled={saving}
-                  onClick={() => grade(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-        </>
-      ) : null}
-      {step === 'done' && result?.nextReviewDay ? (
-        <>
-          <p role="status" className={styles.nextReview}>
-            {texts.cards.nextReview(formatLongDate(result.nextReviewDay))}
-          </p>
+    <ScreenFrame level={3} title={texts.cards.reviewTitle}>
+      <div className={styles.stack}>
+        <p className={styles.block}>{card.question}</p>
+        {step === 'question' ? (
           <div className={styles.actions}>
-            <button type="button" className={styles.primary} onClick={onClose}>
-              {texts.cards.backToCards}
-            </button>
+            <Boton variant="primary" onClick={() => setStep('answer')}>
+              {texts.cards.showAnswer}
+            </Boton>
           </div>
-        </>
-      ) : null}
-    </section>
+        ) : (
+          <p className={styles.block}>{card.answer}</p>
+        )}
+        {step === 'answer' ? (
+          <>
+            {failed ? (
+              <BannerEstado tone="attention">{texts.cards.reviewFailed}</BannerEstado>
+            ) : null}
+            <fieldset className={styles.group}>
+              <legend>{texts.cards.gradeGroup}</legend>
+              <div className={styles.actions}>
+                {GRADES.map(({ grade: value, label }) => (
+                  <Boton key={value} disabled={saving} onClick={() => grade(value)}>
+                    {label}
+                  </Boton>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        ) : null}
+        {step === 'done' && result?.nextReviewDay ? (
+          <>
+            <p role="status" className={styles.highlight}>
+              {texts.cards.nextReview(formatLongDate(result.nextReviewDay))}
+            </p>
+            <div className={styles.actions}>
+              <Boton variant="primary" onClick={onClose}>
+                {texts.cards.backToCards}
+              </Boton>
+            </div>
+          </>
+        ) : null}
+      </div>
+    </ScreenFrame>
   );
 }

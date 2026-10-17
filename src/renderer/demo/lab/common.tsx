@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
-import ui from '../../ui.module.css';
+import { Boton } from '../../ui/Boton';
+import ui from '../../ui/Content.module.css';
 import styles from './lab.module.css';
 
 const t = demoTexts.lab;
@@ -106,9 +107,7 @@ export function ModelsState({ models }: { models: Models }) {
     <>
       <p className={styles.message}>{message ?? t.voice.missing}</p>
       <div className={ui.actions}>
-        <button type="button" className={ui.secondary} onClick={() => void models.download()}>
-          {t.voice.download}
-        </button>
+        <Boton onClick={() => void models.download()}>{t.voice.download}</Boton>
       </div>
     </>
   );

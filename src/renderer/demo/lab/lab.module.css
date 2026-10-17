@@ -1,141 +1,136 @@
-/* El Laboratorio (Ajustes › «Demostración» › «Laboratorio»): cinco bloques apilados. Sin rojo. */
+/* El Laboratorio (Ajustes › «Demostración» › «Laboratorio»): cinco bloques apilados. */
 .intro {
-  margin: 0.5rem 0 0;
+  max-width: var(--ancho-lectura);
+  margin: 0;
   color: var(--color-tinta-suave);
 }
 
 .block {
-  margin-top: 1.25rem;
-  padding: 1rem;
   display: grid;
-  gap: 0.75rem;
+  gap: var(--espacio-12);
+  min-width: 0;
+  padding: var(--espacio-24);
   background: var(--color-superficie);
-  border: 1px solid var(--color-borde);
-  border-radius: 0.5rem;
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
 }
 
 .block h3 {
   margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
+  font: var(--tipo-subtitulo);
 }
 
 .block h4 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font: var(--tipo-cuerpo-fuerte);
 }
 
 .label {
   display: grid;
-  gap: 0.35rem;
-  font-weight: 600;
+  gap: var(--espacio-4);
+  font: var(--tipo-cuerpo-fuerte);
 }
 
 .input {
-  font: inherit;
-  font-weight: 400;
+  min-height: var(--alto-control);
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
   color: var(--color-tinta);
-  background: var(--color-fondo);
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--color-borde-fuerte);
-  border-radius: 0.4rem;
-}
-
-.input:focus-visible,
-.link:focus-visible,
-.voices input:focus-visible {
-  outline: 3px solid var(--color-foco);
-  outline-offset: 2px;
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
 }
 
 .voices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8) var(--espacio-24);
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
 }
 
 .voices legend {
   padding: 0;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
+  margin-bottom: var(--espacio-8);
+  font: var(--tipo-cuerpo-fuerte);
 }
 
 .voices label {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: var(--espacio-8);
   cursor: pointer;
 }
 
 .voices input {
   margin: 0;
-  accent-color: var(--color-primario-fondo);
+  accent-color: var(--color-marca);
 }
 
 .progress {
   width: 100%;
-  height: 0.9rem;
-  accent-color: var(--color-primario-fondo);
+  height: var(--espacio-16);
+  accent-color: var(--color-marca);
 }
 
 .status {
   margin: 0;
-  font-weight: 600;
+  font: var(--tipo-cuerpo-fuerte);
 }
 
 .elapsed {
   margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
   color: var(--color-tinta-suave);
-  font-weight: 600;
 }
 
+/* Lo que falta o no anduvo: ámbar, no rojo. */
 .message {
   margin: 0;
-  color: var(--color-aviso);
-  font-weight: 600;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-parcial);
 }
 
 .heard {
   margin: 0;
-  font-size: 1.15rem;
+  font: var(--tipo-consigna);
   font-weight: 600;
 }
 
 .text {
   margin: 0;
-  padding: 0.6rem 0.75rem;
+  padding: var(--espacio-12) var(--espacio-16);
   white-space: pre-line;
   overflow-wrap: anywhere;
-  background: var(--color-fondo);
-  border: 1px solid var(--color-borde);
-  border-radius: 0.4rem;
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
 }
 
 .link {
-  color: var(--color-foco);
-  font-weight: 600;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-marca);
 }
 
 .steps {
-  margin: 0;
-  padding-left: 1.25rem;
   display: grid;
-  gap: 0.25rem;
+  gap: var(--espacio-4);
+  margin: 0;
+  padding-left: var(--espacio-24);
 }
 
 .audio {
   width: 100%;
-  max-width: 28rem;
+  max-width: 448px;
 }
 
 /* «Cómo habilitarlo»: los pasos se muestran cuando el enlace lleva a ellos. */
 .howTo {
   display: none;
-  gap: 0.75rem;
+  gap: var(--espacio-12);
 }
 
 .howTo:target {

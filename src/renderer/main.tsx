@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { texts } from '../preload/contract/texts';
 import { App } from './App';
+import './fuentes/fuentes.css';
 import './tokens.css';
 
 document.title = texts.appName;

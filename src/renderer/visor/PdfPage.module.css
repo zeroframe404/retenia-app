@@ -1,11 +1,12 @@
-/* La hoja es papel: blanca también en oscuro, con un borde para que se vea dónde termina. */
+/* La página dibujada: su recuadro lleva el borde de la línea fuerte para que se vea dónde termina. */
 .page {
   position: relative;
-  margin: 0;
   max-width: 100%;
-  background: #ffffff;
-  border: 1px solid var(--color-borde-fuerte);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 18%);
+  height: auto;
+  margin: 0;
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  box-shadow: var(--sombra-tarjeta);
 }
 
 .canvas {
@@ -14,11 +15,11 @@
   height: 100%;
 }
 
-/* El resaltado: amarillo de resaltador, con su borde para que se distinga en cualquier tema. */
+/* El resaltado: ámbar del sistema, con su borde para que se distinga en cualquier tema. */
 .mark {
   position: absolute;
   padding: 0;
-  background: rgb(255 214 64 / 45%);
-  outline: 2px solid #9a7400;
-  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-parcial) 30%, transparent);
+  outline: 2px solid var(--color-parcial);
+  border-radius: var(--radio-4);
 }

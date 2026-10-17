@@ -1,0 +1,74 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--espacio-8);
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-16);
+  font: var(--tipo-cuerpo-fuerte);
+  text-align: center;
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+/* El movimiento (120 ms) se declara en el estado de destino: cambiar de apariencia no anima nada. */
+.button:hover {
+  background: var(--color-superficie-hundida);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    border-color var(--movimiento-rapido) var(--curva);
+}
+
+.button[data-button="primary"] {
+  color: var(--color-sobre-marca);
+  background: var(--color-marca);
+  border-color: var(--color-marca);
+}
+
+.button[data-button="primary"]:hover {
+  background: var(--color-marca-fuerte);
+  border-color: var(--color-marca-fuerte);
+}
+
+.button[data-button="quiet"] {
+  color: var(--color-marca);
+  background: transparent;
+  border-color: transparent;
+}
+
+.button[data-button="quiet"]:hover {
+  background: var(--color-marca-suave);
+}
+
+.button:disabled {
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie-hundida);
+  border-color: var(--color-linea);
+  cursor: default;
+}
+
+.button[aria-busy="true"] {
+  cursor: progress;
+}
+
+/* El botón de solo ícono: cuadrado, del alto de los controles. */
+.iconButton {
+  display: inline-grid;
+  place-items: center;
+  width: var(--alto-control);
+  height: var(--alto-control);
+  padding: 0;
+  color: var(--color-tinta-suave);
+  background: transparent;
+  border: var(--trazo-lleno) transparent;
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--color-superficie-hundida);
+  transition: background-color var(--movimiento-rapido) var(--curva);
+}

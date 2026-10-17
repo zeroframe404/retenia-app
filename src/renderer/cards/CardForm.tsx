@@ -1,7 +1,9 @@
 import { useId, useRef, useState } from 'react';
 import { type Card, cardsCreateRequest, MAX_CARD_TEXT_LENGTH } from '../../preload/contract/cards';
 import { texts } from '../../preload/contract/texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import styles from '../ui/Form.module.css';
+import { BannerEstado } from '../ui/Process';
 
 type Errors = { question?: string | undefined; answer?: string | undefined };
 
@@ -106,7 +108,7 @@ export function CardForm({
           }}
         />
         {errors.question ? (
-          <p id={questionErrorId} className={styles.fieldError}>
+          <p id={questionErrorId} className={styles.fieldNotice}>
             {errors.question}
           </p>
         ) : null}
@@ -126,19 +128,17 @@ export function CardForm({
           }}
         />
         {errors.answer ? (
-          <p id={answerErrorId} className={styles.fieldError}>
+          <p id={answerErrorId} className={styles.fieldNotice}>
             {errors.answer}
           </p>
         ) : null}
       </div>
-      {saveFailed ? <p className={styles.formError}>{texts.cards.saveFailed}</p> : null}
+      {saveFailed ? <BannerEstado tone="attention">{texts.cards.saveFailed}</BannerEstado> : null}
       <div className={styles.actions}>
-        <button type="submit" className={styles.primary} disabled={saving}>
+        <Boton type="submit" variant="primary" disabled={saving}>
           {texts.cards.save}
-        </button>
-        <button type="button" className={styles.secondary} onClick={onCancel}>
-          {texts.cards.cancel}
-        </button>
+        </Boton>
+        <Boton onClick={onCancel}>{texts.cards.cancel}</Boton>
       </div>
     </form>
   );
