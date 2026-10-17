@@ -1,10 +1,10 @@
 import { join, resolve } from 'node:path';
 import { app, Notification, net, shell, systemPreferences, utilityProcess } from 'electron';
 import { systemStopwatch } from '../../core/clock';
-import { MODEL_FILES, MODELS_ORIGIN } from '../models/manifest';
-import { createModelStore } from '../models/store';
 import { createNotifier } from '../notifications';
 import { createWorkerClient } from '../supervisor';
+import { MODEL_FILES, MODELS_ORIGIN } from '../voice-models/manifest';
+import { createModelStore } from '../voice-models/store';
 import { createLabHandlers, type LabHandlers, microphoneAccess } from './lab';
 
 // Arma el Laboratorio dentro de «Retenia (prueba)» con las piezas de Electron: los dos procesos

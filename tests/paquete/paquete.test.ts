@@ -347,7 +347,9 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
 
   it('del lector de PDF viaja solo lo que usa el proceso de materiales, sin el lienzo nativo', () => {
     const prueba = readPackage(requirePackage('prueba').folder).map((f) => f.path);
-    const pdfjs = prueba.filter((path) => path.includes('node_modules/pdfjs-dist/'));
+    // Solo los archivos: las carpetas del asar también aparecen en la lista.
+    const inPdfjs = prueba.filter((path) => path.includes('node_modules/pdfjs-dist/'));
+    const pdfjs = inPdfjs.filter((path) => !inPdfjs.some((other) => other.startsWith(`${path}/`)));
     expect(pdfjs.length).toBeGreaterThan(0);
     expect(
       pdfjs.filter(

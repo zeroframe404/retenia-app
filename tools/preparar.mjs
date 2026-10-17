@@ -1,7 +1,7 @@
 // Prepara lo que la red baja de internet, una sola vez y aceptándolo solo si su huella coincide:
 // - Opengrep en tools/bin, con la huella SHA-256 anotada en docs/versiones.md (lo usa
 //   «verificar:todo»).
-// - Los modelos de voz de desarrollo, con el manifiesto de Retenia (src/main/models/manifest.ts):
+// - Los modelos de voz de desarrollo, con el manifiesto de Retenia (src/main/voice-models/manifest.ts):
 //   los usan las pruebas de voz, la punta a punta y el humo del instalador.
 // Lo llama la red cuando falta algo; también se puede correr a mano: «node tools/preparar.mjs».
 import { createHash } from 'node:crypto';

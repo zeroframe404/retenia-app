@@ -2,7 +2,7 @@ import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import { MODEL_FILES } from '../../src/main/models/manifest';
+import { MODEL_FILES } from '../../src/main/voice-models/manifest';
 
 // Un servidor local que hace de página de modelos para la punta a punta y el programa instalado:
 // sirve los modelos de voz de desarrollo (ya bajados y verificados) con las mismas direcciones

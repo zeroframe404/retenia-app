@@ -2,8 +2,8 @@
 // (tools/lib/modelos.mjs): los usan las pruebas de voz, la punta a punta y el humo del
 // instalador. Se bajan una sola vez con el mismo código y el mismo manifiesto que Retenia, así
 // que cada archivo se acepta solo si su huella coincide.
-import { MODEL_FILES, MODELS_ORIGIN } from '../../src/main/models/manifest.ts';
-import { createModelStore } from '../../src/main/models/store.ts';
+import { MODEL_FILES, MODELS_ORIGIN } from '../../src/main/voice-models/manifest.ts';
+import { createModelStore } from '../../src/main/voice-models/store.ts';
 import { DEV_MODELS_DIR } from './modelos.mjs';
 
 /** @param {number} bytes */

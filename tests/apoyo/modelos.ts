@@ -1,5 +1,5 @@
-import { MODEL_FILES } from '../../src/main/models/manifest';
-import { createModelStore } from '../../src/main/models/store';
+import { MODEL_FILES } from '../../src/main/voice-models/manifest';
+import { createModelStore } from '../../src/main/voice-models/store';
 import { DEV_MODELS_DIR } from '../../tools/lib/modelos.mjs';
 
 // Los modelos de voz de desarrollo (Kokoro y Whisper), los mismos que baja Retenia, ya bajados y

@@ -6,9 +6,9 @@ import { locatePhrase, type TextItem } from '../../core/highlight';
 import { heardText } from '../../core/speech';
 import { demoTexts } from '../../preload/contract/demo-texts';
 import type { labChannels } from '../../preload/contract/lab';
-import { type ModelStore, ModelsError, type ModelsProblem } from '../models/store';
 import type { Notifier } from '../notifications';
 import { type WorkerClient, WorkerProblem } from '../supervisor';
+import { type ModelStore, ModelsError, type ModelsProblem } from '../voice-models/store';
 
 // El Laboratorio (H-07, solo en «Retenia (prueba)»): los botones de Ajustes › «Demostración» ›
 // «Laboratorio». Usa las mismas piezas que la versión real va a usar en sus fases: la carpeta de

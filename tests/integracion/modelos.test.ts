@@ -5,8 +5,8 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { MODEL_FILES, MODELS_ORIGIN, type ModelFile } from '../../src/main/models/manifest';
-import { createModelStore, ModelsError } from '../../src/main/models/store';
+import { MODEL_FILES, MODELS_ORIGIN, type ModelFile } from '../../src/main/voice-models/manifest';
+import { createModelStore, ModelsError } from '../../src/main/voice-models/store';
 
 // La descarga única de los modelos de voz (CA-024) contra un servidor local de verdad, que hace
 // de la página de modelos: la red es una frontera externa (docs/plan-de-pruebas.md). El servidor
