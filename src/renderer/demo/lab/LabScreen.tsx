@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
 import ui from '../../ui.module.css';
 import { useModels } from './common';
@@ -10,6 +11,8 @@ import { VoiceBlock } from './VoiceBlock';
 // delicadas de Retenia, cada una con su botón y cuánto tardó.
 export function LabScreen({ onBack }: { onBack: () => void }) {
   const models = useModels();
+  // La frase de «Decir en voz alta»: se calla al tocar «Grabar», así no se graba encima.
+  const player = useRef<HTMLAudioElement | null>(null);
   return (
     <section className={ui.screen} aria-labelledby="titulo-laboratorio">
       <div className={ui.header}>
@@ -19,8 +22,8 @@ export function LabScreen({ onBack }: { onBack: () => void }) {
         </button>
       </div>
       <p className={styles.intro}>{demoTexts.lab.intro}</p>
-      <VoiceBlock models={models} />
-      <TranscriptionBlock models={models} />
+      <VoiceBlock models={models} player={player} />
+      <TranscriptionBlock models={models} onRecord={() => player.current?.pause()} />
       <PdfBlock />
       <ScanBlock />
       <NoticeBlock />

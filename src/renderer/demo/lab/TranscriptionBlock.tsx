@@ -31,7 +31,7 @@ function microphoneProblem(error: unknown): State {
 
 // «Transcripción»: «Grabar» pide el micrófono recién ahí; «Detener» manda lo grabado al proceso
 // de voz y muestra «Entendí: “…”» con un campo para corregirlo (CA-026).
-export function TranscriptionBlock({ models }: { models: Models }) {
+export function TranscriptionBlock({ models, onRecord }: { models: Models; onRecord: () => void }) {
   const [state, setState] = useState<State>({ kind: 'idle' });
   const recording = useRef<Recording | null>(null);
   const ticker = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -81,6 +81,7 @@ export function TranscriptionBlock({ models }: { models: Models }) {
   }
 
   async function record() {
+    onRecord();
     if (models.status?.state !== 'ready') {
       setState({ kind: 'problem', message: t.voice.missing });
       return;

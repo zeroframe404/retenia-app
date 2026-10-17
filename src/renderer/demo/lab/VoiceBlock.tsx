@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { type RefObject, useEffect, useId, useState } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
 import ui from '../../ui.module.css';
 import { Block, Elapsed, type Models, ModelsState } from './common';
@@ -8,7 +8,13 @@ const t = demoTexts.lab;
 
 // «Voz»: bajar los modelos una vez (CA-024) y decir una frase en inglés con una de las cuatro
 // voces (CA-025). El audio queda para volver a escucharlo.
-export function VoiceBlock({ models }: { models: Models }) {
+export function VoiceBlock({
+  models,
+  player,
+}: {
+  models: Models;
+  player: RefObject<HTMLAudioElement | null>;
+}) {
   const group = useId();
   const [phrase, setPhrase] = useState('');
   const [voice, setVoice] = useState(0);
@@ -89,6 +95,7 @@ export function VoiceBlock({ models }: { models: Models }) {
           <Elapsed ms={spoken.ms} />
           {/* biome-ignore lint/a11y/useMediaCaption: es la voz leyendo la frase que se ve arriba. */}
           <audio
+            ref={player}
             className={styles.audio}
             controls
             autoPlay
