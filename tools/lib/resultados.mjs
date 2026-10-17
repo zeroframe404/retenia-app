@@ -15,6 +15,7 @@ const LAYERS = {
   contrato: 'Contrato del puente',
   componentes: 'Pantallas',
   integracion: 'Integración',
+  'sin-red': 'Sin red',
   estaticas: 'Estática',
   red: 'Red completa y sabotajes',
   paquete: 'Paquete armado',
