@@ -21,6 +21,17 @@ const withoutPdfjs: Plugin = {
     id === EMPTY_PDFJS
       ? 'export default ""; export const GlobalWorkerOptions = {}; export function getDocument() { throw new Error("pdf.js no viene en esta versión"); }'
       : null,
+  // Si algo de la versión real llega a usar pdf.js, la compilación falla en vez de dejar una
+  // página en blanco: el día que el visor entre a la real, se saca este complemento.
+  generateBundle(_options, bundle) {
+    for (const output of Object.values(bundle)) {
+      if (output.type === 'chunk' && output.moduleIds.includes(EMPTY_PDFJS)) {
+        this.error(
+          'La versión real usa pdf.js, que hoy le llega vacío: sacá el complemento retenia-sin-pdfjs de electron.vite.config.ts.',
+        );
+      }
+    }
+  },
 };
 
 export default defineConfig({

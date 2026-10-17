@@ -2,12 +2,13 @@
 // Electron para que el contrato pueda probar qué se muestra y qué pasa al tocarlo sin depender de
 // Windows (el doble está declarado en docs/plan-de-pruebas.md). Tocar el aviso trae Retenia al
 // frente. Se guarda una referencia a cada aviso mostrado hasta que lo tocan: si no, Electron lo
-// puede soltar y el toque se pierde. Windows avisa «close» también cuando lo saca de la pantalla y
-// lo pasa al centro de notificaciones, donde todavía se puede tocar: eso no lo suelta.
+// puede soltar y el toque se pierde. Windows avisa «close» también cuando lo saca de la pantalla
+// por tiempo y lo pasa al centro de notificaciones, donde todavía se puede tocar: ese no se suelta;
+// uno que la persona descartó, sí.
 
 export interface NotificationLike {
   show(): void;
-  on(event: string, listener: () => void): unknown;
+  on(event: string, listener: (...args: unknown[]) => void): unknown;
 }
 
 export interface Notifier {
@@ -51,6 +52,11 @@ export function createNotifier({
         notification.on('click', () => {
           alive.delete(notification);
           bringToFront();
+        });
+        notification.on('close', (_event, details) => {
+          if ((details as { reason?: string } | undefined)?.reason !== 'timedOut') {
+            alive.delete(notification);
+          }
         });
         notification.show();
       });

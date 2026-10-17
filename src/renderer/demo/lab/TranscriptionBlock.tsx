@@ -121,7 +121,7 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
     }
     recording.current = opened;
     setState({ kind: 'recording', seconds: 0 });
-    // Cuenta los segundos (sin leer la hora) y corta solo a los 30.
+    // Cuenta los segundos (sin leer la hora) y corta solo a los 29.
     let seconds = 0;
     ticker.current = setInterval(() => {
       seconds += 1;

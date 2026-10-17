@@ -119,4 +119,5 @@ Se vuelven a sacar con `node tools/capturas.mjs fase-05` (después de `npm run c
 | M05.7 | | |
 | M05.8 | | |
 | M05.9 | | |
+| M05.9 · aviso instalado (opcional) | | |
 | Libre | | |
