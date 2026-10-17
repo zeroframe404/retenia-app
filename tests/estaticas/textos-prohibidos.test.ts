@@ -84,7 +84,8 @@ function visit(node: unknown, callback: (node: Node, skip: boolean) => void, ski
   }
 }
 
-const sources = walk(RENDERER, ['.tsx']);
+// Los archivos de la ventana, con y sin JSX: un texto escrito a mano en un `.ts` también cuenta.
+const sources = walk(RENDERER, ['.tsx', '.ts']).filter((file) => !file.endsWith('globals.d.ts'));
 
 // Lo que un archivo de la ventana tiene escrito a mano en lugar de sacarlo del catálogo.
 function findHardcodedText(source: string): string[] {
@@ -98,17 +99,43 @@ function findHardcodedText(source: string): string[] {
       found.push(`texto suelto «${String(node.value).trim()}»`);
     }
     if (node.type === 'JSXAttribute') {
-      const name = (node.name as Node | undefined)?.value;
+      const name = String((node.name as Node | undefined)?.value);
       const value = node.value as Node | undefined;
-      if (READ_ATTRIBUTES.has(String(name)) && value?.type === 'StringLiteral') {
-        found.push(`${String(name)}="${String(value.value)}"`);
+      if (value?.type === 'StringLiteral') {
+        const text = String(value.value);
+        // Las etiquetas que lee el lector de pantalla y cualquier propiedad con una frase (con
+        // espacios o letras con tilde): `legend="Tema de la interfaz"`.
+        if (
+          READ_ATTRIBUTES.has(name) ||
+          (name !== 'className' && /[\s¿¡áéíóúñÁÉÍÓÚÑ]/.test(text))
+        ) {
+          found.push(`${name}="${text}"`);
+        }
+      }
+    }
+    // Un texto entre llaves: `{'Guardar'}` o una plantilla con letras.
+    if (node.type === 'JSXElement') {
+      for (const child of (node.children as Node[] | undefined) ?? []) {
+        const expression =
+          child.type === 'JSXExpressionContainer' ? (child.expression as Node) : null;
+        let literal = '';
+        if (expression?.type === 'StringLiteral') {
+          literal = String(expression.value);
+        } else if (expression?.type === 'TemplateLiteral') {
+          literal = ((expression.quasis as { raw: string }[]) ?? [])
+            .map((part) => part.raw)
+            .join('');
+        }
+        if (/\p{L}/u.test(literal)) {
+          found.push(`texto entre llaves «${literal}»`);
+        }
       }
     }
     // Una frase escrita a mano (dos palabras de verdad seguidas) en una cadena de código.
     if (
       node.type === 'StringLiteral' &&
       /\p{L}{3,}\s+\p{L}{3,}/u.test(String(node.value)) &&
-      !/[[\]=:]/.test(String(node.value))
+      !/[[\]=]|\/\//.test(String(node.value))
     ) {
       found.push(`frase escrita a mano «${String(node.value)}»`);
     }
@@ -139,6 +166,25 @@ describe('ningún componente lleva texto escrito adentro', () => {
       'aria-label="Una etiqueta"',
       'frase escrita a mano «Una etiqueta»',
       'texto suelto «Hola mundo»',
+    ]);
+  });
+
+  it('[CA-036] también marca una propiedad con una frase, un texto entre llaves y una frase con dos puntos', () => {
+    const found = findHardcodedText(`
+      export const Malo = () => (
+        <Grupo legend="Tema de la interfaz" size="small" className="a b">
+          {'Guardar'}
+          {\`Hola \${nombre}\`}
+          {texts.ok}
+        </Grupo>
+      );
+      export const aviso = 'Atención: algo falló';
+    `);
+    expect(found).toEqual([
+      'texto entre llaves «Guardar»',
+      'texto entre llaves «Hola »',
+      'legend="Tema de la interfaz"',
+      'frase escrita a mano «Atención: algo falló»',
     ]);
   });
 

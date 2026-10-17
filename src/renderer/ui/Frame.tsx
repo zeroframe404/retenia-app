@@ -181,7 +181,11 @@ export function ListItem({
   return (
     <li className={styles.item}>
       <div className={styles.body}>
-        {title === undefined ? null : <p className={styles.itemTitle}>{title}</p>}
+        {title === undefined ? null : (
+          <p className={styles.itemTitle} title={title}>
+            {title}
+          </p>
+        )}
         {text === undefined ? null : <p className={styles.itemText}>{text}</p>}
         {detail === undefined ? null : <p className={styles.detail}>{detail}</p>}
         {children}

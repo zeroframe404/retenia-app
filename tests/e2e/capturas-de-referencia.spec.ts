@@ -30,6 +30,8 @@ async function shoot(page: Page, name: string, mask: Locator[] = []) {
   for (const [label, scheme] of SCHEMES) {
     await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
     await page.mouse.move(480, 4);
+    // Ningún contorno de foco en las capturas: lo mide la punta a punta, no la imagen.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await expect(page).toHaveScreenshot(`${name}-${label}.png`, { mask });
   }
 }

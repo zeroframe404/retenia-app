@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { handleMessage } from '../../src/main/bridge';
@@ -208,6 +208,45 @@ describe('atajos de teclado y cuadro de búsqueda', () => {
     await user.keyboard('{Control>}{Shift>}2{/Shift}{/Control}');
     await user.keyboard('{Alt>}2{/Alt}');
     expect(screen.getByRole('heading', { level: 2, name: 'Estudiar' })).toBeTruthy();
+  });
+});
+
+describe('el contorno del foco sigue a la última acción', () => {
+  it('[CA-034] después de una tecla (también Ctrl y un número) el contorno se muestra en lo que tiene el foco; después de un clic, no se fuerza', async () => {
+    const { user } = openApp('real');
+    render(<App />);
+    const root = document.documentElement;
+    await user.click(within(rail()).getByRole('button', { name: 'Idiomas' }));
+    expect(root.dataset.input).toBe('pointer');
+    await user.keyboard('{Control>}3{/Control}');
+    expect(root.dataset.input).toBe('keyboard');
+    await user.click(within(rail()).getByRole('button', { name: 'Progreso' }));
+    expect(root.dataset.input).toBe('pointer');
+    await user.keyboard('{Tab}');
+    expect(root.dataset.input).toBe('keyboard');
+  });
+});
+
+describe('atajos en otras situaciones', () => {
+  it('[CA-034] Ctrl y un número anda por la tecla física: en un teclado donde el número exige Mayús, también', async () => {
+    openApp('real');
+    render(<App />);
+    fireEvent.keyDown(document.body, { key: '&', code: 'Digit3', ctrlKey: true });
+    expect(await screen.findByRole('heading', { level: 2, name: 'Materiales' })).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: 'é', code: 'Digit2', ctrlKey: true });
+    expect(await screen.findByRole('heading', { level: 2, name: 'Apuntes' })).toBeTruthy();
+  });
+
+  it('con otro cuadro abierto (el de ejemplo de la «Galería»), Ctrl y K no abre «Buscar» encima', async () => {
+    const { user } = openApp('prueba');
+    render(<App />);
+    await goTo(user, 'Ajustes');
+    await user.click(await screen.findByRole('button', { name: 'Galería' }));
+    await user.click(await screen.findByRole('button', { name: 'Abrir el diálogo de ejemplo' }));
+    await screen.findByRole('dialog', { name: 'Diálogo de ejemplo' });
+    await user.keyboard('{Control>}k{/Control}');
+    expect(screen.queryByRole('dialog', { name: 'Buscar' })).toBeNull();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
   });
 });
 

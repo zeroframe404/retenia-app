@@ -228,12 +228,12 @@ describe('escala de letra, espacio y forma', () => {
   });
 
   it('las tipografías viajan como archivos locales: cada fuente declarada existe, sin direcciones de internet', () => {
-    const css = readFileSync(join(RENDERER, 'fuentes', 'fuentes.css'), 'utf8');
+    const css = readFileSync(join(RENDERER, 'fonts', 'fonts.css'), 'utf8');
     const sources = [...css.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1] ?? '');
     expect(sources.length).toBe(5);
     for (const source of sources) {
       expect(source).not.toMatch(/^[a-z]+:/i);
-      expect(existsSync(join(RENDERER, 'fuentes', source)), source).toBe(true);
+      expect(existsSync(join(RENDERER, 'fonts', source)), source).toBe(true);
     }
     expect(css).not.toMatch(/https?:/);
     for (const family of [
@@ -243,7 +243,7 @@ describe('escala de letra, espacio y forma', () => {
     ]) {
       expect(css).toContain(`font-family: "${family}"`);
     }
-    expect(existsSync(join(RENDERER, 'fuentes', 'LICENCIAS.md'))).toBe(true);
+    expect(existsSync(join(RENDERER, 'fonts', 'LICENSES.md'))).toBe(true);
   });
 
   it('el espacio va en grilla de 4 píxeles: 4, 8, 12, 16, 24, 32 y 48', () => {
@@ -311,8 +311,8 @@ describe('escala de letra, espacio y forma', () => {
 describe('trazo, foco, sombra y movimiento', () => {
   it('el trazo lleno es de 1,5 píxeles y el punteado, también', () => {
     expect(plain['trazo-ancho']).toBe('1.5px');
-    expect(plain['trazo-lleno']).toBe('1.5px solid');
-    expect(plain['trazo-punteado']).toBe('1.5px dashed');
+    expect(plain['trazo-lleno']).toBe('var(--trazo-ancho) solid');
+    expect(plain['trazo-punteado']).toBe('var(--trazo-ancho) dashed');
   });
 
   it('toda pieza marcada con trazo punteado se dibuja con borde punteado, y la llena, con borde lleno', () => {
@@ -380,5 +380,49 @@ describe('trazo, foco, sombra y movimiento', () => {
       .filter((d) => /\b\d+(\.\d+)?m?s\b/.test(d.value))
       .map((d) => `${rel(d.file)}: ${d.value}`);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('detalles de letra y contorno', () => {
+  it('el peso de letra de los estilos es uno de la escala (400, 600, 650 o 700)', () => {
+    const offenders = styleFiles()
+      .flatMap(declarations)
+      .filter((d) => d.property === 'font-weight' && !/^(400|600|650|700)$/.test(d.value))
+      .map((d) => `${rel(d.file)}: ${d.value}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('el espaciado entre letras de los estilos es solo el del rótulo', () => {
+    const offenders = styleFiles()
+      .flatMap(declarations)
+      .filter((d) => d.property === 'letter-spacing' && d.value !== 'var(--rotulo-espaciado)')
+      .map((d) => `${rel(d.file)}: ${d.value}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('nadie saca el contorno con `outline-style` ni `outline-width`', () => {
+    const offenders = [...styleFiles(), TOKENS_FILE]
+      .flatMap(declarations)
+      .filter(
+        (d) =>
+          (d.property === 'outline-style' && d.value === 'none') ||
+          (d.property === 'outline-width' && /^0/.test(d.value)),
+      )
+      .map((d) => `${rel(d.file)}: ${d.property}: ${d.value}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('todo token que se define se usa (o es uno de los del plan)', () => {
+    const planned =
+      /^(color-|fuente-|tipo-|espacio-|radio-|trazo-|foco-|movimiento-|sombra-|ancho-|alto-|rotulo-|curva)/;
+    const used = new Set(
+      [...styleFiles(), TOKENS_FILE]
+        .flatMap(declarations)
+        .flatMap((d) => [...d.value.matchAll(/var\(--([a-z0-9-]+)/g)].map((m) => m[1] ?? '')),
+    );
+    const orphans = Object.keys(plain).filter((name) => planned.test(name) && !used.has(name));
+    // Los colores, la escala y la grilla son del plan aunque hoy no se use cada uno; lo demás tiene
+    // que estar en uso.
+    expect(orphans.filter((name) => !/^(color-|tipo-|espacio-|radio-)/.test(name))).toEqual([]);
   });
 });

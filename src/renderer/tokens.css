@@ -71,8 +71,8 @@
   /* La regla visual central: trazo lleno para lo observado, punteado para lo estimado, lo
      provisional y las propuestas sin aceptar. */
   --trazo-ancho: 1.5px;
-  --trazo-lleno: 1.5px solid;
-  --trazo-punteado: 1.5px dashed;
+  --trazo-lleno: var(--trazo-ancho) solid;
+  --trazo-punteado: var(--trazo-ancho) dashed;
 
   /* Foco: contorno de 2 píxeles con 2 de separación, siempre visible. */
   --foco-ancho: 2px;
@@ -80,7 +80,6 @@
 
   /* Controles. */
   --alto-control: 40px;
-  --alto-icono: 20px;
 
   /* Sombra leve en las tarjetas; marcada solo en lo que flota. */
   --sombra-tarjeta: 0 1px 2px var(--color-sombra-leve);
@@ -137,6 +136,14 @@ body {
 
 /* El foco se ve siempre, en cualquier tema: contorno de 2 píxeles con 2 de separación. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+/* Si lo último que se usó fue una tecla (también Ctrl y un número), todo lo que tiene el foco muestra
+   el contorno: el navegador no lo muestra cuando el foco lo mueve el programa después de un atajo
+   con Ctrl. La marca la pone inputMode.ts. */
+:root[data-input="keyboard"] :where(:focus) {
   outline: var(--foco-ancho) solid var(--color-foco);
   outline-offset: var(--foco-separacion);
 }

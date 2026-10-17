@@ -6,6 +6,7 @@ import { DemoRibbon } from './demo/DemoRibbon';
 import { DemoSection } from './demo/DemoSection';
 import { GalleryScreen } from './demo/gallery/GalleryScreen';
 import { LabScreen } from './demo/lab/LabScreen';
+import { trackInputMode } from './inputMode';
 import { EmptyDestination } from './screens/EmptyDestination';
 import { NotesScreen } from './screens/NotesScreen';
 import { SearchDialog } from './screens/SearchDialog';
@@ -43,6 +44,9 @@ export function App() {
       });
   }, []);
 
+  // El contorno del foco se ve siempre que lo último que se usó fue el teclado.
+  useEffect(() => trackInputMode(), []);
+
   // Cada pantalla arranca desde arriba, aunque la anterior estuviera desplazada.
   // biome-ignore lint/correctness/useExhaustiveDependencies: se vuelve arriba cuando cambia la pantalla.
   useEffect(() => {
@@ -66,7 +70,8 @@ export function App() {
         });
         return;
       }
-      if (event.shiftKey || searching) {
+      // Con un cuadro abierto (el de «Buscar» o cualquier otro) los atajos de las pantallas esperan.
+      if (event.shiftKey || document.querySelector('[aria-modal="true"]')) {
         return;
       }
       if (event.key.toLowerCase() === 'k') {
@@ -74,15 +79,19 @@ export function App() {
         setSearching(true);
         return;
       }
-      const target = DESTINATIONS[Number(event.key) - 1];
-      if (target && /^[1-9]$/.test(event.key)) {
+      // Por la tecla física («Digit1»): en un teclado donde el número exige Mayús (como el francés)
+      // Ctrl y 1 anda igual.
+      const digit =
+        /^Digit([1-9])$/.exec(event.code)?.[1] ?? (/^[1-9]$/.test(event.key) ? event.key : '');
+      const target = DESTINATIONS[Number(digit) - 1];
+      if (target && digit !== '') {
         event.preventDefault();
         go(target.destination);
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [go, searching]);
+  }, [go]);
 
   const goToNotes = () => go('notes');
 

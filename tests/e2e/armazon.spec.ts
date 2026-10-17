@@ -235,7 +235,11 @@ async function focusInfo(page: Page): Promise<FocusInfo> {
     const element = document.activeElement as HTMLElement;
     const style = getComputedStyle(element);
     const rect = element.getBoundingClientRect();
-    const label = element.getAttribute('aria-label') ?? element.textContent ?? '';
+    const label =
+      element.getAttribute('aria-label') ??
+      (element as HTMLInputElement).labels?.[0]?.textContent ??
+      element.textContent ??
+      '';
     return {
       isBody: element === document.body,
       name: label.trim(),
@@ -262,6 +266,26 @@ function expectVisibleFocus(info: FocusInfo, where: string) {
   expect(info.outlineOffset, `${where} (${info.name})`).toBe('2px');
   expect(info.inView, `${where} (${info.name}) está fuera de la ventana`).toBe(true);
 }
+
+test('[CA-034] aunque antes se haya usado el mouse, Ctrl+3 deja el contorno del foco a la vista en el título de la pantalla', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  // Primero el mouse, como en la prueba manual: un clic en el riel y otro en un botón.
+  await rail(page).getByRole('button', { name: 'Ajustes', exact: true }).click();
+  await page.getByRole('button', { name: 'Verificar datos' }).click();
+  await page.keyboard.press('Control+3');
+  const heading = page.getByRole('heading', { level: 2, name: 'Materiales' });
+  await expect(heading).toBeFocused();
+  expectVisibleFocus(await focusInfo(page), 'el título de Materiales después de usar el mouse');
+  // Lo mismo con Ctrl+K: el cuadro deja el contorno en su primer botón.
+  await page.keyboard.press('Control+K');
+  await expect(page.getByRole('dialog', { name: 'Buscar' })).toBeVisible();
+  expectVisibleFocus(await focusInfo(page), 'el cuadro «Buscar» después de usar el mouse');
+  await page.keyboard.press('Escape');
+  // Y al cerrarlo, el foco que vuelve también se ve.
+  expectVisibleFocus(await focusInfo(page), 'el foco que vuelve al cerrar el cuadro');
+});
 
 test('[CA-034] sin mouse: con Tab se llega a todo lo de Materiales y siempre se ve dónde está el foco', async ({
   launchFromStart,
@@ -388,7 +412,11 @@ test('[CA-034] sin mouse: se recorre todo Ajustes con Tab, sin saltear nada, y l
     }
   }
   expect(radioStops).toBe(1);
-  expect(new Set(visited).size).toBeGreaterThan(expected - 4);
+  expect(
+    visited.filter((name, index) => visited.indexOf(name) !== index),
+    'paradas repetidas',
+  ).toEqual([]);
+  expect(new Set(visited).size).toBe(visited.length);
   expect(visited).toContain('Hacer copia ahora');
   expect(visited).toContain('Verificar datos');
   expect(visited).toContain('Galería');
@@ -581,4 +609,19 @@ test('cada pantalla arranca desde arriba, aunque la anterior estuviera desplazad
   expect(await main.evaluate((element) => element.scrollTop)).toBeGreaterThan(100);
   await goToDestination(page, 'Estudiar');
   expect(await main.evaluate((element) => element.scrollTop)).toBe(0);
+});
+
+test('[CA-035] un título de lista larguísimo se corta con puntos suspensivos pero se puede leer entero apoyando el mouse', async ({
+  launch,
+}) => {
+  const { page } = await launch();
+  await page.setViewportSize({ width: 960, height: 640 });
+  const question = `¿${'Qué mide el desvío estándar de una muestra '.repeat(4)}?`;
+  await page.getByRole('button', { name: 'Nueva tarjeta' }).click();
+  await page.getByRole('textbox', { name: 'Pregunta' }).fill(question);
+  await page.getByRole('textbox', { name: 'Respuesta' }).fill('x');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  const title = page.getByRole('listitem').first().locator('p').first();
+  await expect(title).toHaveAttribute('title', question);
+  expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
 });

@@ -31,6 +31,8 @@ describe('textos prohibidos', () => {
     'Delete this card',
     'Please wait',
     'The answer',
+    'Review your cards',
+    'Start session',
   ])('[CA-036] «%s» es inglés suelto', (text) => {
     expect(rules(text)).toContain('ingles-suelto');
   });

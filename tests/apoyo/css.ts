@@ -48,7 +48,7 @@ export const TOKENS_FILE = join(RENDERER, 'tokens.css');
 // Los archivos de estilos de la ventana, menos el de los tokens.
 export function styleFiles(): string[] {
   return walk(RENDERER, ['.css']).filter(
-    (file) => file !== TOKENS_FILE && !file.endsWith('fuentes.css'),
+    (file) => file !== TOKENS_FILE && !file.endsWith('fonts.css'),
   );
 }
 

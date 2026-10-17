@@ -59,6 +59,8 @@
 .destination[aria-current="page"] {
   color: var(--color-marca-fuerte);
   background: var(--color-marca-suave);
+  /* Una barra a la izquierda: se distingue también sin ver el tinte del fondo. */
+  box-shadow: inset var(--espacio-4) 0 0 var(--color-marca);
 }
 
 .label {
@@ -290,6 +292,18 @@
   place-items: center;
   padding: var(--espacio-16);
   background: var(--color-velo);
+  animation: appear var(--movimiento-normal) var(--curva);
+}
+
+/* Sin rebotes ni confeti: el cuadro aparece con un fundido de 200 ms (con «reducir movimiento», al instante). */
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .dialog {

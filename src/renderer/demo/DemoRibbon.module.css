@@ -12,6 +12,6 @@
   margin: 0;
   font: var(--tipo-pequeno);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--rotulo-espaciado);
   overflow-wrap: anywhere;
 }

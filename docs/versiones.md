@@ -84,7 +84,7 @@ Huella SHA-256 del ejecutable `opengrep_windows_x86.exe` de la release v1.30.2 (
 
 ## Tipografías
 
-Fase 06, verificadas el 17/10/2026. Son archivos `woff2` del juego `latin` (el castellano completo) de los paquetes oficiales de Fontsource en su versión 5.3.0 (`@fontsource-variable/bricolage-grotesque`, `@fontsource/atkinson-hyperlegible-next` y `@fontsource/atkinson-hyperlegible-mono`; licencia SIL Open Font License 1.1; los tres publicados por el proyecto Fontsource el 19/07/2026). Se bajaron con `npm pack` a una carpeta fuera del proyecto y se copiaron a `src/renderer/fuentes`; no hay ninguna dependencia nueva y por eso no hay nada que actualizar. Las licencias completas están en `src/renderer/fuentes/LICENCIAS.md`. Viajan dentro del archivo de la ventana y funcionan sin internet.
+Fase 06, verificadas el 17/10/2026. Son archivos `woff2` del juego `latin` (el castellano completo) de los paquetes oficiales de Fontsource en su versión 5.3.0 (`@fontsource-variable/bricolage-grotesque`, `@fontsource/atkinson-hyperlegible-next` y `@fontsource/atkinson-hyperlegible-mono`; licencia SIL Open Font License 1.1; los tres publicados por el proyecto Fontsource el 19/07/2026). Se bajaron con `npm pack` a una carpeta fuera del proyecto y se copiaron a `src/renderer/fonts`; no hay ninguna dependencia nueva y por eso no hay nada que actualizar. Las licencias completas están en `src/renderer/fonts/LICENSES.md`. Viajan dentro del archivo de la ventana y funcionan sin internet.
 
 | Archivo | Uso | Tamaño | Huella SHA-256 |
 |---|---|---|---|

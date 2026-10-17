@@ -45,6 +45,8 @@
   color: var(--color-marca-fuerte);
   background: var(--color-marca-suave);
   border-color: var(--color-marca);
+  /* Un borde más grueso: la opción elegida se distingue también sin ver el tinte del fondo. */
+  box-shadow: inset 0 0 0 1px var(--color-marca);
 }
 
 .radio {
