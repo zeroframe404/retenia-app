@@ -1,19 +1,21 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { demoTexts } from '../../preload/contract/demo-texts';
 import { formatLongDate } from '../../preload/contract/texts';
 import styles from './DemoRibbon.module.css';
+import { setDemoToday, useDemoToday } from './demoDate';
 
 // Cinta superior de «Retenia (prueba)». La fecha llega por el puente desde el reloj del
-// proceso principal: si la cinta se ve, el puente anda.
+// proceso principal (si la cinta se ve, el puente anda) y cambia al instante cuando Ajustes ›
+// «Demostración» la corre.
 export function DemoRibbon() {
-  const [today, setToday] = useState<string | null>(null);
+  const today = useDemoToday();
 
   useEffect(() => {
     let active = true;
     window.retenia['demo.state']({})
       .then((response) => {
         if (active) {
-          setToday(response.today);
+          setDemoToday(response.today);
         }
       })
       .catch((error: unknown) => {

@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { changedMigrations } from '../../tools/lib/migraciones.mjs';
 import { ROOT } from '../../tools/lib/proceso.mjs';
 
 const FOLDER = join(ROOT, 'src', 'data', 'migrations');
@@ -18,6 +19,10 @@ const FORBIDDEN = [
 ];
 
 describe('migraciones de la base', () => {
+  it('una migración que ya entró al historial no cambia nunca: mismo nombre y mismo contenido que en su primer commit', async () => {
+    expect(await changedMigrations(ROOT)).toEqual([]);
+  });
+
   it('hay al menos la primera y los números son consecutivos desde 0000', () => {
     expect(files.length).toBeGreaterThan(0);
     expect(files.map((name) => name.slice(0, 4))).toEqual(

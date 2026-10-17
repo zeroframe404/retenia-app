@@ -204,7 +204,15 @@ describe('paquete de uso real: nada de demostración', () => {
 
   it('[CA-013] el control: el paquete de prueba sí los tiene, así que esta búsqueda sabe encontrarlos', () => {
     const prueba = readPackage(requirePackage('prueba').folder);
-    const marks = ['DEMOSTRACIÓN', '2027-03-15', 'demo.state', '¿Qué mide el desvío estándar?'];
+    const marks = [
+      'DEMOSTRACIÓN',
+      '2027-03-15',
+      'demo.state',
+      'demo.advanceDays',
+      'demo.resetDate',
+      'Restablecer fecha',
+      '¿Qué mide el desvío estándar?',
+    ];
     for (const mark of marks) {
       expect(
         prueba.some((file) => file.text?.includes(mark)),
@@ -217,7 +225,9 @@ describe('paquete de uso real: nada de demostración', () => {
     const leaks = real
       .filter((file) => file.path.startsWith('app.asar/out/real/'))
       .filter((file) =>
-        /demo\.state|demoChannels|createDemoHandlers|seedDemoCards/.test(file.text ?? ''),
+        /demo\.state|demo\.advanceDays|demo\.resetDate|demoChannels|createDemoHandlers|createDemoDate|seedDemoCards|Restablecer fecha/.test(
+          file.text ?? '',
+        ),
       );
     expect(leaks.map((file) => file.path)).toEqual([]);
   });

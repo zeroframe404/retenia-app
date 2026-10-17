@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { demoClock } from '../../src/core/clock';
 import { handleMessage } from '../../src/main/bridge';
 import { createDemoHandlers } from '../../src/main/demo';
+import { createDemoDate } from '../../src/main/demo/clock';
 import { channels } from '../../src/preload/contract';
 import { MAX_CARD_TEXT_LENGTH } from '../../src/preload/contract/cards';
 import { demoChannels } from '../../src/preload/contract/demo';
 import { openBridge, type TestBridge } from '../apoyo/puente';
+
+// La clave de un intento de repaso, como la genera la ventana al abrir el repaso.
+const ATTEMPT = '01969f1e-0000-4000-8000-0000000000a1';
 
 const bridges: TestBridge[] = [];
 function bridge(options?: Parameters<typeof openBridge>[0]) {
@@ -108,19 +111,26 @@ describe('contrato del puente: canales «cards.create», «cards.list» y «card
       question: '¿Capital de Francia?',
       answer: 'París',
     });
-    const reviewed = await api['cards.review']({ cardId: created.id, grade: 'good' });
+    const reviewed = await api['cards.review']({
+      cardId: created.id,
+      grade: 'good',
+      attemptId: ATTEMPT,
+    });
     expect(reviewed).toMatchObject({ id: created.id, nextReviewDay: '2027-03-17' });
     expect((await api['cards.list']({})).cards[0]?.nextReviewDay).toBe('2027-03-17');
   });
 
-  it('«cards.review» rechaza una calificación desconocida, un identificador que no es UUID y una tarjeta que no existe', async () => {
+  it('«cards.review» rechaza una calificación desconocida, un identificador que no es UUID, un intento sin clave y una tarjeta que no existe', async () => {
     const { api, handlers } = bridge();
     const created = await api['cards.create']({ question: 'P', answer: 'R' });
+    // Cada pedido lleva todo lo demás bien, así falla por su propio motivo.
     for (const request of [
-      { cardId: created.id, grade: 'easy' },
-      { cardId: created.id, grade: 'GOOD' },
-      { cardId: 'no-es-un-uuid', grade: 'good' },
-      { cardId: created.id },
+      { cardId: created.id, grade: 'easy', attemptId: ATTEMPT },
+      { cardId: created.id, grade: 'GOOD', attemptId: ATTEMPT },
+      { cardId: 'no-es-un-uuid', grade: 'good', attemptId: ATTEMPT },
+      { cardId: created.id, attemptId: ATTEMPT },
+      { cardId: created.id, grade: 'good' },
+      { cardId: created.id, grade: 'good', attemptId: 'no-es-un-uuid' },
     ]) {
       await expect(handleMessage(handlers, 'cards.review', request)).rejects.toThrow(
         'Petición rechazada en el canal «cards.review»',
@@ -129,6 +139,7 @@ describe('contrato del puente: canales «cards.create», «cards.list» y «card
     const missing = handleMessage(handlers, 'cards.review', {
       cardId: '01969f1e-0000-7000-8000-000000000000',
       grade: 'good',
+      attemptId: ATTEMPT,
     });
     await expect(missing).rejects.toThrow('No encontré la tarjeta');
     expect((await api['cards.list']({})).cards[0]?.nextReviewDay).toBeNull();
@@ -161,8 +172,8 @@ describe('contrato del puente: canales de demostración', () => {
   });
 
   it('[CA-012] en la variante de prueba «demo.state» devuelve el día de estudio del reloj de demostración', async () => {
-    const { handlers } = bridge();
-    const demoHandlers = createDemoHandlers({ clock: demoClock() });
+    const { handlers, dataDir } = bridge();
+    const demoHandlers = createDemoHandlers(createDemoDate(dataDir));
     const registry = { ...channels, ...demoChannels() };
     await expect(
       handleMessage({ ...handlers, ...demoHandlers }, 'demo.state', {}, registry),

@@ -9,7 +9,9 @@
     "tools/hooks/*.mjs",
     "playwright.instalado.config.ts",
     "tests/instalado/*.spec.ts",
-    "tests/sabotage/*.mjs"
+    "tests/sabotage/*.mjs",
+    // El programa hijo de la prueba del corte: lo arma Vite por su ruta (tests/apoyo/corte.ts).
+    "tests/apoyo/escritura-cortada.ts"
   ],
   "project": ["src/**/*.{ts,tsx}", "tools/**/*.mjs", "tests/**/*.{ts,mjs}"],
   // La red los corre por su ruta (tools/lib/proceso.mjs; así se arma el instalador con

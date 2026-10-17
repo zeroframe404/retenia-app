@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { studyDayOf } from '../../src/core/study-day';
+import { localDateTime, studyDayOf } from '../../src/core/study-day';
 import { formatLongDate } from '../../src/preload/contract/texts';
 import { inBuenosAires } from '../apoyo/fechas';
 
@@ -53,6 +53,31 @@ describe('día de estudio', () => {
       expect(formatLongDate(studyDayOf(inBuenosAires('16/03/2027 04:00')))).toBe(
         'martes 16/03/2027',
       );
+    });
+
+    it('la fecha y la hora de calendario son las de Buenos Aires, en cualquier zona de la PC', () => {
+      process.env.TZ = 'Asia/Tokyo';
+      expect(localDateTime(inBuenosAires('16/03/2027 02:30'))).toEqual({
+        day: '2027-03-16',
+        time: '02:30',
+      });
+    });
+  });
+});
+
+describe('fecha y hora de calendario', () => {
+  it('a diferencia del día de estudio, la madrugada es del día que dice el calendario', () => {
+    expect(localDateTime(inBuenosAires('16/03/2027 02:30'))).toEqual({
+      day: '2027-03-16',
+      time: '02:30',
+    });
+    expect(localDateTime(inBuenosAires('15/03/2027 10:00'))).toEqual({
+      day: '2027-03-15',
+      time: '10:00',
+    });
+    expect(localDateTime(inBuenosAires('31/12/2027 23:59'))).toEqual({
+      day: '2027-12-31',
+      time: '23:59',
     });
   });
 });

@@ -18,6 +18,11 @@ const migrations: Migration[] = Object.entries(files)
   .map(([path, sql]) => ({ id: path.replace(/^.*\//, '').replace(/\.sql$/, ''), sql }))
   .sort((a, b) => (a.id < b.id ? -1 : 1));
 
+// Las migraciones que trae este programa, en orden: una copia que diga otra no se restaura.
+export function migrationIds(): string[] {
+  return migrations.map((migration) => migration.id);
+}
+
 // Aplica las que faltan, cada una en su propia transacción, y anota cuándo.
 export function applyMigrations(sqlite: BetterSqlite3.Database, appliedAt: Date): string[] {
   sqlite.exec(

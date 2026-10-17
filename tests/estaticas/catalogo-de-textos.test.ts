@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { demoTexts } from '../../src/preload/contract/demo-texts';
-import { texts } from '../../src/preload/contract/texts';
+import { formatShortDate, formatSize, texts } from '../../src/preload/contract/texts';
 
 // El catálogo es el único lugar de los textos visibles (CLAUDE.md, secciones g y «Reglas del
 // producto»): castellano rioplatense con voseo, vocabulario del sistema, sin emojis y sin
@@ -10,6 +10,25 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.cards.questionTooLong': [100000],
   'texts.cards.answerTooLong': [100000],
   'texts.cards.nextReview': ['miércoles 17/03/2027'],
+  'texts.history.row': ['15/03/2027', 'La sabía'],
+  'texts.trash.expires': ['14/04/2027'],
+  'texts.activity.row': ['22/03/2027 10:00', 'Editaste «¿Qué es la varianza?»'],
+  'texts.activity.cardName': ['¿Qué es la varianza?'],
+  'texts.activity.created': ['«¿Capital de Francia?»'],
+  'texts.activity.edited': ['«¿Qué es la varianza?»'],
+  'texts.activity.removed': ['«¿Qué es la varianza?»'],
+  'texts.activity.restored': ['«¿Qué es la varianza?»'],
+  'texts.activity.undidCreate': ['«¿Capital de Francia?»'],
+  'texts.activity.undidEdit': ['«¿Qué es la varianza?»'],
+  'texts.activity.undidRemove': ['«¿Qué es la varianza?»'],
+  'texts.activity.undidRestore': ['«¿Qué es la varianza?»'],
+  'texts.data.differencesFound': [2],
+  'texts.data.differenceDue': ['¿Qué es la varianza?', '30/04/2027', '17/03/2027'],
+  'texts.data.differenceMemory': ['¿Qué es la varianza?'],
+  'texts.data.differenceMissing': ['¿Qué es la varianza?'],
+  'texts.data.copyRow': ['22/03/2027', '10:00', 'Hecha por vos', '48 KB'],
+  'texts.data.unreadableCopy': ['48 KB'],
+  'texts.data.restored': ['22/03/2027', '10:00'],
   'demoTexts.ribbon': ['lunes 15/03/2027'],
 };
 
@@ -74,5 +93,76 @@ describe('catálogo de textos', () => {
       'Próximo repaso: miércoles 17/03/2027',
     );
     expect(demoTexts.ribbon('lunes 15/03/2027')).toBe('DEMOSTRACIÓN · hoy es lunes 15/03/2027');
+  });
+
+  it('los textos de la Fase 04 son exactamente los de las pruebas manuales', () => {
+    expect(texts.nav).toEqual({
+      label: 'Secciones',
+      cards: 'Tarjetas',
+      trash: 'Papelera',
+      activity: 'Actividad reciente',
+      settings: 'Ajustes',
+    });
+    expect(texts.cards.history).toBe('Historial');
+    expect(texts.cards.edit).toBe('Editar');
+    expect(texts.cards.remove).toBe('Eliminar');
+    expect(texts.history.title).toBe('Historial');
+    expect(texts.history.row('15/03/2027', texts.cards.gradeGood)).toBe('15/03/2027 · La sabía');
+    expect(texts.history.row('22/03/2027', texts.cards.gradeHard)).toBe('22/03/2027 · Con dudas');
+    expect(texts.trash.title).toBe('Papelera');
+    expect(texts.trash.restore).toBe('Restaurar');
+    expect(texts.trash.emptyTrash).toBe('Vaciar papelera');
+    expect(texts.trash.confirmEmpty).toBe('Las tarjetas de la papelera se eliminan para siempre.');
+    expect(texts.trash.confirm).toBe('Vaciar');
+    expect(texts.trash.expires('14/04/2027')).toBe('Se elimina para siempre el 14/04/2027');
+    expect(texts.activity.title).toBe('Actividad reciente');
+    expect(texts.activity.undo).toBe('Deshacer');
+    expect(texts.activity.edited(texts.activity.cardName('¿Qué es la varianza? PRUEBA'))).toBe(
+      'Editaste «¿Qué es la varianza? PRUEBA»',
+    );
+    expect(texts.settings.title).toBe('Ajustes');
+    expect(texts.data.title).toBe('Datos y copias');
+    expect(texts.data.verify).toBe('Verificar datos');
+    expect(texts.data.allGood).toBe('Todo en orden · 0 diferencias');
+    expect(texts.data.repair).toBe('Reparar desde el historial');
+    expect(texts.data.makeCopy).toBe('Hacer copia ahora');
+    expect(texts.data.openFolder).toBe('Abrir carpeta de copias');
+    expect(texts.data.verified).toBe('Verificada');
+    expect(texts.data.restore).toBe('Restaurar');
+    expect(texts.data.kinds).toEqual({
+      auto: 'Automática',
+      manual: 'Hecha por vos',
+      before_restore: 'Antes de restaurar',
+    });
+    expect(demoTexts.section).toBe('Demostración');
+    expect(demoTexts.advance).toEqual({ 1: '+1 día', 7: '+7 días', 35: '+35 días' });
+    expect(demoTexts.reset).toBe('Restablecer fecha');
+  });
+
+  it('las diferencias se cuentan en singular y en plural', () => {
+    expect(texts.data.differencesFound(1)).toBe('Hay 1 diferencia');
+    expect(texts.data.differencesFound(3)).toBe('Hay 3 diferencias');
+  });
+
+  it('una tarjeta que ya no existe se nombra sin comillas', () => {
+    expect(texts.activity.cardName(null)).toBe('una tarjeta que ya no existe');
+    expect(texts.activity.created(texts.activity.cardName(null))).toBe(
+      'Creaste una tarjeta que ya no existe',
+    );
+  });
+});
+
+describe('formatos de fecha y tamaño', () => {
+  it('«2027-03-15» se escribe 15/03/2027', () => {
+    expect(formatShortDate('2027-03-15')).toBe('15/03/2027');
+    expect(() => formatShortDate('15/03/2027')).toThrow();
+  });
+
+  it('los tamaños van en KB o MB con coma decimal', () => {
+    expect(formatSize(0)).toBe('1 KB');
+    expect(formatSize(512)).toBe('1 KB');
+    expect(formatSize(49_152)).toBe('48 KB');
+    expect(formatSize(1_258_291)).toBe('1,2 MB');
+    expect(formatSize(157_286_400)).toBe('150 MB');
   });
 });

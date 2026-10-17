@@ -1,6 +1,7 @@
 import type { Clock } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
-import type { CardsStore } from '../data/cards';
+import type { BackupView } from '../data/backups';
+import type { Workspace } from '../data/workspace';
 import {
   type ChannelName,
   channels,
@@ -8,6 +9,7 @@ import {
   type HandlerResponse,
   type Registry,
 } from '../preload/contract';
+import type { Backup } from '../preload/contract/backups';
 
 export type Variant = 'prueba' | 'real';
 
@@ -15,25 +17,69 @@ export type Handlers = {
   [K in ChannelName]: (request: HandlerRequest<K>) => Promise<HandlerResponse<K>>;
 };
 
+// Una copia tal como la ve la ventana: sin rutas ni nombres de archivo.
+function toBackup(view: BackupView): Backup {
+  return view.readable
+    ? {
+        readable: true,
+        id: view.id,
+        kind: view.kind,
+        day: view.day,
+        time: view.time,
+        sizeBytes: view.sizeBytes,
+      }
+    : { readable: false, sizeBytes: view.sizeBytes };
+}
+
+// Los manejadores de cada canal. Piden a la carpeta de trabajo el almacén vigente en cada
+// pedido: después de restaurar una copia, la base es otra. `openFolder` abre una carpeta con el
+// Explorador de Windows (shell.openPath: devuelve un texto vacío si pudo).
 export function createHandlers({
   clock,
   variant,
-  cards,
-  dataDir,
+  workspace,
   version,
+  openFolder,
 }: {
   clock: Clock;
   variant: Variant;
-  cards: CardsStore;
-  dataDir: string;
+  workspace: Workspace;
   version: string;
+  openFolder: (path: string) => Promise<string>;
 }): Handlers {
+  const backups = async () => (await workspace.backups()).map(toBackup);
   return {
     ping: async () => ({ message: 'pong', variant, today: studyDayOf(clock.now()) }),
-    'app.info': async () => ({ version, variant, dataDir }),
-    'cards.create': async (request) => cards.create(request),
-    'cards.list': async () => ({ cards: cards.list() }),
-    'cards.review': async (request) => cards.review(request),
+    'app.info': async () => ({ version, variant, dataDir: workspace.dataDir }),
+    'cards.create': async (request) => workspace.cards.create(request),
+    'cards.list': async () => ({ cards: workspace.cards.list() }),
+    'cards.review': async (request) => workspace.cards.review(request),
+    'cards.edit': async (request) => workspace.cards.edit(request),
+    'cards.history': async (request) => workspace.cards.history(request),
+    'cards.delete': async (request) => workspace.cards.remove(request),
+    'trash.list': async () => ({ items: workspace.trash.list() }),
+    'trash.restore': async (request) => workspace.trash.restore(request),
+    'trash.empty': async () => workspace.trash.empty(),
+    'activity.recent': async () => ({ items: workspace.activity.recent() }),
+    'activity.undo': async (request) => workspace.activity.undo(request),
+    'backups.list': async () => ({ backups: await backups() }),
+    'backups.createNow': async () => {
+      const created = await workspace.createBackup('manual');
+      return { created: toBackup(created), backups: await backups() };
+    },
+    'backups.restore': async ({ backupId }) => {
+      const { restored } = await workspace.restoreBackup(backupId);
+      return { restoredFrom: { day: restored.day, time: restored.time }, backups: await backups() };
+    },
+    'backups.verifyData': async () => ({ differences: workspace.verifyData() }),
+    'backups.repairData': async () => ({ differences: workspace.repairData() }),
+    'backups.openFolder': async () => {
+      const problem = await openFolder(workspace.copiesFolder());
+      if (problem !== '') {
+        throw new Error('No pude abrir la carpeta de copias');
+      }
+      return {};
+    },
   };
 }
 

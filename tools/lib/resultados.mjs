@@ -13,9 +13,12 @@ const LAYERS = {
   unitarias: 'Unitaria',
   propiedades: 'Propiedades',
   contrato: 'Contrato del puente',
+  componentes: 'Pantallas',
   integracion: 'Integración',
   estaticas: 'Estática',
   red: 'Red completa y sabotajes',
+  paquete: 'Paquete armado',
+  corte: 'Corte a la fuerza',
   e2e: 'Punta a punta',
 };
 

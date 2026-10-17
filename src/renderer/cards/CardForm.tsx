@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { type Card, cardsCreateRequest, MAX_CARD_TEXT_LENGTH } from '../../preload/contract/cards';
 import { texts } from '../../preload/contract/texts';
-import styles from './Cards.module.css';
+import styles from '../ui.module.css';
 
 type Errors = { question?: string | undefined; answer?: string | undefined };
 
@@ -31,18 +31,21 @@ function validate(question: string, answer: string): Errors {
   return errors;
 }
 
-// El formulario «Nueva tarjeta». Si falta algo, marca el campo y conserva todo lo escrito; al
-// guardar se deshabilita el botón para que un doble toque no cree dos tarjetas.
+// El formulario «Nueva tarjeta» y, con una tarjeta, «Editar tarjeta» (arranca con su pregunta y
+// su respuesta). Si falta algo, marca el campo y conserva todo lo escrito; al guardar se
+// deshabilita el botón para que un doble toque no guarde dos veces.
 export function CardForm({
+  card,
   onSaved,
   onCancel,
 }: {
+  card?: Card;
   onSaved: (card: Card) => void;
   onCancel: () => void;
 }) {
   const ids = useId();
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
+  const [question, setQuestion] = useState(card?.question ?? '');
+  const [answer, setAnswer] = useState(card?.answer ?? '');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -65,7 +68,11 @@ export function CardForm({
     saveInFlight.current = true;
     setSaving(true);
     try {
-      onSaved(await window.retenia['cards.create']({ question, answer }));
+      onSaved(
+        card
+          ? await window.retenia['cards.edit']({ cardId: card.id, question, answer })
+          : await window.retenia['cards.create']({ question, answer }),
+      );
     } catch {
       setSaveFailed(true);
       saveInFlight.current = false;
@@ -76,7 +83,12 @@ export function CardForm({
   const questionErrorId = `${ids}-pregunta-error`;
   const answerErrorId = `${ids}-respuesta-error`;
   return (
-    <form className={styles.form} aria-label={texts.cards.formLabel} onSubmit={submit} noValidate>
+    <form
+      className={styles.form}
+      aria-label={card ? texts.cards.editTitle : texts.cards.formLabel}
+      onSubmit={submit}
+      noValidate
+    >
       <div className={styles.field}>
         <label htmlFor={`${ids}-pregunta`}>{texts.cards.questionLabel}</label>
         <textarea

@@ -72,7 +72,7 @@ describe('tarjetas con la base real: alta, listado y repaso', () => {
     const db = openDatabase(file);
     const store = createCardsStore(db, demoClock());
     const created = store.create({ question: '¿Capital de Francia?', answer: 'París' });
-    const reviewed = store.review({ cardId: created.id, grade: 'good' });
+    const reviewed = store.review({ cardId: created.id, grade: 'good', attemptId: newId() });
     expect(reviewed.nextReviewDay).toBe('2027-03-17');
     expect(formatLongDate(reviewed.nextReviewDay ?? '')).toBe('miércoles 17/03/2027');
     db.close();
@@ -89,8 +89,12 @@ describe('tarjetas con la base real: alta, listado y repaso', () => {
     const store = createCardsStore(db, demoClock());
     const hard = store.create({ question: 'Con dudas', answer: 'x' });
     const again = store.create({ question: 'No la sabía', answer: 'x' });
-    expect(store.review({ cardId: hard.id, grade: 'hard' }).nextReviewDay).toBe('2027-03-16');
-    expect(store.review({ cardId: again.id, grade: 'again' }).nextReviewDay).toBe('2027-03-16');
+    expect(store.review({ cardId: hard.id, grade: 'hard', attemptId: newId() }).nextReviewDay).toBe(
+      '2027-03-16',
+    );
+    expect(
+      store.review({ cardId: again.id, grade: 'again', attemptId: newId() }).nextReviewDay,
+    ).toBe('2027-03-16');
     db.close();
   });
 
@@ -98,9 +102,13 @@ describe('tarjetas con la base real: alta, listado y repaso', () => {
     const { file } = freshFolder();
     const db = openDatabase(file);
     const created = createCardsStore(db, demoClock()).create({ question: 'P', answer: 'R' });
-    createCardsStore(db, demoClock()).review({ cardId: created.id, grade: 'good' });
+    createCardsStore(db, demoClock()).review({
+      cardId: created.id,
+      grade: 'good',
+      attemptId: newId(),
+    });
     const onDueDay = createCardsStore(db, fixedClock(inBuenosAires('17/03/2027 10:00')));
-    const again = onDueDay.review({ cardId: created.id, grade: 'good' });
+    const again = onDueDay.review({ cardId: created.id, grade: 'good', attemptId: newId() });
     db.close();
     expect(again.nextReviewDay).not.toBeNull();
     expect((again.nextReviewDay ?? '') > '2027-03-19').toBe(true);
@@ -112,7 +120,11 @@ describe('tarjetas con la base real: alta, listado y repaso', () => {
     const store = createCardsStore(db, demoClock());
     store.create({ question: 'P', answer: 'R' });
     expect(() =>
-      store.review({ cardId: '01969f1e-0000-7000-8000-000000000000', grade: 'good' }),
+      store.review({
+        cardId: '01969f1e-0000-7000-8000-000000000000',
+        grade: 'good',
+        attemptId: newId(),
+      }),
     ).toThrow(CardNotFoundError);
     expect(store.list()).toHaveLength(1);
     expect(store.list()[0]?.nextReviewDay).toBeNull();
@@ -163,7 +175,7 @@ describe('base de datos: apertura y migraciones', () => {
     db.close();
   });
 
-  it('la primera migración queda registrada y abrir de nuevo no la repite', () => {
+  it('las migraciones quedan registradas en orden y abrir de nuevo no las repite', () => {
     const { file } = freshFolder();
     openDatabase(file).close();
     openDatabase(file).close();
@@ -174,9 +186,24 @@ describe('base de datos: apertura y migraciones', () => {
       .all()
       .map((row) => (row as { name: string }).name);
     raw.close();
-    expect(applied).toEqual([{ id: '0000_tarjetas' }]);
+    expect(applied).toEqual([
+      { id: '0000_tarjetas' },
+      { id: '0001_libro_mayor' },
+      { id: '0002_libro_mayor_disparadores' },
+    ]);
     expect(tables).toEqual(
-      expect.arrayContaining(['card_schedule', 'card_versions', 'cards', 'schema_migrations']),
+      expect.arrayContaining([
+        'card_schedule',
+        'card_versions',
+        'cards',
+        'schema_migrations',
+        'ledger_state',
+        'observations',
+        'evaluations',
+        'operations',
+        'trash_entries',
+        'purge_permits',
+      ]),
     );
   });
 

@@ -21,4 +21,13 @@ describe('reloj', () => {
   it('el reloj del sistema da una fecha válida', () => {
     expect(Number.isNaN(systemClock().now().getTime())).toBe(false);
   });
+
+  it('el reloj de demostración con días sumados avanza de a 24 horas desde el 15/03/2027 10:00', () => {
+    expect(demoClock(0).now()).toEqual(demoClock().now());
+    expect(demoClock(1).now()).toEqual(inBuenosAires('16/03/2027 10:00'));
+    expect(demoClock(7).now()).toEqual(inBuenosAires('22/03/2027 10:00'));
+    expect(demoClock(35).now()).toEqual(inBuenosAires('19/04/2027 10:00'));
+    expect(formatLongDate(studyDayOf(demoClock(7).now()))).toBe('lunes 22/03/2027');
+    expect(formatLongDate(studyDayOf(demoClock(8).now()))).toBe('martes 23/03/2027');
+  });
 });
