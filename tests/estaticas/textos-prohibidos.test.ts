@@ -194,7 +194,7 @@ describe('ningún componente lleva texto escrito adentro', () => {
       file,
       name: rel(file)
         .replace(/^src\/renderer\//, '')
-        .replace(/\.tsx$/, ''),
+        .replace(/\.tsx?$/, ''),
     })),
   )(
     '[CA-036] $name: todo texto sale del catálogo (ni texto suelto, ni etiquetas escritas a mano)',
