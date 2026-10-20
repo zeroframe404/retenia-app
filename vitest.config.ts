@@ -115,7 +115,9 @@ export default defineConfig({
           exclude: ['tests/red/verificar.test.ts'],
           testTimeout: 1_500_000,
           hookTimeout: 600_000,
-          maxWorkers: 3,
+          // Cada prueba de esta capa corre una red entera adentro: con tres a la vez en el CI
+          // (4 procesadores) se pisan y alguna se pasa de sus topes.
+          maxWorkers: 2,
         },
       },
     ],

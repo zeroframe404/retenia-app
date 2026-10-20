@@ -265,7 +265,7 @@ export async function runNetwork({ full }) {
           ? ['--coverage.enabled', `--coverage.reportsDirectory=${coverageDir}`]
           : []),
       ],
-      { env: testEnv, timeoutMs: name === 'pruebas' ? 300_000 : 1_800_000 },
+      { env: testEnv, timeoutMs: name === 'pruebas' ? 600_000 : 1_800_000 },
     );
     saveLog(name, r);
     return { r, report: readVitestReport(reportPath), coverageDir };
