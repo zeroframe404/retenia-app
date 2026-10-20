@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
-import ui from '../../ui.module.css';
+import { Boton } from '../../ui/Boton';
+import ui from '../../ui/Content.module.css';
 import { type HighlightRect, PdfPage } from '../../visor/PdfPage';
 import { Block, Elapsed } from './common';
 import styles from './lab.module.css';
@@ -39,14 +40,12 @@ export function PdfBlock() {
   return (
     <Block title={t.pdf.title}>
       <div className={ui.actions}>
-        <button
-          type="button"
-          className={ui.primary}
+        <Boton
           disabled={run.kind === 'busy'}
           onClick={() => start(() => window.retenia['demo.lab.readPdf']({}))}
         >
           {t.pdf.read}
-        </button>
+        </Boton>
       </div>
       {run.kind === 'busy' ? <p className={styles.status}>{t.pdf.reading}</p> : null}
       {run.kind === 'failed' ? <p className={styles.message}>{t.pdf.failed}</p> : null}
@@ -77,14 +76,12 @@ export function ScanBlock() {
   return (
     <Block title={t.scan.title}>
       <div className={ui.actions}>
-        <button
-          type="button"
-          className={ui.primary}
+        <Boton
           disabled={run.kind === 'busy'}
           onClick={() => start(() => window.retenia['demo.lab.ocrPage']({}))}
         >
           {t.scan.read}
-        </button>
+        </Boton>
       </div>
       {run.kind === 'busy' ? <p className={styles.status}>{t.scan.reading}</p> : null}
       {run.kind === 'failed' ? <p className={styles.message}>{t.scan.failed}</p> : null}
@@ -106,14 +103,12 @@ export function NoticeBlock() {
   return (
     <Block title={t.notice.title}>
       <div className={ui.actions}>
-        <button
-          type="button"
-          className={ui.primary}
+        <Boton
           disabled={run.kind === 'busy'}
           onClick={() => start(() => window.retenia['demo.lab.notify']({}))}
         >
           {t.notice.send}
-        </button>
+        </Boton>
       </div>
       {run.kind === 'busy' ? <p className={styles.status}>{t.notice.sending}</p> : null}
       {run.kind === 'failed' ? <p className={styles.message}>{t.notice.failed}</p> : null}

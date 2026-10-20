@@ -1,0 +1,109 @@
+.card {
+  display: grid;
+  gap: var(--espacio-16);
+  padding: var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+/* Una propuesta todavía no aceptada: trazo punteado. */
+.card[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.title {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+.subtitle {
+  margin: 0 0 var(--espacio-4);
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.text {
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta-suave);
+}
+
+.strongText {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.note {
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+.commitment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-12);
+}
+
+.days {
+  display: inline-flex;
+  gap: var(--espacio-8);
+}
+
+.day {
+  width: var(--espacio-16);
+  height: var(--espacio-16);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+}
+
+.day[data-day="done"] {
+  background: var(--color-marca);
+  border-color: var(--color-marca);
+}
+
+.day[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.results,
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8) var(--espacio-16);
+}
+
+.list {
+  display: grid;
+  gap: var(--espacio-4);
+  padding-left: var(--espacio-16);
+  list-style: disc;
+}
+
+.result {
+  font: var(--tipo-cuerpo-fuerte);
+}

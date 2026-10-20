@@ -1,6 +1,6 @@
 # Versiones verificadas
 
-Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. La Fase 03 sumó, también con la versión exacta de esta tabla: better-sqlite3 con sus tipos, drizzle-orm y drizzle-kit, ts-fsrs, electron-builder, @electron/fuses y @electron/asar (estos tres para armar el instalador y leer el paquete), y para las pruebas de pantallas jsdom, Testing Library (react y dom) y user-event. La Fase 05 sumó, con la versión de esta tabla: sherpa-onnx-node (con sherpa-onnx-win-x64), pdfjs-dist, tesseract.js, tesseract.js-core y los datos de idioma `@tesseract.js-data/eng` y `@tesseract.js-data/spa` (fila nueva). Cada pieza restante entra en su fase con la versión de esta tabla.
+Fecha de verificación: **13/10/2026**. Fuentes: el registro de npm (`npm view`), las releases y el código fuente en GitHub y la documentación oficial de cada proyecto, más cuatro pruebas descartables hechas en esta PC fuera del repositorio. La Fase 02 instaló, con estas versiones exactas y el lockfile en el repositorio, solo lo que usa: Electron, electron-vite, Vite, el complemento de React, TypeScript, swc, React, Zod, Vitest con su cobertura, fast-check, Playwright, axe-core, Biome, dependency-cruiser, knip, lefthook, secretlint, los tipos de Node y de React, y Opengrep. La Fase 03 sumó, también con la versión exacta de esta tabla: better-sqlite3 con sus tipos, drizzle-orm y drizzle-kit, ts-fsrs, electron-builder, @electron/fuses y @electron/asar (estos tres para armar el instalador y leer el paquete), y para las pruebas de pantallas jsdom, Testing Library (react y dom) y user-event. La Fase 05 sumó, con la versión de esta tabla: sherpa-onnx-node (con sherpa-onnx-win-x64), pdfjs-dist, tesseract.js, tesseract.js-core y los datos de idioma `@tesseract.js-data/eng` y `@tesseract.js-data/spa` (fila nueva). La Fase 06 sumó `lucide-react` 1.55.0 (los íconos, dependencia de desarrollo como React: viaja dentro del archivo de la ventana) y copió al proyecto las tres tipografías como archivos (no como paquetes; ver «Tipografías» más abajo). Cada pieza restante entra en su fase con la versión de esta tabla.
 
 ## Regla para fijar versiones
 
@@ -81,6 +81,18 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | @types/react, @types/react-dom | 19.3.0 | 13/10/2026 | MIT | Tipos de React 19.3, misma versión que la biblioteca; los pide TipTap React. |
 
 Huella SHA-256 del ejecutable `opengrep_windows_x86.exe` de la release v1.30.2 (53.366.784 bytes), calculada en esta PC el 13/10/2026: `523b1074a81006436fec457e2daccf7cf7cacc04000d4482f1072a1b19bc6372`. La release trae firma sigstore (`.sig` y `.cert`), no un archivo de sumas; la huella de arriba es la que fija `tools/preparar`.
+
+## Tipografías
+
+Fase 06, verificadas el 17/10/2026. Son archivos `woff2` del juego `latin` (el castellano completo) de los paquetes oficiales de Fontsource en su versión 5.3.0 (`@fontsource-variable/bricolage-grotesque`, `@fontsource/atkinson-hyperlegible-next` y `@fontsource/atkinson-hyperlegible-mono`; licencia SIL Open Font License 1.1; los tres publicados por el proyecto Fontsource el 19/07/2026). Se bajaron con `npm pack` a una carpeta fuera del proyecto y se copiaron a `src/renderer/fonts`; no hay ninguna dependencia nueva y por eso no hay nada que actualizar. Las licencias completas están en `src/renderer/fonts/LICENSES.md`. Viajan dentro del archivo de la ventana y funcionan sin internet.
+
+| Archivo | Uso | Tamaño | Huella SHA-256 |
+|---|---|---|---|
+| `bricolage-grotesque-latin-wght-normal.woff2` | Títulos (fuente variable, pesos 200 a 800: se usan 650 y 700) | 41.344 bytes | `a97804dc9fbe5fc972a08018c5eda4dab7ef2346f64c57e61419d05e6de4ea1c` |
+| `atkinson-hyperlegible-next-latin-400-normal.woff2` | Texto, peso 400 | 12.096 bytes | `5cb240a4d99ab7e6fc3a4d4e6d11d89789fdffe9c86a8384000d662c53283f6f` |
+| `atkinson-hyperlegible-next-latin-600-normal.woff2` | Texto, peso 600 | 12.672 bytes | `828f4525c741b6864718e41aa23a4acbc049b35e6271317c0fd86e0702dd5d2e` |
+| `atkinson-hyperlegible-next-latin-700-normal.woff2` | Texto, peso 700 (rótulos) | 12.732 bytes | `0dbe07ed7679407db9d90f747d5ca3bd1b2bb7ccbcbe41c8246cfc6d2c7bc3bc` |
+| `atkinson-hyperlegible-mono-latin-400-normal.woff2` | Código, peso 400 | 10.056 bytes | `87b5b94c18025729fc6ed4e8c25221ade3746dc87213943fa4de49f1f0f26787` |
 
 ## Acciones de GitHub del CI
 

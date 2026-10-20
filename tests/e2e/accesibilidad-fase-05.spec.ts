@@ -17,7 +17,8 @@ type AxeRun = (
 async function violationsNow(page: Page): Promise<string[]> {
   const found: string[] = [];
   for (const theme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: theme });
+    // Sin movimiento: los colores no están a medio cambiar cuando axe los mide (Fase 06).
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     const violations = await page.evaluate(async () => {
       const axe = (globalThis as unknown as { axe: { run: AxeRun } }).axe;
       const outcome = await axe.run(document, { resultTypes: ['violations'] });

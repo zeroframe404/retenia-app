@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Card } from '../../preload/contract/cards';
 import { formatLongDate, texts } from '../../preload/contract/texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
+import { ViewState } from '../ui/ViewStates';
 import { CardForm } from './CardForm';
 import { HistoryView } from './HistoryView';
 import { ReviewView } from './ReviewView';
@@ -13,8 +15,8 @@ type View =
   | { kind: 'history'; card: Card }
   | { kind: 'edit'; card: Card };
 
-// La pantalla provisoria «Tarjetas»: la lista, el alta, el repaso mínimo, el historial, editar y
-// eliminar. El diseño fino llega en la Fase 06.
+// La pantalla provisoria «Tarjetas» (adentro de Apuntes): la lista, el alta, el repaso mínimo, el
+// historial, editar y eliminar.
 export function CardsScreen() {
   const [cards, setCards] = useState<Card[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -41,6 +43,11 @@ export function CardsScreen() {
   const backToList = () => {
     setNotice('');
     setView({ kind: 'list' });
+  };
+
+  const openForm = () => {
+    setNotice('');
+    setView({ kind: 'form' });
   };
 
   // «Eliminar»: a la Papelera. Un candado evita que un doble toque la elimine dos veces.
@@ -71,10 +78,7 @@ export function CardsScreen() {
 
   if (view.kind === 'edit') {
     return (
-      <section className={styles.screen} aria-labelledby="titulo-editar">
-        <div className={styles.header}>
-          <h2 id="titulo-editar">{texts.cards.editTitle}</h2>
-        </div>
+      <ScreenFrame level={3} title={texts.cards.editTitle}>
         <CardForm
           card={view.card}
           onCancel={backToList}
@@ -84,30 +88,26 @@ export function CardsScreen() {
             setView({ kind: 'list' });
           }}
         />
-      </section>
+      </ScreenFrame>
     );
   }
 
+  // El botón principal queda siempre arriba, junto al título: el estado vacío lo nombra («Tocá
+  // «Nueva tarjeta»…») y no lo repite.
+  const showEmpty = cards !== null && cards.length === 0 && view.kind === 'list' && !loadFailed;
   return (
-    <section className={styles.screen} aria-labelledby="titulo-tarjetas">
-      <div className={styles.header}>
-        <h2 id="titulo-tarjetas">{texts.cards.title}</h2>
-        {view.kind === 'list' ? (
-          <button
-            type="button"
-            className={styles.primary}
-            onClick={() => {
-              setNotice('');
-              setView({ kind: 'form' });
-            }}
-          >
+    <ScreenFrame
+      level={3}
+      title={texts.cards.title}
+      actions={
+        view.kind === 'list' ? (
+          <Boton variant="primary" onClick={openForm}>
             {texts.cards.newCard}
-          </button>
-        ) : null}
-      </div>
-      <div role="status" className={styles.notice}>
-        {notice}
-      </div>
+          </Boton>
+        ) : null
+      }
+    >
+      <Toast>{notice}</Toast>
       {view.kind === 'form' ? (
         <CardForm
           onCancel={() => setView({ kind: 'list' })}
@@ -119,65 +119,47 @@ export function CardsScreen() {
         />
       ) : null}
       {loadFailed ? (
-        <div className={styles.loadFailed}>
-          <p>{texts.cards.loadFailed}</p>
-          <button type="button" className={styles.secondary} onClick={() => void load()}>
-            {texts.cards.retry}
-          </button>
-        </div>
+        <ViewState
+          kind="error"
+          phrase={texts.cards.loadFailed}
+          action={{ text: texts.cards.retry, onClick: () => void load() }}
+        />
       ) : null}
-      {cards !== null && cards.length === 0 && view.kind === 'list' ? (
-        <p className={styles.empty}>{texts.cards.empty}</p>
-      ) : null}
+      {showEmpty ? <ViewState kind="empty" phrase={texts.cards.empty} /> : null}
       {cards !== null && cards.length > 0 ? (
-        <ul className={styles.list} aria-label={texts.cards.listLabel}>
+        <ItemList label={texts.cards.listLabel}>
           {cards.map((card) => (
-            <li key={card.id} className={styles.item}>
-              <div className={styles.itemText}>
-                <p className={styles.question}>{card.question}</p>
-                <p className={styles.meta}>
-                  {card.nextReviewDay
-                    ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
-                    : texts.cards.notReviewed}
-                </p>
-              </div>
-              <div className={styles.itemActions}>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  onClick={() => setView({ kind: 'review', card })}
-                >
-                  {texts.cards.review}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  onClick={() => setView({ kind: 'history', card })}
-                >
-                  {texts.cards.history}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  onClick={() => {
-                    setNotice('');
-                    setView({ kind: 'edit', card });
-                  }}
-                >
-                  {texts.cards.edit}
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  onClick={() => void remove(card)}
-                >
-                  {texts.cards.remove}
-                </button>
-              </div>
-            </li>
+            <ListItem
+              key={card.id}
+              title={card.question}
+              detail={
+                card.nextReviewDay
+                  ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
+                  : texts.cards.notReviewed
+              }
+              actions={
+                <>
+                  <Boton onClick={() => setView({ kind: 'review', card })}>
+                    {texts.cards.review}
+                  </Boton>
+                  <Boton onClick={() => setView({ kind: 'history', card })}>
+                    {texts.cards.history}
+                  </Boton>
+                  <Boton
+                    onClick={() => {
+                      setNotice('');
+                      setView({ kind: 'edit', card });
+                    }}
+                  >
+                    {texts.cards.edit}
+                  </Boton>
+                  <Boton onClick={() => void remove(card)}>{texts.cards.remove}</Boton>
+                </>
+              }
+            />
           ))}
-        </ul>
+        </ItemList>
       ) : null}
-    </section>
+    </ScreenFrame>
   );
 }

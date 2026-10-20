@@ -1,41 +1,161 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { texts } from '../preload/contract/texts';
 import styles from './App.module.css';
-import { ActivityScreen } from './activity/ActivityScreen';
-import { CardsScreen } from './cards/CardsScreen';
+import { applyTheme } from './appearance';
 import { DemoRibbon } from './demo/DemoRibbon';
 import { DemoSection } from './demo/DemoSection';
+import { GalleryScreen } from './demo/gallery/GalleryScreen';
 import { LabScreen } from './demo/lab/LabScreen';
-import { Navigation, type Screen } from './Navigation';
+import { trackInputMode } from './inputMode';
+import { EmptyDestination } from './screens/EmptyDestination';
+import { NotesScreen } from './screens/NotesScreen';
+import { SearchDialog } from './screens/SearchDialog';
 import { SettingsScreen } from './settings/SettingsScreen';
-import { TrashScreen } from './trash/TrashScreen';
+import { zoomDirection } from './shortcuts';
+import { DESTINATIONS, type Destination, SideRail } from './ui/Frame';
 
-// El Laboratorio cuelga de Ajustes (solo en la variante de prueba): mientras está abierto, la
-// barra marca «Ajustes».
-type Shown = Screen | 'lab';
+// Dentro de Ajustes (solo en la variante de prueba): el Laboratorio y la Galería cuelgan de
+// «Demostración». Mientras uno está abierto, el riel sigue marcando «Ajustes».
+type SettingsView = 'settings' | 'lab' | 'gallery';
 
+// La ventana: el riel lateral a la izquierda y, a la derecha, la pantalla del destino elegido.
+// Ctrl+1 a Ctrl+6 abren cada destino y Ctrl+K abre «Buscar».
 export function App() {
-  const [screen, setScreen] = useState<Shown>('cards');
+  const [destination, setDestination] = useState<Destination>('study');
+  const [settingsView, setSettingsView] = useState<SettingsView>('settings');
+  const [searching, setSearching] = useState(false);
+  // Al llegar a una pantalla por el riel o por un atajo, el foco pasa a su título; al abrir
+  // Retenia, no.
+  const [navigated, setNavigated] = useState(false);
+  const content = useRef<HTMLElement>(null);
+
+  const go = useCallback((next: Destination) => {
+    setDestination(next);
+    setSettingsView('settings');
+    setNavigated(true);
+  }, []);
+
+  // La apariencia elegida, desde el primer momento (el marco de la ventana ya arrancó con ella).
+  useEffect(() => {
+    window.retenia['appearance.get']({})
+      .then(({ choice }) => applyTheme(choice))
+      .catch((error: unknown) => {
+        console.error('La ventana no pudo leer la apariencia por el puente', error);
+      });
+  }, []);
+
+  // El contorno del foco se ve siempre que lo último que se usó fue el teclado.
+  useEffect(() => trackInputMode(), []);
+
+  // Cada pantalla arranca desde arriba, aunque la anterior estuviera desplazada.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: se vuelve arriba cuando cambia la pantalla.
+  useEffect(() => {
+    if (content.current) {
+      content.current.scrollTop = 0;
+    }
+  }, [destination, settingsView]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (!event.ctrlKey || event.altKey || event.metaKey) {
+        return;
+      }
+      // El zoom: Retenia no tiene menú, así que las teclas las atrapa la ventana y el principal
+      // cambia el zoom (con el cuadro «Buscar» abierto también anda).
+      const direction = zoomDirection(event.key);
+      if (direction !== null) {
+        event.preventDefault();
+        window.retenia['window.zoom']({ direction }).catch((error: unknown) => {
+          console.error('La ventana no pudo cambiar el zoom por el puente', error);
+        });
+        return;
+      }
+      // Con un cuadro abierto (el de «Buscar» o cualquier otro) los atajos de las pantallas esperan.
+      if (event.shiftKey || document.querySelector('[aria-modal="true"]')) {
+        return;
+      }
+      if (event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearching(true);
+        return;
+      }
+      // Por la tecla física («Digit1»): en un teclado donde el número exige Mayús (como el francés)
+      // Ctrl y 1 anda igual.
+      const digit =
+        /^Digit([1-9])$/.exec(event.code)?.[1] ?? (/^[1-9]$/.test(event.key) ? event.key : '');
+      const target = DESTINATIONS[Number(digit) - 1];
+      if (target && digit !== '') {
+        event.preventDefault();
+        go(target.destination);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [go]);
+
+  const goToNotes = () => go('notes');
+
   return (
-    <>
+    <div className={styles.app}>
       {__VARIANTE__ === 'prueba' ? <DemoRibbon /> : null}
-      <main className={styles.main}>
-        <h1 className={styles.name}>{texts.appName}</h1>
-        <Navigation current={screen === 'lab' ? 'settings' : screen} onChange={setScreen} />
-        {screen === 'cards' ? <CardsScreen /> : null}
-        {screen === 'trash' ? <TrashScreen /> : null}
-        {screen === 'activity' ? <ActivityScreen /> : null}
-        {screen === 'settings' ? (
-          <SettingsScreen
-            demo={
-              __VARIANTE__ === 'prueba' ? <DemoSection onOpenLab={() => setScreen('lab')} /> : null
-            }
-          />
-        ) : null}
-        {__VARIANTE__ === 'prueba' && screen === 'lab' ? (
-          <LabScreen onBack={() => setScreen('settings')} />
-        ) : null}
-      </main>
-    </>
+      <div className={styles.body}>
+        <SideRail current={destination} onChange={go} onSearch={() => setSearching(true)} />
+        <main ref={content} className={styles.content} aria-label={texts.appName}>
+          {destination === 'study' ? (
+            <EmptyDestination
+              title={texts.nav.study}
+              phrase={texts.screens.study}
+              focusTitle={navigated}
+              onGoToNotes={goToNotes}
+            />
+          ) : null}
+          {destination === 'notes' ? <NotesScreen focusTitle={navigated} /> : null}
+          {destination === 'materials' ? (
+            <EmptyDestination
+              title={texts.nav.materials}
+              phrase={texts.screens.materials}
+              focusTitle={navigated}
+              onGoToNotes={goToNotes}
+            />
+          ) : null}
+          {destination === 'languages' ? (
+            <EmptyDestination
+              title={texts.nav.languages}
+              phrase={texts.screens.languages}
+              focusTitle={navigated}
+              onGoToNotes={goToNotes}
+            />
+          ) : null}
+          {destination === 'progress' ? (
+            <EmptyDestination
+              title={texts.nav.progress}
+              phrase={texts.screens.progress}
+              focusTitle={navigated}
+              onGoToNotes={goToNotes}
+            />
+          ) : null}
+          {destination === 'settings' && settingsView === 'settings' ? (
+            <SettingsScreen
+              focusTitle={navigated}
+              demo={
+                __VARIANTE__ === 'prueba' ? (
+                  <DemoSection
+                    onOpenLab={() => setSettingsView('lab')}
+                    onOpenGallery={() => setSettingsView('gallery')}
+                  />
+                ) : null
+              }
+            />
+          ) : null}
+          {__VARIANTE__ === 'prueba' && destination === 'settings' && settingsView === 'lab' ? (
+            <LabScreen focusTitle onBack={() => setSettingsView('settings')} />
+          ) : null}
+          {__VARIANTE__ === 'prueba' && destination === 'settings' && settingsView === 'gallery' ? (
+            <GalleryScreen focusTitle onBack={() => setSettingsView('settings')} />
+          ) : null}
+        </main>
+      </div>
+      {searching ? <SearchDialog onClose={() => setSearching(false)} /> : null}
+    </div>
   );
 }

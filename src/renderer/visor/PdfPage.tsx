@@ -79,7 +79,8 @@ export function PdfPage({
     <figure
       aria-label={label}
       className={styles.page}
-      style={{ width: DISPLAY_WIDTH, height: Math.round(height * scale) }}
+      // En una ventana angosta la página se achica sin deformarse: el resaltado va en porcentajes.
+      style={{ width: DISPLAY_WIDTH, aspectRatio: `${width} / ${height}` }}
     >
       <canvas ref={canvas} className={styles.canvas} />
       {highlight.map((rect) => (
@@ -89,10 +90,10 @@ export function PdfPage({
           aria-label={highlightLabel}
           className={styles.mark}
           style={{
-            left: rect.x * scale,
-            top: rect.y * scale,
-            width: rect.width * scale,
-            height: rect.height * scale,
+            left: `${(rect.x / width) * 100}%`,
+            top: `${(rect.y / height) * 100}%`,
+            width: `${(rect.width / width) * 100}%`,
+            height: `${(rect.height / height) * 100}%`,
           }}
         />
       ))}

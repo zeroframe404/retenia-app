@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ActivityItem } from '../../preload/contract/activity';
 import { formatShortDate, texts } from '../../preload/contract/texts';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
+import { ViewState } from '../ui/ViewStates';
 
 // Lo que dice un renglón: qué cambio fue y sobre qué tarjeta.
 function describe(item: ActivityItem): string {
@@ -34,7 +36,7 @@ function describe(item: ActivityItem): string {
 
 // «Actividad reciente»: tus últimos cambios, el más nuevo arriba, con «Deshacer» en los que
 // todavía se pueden deshacer. Deshacer agrega un cambio; nunca borra uno.
-export function ActivityScreen() {
+export function ActivityScreen({ onBackToCards }: { onBackToCards?: () => void } = {}) {
   const [items, setItems] = useState<ActivityItem[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [notice, setNotice] = useState('');
@@ -74,40 +76,41 @@ export function ActivityScreen() {
   }
 
   return (
-    <section className={styles.screen} aria-labelledby="titulo-actividad">
-      <div className={styles.header}>
-        <h2 id="titulo-actividad">{texts.activity.title}</h2>
-      </div>
-      <div role="status" className={styles.notice}>
-        {notice}
-      </div>
-      {loadFailed ? <p className={styles.loadFailed}>{texts.activity.loadFailed}</p> : null}
+    <ScreenFrame level={3} title={texts.activity.title}>
+      <Toast>{notice}</Toast>
+      {loadFailed ? (
+        <ViewState
+          kind="error"
+          phrase={texts.activity.loadFailed}
+          action={{ text: texts.cards.retry, onClick: () => void load() }}
+        />
+      ) : null}
       {items !== null && items.length === 0 ? (
-        <p className={styles.empty}>{texts.activity.empty}</p>
+        <ViewState
+          kind="empty"
+          phrase={texts.activity.empty}
+          action={
+            onBackToCards ? { text: texts.cards.backToCards, onClick: onBackToCards } : undefined
+          }
+        />
       ) : null}
       {items !== null && items.length > 0 ? (
-        <ul className={styles.list} aria-label={texts.activity.listLabel}>
+        <ItemList label={texts.activity.listLabel}>
           {items.map((item) => (
-            <li key={item.id} className={styles.item}>
-              <p className={styles.itemText}>
-                {texts.activity.row(`${formatShortDate(item.day)} ${item.time}`, describe(item))}
-              </p>
-              {item.canUndo ? (
-                <div className={styles.itemActions}>
-                  <button
-                    type="button"
-                    className={styles.secondary}
-                    disabled={busy}
-                    onClick={() => void undo(item)}
-                  >
+            <ListItem
+              key={item.id}
+              text={texts.activity.row(`${formatShortDate(item.day)} ${item.time}`, describe(item))}
+              actions={
+                item.canUndo ? (
+                  <Boton disabled={busy} onClick={() => void undo(item)}>
                     {texts.activity.undo}
-                  </button>
-                </div>
-              ) : null}
-            </li>
+                  </Boton>
+                ) : undefined
+              }
+            />
           ))}
-        </ul>
+        </ItemList>
       ) : null}
-    </section>
+    </ScreenFrame>
   );
 }

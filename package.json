@@ -57,6 +57,7 @@
     "jsdom": "30.1.2",
     "knip": "6.41.0",
     "lefthook": "2.2.1",
+    "lucide-react": "1.55.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "secretlint": "13.0.7",

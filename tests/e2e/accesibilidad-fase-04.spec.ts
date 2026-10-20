@@ -16,7 +16,8 @@ type AxeRun = (
 async function violationsNow(page: Page): Promise<string[]> {
   const found: string[] = [];
   for (const theme of ['light', 'dark'] as const) {
-    await page.emulateMedia({ colorScheme: theme });
+    // Sin movimiento: los colores no están a medio cambiar cuando axe los mide (Fase 06).
+    await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     const violations = await page.evaluate(async () => {
       const axe = (globalThis as unknown as { axe: { run: AxeRun } }).axe;
       const outcome = await axe.run(document, { resultTypes: ['violations'] });
@@ -31,7 +32,7 @@ test('accesibilidad: el historial, editar, la papelera con su confirmación, la 
   appWindow,
 }) => {
   const question = '¿Qué mide el desvío estándar?';
-  await expect(appWindow.getByRole('heading', { level: 2, name: 'Tarjetas' })).toBeVisible();
+  await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
   await appWindow.evaluate(AXE);
   expect(await violationsNow(appWindow), 'tarjetas con sus botones').toEqual([]);
 

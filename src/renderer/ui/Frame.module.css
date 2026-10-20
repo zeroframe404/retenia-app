@@ -1,0 +1,320 @@
+/* El riel lateral. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-16);
+  height: 100%;
+  padding: var(--espacio-24) var(--espacio-16);
+  overflow-y: auto;
+  background: var(--color-superficie);
+  border-right: var(--trazo-lleno) var(--color-linea);
+}
+
+.brand {
+  margin: 0 0 var(--espacio-12);
+  padding: 0 var(--espacio-12);
+  font: var(--tipo-titulo);
+  color: var(--color-marca-fuerte);
+}
+
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+}
+
+.search,
+.destination {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-12);
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-12);
+  font: var(--tipo-cuerpo-fuerte);
+  text-align: left;
+  color: var(--color-tinta-suave);
+  background: transparent;
+  border: var(--trazo-lleno) transparent;
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.search:hover,
+.destination:hover {
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    color var(--movimiento-rapido) var(--curva);
+}
+
+.search {
+  margin-bottom: var(--espacio-8);
+  color: var(--color-tinta);
+  background: var(--color-papel);
+  border-color: var(--color-linea-fuerte);
+}
+
+.destination[aria-current="page"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  /* Una barra a la izquierda: se distingue también sin ver el tinte del fondo. */
+  box-shadow: inset var(--espacio-4) 0 0 var(--color-marca);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+}
+
+.shortcut {
+  padding: 0 var(--espacio-4);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-4);
+}
+
+/* Ventana angosta: el riel se compacta y quedan los íconos; cada botón conserva su nombre para el
+   lector de pantalla. */
+@media (max-width: 720px) {
+  .rail {
+    padding: var(--espacio-16) var(--espacio-8);
+  }
+
+  .brand,
+  .label,
+  .shortcut {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .search,
+  .destination {
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+/* El marco de cada pantalla. */
+.screen {
+  display: grid;
+  gap: var(--espacio-24);
+  width: 100%;
+  max-width: 880px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-16);
+}
+
+.title {
+  margin: 0;
+  font: var(--tipo-titulo);
+  overflow-wrap: anywhere;
+}
+
+.screen[data-level="3"] .title {
+  font: var(--tipo-subtitulo);
+}
+
+.sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}
+
+.section {
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-16);
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+}
+
+.section:hover {
+  background: var(--color-superficie-hundida);
+  transition: background-color var(--movimiento-rapido) var(--curva);
+}
+
+.section[aria-current="page"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+}
+
+/* La lista. */
+.list {
+  display: grid;
+  /* Sin esto la columna crece hasta el largo del texto y la lista se desarma. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-12) var(--espacio-16);
+  padding: var(--espacio-12) var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.body {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+/* El texto largo se corta con puntos suspensivos y no desarma la lista. */
+.itemTitle {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itemText {
+  margin: 0;
+  font: var(--tipo-cuerpo);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.itemActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--espacio-8);
+}
+
+/* El cartel breve. */
+/* La zona se anuncia al lector de pantalla y siempre está; sin texto no ocupa lugar ni separación. */
+.toastZone {
+  min-width: 0;
+}
+
+.toastZone:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-12);
+  padding: var(--espacio-8) var(--espacio-16);
+  color: var(--color-tinta);
+  background: var(--color-marca-suave);
+  border: var(--trazo-lleno) var(--color-marca);
+  border-radius: var(--radio-8);
+}
+
+.toast[data-tone="success"] {
+  background: var(--color-correcta-suave);
+  border-color: var(--color-correcta);
+}
+
+.toast[data-tone="attention"] {
+  background: var(--color-atencion-suave);
+  border-color: var(--color-atencion);
+}
+
+.toastMessage {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow-wrap: anywhere;
+}
+
+/* El panel lateral derecho. */
+.panel {
+  display: grid;
+  gap: var(--espacio-16);
+  align-content: start;
+  width: 100%;
+  max-width: 360px;
+  padding: var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-12);
+}
+
+.panelTitle {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+/* El diálogo: lo único que flota, con sombra marcada. */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: var(--espacio-16);
+  background: var(--color-velo);
+  animation: appear var(--movimiento-normal) var(--curva);
+}
+
+/* Sin rebotes ni confeti: el cuadro aparece con un fundido de 200 ms (con «reducir movimiento», al instante). */
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.dialog {
+  display: grid;
+  gap: var(--espacio-16);
+  width: min(480px, 100%);
+  max-height: calc(100dvh - var(--espacio-32));
+  padding: var(--espacio-24);
+  overflow: auto;
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-flotante);
+}

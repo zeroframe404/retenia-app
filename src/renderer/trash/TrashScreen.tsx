@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatShortDate, texts } from '../../preload/contract/texts';
 import type { TrashItem } from '../../preload/contract/trash';
-import styles from '../ui.module.css';
+import { Boton } from '../ui/Boton';
+import styles from '../ui/Content.module.css';
+import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
+import { ViewState } from '../ui/ViewStates';
 
 // «Papelera»: lo eliminado espera 30 días. «Restaurar» lo devuelve con su historial; «Vaciar
 // papelera» pide confirmación y lo elimina para siempre (el historial de repasos queda).
-export function TrashScreen() {
+export function TrashScreen({ onBackToCards }: { onBackToCards?: () => void } = {}) {
   const [items, setItems] = useState<TrashItem[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [notice, setNotice] = useState('');
@@ -59,69 +62,61 @@ export function TrashScreen() {
     });
 
   return (
-    <section className={styles.screen} aria-labelledby="titulo-papelera">
-      <div className={styles.header}>
-        <h2 id="titulo-papelera">{texts.trash.title}</h2>
-        {items !== null && items.length > 0 && !confirming ? (
-          <button
-            type="button"
-            className={styles.secondary}
-            disabled={busy}
-            onClick={() => setConfirming(true)}
-          >
+    <ScreenFrame
+      level={3}
+      title={texts.trash.title}
+      actions={
+        items !== null && items.length > 0 && !confirming ? (
+          <Boton disabled={busy} onClick={() => setConfirming(true)}>
             {texts.trash.emptyTrash}
-          </button>
-        ) : null}
-      </div>
-      <div role="status" className={styles.notice}>
-        {notice}
-      </div>
+          </Boton>
+        ) : null
+      }
+    >
+      <Toast>{notice}</Toast>
       {confirming ? (
-        <div className={styles.confirm}>
+        <div className={styles.confirmation}>
           <p>{texts.trash.confirmEmpty}</p>
           <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.secondary}
-              disabled={busy}
-              onClick={() => void empty()}
-            >
+            <Boton disabled={busy} onClick={() => void empty()}>
               {texts.trash.confirm}
-            </button>
-            <button type="button" className={styles.secondary} onClick={() => setConfirming(false)}>
-              {texts.trash.cancel}
-            </button>
+            </Boton>
+            <Boton onClick={() => setConfirming(false)}>{texts.trash.cancel}</Boton>
           </div>
         </div>
       ) : null}
-      {loadFailed ? <p className={styles.loadFailed}>{texts.trash.loadFailed}</p> : null}
+      {loadFailed ? (
+        <ViewState
+          kind="error"
+          phrase={texts.trash.loadFailed}
+          action={{ text: texts.cards.retry, onClick: () => void load() }}
+        />
+      ) : null}
       {items !== null && items.length === 0 ? (
-        <p className={styles.empty}>{texts.trash.empty}</p>
+        <ViewState
+          kind="empty"
+          phrase={texts.trash.empty}
+          action={
+            onBackToCards ? { text: texts.cards.backToCards, onClick: onBackToCards } : undefined
+          }
+        />
       ) : null}
       {items !== null && items.length > 0 ? (
-        <ul className={styles.list} aria-label={texts.trash.listLabel}>
+        <ItemList label={texts.trash.listLabel}>
           {items.map((item) => (
-            <li key={item.id} className={styles.item}>
-              <div className={styles.itemText}>
-                <p className={styles.question}>{item.question}</p>
-                <p className={styles.meta}>
-                  {texts.trash.expires(formatShortDate(item.expiresDay))}
-                </p>
-              </div>
-              <div className={styles.itemActions}>
-                <button
-                  type="button"
-                  className={styles.secondary}
-                  disabled={busy}
-                  onClick={() => void restore(item)}
-                >
+            <ListItem
+              key={item.id}
+              title={item.question}
+              detail={texts.trash.expires(formatShortDate(item.expiresDay))}
+              actions={
+                <Boton disabled={busy} onClick={() => void restore(item)}>
                   {texts.trash.restore}
-                </button>
-              </div>
-            </li>
+                </Boton>
+              }
+            />
           ))}
-        </ul>
+        </ItemList>
       ) : null}
-    </section>
+    </ScreenFrame>
   );
 }

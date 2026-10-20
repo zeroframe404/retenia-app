@@ -23,7 +23,7 @@ describe('npm run verificar', () => {
     const r = await run(process.execPath, [npmCliPath(), 'run', 'verificar'], {
       cwd: ROOT,
       env: cleanEnv({ RETENIA_RUN_DIR: runDir }),
-      timeoutMs: 300_000,
+      timeoutMs: 600_000,
     });
     const lines = r.stdout.trimEnd().split(/\r?\n/);
     const last = lines.at(-1) ?? '';
@@ -33,9 +33,12 @@ describe('npm run verificar', () => {
     const [, tests, covered, criteria] = (figures ?? []).map(Number);
     expect(r.code).toBe(0);
 
-    // Menos de 2 minutos, medido por la propia red.
+    // Menos de 2 minutos en esta PC, medido por la propia red. En el CI (GitHub define CI)
+    // el tope es tres veces mayor, como el de los demás topes de rendimiento: sus máquinas
+    // son unas diez veces más lentas y la red rápida ya rondaba los 2 minutos (decidido con
+    // el dueño el 20/10/2026).
     const result = JSON.parse(readFileSync(join(runDir, 'resultado.json'), 'utf8'));
-    expect(result.durationMs).toBeLessThan(120_000);
+    expect(result.durationMs).toBeLessThan(process.env.CI ? 360_000 : 120_000);
 
     // Las pruebas: las del informe real de Vitest de esa corrida.
     const report = JSON.parse(readFileSync(join(runDir, 'pruebas.json'), 'utf8'));

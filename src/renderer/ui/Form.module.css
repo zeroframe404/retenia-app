@@ -1,0 +1,48 @@
+/* Formularios: un campo con su etiqueta, el aviso junto al campo y las acciones abajo. Un campo
+   que falta se marca en ámbar y con borde más grueso: nunca en rojo. */
+.form {
+  display: grid;
+  gap: var(--espacio-16);
+  padding: var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.field {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.field label {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.field textarea {
+  min-height: var(--alto-control);
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+
+.field textarea[aria-invalid="true"] {
+  border: 2px solid var(--color-parcial);
+}
+
+.fieldNotice {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-parcial);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}

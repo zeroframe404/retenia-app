@@ -1,61 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { demoTexts } from '../../src/preload/contract/demo-texts';
 import { formatShortDate, formatSize, texts } from '../../src/preload/contract/texts';
+import { catalogEntries } from '../apoyo/catalogo';
 
 // El catálogo es el único lugar de los textos visibles (CLAUDE.md, secciones g y «Reglas del
 // producto»): castellano rioplatense con voseo, vocabulario del sistema, sin emojis y sin
-// textos técnicos. Cada función del catálogo se prueba con los argumentos de ejemplo de acá
-// abajo; una función nueva sin ejemplo hace fallar la prueba.
-const SAMPLES: Record<string, unknown[]> = {
-  'texts.cards.questionTooLong': [100000],
-  'texts.cards.answerTooLong': [100000],
-  'texts.cards.nextReview': ['miércoles 17/03/2027'],
-  'texts.history.row': ['15/03/2027', 'La sabía'],
-  'texts.trash.expires': ['14/04/2027'],
-  'texts.activity.row': ['22/03/2027 10:00', 'Editaste «¿Qué es la varianza?»'],
-  'texts.activity.cardName': ['¿Qué es la varianza?'],
-  'texts.activity.created': ['«¿Capital de Francia?»'],
-  'texts.activity.edited': ['«¿Qué es la varianza?»'],
-  'texts.activity.removed': ['«¿Qué es la varianza?»'],
-  'texts.activity.restored': ['«¿Qué es la varianza?»'],
-  'texts.activity.undidCreate': ['«¿Capital de Francia?»'],
-  'texts.activity.undidEdit': ['«¿Qué es la varianza?»'],
-  'texts.activity.undidRemove': ['«¿Qué es la varianza?»'],
-  'texts.activity.undidRestore': ['«¿Qué es la varianza?»'],
-  'texts.data.differencesFound': [2],
-  'texts.data.differenceDue': ['¿Qué es la varianza?', '30/04/2027', '17/03/2027'],
-  'texts.data.differenceMemory': ['¿Qué es la varianza?'],
-  'texts.data.differenceMissing': ['¿Qué es la varianza?'],
-  'texts.data.copyRow': ['22/03/2027', '10:00', 'Hecha por vos', '48 KB'],
-  'texts.data.unreadableCopy': ['48 KB'],
-  'texts.data.restored': ['22/03/2027', '10:00'],
-  'demoTexts.ribbon': ['lunes 15/03/2027'],
-  'demoTexts.lab.elapsed': [1140],
-  'demoTexts.lab.heard': ['good morning'],
-  'demoTexts.lab.voice.downloading': [50],
-  'demoTexts.lab.transcription.recording': [2],
-  'demoTexts.lab.pdf.phrase': ['Una muestra es una parte de la población'],
-};
-
-function collect(value: unknown, path: string, out: { path: string; text: string }[]): void {
-  if (typeof value === 'string') {
-    out.push({ path, text: value });
-  } else if (typeof value === 'function') {
-    const args = SAMPLES[path];
-    if (!args) {
-      throw new Error(`El texto ${path} es una función y falta su ejemplo en SAMPLES`);
-    }
-    out.push({ path, text: String((value as (...a: unknown[]) => unknown)(...args)) });
-  } else if (value && typeof value === 'object') {
-    for (const [key, inner] of Object.entries(value)) {
-      collect(inner, `${path}.${key}`, out);
-    }
-  }
-}
-
-const entries: { path: string; text: string }[] = [];
-collect(texts, 'texts', entries);
-collect(demoTexts, 'demoTexts', entries);
+// textos técnicos. Cada función del catálogo se prueba con los argumentos de ejemplo de
+// tests/apoyo/catalogo.ts; una función nueva sin ejemplo hace fallar la prueba.
+const entries = catalogEntries();
 
 const FORBIDDEN_WORDS =
   /\b(racha|rachas|dominado|dominada|dominados|dominadas|deuda|deudas|backlog)\b/i;
@@ -101,13 +53,13 @@ describe('catálogo de textos', () => {
   });
 
   it('los textos de la Fase 04 son exactamente los de las pruebas manuales', () => {
-    expect(texts.nav).toEqual({
-      label: 'Secciones',
-      cards: 'Tarjetas',
-      trash: 'Papelera',
-      activity: 'Actividad reciente',
-      settings: 'Ajustes',
-    });
+    // La barra provisoria de la Fase 04 la reemplazó el riel de la Fase 06: sus cuatro nombres
+    // siguen siendo los mismos, ahora «Tarjetas», «Papelera» y «Actividad reciente» como secciones
+    // de Apuntes y «Ajustes» en el riel.
+    expect(texts.notes.cards).toBe('Tarjetas');
+    expect(texts.notes.trash).toBe('Papelera');
+    expect(texts.notes.activity).toBe('Actividad reciente');
+    expect(texts.nav.settings).toBe('Ajustes');
     expect(texts.cards.history).toBe('Historial');
     expect(texts.cards.edit).toBe('Editar');
     expect(texts.cards.remove).toBe('Eliminar');

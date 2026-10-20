@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
-import { test as base, _electron as electron, expect } from '@playwright/test';
+import { test as base, _electron as electron, expect, type Page } from '@playwright/test';
 import { DEV_MODELS_DIR } from '../../tools/lib/modelos.mjs';
 import { ROOT } from '../../tools/lib/proceso.mjs';
 import { serveModels } from '../apoyo/servidor-de-modelos';
@@ -107,6 +107,16 @@ async function waitUntil(condition: () => boolean, timeoutMs: number): Promise<b
   return condition();
 }
 
+// Apuntes › «Tarjetas», por el riel: el programa abre en Estudiar y las tarjetas viven adentro de
+// Apuntes (Fase 06).
+async function openCards(page: Page) {
+  await page
+    .getByRole('navigation', { name: 'Riel lateral' })
+    .getByRole('button', { name: 'Apuntes', exact: true })
+    .click();
+  await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
+}
+
 function launchInstalled() {
   return electron.launch({ executablePath: installedExe, args: [], env: installedEnv() });
 }
@@ -136,6 +146,8 @@ test('[CA-012] el programa instalado abre con el título «Retenia», la cinta d
     await expect(
       page.getByText('DEMOSTRACIÓN · hoy es lunes 15/03/2027', { exact: true }),
     ).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Estudiar' })).toBeVisible();
+    await openCards(page);
     await expect(page.getByRole('listitem')).toHaveCount(3);
     await expect(page.getByRole('listitem').first()).toContainText('¿Qué mide el desvío estándar?');
 
@@ -157,6 +169,7 @@ test('[CA-009] una tarjeta creada en el programa instalado sigue ahí después d
   const first = await launchInstalled();
   try {
     const page = await first.firstWindow();
+    await openCards(page);
     await page.getByRole('button', { name: 'Nueva tarjeta' }).click();
     await page.getByRole('textbox', { name: 'Pregunta' }).fill('¿Capital de Francia?');
     await page.getByRole('textbox', { name: 'Respuesta' }).fill('París');
@@ -169,6 +182,7 @@ test('[CA-009] una tarjeta creada en el programa instalado sigue ahí después d
   const second = await launchInstalled();
   try {
     const page = await second.firstWindow();
+    await openCards(page);
     await expect(page.getByRole('listitem')).toHaveCount(4);
     await expect(page.getByRole('listitem').first()).toContainText('¿Capital de Francia?');
   } finally {
@@ -180,7 +194,7 @@ test('[CA-014] abrir el programa instalado por segunda vez pasa al frente la ven
   const app = await launchInstalled();
   try {
     const page = await app.firstWindow();
-    await expect(page.getByRole('heading', { level: 2, name: 'Tarjetas' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Estudiar' })).toBeVisible();
     const windowState = () =>
       app.evaluate(({ BrowserWindow }) => {
         const [first] = BrowserWindow.getAllWindows();
@@ -218,8 +232,8 @@ test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda 
   try {
     const page = await app.firstWindow();
     await page
-      .getByRole('navigation', { name: 'Secciones' })
-      .getByRole('button', { name: 'Ajustes' })
+      .getByRole('navigation', { name: 'Riel lateral' })
+      .getByRole('button', { name: 'Ajustes', exact: true })
       .click();
     await page.getByRole('button', { name: 'Laboratorio' }).click();
     const region = (name: string) => page.getByRole('region', { name });

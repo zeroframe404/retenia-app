@@ -1,0 +1,52 @@
+/* La Galería: cada componente con su nombre y sus variantes, una debajo de la otra. */
+.intro {
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  color: var(--color-tinta-suave);
+}
+
+.region {
+  display: grid;
+  gap: var(--espacio-48);
+  min-width: 0;
+}
+
+.component {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+  padding-top: var(--espacio-16);
+  border-top: var(--trazo-lleno) var(--color-linea);
+}
+
+.name {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+.variants {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--espacio-16) var(--espacio-24);
+  min-width: 0;
+}
+
+.variant {
+  display: grid;
+  gap: var(--espacio-8);
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+}
+
+.caption {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.states {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--espacio-24);
+}

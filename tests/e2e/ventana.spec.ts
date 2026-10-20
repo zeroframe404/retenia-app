@@ -38,6 +38,9 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
     bridge: [
       'ping',
       'app.info',
+      // La apariencia (Fase 06).
+      'appearance.get',
+      'appearance.set',
       'cards.create',
       'cards.list',
       'cards.review',
@@ -55,6 +58,8 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'backups.verifyData',
       'backups.repairData',
       'backups.openFolder',
+      // El zoom con el teclado (Fase 06).
+      'window.zoom',
       'demo.state',
       'demo.advanceDays',
       'demo.resetDate',
@@ -112,7 +117,8 @@ test('accesibilidad: la ventana no tiene faltas según axe-core, en claro y en o
   await expect(appWindow.getByText(/^DEMOSTRACIÓN · hoy es/)).toBeVisible();
   await appWindow.evaluate(AXE);
   for (const theme of ['light', 'dark'] as const) {
-    await appWindow.emulateMedia({ colorScheme: theme });
+    // Sin movimiento: los colores no están a medio cambiar cuando axe los mide (Fase 06).
+    await appWindow.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     const violations = await appWindow.evaluate(async () => {
       const axe = (
         globalThis as unknown as {

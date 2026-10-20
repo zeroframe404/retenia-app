@@ -1,0 +1,66 @@
+.group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: var(--espacio-8);
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}
+
+/* Cada opción es una etiqueta con su botón de opción encima, transparente: el foco y el clic caen
+   sobre toda la pastilla y el contorno de foco se ve alrededor de ella. */
+.option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-16);
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--color-superficie-hundida);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    border-color var(--movimiento-rapido) var(--curva);
+}
+
+.option:has(.radio:checked) {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+  /* Un borde más grueso: la opción elegida se distingue también sin ver el tinte del fondo. */
+  box-shadow: inset 0 0 0 1px var(--color-marca);
+}
+
+.radio {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+}
+
+.text {
+  text-align: center;
+}

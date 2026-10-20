@@ -1,42 +1,162 @@
-/* Variables de diseño mínimas hasta la Fase 06 (sistema de diseño). Sin rojo. */
+/* Sistema de diseño de Retenia: los tokens. Es el único archivo donde se escriben colores,
+   tamaños de letra, espacios, radios, sombras y tiempos; todo lo demás los usa con var(...).
+   No existe el rojo: «atención» es solo para fallas del sistema que piden una decisión.
+   Cada color va como light-dark(valor claro, valor oscuro). */
+
 :root {
+  /* «Según el sistema» (lo que sigue sin elección). «Claro» y «Oscuro» lo fijan abajo. */
   color-scheme: light dark;
-  --color-fondo: #f7f6f2;
-  --color-superficie: #ffffff;
-  --color-tinta: #1d1d1b;
-  --color-tinta-suave: #55534b;
-  --color-borde: #d6d2c4;
-  --color-borde-fuerte: #8d897b;
-  --color-primario-fondo: #2c4a3e;
-  --color-primario-tinta: #ffffff;
-  --color-aviso: #7a4b00;
-  --color-foco: #1a56b8;
-  --color-cinta-fondo: #e8e0c4;
-  --color-cinta-tinta: #3b3524;
-  --fuente: "Segoe UI", system-ui, sans-serif;
+
+  /* Colores */
+  --color-papel: light-dark(#f3f4f6, #121419);
+  --color-superficie: light-dark(#ffffff, #1a1d23);
+  --color-superficie-hundida: light-dark(#e9ebef, #0d0f13);
+  --color-tinta: light-dark(#15181d, #eceef2);
+  --color-tinta-suave: light-dark(#4d5461, #a9afbb);
+  --color-tinta-tenue: light-dark(#868c98, #707684);
+  --color-linea: light-dark(#dadde3, #2c3039);
+  --color-linea-fuerte: light-dark(#7d8391, #727989);
+  --color-marca: light-dark(#2443b3, #93a8ff);
+  --color-marca-fuerte: light-dark(#19317f, #b9c7ff);
+  --color-marca-suave: light-dark(#e5eafb, #1e2849);
+  --color-sobre-marca: light-dark(#ffffff, #0d1533);
+  --color-foco: light-dark(#2443b3, #b9c7ff);
+  --color-correcta: light-dark(#1d6a48, #73d1a2);
+  --color-correcta-suave: light-dark(#e1f0e8, #14302a);
+  --color-parcial: light-dark(#885300, #f2b660);
+  --color-parcial-suave: light-dark(#faefd9, #352810);
+  --color-atencion: light-dark(#a64512, #ff9d66);
+  --color-atencion-suave: light-dark(#fbe9df, #3b2213);
+
+  /* Los colores de las sombras (parte de los tokens: la sombra se ve más en claro que en oscuro). */
+  --color-sombra-leve: light-dark(rgb(21 24 29 / 8%), rgb(0 0 0 / 35%));
+  --color-sombra-marcada: light-dark(rgb(21 24 29 / 18%), rgb(0 0 0 / 60%));
+  /* El velo que tapa lo demás mientras hay un diálogo: oscurece en los dos temas. */
+  --color-velo: light-dark(rgb(21 24 29 / 45%), rgb(0 0 0 / 65%));
+
+  /* Tipografías */
+  --fuente-titulos: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, sans-serif;
+  --fuente-codigo: "Atkinson Hyperlegible Mono", "Cascadia Mono", Consolas, monospace;
+
+  /* Escala: peso tamaño/alto familia. Se usa con `font: var(--tipo-...)`. */
+  --tipo-display: 700 34px / 40px var(--fuente-titulos);
+  --tipo-titulo: 650 24px / 30px var(--fuente-titulos);
+  --tipo-subtitulo: 600 18px / 26px var(--fuente-titulos);
+  --tipo-consigna: 400 20px / 30px var(--fuente-texto);
+  --tipo-cuerpo: 400 16px / 26px var(--fuente-texto);
+  --tipo-cuerpo-fuerte: 600 16px / 26px var(--fuente-texto);
+  --tipo-pequeno: 400 14px / 20px var(--fuente-texto);
+  --tipo-rotulo: 700 12px / 16px var(--fuente-texto);
+  --tipo-codigo: 400 14px / 22px var(--fuente-codigo);
+  --rotulo-espaciado: 0.06em;
+  /* Ancho de lectura máximo: 68 caracteres. */
+  --ancho-lectura: 68ch;
+
+  /* Espacio, en grilla de 4 píxeles. */
+  --espacio-4: 4px;
+  --espacio-8: 8px;
+  --espacio-12: 12px;
+  --espacio-16: 16px;
+  --espacio-24: 24px;
+  --espacio-32: 32px;
+  --espacio-48: 48px;
+
+  /* Radios. */
+  --radio-4: 4px;
+  --radio-8: 8px;
+  --radio-14: 14px;
+  --radio-pildora: 999px;
+
+  /* La regla visual central: trazo lleno para lo observado, punteado para lo estimado, lo
+     provisional y las propuestas sin aceptar. */
+  --trazo-ancho: 1.5px;
+  --trazo-lleno: var(--trazo-ancho) solid;
+  --trazo-punteado: var(--trazo-ancho) dashed;
+
+  /* Foco: contorno de 2 píxeles con 2 de separación, siempre visible. */
+  --foco-ancho: 2px;
+  --foco-separacion: 2px;
+
+  /* Controles. */
+  --alto-control: 40px;
+
+  /* Sombra leve en las tarjetas; marcada solo en lo que flota. */
+  --sombra-tarjeta: 0 1px 2px var(--color-sombra-leve);
+  --sombra-flotante: 0 8px 24px var(--color-sombra-marcada);
+
+  /* Movimiento: sin rebotes ni confeti. */
+  --movimiento-rapido: 120ms;
+  --movimiento-normal: 200ms;
+  --curva: cubic-bezier(0.2, 0, 0, 1);
+
+  /* El riel lateral. */
+  --ancho-riel: 232px;
+  --ancho-riel-compacto: 64px;
 }
 
-@media (prefers-color-scheme: dark) {
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* «Reducir movimiento» de Windows: nada se anima. Todo movimiento de Retenia usa estos dos
+   tiempos, así que con 0 no hay transiciones. */
+@media (prefers-reduced-motion: reduce) {
   :root {
-    --color-fondo: #16171a;
-    --color-superficie: #1f2126;
-    --color-tinta: #ecebe6;
-    --color-tinta-suave: #b6b4aa;
-    --color-borde: #34363c;
-    --color-borde-fuerte: #6f7077;
-    --color-primario-fondo: #a9d3bf;
-    --color-primario-tinta: #10231b;
-    --color-aviso: #f0c36d;
-    --color-foco: #8ab4ff;
-    --color-cinta-fondo: #3a3423;
-    --color-cinta-tinta: #f1e7c4;
+    --movimiento-rapido: 0ms;
+    --movimiento-normal: 0ms;
   }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Al cambiar de apariencia todo cambia junto, sin desvanecidos (lo marca appearance.ts). */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none;
 }
 
 html,
 body {
   margin: 0;
-  background: var(--color-fondo);
+  background: var(--color-papel);
   color: var(--color-tinta);
-  font-family: var(--fuente);
+  font: var(--tipo-cuerpo);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* El foco se ve siempre, en cualquier tema: contorno de 2 píxeles con 2 de separación. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+/* Si lo último que se usó fue una tecla (también Ctrl y un número), todo lo que tiene el foco muestra
+   el contorno: el navegador no lo muestra cuando el foco lo mueve el programa después de un atajo
+   con Ctrl. La marca la pone inputMode.ts. */
+:root[data-input="keyboard"] :where(:focus) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+/* El texto que solo leen los lectores de pantalla (el riel compacto muestra solo íconos). */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

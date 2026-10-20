@@ -1,0 +1,159 @@
+.title {
+  margin: 0 0 var(--espacio-12);
+  font: var(--tipo-subtitulo);
+}
+
+.units {
+  display: grid;
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unit {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-12) var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.unit[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.unit[data-unit="covered"] {
+  background: var(--color-correcta-suave);
+  border-color: var(--color-correcta);
+}
+
+.unit[data-unit="partial"] {
+  background: var(--color-parcial-suave);
+  border-color: var(--color-parcial);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espacio-8);
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+}
+
+.unit[data-unit="covered"] .status {
+  color: var(--color-correcta);
+}
+
+.unit[data-unit="partial"] .status {
+  color: var(--color-parcial);
+}
+
+.unit[data-unit="missing"] .status {
+  color: var(--color-tinta-suave);
+}
+
+.unitText {
+  max-width: var(--ancho-lectura);
+  font: var(--tipo-cuerpo);
+}
+
+.quote {
+  max-width: var(--ancho-lectura);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+/* El resultado: tres líneas. El tono sale del veredicto, nunca de un rojo. */
+.result {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-16) var(--espacio-24);
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+}
+
+.result[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.result[data-tone="correct"] {
+  background: var(--color-correcta-suave);
+  border-color: var(--color-correcta);
+}
+
+.result[data-tone="partial"] {
+  background: var(--color-parcial-suave);
+  border-color: var(--color-parcial);
+}
+
+.result[data-tone="attention"] {
+  background: var(--color-atencion-suave);
+  border-color: var(--color-atencion);
+}
+
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-8);
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+.result[data-tone="correct"] .verdict {
+  color: var(--color-correcta);
+}
+
+.result[data-tone="partial"] .verdict {
+  color: var(--color-parcial);
+}
+
+.result[data-tone="attention"] .verdict {
+  color: var(--color-atencion);
+}
+
+.review {
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta-suave);
+}
+
+.provisional {
+  margin: 0;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+.notice {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-16) var(--espacio-24);
+  background: var(--color-marca-suave);
+  border: var(--trazo-lleno) var(--color-marca);
+  border-radius: var(--radio-14);
+}
+
+.change {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-marca-fuerte);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}

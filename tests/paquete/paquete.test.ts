@@ -123,6 +123,11 @@ function demoMarks(): string[] {
     'demo.',
     'Inferencia — capítulos 1 a 4',
     'A weekend in Bariloche',
+    // La «Galería» (Fase 06) es de la demostración: sus textos no entran al paquete real.
+    'Los seis estados',
+    'Abrir el diálogo de ejemplo',
+    'Rótulo de modo',
+    'Volver a Ajustes',
   ];
   const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
@@ -374,5 +379,17 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
       ),
     ).toEqual([]);
     expect(prueba.filter((path) => path.includes('@napi-rs'))).toEqual([]);
+  });
+});
+
+describe('paquete de prueba: control de la búsqueda de la «Galería»', () => {
+  it('[CA-013] las marcas de la «Galería» sí están en el paquete de prueba: no encontrarlas en el real prueba algo', () => {
+    const test = readPackage(requirePackage('prueba').folder);
+    const found = findMarks(test, [
+      'Los seis estados',
+      'Abrir el diálogo de ejemplo',
+      'Rótulo de modo',
+    ]);
+    expect(found.length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { demoTexts } from '../../../preload/contract/demo-texts';
-import ui from '../../ui.module.css';
+import { Boton } from '../../ui/Boton';
+import ui from '../../ui/Content.module.css';
 import { Block, Elapsed, type Models } from './common';
 import styles from './lab.module.css';
 import { type Recording, startRecording } from './microphone';
@@ -136,18 +137,14 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
     <Block title={t.transcription.title}>
       <div className={ui.actions}>
         {state.kind === 'recording' ? (
-          <button type="button" className={ui.primary} onClick={() => void stop()}>
-            {t.transcription.stop}
-          </button>
+          <Boton onClick={() => void stop()}>{t.transcription.stop}</Boton>
         ) : (
-          <button
-            type="button"
-            className={ui.primary}
+          <Boton
             disabled={state.kind === 'transcribing' || state.kind === 'starting'}
             onClick={() => void record()}
           >
             {t.transcription.record}
-          </button>
+          </Boton>
         )}
       </div>
       {state.kind === 'recording' ? (
@@ -189,13 +186,9 @@ export function TranscriptionBlock({ models, onRecord }: { models: Models; onRec
               ))}
             </ol>
             <div className={ui.actions}>
-              <button
-                type="button"
-                className={ui.secondary}
-                onClick={() => void window.retenia['demo.lab.openMicrophoneSettings']({})}
-              >
+              <Boton onClick={() => void window.retenia['demo.lab.openMicrophoneSettings']({})}>
                 {t.transcription.openSettings}
-              </button>
+              </Boton>
             </div>
           </div>
         </>

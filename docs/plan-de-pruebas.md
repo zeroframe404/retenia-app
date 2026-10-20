@@ -24,7 +24,7 @@ Toda prueba automática de un criterio empieza su título con el identificador e
 
 | Afuera | Por qué | Qué lo reemplaza |
 |---|---|---|
-| Capturas de píxeles comparadas | Cambian con la máquina, la fuente y el zoom; cada falso rojo tienta a «actualizar la referencia», que el `CLAUDE.md` prohíbe sin aprobación. | Instantáneas de accesibilidad (árbol de roles y textos) y comprobaciones de layout (sin desplazamiento horizontal, sin texto cortado). |
+| Capturas de píxeles comparadas, en cualquier lado | Cambian con la máquina, la fuente y el zoom; cada falso rojo tienta a «actualizar la referencia», que el `CLAUDE.md` prohíbe sin aprobación. | Instantáneas de accesibilidad (árbol de roles y textos) y comprobaciones de layout (sin desplazamiento horizontal, sin texto cortado). **Desde la Fase 06 hay una excepción acotada**: las capturas de referencia de cada pantalla y de la «Galería», en claro y en oscuro, con ventana, color, suavizado y escala fijos (sección «Cómo quedó en la Fase 06»). |
 | Llamadas reales a la IA dentro de la red | Cuestan dinero y no son deterministas. | 60 casos trampa con respuestas grabadas (capa I) y el botón «Evaluar prompts con la IA real» a pedido, con costo estimado antes. |
 | Otros sistemas operativos y navegadores | Retenia es Windows 11 con el Chromium de Electron. | Nada. |
 | Pruebas de carga con varias personas | Un solo usuario. | Volumen con 10.000 tarjetas y 200.000 repasos (capa D). |
@@ -85,6 +85,7 @@ Cómo quedó en la Fase 04 (el CI la marcó por tiempo, no por una falla): en la
 | Abrir Estudiar | 0,5 s | 1,5 s | Entre el clic en el riel y la propuesta visible. |
 | Buscar | 0,2 s | 0,6 s | En I: consulta FTS5 con 10.000 tarjetas, mediana de 20 consultas. En E: entre la tecla y los resultados. |
 | PDF de 300 páginas | la ventana responde | igual | Mientras se procesa, una sesión completa en E termina sin esperas mayores a 1 s. |
+| `npm run verificar` (CA-001) | 2 min | 6 min | Duración que mide la propia red (`resultado.json`); en el CI (variable `CI`) el tope es el triple desde el 20/10/2026, porque con la Fase 06 la red rápida ya rondaba los 2 min en sus máquinas. |
 
 Los topes de esta PC (la de referencia) son los de la especificación. Los del CI son tres veces mayores porque sus máquinas varían; esto se fija hoy y no se afloja después. Los números se guardan por corrida y el tablero muestra la tendencia.
 
@@ -164,6 +165,14 @@ Cómo quedó en la Fase 04:
 | CA-035 | E | — | Ventana de 400 px, zoom 150 % y escala 125 % (emulada): sin desplazamiento horizontal ni texto cortado en las seis pantallas. |
 | CA-036 | S | E | El catálogo de textos no tiene inglés suelto ni Lorem ipsum; E recorre las pantallas y busca «undefined», «null», «NaN», «[object Object]». |
 | CA-037 | R | S | «Todavía no.» usa la tinta neutra; S confirma que ningún token de error del usuario es rojo. |
+
+Cómo quedó en la Fase 06:
+
+- Cada criterio tiene prueba en las capas de la tabla y alguna más: CA-031 (E, R: `armazon.spec.ts`, `armazon.test.tsx`), CA-032 (U, C, R, E, S: la regla del tema y el guardado de la elección, el cambio al instante con el programa empaquetado, el contraste de los 28 pares de colores en claro y en oscuro), CA-033 (R, E: los seis estados y la «Galería» con sus 18 componentes), CA-034 (R, E: Ctrl+1 a Ctrl+6, Ctrl+K, Tab, Enter y Esc sin mouse, con el contorno de 2 píxeles medido en cada parada), CA-035 (E: 400 píxeles de ancho en las seis pantallas y la «Galería», zoom al 150 % con ventana ancha y angosta, escala del 125 % simulada con un interruptor de Chromium, y la ventana de verdad que no baja de 400), CA-036 (U, S, R, E: el detector de textos prohibidos, el catálogo entero, el código de la ventana, las pantallas armadas y el programa andando) y CA-037 (R, S, E: tono neutro de «Todavía no.», ningún token rojo y ningún color rojo dibujado en toda la galería).
+- La capa S suma `sistema-de-diseno.test.ts` (los valores exactos de los tokens, el contraste, ningún color, tamaño de letra, espacio ni radio fuera de los tokens, el foco que nadie apaga, el movimiento) y `textos-prohibidos.test.ts` (el catálogo y «ningún componente lleva texto escrito adentro»). La capa R suma las pruebas de los 18 componentes y del riel y la ventana (`sistema-de-diseno.test.tsx`, `estados-y-galeria.test.tsx`, `armazon.test.tsx`, `textos-en-pantalla.test.tsx`). La E suma `armazon.spec.ts`, `sistema-de-diseno.spec.ts`, `accesibilidad-fase-06.spec.ts` (cada pantalla, cada sección de Apuntes, la «Galería» con el diálogo abierto y el cuadro «Buscar», en claro y en oscuro) y `capturas-de-referencia.spec.ts`.
+- El rol «primario» de un botón no existe en ARIA: se marca con `data-button` y las pruebas lo cuentan en el contenido de cada pantalla.
+- Capturas de referencia: 46 imágenes en `tests/e2e/capturas-de-referencia` (ventana de 960 × 640, `--force-color-profile=srgb`, `--disable-lcd-text`, `--force-device-scale-factor=1`, sin movimiento, lista de copias tapada), con tolerancia del 1 % de los píxeles, que corren dentro de `verificar:todo` (capa «Punta a punta») y en el CI. Una referencia nunca se actualiza para que una prueba pase: se mira la diferencia y se actualiza solo con `npx playwright test capturas-de-referencia --update-snapshots` y con tu aprobación.
+- Dobles nuevos: ninguno. La escala de Windows del 125 % se simula con el interruptor `--force-device-scale-factor` de Chromium (la prueba manual M06.7 lo comprueba con la escala real).
 
 ### Fase 07 · Materias, temas, apuntes y bandeja (H-09, H-10, H-11)
 
