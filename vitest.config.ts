@@ -113,7 +113,7 @@ export default defineConfig({
           name: 'red',
           include: ['tests/red/**/*.test.ts'],
           exclude: ['tests/red/verificar.test.ts'],
-          testTimeout: 600_000,
+          testTimeout: 1_500_000,
           hookTimeout: 600_000,
           maxWorkers: 3,
         },

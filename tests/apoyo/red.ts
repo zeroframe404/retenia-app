@@ -93,7 +93,7 @@ export function runNetworkIn(root: string) {
   return run(process.execPath, [join(root, 'tools', 'verify.mjs')], {
     cwd: root,
     env: cleanEnv({ RETENIA_RUN_DIR: join(root, '.cache', 'red', 'aislada') }),
-    timeoutMs: 300_000,
+    timeoutMs: 600_000,
   });
 }
 

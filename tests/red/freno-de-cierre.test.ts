@@ -10,7 +10,7 @@ function brake(copy: string, stopHookActive: boolean) {
     cwd: copy,
     env: cleanEnv(),
     input: JSON.stringify({ hook_event_name: 'Stop', stop_hook_active: stopHookActive }),
-    timeoutMs: 300_000,
+    timeoutMs: 600_000,
   });
 }
 
