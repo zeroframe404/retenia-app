@@ -93,7 +93,8 @@ export default defineConfig({
           name: 'paquete',
           include: ['tests/paquete/**/*.test.ts'],
           testTimeout: 120_000,
-          maxWorkers: 3,
+          // Igual que «red»: Vitest no deja correr juntos dos proyectos con distinta cantidad.
+          maxWorkers: 2,
         },
       },
       {
