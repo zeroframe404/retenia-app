@@ -85,6 +85,7 @@ Cómo quedó en la Fase 04 (el CI la marcó por tiempo, no por una falla): en la
 | Abrir Estudiar | 0,5 s | 1,5 s | Entre el clic en el riel y la propuesta visible. |
 | Buscar | 0,2 s | 0,6 s | En I: consulta FTS5 con 10.000 tarjetas, mediana de 20 consultas. En E: entre la tecla y los resultados. |
 | PDF de 300 páginas | la ventana responde | igual | Mientras se procesa, una sesión completa en E termina sin esperas mayores a 1 s. |
+| `npm run verificar` (CA-001) | 2 min | 6 min | Duración que mide la propia red (`resultado.json`); en el CI (variable `CI`) el tope es el triple desde el 20/10/2026, porque con la Fase 06 la red rápida ya rondaba los 2 min en sus máquinas. |
 
 Los topes de esta PC (la de referencia) son los de la especificación. Los del CI son tres veces mayores porque sus máquinas varían; esto se fija hoy y no se afloja después. Los números se guardan por corrida y el tablero muestra la tendencia.
 
