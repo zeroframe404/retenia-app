@@ -13,7 +13,7 @@
 | 05 · Laboratorio de piezas riesgosas | Fusionada (17/10/2026, pull request #6), sin tag `fase-05-ok` todavía: lo pongo cuando lo pidas |
 | 06 · Sistema de diseño y armazón | En revisión: pull request abierto (rama `fase-06` sobre `main`), faltan tus pruebas manuales |
 
-Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (4 min 02 s, 18/10/2026). CI del pull request #7: «Red completa y compilación» en verde (23 min 48 s) e «Instaladores y humo del instalador» en verde (8 min 40 s), con las capturas de referencia sin diferencias.
+Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (3 min 07 s, 20/10/2026). CI del pull request #7, en la última versión: «Red completa y compilación» en verde (32 min 35 s) e «Instaladores y humo del instalador» en verde (8 min 59 s, a la segunda: la primera vez se cortó la bajada de una herramienta de compilación del servidor de GitHub), con las capturas de referencia sin diferencias. Antes hubo cuatro corridas rojas por tiempos y por un error mío de configuración, todas resueltas y explicadas en docs/decisiones.md.
 
 Cuando apruebes la Fase 06: fusionar el pull request y pedirme el tag (y el de la Fase 05, que quedó sin poner); los pone `npm run cerrar-fase -- NN`, que antes corre la red completa y guarda en el tag cuántas pruebas había.
 
