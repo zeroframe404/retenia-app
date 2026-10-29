@@ -39,7 +39,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | zod | 4.6.7 | 13/10/2026 | MIT | Valida cada mensaje del puente y cada evento; genera los esquemas JSON que exige la IA. |
 | UUID versión 7 | `crypto.randomUUIDv7()` de Node 24.21 | 13/10/2026 | — | Viene con Electron 44: sin dependencia. Plan B: paquete `uuid` 14.0.3 (MIT). |
 | **Contenido y materiales** | | | | |
-| @tiptap/core, @tiptap/pm, @tiptap/react, @tiptap/starter-kit, @tiptap/extension-image, @tiptap/extension-mathematics, @tiptap/extension-mention, @tiptap/suggestion | 3.31.4 | 13/10/2026 | MIT | Editor por bloques con React 19, imágenes, fórmulas (KaTeX) y menciones con disparador propio (`[[`); todos de código abierto. La 3.32.0 salió hoy. |
+| @tiptap/core, @tiptap/pm, @tiptap/react, @tiptap/starter-kit | 3.31.4 | 13/10/2026 | MIT | Editor por bloques con React 19. Las imágenes, las fórmulas (con KaTeX) y los enlaces `[[` se resolvieron en la Fase 07 con piezas propias sobre el núcleo, sin `@tiptap/extension-image`, `-mathematics`, `-mention` ni `-suggestion`, que no se instalaron (`docs/decisiones.md`, Fase 07). La 3.32.0 salió el 13/10/2026. |
 | katex | 0.18.11 | 13/10/2026 | MIT | Render de fórmulas sin ejecutar nada, con fuentes dentro del paquete; la 0.19.0 queda fuera del rango que acepta TipTap. |
 | pdfjs-dist | 6.4.299 | 13/10/2026 | Apache-2.0 | Texto y render de PDF; la 6.x eliminó el último uso de `eval` (ya no tiene la opción `isEvalSupported`; una prueba busca `eval` y `new Function` en su código) y su API nunca ejecuta el JavaScript de un PDF. En Node, compilación `legacy`; dentro de un `utilityProcess` hay que indicarle su hilo de trabajo (Fase 05). Trae `@napi-rs/canvas` como opcional: no se usa y no viaja en el instalador. |
 | tesseract.js, tesseract.js-core | 7.0.0 | 13/10/2026 | Apache-2.0 | Reconocimiento de escaneos en WebAssembly, sin internet con datos locales; hilos de trabajo en Node. Comprobado en la Fase 05: en Node carga siempre el núcleo completo (un error de la 7.0.0), así que viaja ese; su script de instalación (un aviso de donaciones) queda denegado. |
@@ -147,7 +147,7 @@ Cuatro pruebas descartables en una carpeta temporal fuera del repositorio, borra
 | Velocidad de Kokoro y Whisper en una PC de escritorio | Resuelto en la Fase 05: Kokoro 0,9 a 1,4 s por frase (1,8 s la primera) y Whisper small 0,2 a 0,5 s por frase (`docs/laboratorio.md`). | — | Fase 05 |
 | sherpa-onnx dentro del programa empaquetado | Resuelto en la Fase 05: anda empaquetado e instalado (en el CI), con sus dos paquetes fuera del asar. Lo que sí falló fue una carpeta con «í»: se resolvió con rutas relativas. | — | Fase 05 |
 | Tamaño exacto de la variante int8 de Whisper | Resuelto en la Fase 05: small int8, 358 MB (sin los fp32, que no se bajan). | — | Fase 05 |
-| Disparador `[[` en las menciones de TipTap | Funciona por construcción (el disparador se escapa en una expresión regular) pero no está documentado. | Si no anda, un disparador de un carácter (`[`) con filtro propio. | Fase 07 |
+| Disparador `[[` en las menciones de TipTap | Resuelto en la Fase 07: en vez de depender del disparador de la extensión, un complemento propio del editor detecta `[[` y ofrece la lista (probado con CA-374). | — | Fase 07 |
 
 ## Herramientas de esta PC (desarrollo)
 

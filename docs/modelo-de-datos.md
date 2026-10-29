@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
+Versión 3 (Fase 07, 29/10/2026): las materias, los temas, las notas por renglones con versiones inmutables, la Bandeja y las imágenes ya existen (ver «Organización»). Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
 
 Una sola base SQLite por instalación (`retenia.db`), en modo WAL con `synchronous = FULL`, manejada solo desde `src/data` con Drizzle. Las tablas se nombran en inglés, en `snake_case`; los identificadores son UUID versión 7 en texto; los instantes van en ISO 8601 UTC y los días de estudio como `YYYY-MM-DD` calculados por `core` con el corte de las 04:00 de Buenos Aires.
 
@@ -155,6 +155,18 @@ Fase 04, tarjetas: la cabeza `cards` tiene por ahora `id, current_version_id, cr
 | `block_links` | `block_id, target_note_id` (enlaces por identificador, CA-374 a CA-376) | H-10 |
 | `images` | `id, sha256, mime, bytes, width, height, created_at` (el archivo vive en `imagenes\<sha256>`) | H-10, H-12, H-30 |
 | `inbox_items` | `id, text, source (JSON: materialId, pageNo, selection), created_at, moved_to_note_id, moved_at` | H-11, H-26 |
+
+Fase 07 (migraciones `0003_materias_apuntes` y `0004_apuntes_disparadores`): existen `subjects`, `topics`, `topic_aliases`, `notes`, `blocks`, `block_versions`, `block_links`, `images` e `inbox_items`, con estas diferencias respecto de la tabla de arriba (todas agregando; explicadas en `docs/decisiones.md`, sección Fase 07):
+
+- `subjects`: `id, name, status (default 'maintenance'), is_example, created_at, deleted_at`. Por ahora no hay `is_course`, `course_id` ni `retention_target` (llegan con la Fase 09 y la 28). `is_example` marca la materia «Ejemplo».
+- `topics`: `id, subject_id, name, position (orden de creación), archived_at, created_at, deleted_at`. `topic_aliases`: `(topic_id, name)` y `since`.
+- `notes`: `id, subject_id, topic_id (nulo = «Sin tema»), title (vacío = «Sin título»), archived_at, created_at, deleted_at`.
+- `blocks`: `id, note_id, parent_block_id, position (lugar entre sus hermanos), collapsed, current_version_id, created_at, deleted_at`. `kind` no existe: una imagen es un nodo adentro del renglón, no un renglón de otro tipo. `collapsed` (plegado) es del lugar y no crea versión.
+- `block_versions`: `id, block_id, content (JSON del contenido del renglón: texto, enlaces por identificador e imágenes por huella), text_plain (el texto para el buscador; lleva el texto fuente de las fórmulas), created_at, cause`. No se modifica (disparador) y solo se borra al vaciar la Papelera, con el permiso `('block', <renglón>)` de `purge_permits`. `image_id` y `card_marker` llegan con la Fase 08.
+- `block_links`: `(block_id, target_note_id)`, se rehace al guardar un renglón; es lo que usa «Mencionada en».
+- `images`: `id, sha256 (único), mime, bytes, width, height, created_at`; el archivo vive en `imagenes\<sha256>` de la carpeta de datos. Las copias de seguridad todavía no incluyen esa carpeta (queda anotado en `docs/ESTADO.md`).
+- `inbox_items`: `id, text, created_at, moved_to_note_id, moved_at, deleted_at` (sin clave foránea hacia la nota: sobrevive a que la nota se purgue).
+- `operations.detail`: JSON con lo que hace falta para deshacer (el tema de antes al mover una nota, el nombre de antes al renombrar un tema, la materia activa de antes al activar otra).
 
 ### Tarjetas y ejercicios
 
