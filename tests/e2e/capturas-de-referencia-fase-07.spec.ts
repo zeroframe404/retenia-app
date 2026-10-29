@@ -74,6 +74,7 @@ test('capturas de referencia: la Bandeja con un elemento y el cuadro de captura,
     .fill('Revisar teorema central del límite');
   await page.getByRole('dialog', { name: 'Anotar al vuelo' }).evaluate((element) => element.blur());
   await shoot(page, 'fase-07-captura');
+  await page.getByRole('textbox', { name: 'Anotá lo que se te ocurrió' }).focus();
   await page.keyboard.press('Enter');
   await goTo(page, 'Bandeja');
   await expect(page.getByText('Revisar teorema central del límite')).toBeVisible();
