@@ -42,6 +42,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.notes.topics.nameTooLong': [120],
   'texts.notes.list.inTopic': ['Regresión'],
   'texts.notes.toast.moved': ['Regresión'],
+  'texts.notes.toast.alreadyIn': ['Regresión'],
   'texts.notes.toast.topicCreated': ['Regresión'],
   'texts.notes.toast.topicRenamed': ['Regresión lineal'],
   'texts.notes.editor.mentionOption': ['Media y desvío', 'Media y dispersión'],

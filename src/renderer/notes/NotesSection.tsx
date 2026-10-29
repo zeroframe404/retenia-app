@@ -251,6 +251,14 @@ export function NotesSection({
 
   const moveNote = (note: NoteSummary, topic: Topic | null) =>
     act(async () => {
+      // Mover adonde ya está no registra nada: sin esto, «Deshacer» deshacía el cambio de otra nota.
+      if (note.topicId === (topic?.id ?? null)) {
+        setDialog(null);
+        await say(
+          topic ? texts.notes.toast.alreadyIn(topic.name) : texts.notes.toast.alreadyInNone,
+        );
+        return;
+      }
       await window.retenia['notes.move']({ noteId: note.id, topicId: topic?.id ?? null });
       setDialog(null);
       await reload();

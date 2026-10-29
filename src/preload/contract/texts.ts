@@ -103,6 +103,8 @@ export const texts = {
       unarchived: 'Nota desarchivada.',
       moved: (topic: string) => `Nota movida a «${topic}».`,
       movedToNone: 'Nota movida a «Sin tema».',
+      alreadyIn: (topic: string) => `Esa nota ya está en «${topic}».`,
+      alreadyInNone: 'Esa nota ya está en «Sin tema».',
       removed: 'La nota está en la Papelera.',
       topicCreated: (name: string) => `Tema «${name}» creado.`,
       topicRenamed: (name: string) => `Tema renombrado a «${name}».`,
