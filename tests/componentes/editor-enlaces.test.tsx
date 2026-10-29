@@ -126,6 +126,10 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     writeAfterLinks('[[');
     await screen.findByRole('listbox', { name: 'Notas para enlazar' });
     pressKey(contentEditor(), 'ArrowDown');
+    // La selección se pinta un instante después; Enter elige la que ya está marcada.
+    await waitFor(() =>
+      expect(screen.getAllByRole('option')[1]?.getAttribute('aria-selected')).toBe('true'),
+    );
     pressKey(contentEditor(), 'Enter');
     expect(mentionNodes()).toEqual([{ id: MEDIA, label: 'Media y desvío' }]);
 
