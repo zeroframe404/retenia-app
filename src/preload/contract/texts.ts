@@ -51,7 +51,7 @@ export const texts = {
       all: 'Todas las notas',
       none: 'Sin tema',
       archived: 'Archivadas',
-      // El nombre del tema con cuántas notas tiene: «Media y dispersión · 2».
+      // El nombre del tema con cuántas notas tiene: «Álgebra lineal · 2».
       withCount: (name: string, count: number) => `${name} · ${numberFormat.format(count)}`,
       newTopic: 'Nuevo tema',
       nameLabel: 'Nombre del tema',
@@ -158,7 +158,7 @@ export const texts = {
       paused: 'En pausa',
       archived: 'Archivada',
     },
-    // La materia con su estado: «Estadística básica · En mantenimiento».
+    // La materia con su estado: «Geografía · En mantenimiento».
     row: (name: string, status: string) => `${name} · ${status}`,
     activated: (name: string) => `«${name}» es ahora tu materia activa.`,
     nameRequired: 'Escribí el nombre de la materia',

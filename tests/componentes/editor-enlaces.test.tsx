@@ -84,12 +84,17 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
 
     expect(options[0]?.getAttribute('aria-selected')).toBe('true');
     expect(options[1]?.getAttribute('aria-selected')).toBe('false');
-    expect(editorElement.getAttribute('aria-activedescendant')).toBe(options[0]?.id);
+    // El editor señala la opción en un efecto, un instante después de que aparece la lista.
+    await waitFor(() =>
+      expect(editorElement.getAttribute('aria-activedescendant')).toBe(options[0]?.id),
+    );
     expect(options[0]?.id).not.toBe('');
 
     expect(pressKey(contentEditor(), 'ArrowDown').defaultPrevented).toBe(true);
     expect(options[1]?.getAttribute('aria-selected')).toBe('true');
-    expect(editorElement.getAttribute('aria-activedescendant')).toBe(options[1]?.id);
+    await waitFor(() =>
+      expect(editorElement.getAttribute('aria-activedescendant')).toBe(options[1]?.id),
+    );
     pressKey(contentEditor(), 'ArrowUp');
     expect(options[0]?.getAttribute('aria-selected')).toBe('true');
     pressKey(contentEditor(), 'ArrowUp');
