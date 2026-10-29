@@ -9,7 +9,9 @@ const hex = (bytes: Uint8Array, from: number, to: number) =>
 // identificadores armados en una misma sesión se ordenan por orden de creación.
 let lastTick = 0;
 function nextTick(): number {
-  const elapsed = typeof document === 'undefined' ? null : document.timeline?.currentTime;
+  // `globalThis`: esta función también corre en pruebas sin pantalla (y sin `document`).
+  const page = (globalThis as { document?: { timeline?: { currentTime?: unknown } } }).document;
+  const elapsed = page?.timeline?.currentTime;
   lastTick = Math.max(typeof elapsed === 'number' ? Math.floor(elapsed) : 0, lastTick + 1);
   return lastTick;
 }

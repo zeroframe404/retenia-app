@@ -60,7 +60,9 @@ export function NotesScreen({
       {section === 'notes' ? (
         <NotesSection subject={subject} onViewSubject={onViewSubject} />
       ) : null}
-      {section === 'inbox' ? <InboxSection subjectId={subject.id} onCount={onInboxCount} /> : null}
+      {section === 'inbox' ? (
+        <InboxSection subjectId={subject.id} count={inboxCount} onCount={onInboxCount} />
+      ) : null}
       {section === 'cards' ? <CardsScreen /> : null}
       {section === 'trash' ? (
         <TrashScreen onBackToCards={toCards} onChanged={onDataChanged} />

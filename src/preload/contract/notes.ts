@@ -87,6 +87,8 @@ export const noteSummarySchema = z.strictObject({
 });
 export type NoteSummary = z.output<typeof noteSummarySchema>;
 
+// `notes.get` y `notes.create` devuelven una nota entera; los enlaces traen siempre el nombre
+// vigente de la nota enlazada (CA-376).
 export const noteSchema = z.strictObject({
   ...noteSummarySchema.shape,
   blocks: z.array(blockSchema),
@@ -104,9 +106,6 @@ export const notesCreateRequest = z.strictObject({
 });
 
 export const noteIdRequest = z.strictObject({ noteId: z.uuid() });
-
-// Los enlaces traen siempre el nombre vigente de la nota enlazada (CA-376).
-export const notesGetResponse = noteSchema;
 
 export const notesSaveRequest = z.strictObject({
   noteId: z.uuid(),

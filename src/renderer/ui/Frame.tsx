@@ -97,7 +97,7 @@ export function SideRail({
                 onClick={onOpenInbox}
               >
                 <Icon icon={Inbox} />
-                <span className={styles.label}>{texts.inbox.railBadge}</span>
+                <span className={styles.label}>{texts.inbox.railBadge}</span>{' '}
                 <span className={styles.count}>{inboxCount}</span>
               </button>
             ) : null}

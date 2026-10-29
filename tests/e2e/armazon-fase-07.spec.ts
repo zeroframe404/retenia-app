@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 import { findTextProblems } from '../../src/core/text-rules';
 import { expect, test } from './apoyo';
@@ -57,6 +59,11 @@ async function sidewaysProblems(page: Page): Promise<string[]> {
     for (const element of document.querySelectorAll('body *')) {
       const rect = element.getBoundingClientRect();
       if (rect.width <= 2 || rect.height <= 2) {
+        continue;
+      }
+      // Los trazos de una fórmula (la raíz cuadrada, por ejemplo) los recorta la propia fórmula:
+      // lo que cuenta es que la fórmula entera, que sí se mide, no se salga.
+      if (element.closest('.katex') !== null && !element.classList.contains('katex')) {
         continue;
       }
       const label = `${element.tagName.toLowerCase()} «${(element.textContent ?? '').trim().slice(0, 30)}»`;
@@ -123,11 +130,25 @@ const SCREENS: readonly [string, Visit][] = [
   ],
 ];
 
+// Cada visita abre Retenia con su propia carpeta de datos: «la primera vez» deja anotado ese modo y
+// la visita siguiente no vería el riel.
+function folders(dataDir: string): () => string {
+  let count = 0;
+  return () => {
+    count += 1;
+    const folder = join(dataDir, `visita-${count}`);
+    mkdirSync(folder, { recursive: true });
+    return folder;
+  };
+}
+
 test('[CA-035] en una ventana de 400 píxeles de ancho, las pantallas nuevas no se desplazan a los costados', async ({
   launchFromStart,
+  dataDir,
 }) => {
+  const folder = folders(dataDir);
   for (const [name, visit] of SCREENS) {
-    const { page, close } = await launchFromStart();
+    const { page, close } = await launchFromStart(folder());
     await page.setViewportSize({ width: 400, height: 700 });
     await visit(page);
     expect(await sidewaysProblems(page), name).toEqual([]);
@@ -137,14 +158,16 @@ test('[CA-035] en una ventana de 400 píxeles de ancho, las pantallas nuevas no 
 
 test('[CA-035] con zoom al 150 % y con la escala de Windows al 125 % (simulados), las pantallas nuevas no se desplazan a los costados', async ({
   launchFromStart,
+  dataDir,
 }) => {
+  const folder = folders(dataDir);
   // 960 píxeles de ventana a 150 % de zoom son 640 de ancho útil; a 125 % de escala, 768.
   for (const [width, label] of [
     [640, 'zoom 150 %'],
     [768, 'escala 125 %'],
   ] as const) {
     for (const [name, visit] of SCREENS) {
-      const { page, close } = await launchFromStart();
+      const { page, close } = await launchFromStart(folder());
       await page.setViewportSize({ width, height: 720 });
       await visit(page);
       expect(await sidewaysProblems(page), `${name} (${label})`).toEqual([]);
@@ -155,9 +178,11 @@ test('[CA-035] con zoom al 150 % y con la escala de Windows al 125 % (simulados)
 
 test('[CA-036] ninguna pantalla nueva muestra «undefined», «null», «NaN», «[object Object]», inglés suelto ni relleno, ni las palabras prohibidas', async ({
   launchFromStart,
+  dataDir,
 }) => {
+  const folder = folders(dataDir);
   for (const [name, visit] of SCREENS) {
-    const { page, close } = await launchFromStart();
+    const { page, close } = await launchFromStart(folder());
     await visit(page);
     expect(await textProblems(page), name).toEqual([]);
     await close();

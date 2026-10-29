@@ -11,9 +11,13 @@ import { ViewState } from '../ui/ViewStates';
 // nota del tema elegido (CA-047) y «Eliminar» lo manda a la Papelera.
 export function InboxSection({
   subjectId,
+  count: outsideCount,
   onCount,
 }: {
   subjectId: string;
+  // Cuántos elementos hay según el resto de la ventana: si cambia sin que esta lista haya hecho
+  // nada (se anotó algo al vuelo con Ctrl+Mayús+N mientras se la mira), se pide de nuevo.
+  count: number;
   // Cuántos elementos hay: el riel y la pestaña lo muestran.
   onCount: (count: number) => void;
 }) {
@@ -35,9 +39,10 @@ export function InboxSection({
 
   const { notice, say, clear, undo } = useUndoNotice(load);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: la lista se pide de nuevo cuando cambia el contador de afuera.
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, outsideCount]);
 
   // Un pedido por vez: un doble toque no mueve ni elimina dos veces.
   async function act(task: () => Promise<void>) {

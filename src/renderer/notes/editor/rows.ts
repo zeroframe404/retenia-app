@@ -37,7 +37,8 @@ export const Row = Node.create({
   name: 'listItem',
   // Antes que las teclas de Tiptap por defecto: Enter, Retroceso y Tab son de los renglones.
   priority: 1000,
-  content: 'paragraph bulletList?',
+  // La gramática de ProseMirror (un párrafo y, si hay hijos, su lista), no un texto de pantalla.
+  content: ['paragraph', 'bulletList?'].join(' '),
   defining: true,
   draggable: true,
 

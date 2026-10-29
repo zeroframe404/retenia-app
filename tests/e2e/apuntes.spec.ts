@@ -12,6 +12,21 @@ import { editor, goTo, itemWith, openNote, openNotes } from './pasos';
 
 const SAVED = (page: Page) => page.getByText('Guardado', { exact: true });
 
+// El editor se entera de adónde fue el cursor un instante después de que el navegador lo mueve:
+// antes de una tecla que depende de dónde está el cursor, se espera a que esté en el renglón.
+async function expectCaretIn(page: Page, text: string) {
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const dom = document.querySelector('.ProseMirror') as unknown as {
+          editor: { state: { selection: { $from: { parent: { textContent: string } } } } };
+        };
+        return dom.editor.state.selection.$from.parent.textContent;
+      }),
+    )
+    .toBe(text);
+}
+
 // Una nota nueva en «Todas las notas»: nace sin tema y abre con el foco en el título.
 async function newNote(page: Page, title: string) {
   await openNotes(page);
@@ -113,7 +128,9 @@ test('[CA-042] Tab anida el segundo renglón bajo el primero y Mayús+Tab lo dev
 
   const first = page.getByRole('listitem').filter({ hasText: 'Primero' }).first();
   await expect(first.getByRole('listitem')).toHaveCount(0);
-  await editor(page).getByText('Segundo').click();
+  // Del tercero al segundo con el teclado (sin clic: el cursor ya está donde el editor lo sabe).
+  await page.keyboard.press('ArrowUp');
+  await expectCaretIn(page, 'Segundo');
   await page.keyboard.press('Tab');
   await expect(first.getByRole('listitem').filter({ hasText: 'Segundo' })).toHaveCount(1);
   await expect(first.getByRole('listitem').filter({ hasText: 'Tercero' })).toHaveCount(0);
@@ -147,9 +164,10 @@ test('[CA-042] los renglones se pliegan y se mueven con el teclado', async ({
   await page.keyboard.press('Alt+Shift+ArrowUp');
   await expect(page.getByRole('listitem')).toHaveText(['Uno', 'Tres', 'Dos']);
 
-  await editor(page).getByText('Tres').click();
+  // «Tres» queda adentro de «Uno» (el cursor sigue en «Tres»); de ahí, a «Uno» y se pliega.
   await page.keyboard.press('Tab');
-  await editor(page).getByText('Uno').click();
+  await page.keyboard.press('ArrowUp');
+  await expectCaretIn(page, 'Uno');
   await page.keyboard.press('Control+ArrowUp');
   await expect(editor(page).getByText('Tres')).toBeHidden();
   await page.keyboard.press('Control+ArrowDown');
@@ -336,7 +354,8 @@ test('[CA-373] una fórmula entre signos $ se ve como en un libro al salir del r
   await page.keyboard.type('Otro renglón');
 
   await expect(editor(page).locator('.katex')).toBeVisible();
-  await expect(editor(page)).not.toContainText(String.raw`\sqrt{n}`);
+  // Lo que se ve (no el texto fuente oculto ni la anotación de lectura de la fórmula).
+  await expect(editor(page)).not.toContainText(String.raw`\sqrt{n}`, { useInnerText: true });
   await editor(page).locator('.katex').click();
   await expect(editor(page)).toContainText(source);
   await expect(editor(page).locator('.katex')).toHaveCount(0);
