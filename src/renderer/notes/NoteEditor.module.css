@@ -1,0 +1,43 @@
+/* La pantalla de una nota: título, indicador de guardado, editor y «Mencionada en». */
+.page {
+  display: grid;
+  gap: var(--espacio-16);
+  max-width: var(--ancho-lectura);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+  align-items: center;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--alto-control);
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-subtitulo);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.title::placeholder {
+  color: var(--color-tinta-suave);
+}
+
+.mentions {
+  display: grid;
+  gap: var(--espacio-12);
+  justify-items: start;
+}
+
+.mentions > * {
+  width: 100%;
+}
+
+.mentions > button {
+  width: auto;
+}

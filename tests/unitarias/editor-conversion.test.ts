@@ -248,6 +248,11 @@ describe('editor · identificadores de renglón', () => {
     );
   });
 
+  it('los armados uno detrás de otro en la sesión se ordenan por orden de creación', () => {
+    const ids = Array.from({ length: 200 }, () => newBlockId());
+    expect([...ids].sort()).toEqual(ids);
+  });
+
   it('mil identificadores seguidos no se repiten', () => {
     const ids = new Set(Array.from({ length: 1000 }, () => newBlockId()));
     expect(ids.size).toBe(1000);

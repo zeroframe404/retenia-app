@@ -76,7 +76,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
   it('[CA-372] pegar una imagen la guarda con sus bytes, su tipo y su tamaño, e inserta el nodo con la huella devuelta', async () => {
     const api = installApi();
     api.saveImage.mockResolvedValue({ sha: SHA_A });
-    renderNote(note('Con imagen', [row(1, 'Mirá esto: ')]));
+    await renderNote(note('Con imagen', [row(1, 'Mirá esto: ')]));
     putCursorAtEnd(contentEditor(), rowId(1));
 
     const event = send('paste', clipboard([pngFile()]));
@@ -100,7 +100,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] la imagen se ve en el renglón con los bytes que devuelve el principal, como datos en línea', async () => {
     const api = installApi();
-    renderNote(note('Con imagen', [row(1, '')]));
+    await renderNote(note('Con imagen', [row(1, '')]));
     send('paste', clipboard([pngFile()]));
 
     const image = await screen.findByRole('img', { name: 'Imagen de la nota' });
@@ -112,7 +112,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] soltar un archivo de imagen en el renglón también la inserta', async () => {
     const api = installApi();
-    renderNote(note('Arrastrada', [row(1, 'Texto')]));
+    await renderNote(note('Arrastrada', [row(1, 'Texto')]));
     putCursorAtEnd(contentEditor(), rowId(1));
 
     const event = send('drop', clipboard([pngFile('foto.jpg', 'image/jpeg')]));
@@ -124,7 +124,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] acepta PNG, JPEG, GIF y WebP', async () => {
     const api = installApi();
-    renderNote(note('Tipos', [row(1, '')]));
+    await renderNote(note('Tipos', [row(1, '')]));
     for (const type of ['image/png', 'image/jpeg', 'image/gif', 'image/webp']) {
       send('paste', clipboard([pngFile('x', type)]));
     }
@@ -139,7 +139,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] un tipo no aceptado (SVG) no se guarda ni se inserta, y se avisa', async () => {
     const api = installApi();
-    renderNote(note('SVG', [row(1, '')]));
+    await renderNote(note('SVG', [row(1, '')]));
     send('paste', clipboard([pngFile('dibujo.svg', 'image/svg+xml')]));
 
     expect((await screen.findByRole('alert')).textContent).toContain(IMAGE_FAILED);
@@ -149,7 +149,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] una imagen de más de 10 MB no se guarda ni se inserta, y se avisa', async () => {
     const api = installApi();
-    renderNote(note('Enorme', [row(1, '')]));
+    await renderNote(note('Enorme', [row(1, '')]));
     const big = pngFile('enorme.png');
     Object.defineProperty(big, 'size', { value: MAX_IMAGE_BYTES + 1 });
     send('paste', clipboard([big]));
@@ -162,7 +162,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
   it('[CA-372] si el principal no puede guardarla, no queda un nodo roto y se avisa', async () => {
     const api = installApi();
     api.saveImage.mockRejectedValue(new Error('disco lleno'));
-    renderNote(note('Falla', [row(1, '')]));
+    await renderNote(note('Falla', [row(1, '')]));
     send('paste', clipboard([pngFile()]));
 
     expect((await screen.findByRole('alert')).textContent).toContain(IMAGE_FAILED);
@@ -177,7 +177,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
       }),
     );
     const api = installApi();
-    renderNote(note('Rota', [row(1, '')]));
+    await renderNote(note('Rota', [row(1, '')]));
     send('paste', clipboard([pngFile()]));
 
     expect((await screen.findByRole('alert')).textContent).toContain(IMAGE_FAILED);
@@ -186,7 +186,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
 
   it('[CA-372] el texto pegado que no es una imagen se pega como siempre', async () => {
     const api = installApi();
-    renderNote(note('Texto', [row(1, 'Hola')]));
+    await renderNote(note('Texto', [row(1, 'Hola')]));
     putCursorAtEnd(contentEditor(), rowId(1));
     const event = send('paste', clipboard([], ' mundo'));
 
@@ -199,7 +199,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
   it('[CA-372] la imagen guardada vuelve a verse al abrir la nota y viaja en el guardado con su huella y su tamaño', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const api = installApi();
-    renderNote(note('Con imagen', [row(1, 'Mirá: ')]));
+    await renderNote(note('Con imagen', [row(1, 'Mirá: ')]));
     putCursorAtEnd(contentEditor(), rowId(1));
     send('paste', clipboard([pngFile()]));
     await act(async () => {
@@ -215,7 +215,7 @@ describe('[CA-372] imágenes pegadas o soltadas en un renglón', () => {
     ]);
     cleanup();
 
-    renderNote(note('Con imagen', saved ?? []));
+    await renderNote(note('Con imagen', saved ?? []));
     await act(async () => {
       await vi.waitFor(() =>
         expect(screen.getByRole('img', { name: 'Imagen de la nota' }).getAttribute('src')).toMatch(
@@ -239,7 +239,7 @@ describe('[CA-372] el dibujo de la imagen', () => {
 
   it('[CA-372] pide los bytes una sola vez por huella, aunque la imagen esté dos veces', async () => {
     const api = installApi();
-    renderNote(withImages(SHA_A, SHA_A, SHA_B));
+    await renderNote(withImages(SHA_A, SHA_A, SHA_B));
     await waitFor(() =>
       expect(
         screen
@@ -253,7 +253,7 @@ describe('[CA-372] el dibujo de la imagen', () => {
 
   it('[CA-372] usa el texto alternativo de cada imagen y el ancho y el alto de lo guardado', async () => {
     installApi();
-    renderNote(withImages(SHA_A));
+    await renderNote(withImages(SHA_A));
     const image = await screen.findByRole('img', { name: 'Imagen 1' });
     expect(image.getAttribute('width')).toBe('30');
     expect(image.getAttribute('height')).toBe('20');
@@ -261,7 +261,7 @@ describe('[CA-372] el dibujo de la imagen', () => {
 
   it('[CA-372] una imagen sin texto alternativo se llama «Imagen de la nota»', async () => {
     installApi();
-    renderNote(
+    await renderNote(
       note('Sin alt', [
         row(1, '', { content: [{ type: 'image', sha: SHA_A, width: 3, height: 2, alt: '' }] }),
       ]),
@@ -272,14 +272,14 @@ describe('[CA-372] el dibujo de la imagen', () => {
   it('[CA-372] si no se pueden leer los bytes dice «No pude mostrar la imagen.»', async () => {
     const api = installApi();
     api.readImage.mockRejectedValue(new Error('no está'));
-    renderNote(withImages(SHA_A));
+    await renderNote(withImages(SHA_A));
     expect(await screen.findByText(LOAD_FAILED)).toBeTruthy();
     expect(screen.queryByRole('img')).toBeNull();
   });
 
   it('[CA-372] la imagen no se puede alcanzar con Tab: el editor sigue siendo una sola parada', async () => {
     installApi();
-    renderNote(withImages(SHA_A));
+    await renderNote(withImages(SHA_A));
     const image = await screen.findByRole('img', { name: 'Imagen 1' });
     expect(image.getAttribute('tabindex')).toBeNull();
     expect(contentElement().contains(image)).toBe(true);

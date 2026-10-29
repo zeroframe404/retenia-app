@@ -61,7 +61,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] «[[» con letras muestra las notas que devuelve el puente, con el tema para distinguirlas', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos, media));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[Inter');
 
     const list = await screen.findByRole('listbox', { name: 'Notas para enlazar' });
@@ -76,7 +76,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] el foco se queda en el editor y la opción elegida se señala con aria-activedescendant', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos, media));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[');
     const list = await screen.findByRole('listbox', { name: 'Notas para enlazar' });
     const options = within(list).getAllByRole('option');
@@ -99,7 +99,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] Enter elige la nota: reemplaza lo escrito por el enlace con su identificador y su nombre', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos, media));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[Inter');
     await screen.findByRole('listbox', { name: 'Notas para enlazar' });
 
@@ -110,14 +110,14 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     expect(outline(contentEditor())).toBe('Ver ');
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(
-      within(contentElement()).getByRole('link', { name: 'Abrir Intervalos de confianza' }),
+      await within(contentElement()).findByRole('link', { name: 'Abrir Intervalos de confianza' }),
     ).toBeTruthy();
   });
 
   it('[CA-374] con ↓ y Enter se elige la segunda; un clic en una opción también elige', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos, media));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[');
     await screen.findByRole('listbox', { name: 'Notas para enlazar' });
     pressKey(contentEditor(), 'ArrowDown');
@@ -134,7 +134,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] Esc cierra la lista y deja lo escrito como está', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[Inter');
     await screen.findByRole('listbox', { name: 'Notas para enlazar' });
 
@@ -147,7 +147,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] sin coincidencias dice «No encontré notas con ese nombre.»', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles());
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[zzzz');
 
     expect(await screen.findByText('No encontré notas con ese nombre.')).toBeTruthy();
@@ -161,7 +161,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     const api = installApi();
     const slow = deferred<ReturnType<typeof titles>>();
     api.titles.mockReturnValueOnce(slow.promise).mockResolvedValue(titles(media));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[In');
     typeText(contentEditor(), 'x');
     expect(await screen.findByRole('option', { name: 'Media y desvío' })).toBeTruthy();
@@ -174,9 +174,9 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     expect(screen.getByRole('option', { name: 'Media y desvío' })).toBeTruthy();
   });
 
-  it('[CA-374] un solo corchete o un enlace ya cerrado no abren la lista', () => {
+  it('[CA-374] un solo corchete o un enlace ya cerrado no abren la lista', async () => {
     const api = installApi();
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[Inter');
     expect(api.titles).not.toHaveBeenCalled();
     typeText(contentEditor(), ' [[Cerrado]] y más');
@@ -187,7 +187,7 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
   it('[CA-374] si el puente falla al buscar, la lista no se abre ni rompe el editor', async () => {
     const api = installApi();
     api.titles.mockRejectedValue(new Error('sin base'));
-    renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     writeAfterLinks('[[Inter');
     await waitFor(() => expect(api.titles).toHaveBeenCalled());
     expect(screen.queryByRole('listbox')).toBeNull();
@@ -213,7 +213,7 @@ describe('[CA-374] el enlace dibujado en el renglón', () => {
     ]);
 
   it('[CA-374] se ve como un enlace con nombre «Abrir …» y un clic abre esa nota por su identificador', async () => {
-    const { onOpenNote } = renderNote(withLink());
+    const { onOpenNote } = await renderNote(withLink());
     const link = within(contentElement()).getByRole('link', { name: 'Abrir Media y desvío' });
     expect(link.textContent).toContain('Media y desvío');
     await userEvent.setup().click(link);
@@ -222,7 +222,7 @@ describe('[CA-374] el enlace dibujado en el renglón', () => {
   });
 
   it('[CA-374] se alcanza con el teclado y Enter lo abre', async () => {
-    const { onOpenNote } = renderNote(withLink());
+    const { onOpenNote } = await renderNote(withLink());
     const user = userEvent.setup();
     const link = within(contentElement()).getByRole('link', { name: 'Abrir Media y desvío' });
     link.focus();
@@ -236,7 +236,7 @@ describe('[CA-374] el enlace dibujado en el renglón', () => {
   it('[CA-374] el clic en el enlace no deja un cambio para guardar', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const api = installApi();
-    const { onOpenNote } = renderNote(withLink());
+    const { onOpenNote } = await renderNote(withLink());
     fireEvent.click(within(contentElement()).getByRole('link', { name: 'Abrir Media y desvío' }));
     expect(onOpenNote).toHaveBeenCalledTimes(1);
     await act(async () => {
@@ -245,8 +245,8 @@ describe('[CA-374] el enlace dibujado en el renglón', () => {
     expect(api.save).not.toHaveBeenCalled();
   });
 
-  it('[CA-374] un enlace sin nombre se ve como «Sin título»', () => {
-    renderNote(withLink(''));
+  it('[CA-374] un enlace sin nombre se ve como «Sin título»', async () => {
+    await renderNote(withLink(''));
     expect(within(contentElement()).getByRole('link', { name: 'Abrir Sin título' })).toBeTruthy();
   });
 });
@@ -259,7 +259,7 @@ describe('[CA-376] renombrar una nota enlazada no rompe los enlaces', () => {
   it('[CA-376] el enlace muestra el nombre nuevo que trae la nota y sigue apuntando a la misma por su identificador', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     const api = installApi();
-    const { onOpenNote } = renderNote(
+    const { onOpenNote } = await renderNote(
       note('Origen', [
         row(1, '', {
           content: [
@@ -316,7 +316,7 @@ describe('[CA-375] «Mencionada en»', () => {
   it('[CA-375] el botón abre la sección con un renglón por mención: nombre de la nota de origen y extracto', async () => {
     const api = installApi();
     api.mentions.mockResolvedValue({ mentions: mentionedBy });
-    renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
+    await renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
     const toggle = screen.getByRole('button', { name: 'Mencionada en' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(api.mentions).not.toHaveBeenCalled();
@@ -336,7 +336,7 @@ describe('[CA-375] «Mencionada en»', () => {
   it('[CA-375] un clic en la mención lleva a ese renglón de esa nota', async () => {
     const api = installApi();
     api.mentions.mockResolvedValue({ mentions: mentionedBy });
-    const { onOpenNote } = renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
+    const { onOpenNote } = await renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
     fireEvent.click(screen.getByRole('button', { name: 'Mencionada en' }));
     const list = await screen.findByRole('list', { name: 'Renglones que la mencionan' });
     fireEvent.click(within(list).getByRole('button', { name: 'Abrir Media y desvío' }));
@@ -346,14 +346,14 @@ describe('[CA-375] «Mencionada en»', () => {
 
   it('[CA-375] pide las menciones de la nota abierta y no antes de abrir la sección', async () => {
     const api = installApi();
-    renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
+    await renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
     fireEvent.click(screen.getByRole('button', { name: 'Mencionada en' }));
     await waitFor(() => expect(api.mentions).toHaveBeenCalledTimes(1));
     expect(api.mentions.mock.calls[0]?.[0]).toEqual({ noteId: uuid(1) });
   });
 
   it('[CA-375] sin menciones dice que ninguna nota la menciona todavía', async () => {
-    renderNote(note('Sola', [row(1, 'Texto')]));
+    await renderNote(note('Sola', [row(1, 'Texto')]));
     fireEvent.click(screen.getByRole('button', { name: 'Mencionada en' }));
     expect(await screen.findByText('Ninguna nota la menciona todavía.')).toBeTruthy();
     expect(screen.queryByRole('list', { name: 'Renglones que la mencionan' })).toBeNull();
@@ -362,7 +362,7 @@ describe('[CA-375] «Mencionada en»', () => {
   it('[CA-375] si falla dice «No pude cargar las menciones. Probá de nuevo.»', async () => {
     const api = installApi();
     api.mentions.mockRejectedValue(new Error('sin base'));
-    renderNote(note('Falla', [row(1, 'Texto')]));
+    await renderNote(note('Falla', [row(1, 'Texto')]));
     fireEvent.click(screen.getByRole('button', { name: 'Mencionada en' }));
     expect(await screen.findByText('No pude cargar las menciones. Probá de nuevo.')).toBeTruthy();
   });
@@ -370,7 +370,7 @@ describe('[CA-375] «Mencionada en»', () => {
   it('[CA-375] el mismo botón cierra la sección', async () => {
     const api = installApi();
     api.mentions.mockResolvedValue({ mentions: mentionedBy });
-    renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
+    await renderNote(note('Intervalos de confianza', [row(1, 'Texto')]));
     const toggle = screen.getByRole('button', { name: 'Mencionada en' });
     fireEvent.click(toggle);
     await screen.findByRole('list', { name: 'Renglones que la mencionan' });

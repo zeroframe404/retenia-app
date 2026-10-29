@@ -14,13 +14,18 @@ const STEPS = [1, 7, 35] as const;
 export function DemoSection({
   onOpenLab,
   onOpenGallery,
+  onDataChanged,
 }: {
   onOpenLab?: () => void;
   onOpenGallery?: () => void;
+  // Después de cambiar con qué datos está abierta la demostración, toda la ventana los pide de nuevo.
+  onDataChanged?: () => void;
 }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [offline, setOffline] = useState<boolean | null>(null);
+  const [dataMode, setDataMode] = useState<'cast' | 'first-time' | null>(null);
+  const [dataFailed, setDataFailed] = useState(false);
   const working = useRef(false);
 
   useEffect(() => {
@@ -41,6 +46,45 @@ export function DemoSection({
       alive = false;
     };
   }, []);
+
+  // Con qué datos está abierta: el elenco de ejemplo o una base vacía, como la primera vez. Si no se
+  // sabe, no se ofrece ninguno de los dos botones.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const { mode } = await window.retenia['demo.dataMode']({});
+        if (alive) {
+          setDataMode(mode);
+        }
+      } catch {
+        if (alive) {
+          setDataMode(null);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function changeData(channel: 'demo.useFirstTime' | 'demo.useCast') {
+    if (working.current) {
+      return;
+    }
+    working.current = true;
+    setBusy(true);
+    setDataFailed(false);
+    try {
+      setDataMode((await window.retenia[channel]({})).mode);
+      onDataChanged?.();
+    } catch {
+      setDataFailed(true);
+    } finally {
+      working.current = false;
+      setBusy(false);
+    }
+  }
 
   async function change(request: () => Promise<{ today: string }>) {
     if (working.current) {
@@ -97,6 +141,22 @@ export function DemoSection({
         />
         {demoTexts.offline}
       </label>
+      {dataFailed ? (
+        <BannerEstado tone="attention">{demoTexts.firstTime.failed}</BannerEstado>
+      ) : null}
+      {dataMode === null ? null : (
+        <div className={styles.actions}>
+          {dataMode === 'cast' ? (
+            <Boton disabled={busy} onClick={() => void changeData('demo.useFirstTime')}>
+              {demoTexts.firstTime.start}
+            </Boton>
+          ) : (
+            <Boton disabled={busy} onClick={() => void changeData('demo.useCast')}>
+              {demoTexts.firstTime.back}
+            </Boton>
+          )}
+        </div>
+      )}
       {onOpenLab || onOpenGallery ? (
         <div className={styles.actions}>
           {onOpenGallery ? <Boton onClick={onOpenGallery}>{demoTexts.gallery.open}</Boton> : null}

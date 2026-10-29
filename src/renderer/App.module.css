@@ -6,8 +6,11 @@
   height: 100dvh;
 }
 
+/* Siempre en la segunda fila: la primera es la de la cinta de demostración, que en la versión real
+   no está. */
 .body {
   display: grid;
+  grid-row: 2;
   grid-template-columns: var(--ancho-riel) minmax(0, 1fr);
   min-height: 0;
 }
@@ -17,6 +20,15 @@
   min-height: 0;
   padding: var(--espacio-32);
   overflow: auto;
+}
+
+/* El cartel de la ventana (el de la captura al vuelo): abajo, sobre lo demás, sin tapar el riel. */
+.toasts {
+  position: fixed;
+  right: var(--espacio-16);
+  bottom: var(--espacio-16);
+  z-index: 5;
+  width: min(480px, calc(100% - var(--espacio-32)));
 }
 
 @media (max-width: 720px) {

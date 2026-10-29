@@ -96,7 +96,7 @@ export function installApi() {
   return api;
 }
 
-export function renderNote(
+export async function renderNote(
   noteToOpen: Note,
   props: { focusBlockId?: string | null; autoFocusTitle?: boolean } = {},
 ) {
@@ -113,6 +113,8 @@ export function renderNote(
       {...props}
     />,
   );
+  // Tiptap monta los renglones en una microtarea.
+  await act(async () => {});
   return { ...view, onBack, onOpenNote, onSaved };
 }
 

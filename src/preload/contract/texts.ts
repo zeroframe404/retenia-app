@@ -42,6 +42,7 @@ export const texts = {
     cards: 'Tarjetas',
     trash: 'Papelera',
     activity: 'Actividad reciente',
+    loading: 'Cargando tus notas…',
     loadFailed: 'No pude cargar tus notas. Probá de nuevo.',
     retry: 'Reintentar',
     actionFailed: 'No pude completar esto. Probá de nuevo.',
@@ -108,6 +109,8 @@ export const texts = {
       topicArchived: 'Tema archivado.',
       topicUnarchived: 'Tema desarchivado.',
       topicRemoved: 'El tema está en la Papelera.',
+      // Un enlace a una nota que ya no existe.
+      missing: 'Esa nota ya no existe.',
     },
     editor: {
       back: 'Volver a las notas',
@@ -195,6 +198,7 @@ export const texts = {
     captureTooLong: (max: number) =>
       `Es demasiado largo: el máximo es ${numberFormat.format(max)} caracteres`,
     captureFailed: 'No pude anotarlo. Probá de nuevo.',
+    loading: 'Cargando la Bandeja…',
     loadFailed: 'No pude cargar la Bandeja. Probá de nuevo.',
     // El contador junto a «Apuntes» en el riel: «Bandeja, 1 elemento».
     railLabel: (count: number) =>

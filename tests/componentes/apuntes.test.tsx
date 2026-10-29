@@ -428,7 +428,7 @@ describe('notas', () => {
     expect(
       within(dialog)
         .getAllByRole('button')
-        .map((button) => button.textContent),
+        .map((button) => button.getAttribute('aria-label') ?? button.textContent),
     ).toEqual(['Cerrar', 'Media y dispersión', 'Intervalos de confianza', 'Regresión', 'Sin tema']);
     await user.click(within(dialog).getByRole('button', { name: 'Regresión' }));
 

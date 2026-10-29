@@ -177,13 +177,14 @@ describe('Ajustes › «Demostración»: la primera vez y el elenco', () => {
     expect(screen.getByText(/^DEMOSTRACIÓN · hoy es /)).toBeTruthy();
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
 
-    await user.click(screen.getByRole('button', { name: 'Volver al elenco' }));
+    await user.click(await screen.findByRole('button', { name: 'Volver al elenco' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Estudiar' })).toBeTruthy();
     expect(await main().findByText('Estadística básica')).toBeTruthy();
   });
 
   it('[CA-041] en la primera vez, «Probar con un ejemplo (3 min)» muestra «Ejemplo» con su etiqueta, y Ajustes ofrece «Volver al elenco» en lugar de «Empezar»', async () => {
-    const { user } = openDemoWithTwoFolders();
+    const { api, user } = openDemoWithTwoFolders();
+    await seedSubjects(api);
     render(<App />);
     await user.click(await screen.findByRole('button', { name: 'Ajustes' }));
     await user.click(await screen.findByRole('button', { name: 'Empezar como la primera vez' }));
