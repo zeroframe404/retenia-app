@@ -156,16 +156,17 @@ test('[CA-035] en una ventana de 400 píxeles de ancho, las pantallas nuevas no 
   }
 });
 
-test('[CA-035] con zoom al 150 % y con la escala de Windows al 125 % (simulados), las pantallas nuevas no se desplazan a los costados', async ({
-  launchFromStart,
-  dataDir,
-}) => {
-  const folder = folders(dataDir);
-  // 960 píxeles de ventana a 150 % de zoom son 640 de ancho útil; a 125 % de escala, 768.
-  for (const [width, label] of [
-    [640, 'zoom 150 %'],
-    [768, 'escala 125 %'],
-  ] as const) {
+// 960 píxeles de ventana a 150 % de zoom son 640 de ancho útil; a 125 % de escala, 768. Cada ancho
+// es una prueba aparte: recorrer las pantallas dos veces seguidas pasaba los 60 segundos en el CI.
+for (const [width, label] of [
+  [640, 'con zoom al 150 %'],
+  [768, 'con la escala de Windows al 125 % (simulada)'],
+] as const) {
+  test(`[CA-035] ${label}, las pantallas nuevas no se desplazan a los costados`, async ({
+    launchFromStart,
+    dataDir,
+  }) => {
+    const folder = folders(dataDir);
     for (const [name, visit] of SCREENS) {
       const { page, close } = await launchFromStart(folder());
       await page.setViewportSize({ width, height: 720 });
@@ -173,8 +174,8 @@ test('[CA-035] con zoom al 150 % y con la escala de Windows al 125 % (simulados)
       expect(await sidewaysProblems(page), `${name} (${label})`).toEqual([]);
       await close();
     }
-  }
-});
+  });
+}
 
 test('[CA-036] ninguna pantalla nueva muestra «undefined», «null», «NaN», «[object Object]», inglés suelto ni relleno, ni las palabras prohibidas', async ({
   launchFromStart,
