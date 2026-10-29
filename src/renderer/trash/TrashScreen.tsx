@@ -99,7 +99,12 @@ export function TrashScreen({
     act(async () => {
       const { restored } = await window.retenia['trash.restore']({ entryId: row.id });
       if (!restored) {
-        return texts.trash.notRestored;
+        if (row.kind === null) {
+          return texts.trash.notRestored;
+        }
+        return row.kind === texts.trash.kinds.topic
+          ? texts.trash.topicNameTaken
+          : texts.trash.otherNotRestored;
       }
       return row.kind === null ? texts.trash.restored : texts.trash.otherRestored;
     });

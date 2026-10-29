@@ -69,7 +69,9 @@ describe('catálogo de textos', () => {
     expect(texts.trash.title).toBe('Papelera');
     expect(texts.trash.restore).toBe('Restaurar');
     expect(texts.trash.emptyTrash).toBe('Vaciar papelera');
-    expect(texts.trash.confirmEmpty).toBe('Las tarjetas de la papelera se eliminan para siempre.');
+    expect(texts.trash.confirmEmpty).toBe(
+      'Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.',
+    );
     expect(texts.trash.confirm).toBe('Vaciar');
     expect(texts.trash.expires('14/04/2027')).toBe('Se elimina para siempre el 14/04/2027');
     expect(texts.activity.title).toBe('Actividad reciente');

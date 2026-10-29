@@ -36,7 +36,7 @@ describe('pantalla «Papelera»', () => {
     const card = bridge.workspace.cards.create({ question: '¿Qué es la varianza?', answer: 'R' });
     bridge.workspace.cards.remove({ cardId: card.id });
     render(<TrashScreen />);
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     const [row] = within(list).getAllByRole('listitem');
     expect(row?.textContent).toContain('¿Qué es la varianza?');
     expect(row?.textContent).toContain('Se elimina para siempre el 14/04/2027');
@@ -54,9 +54,17 @@ describe('pantalla «Papelera»', () => {
     bridge.workspace.cards.remove({ cardId: card.id });
     render(<TrashScreen />);
     await user.click(await screen.findByRole('button', { name: 'Vaciar papelera' }));
-    expect(screen.getByText('Las tarjetas de la papelera se eliminan para siempre.')).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.',
+      ),
+    ).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(screen.queryByText('Las tarjetas de la papelera se eliminan para siempre.')).toBeNull();
+    expect(
+      screen.queryByText(
+        'Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.',
+      ),
+    ).toBeNull();
     expect(bridge.workspace.trash.list()).toHaveLength(1);
 
     await user.click(screen.getByRole('button', { name: 'Vaciar papelera' }));
@@ -74,7 +82,7 @@ describe('pantalla «Papelera»', () => {
       throw new Error('base bloqueada');
     };
     render(<TrashScreen />);
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     await user.click(within(list).getByRole('button', { name: 'Restaurar' }));
     expect(await screen.findByText('No pude completar esto. Probá de nuevo.')).toBeTruthy();
     expect(screen.queryByText(/base bloqueada/)).toBeNull();
@@ -171,7 +179,7 @@ describe('pantalla «Papelera» con notas, temas y Bandeja', () => {
     await api['inbox.delete']({ itemId: items[0]?.id ?? '' });
 
     render(<TrashScreen />);
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     const rows = within(list).getAllByRole('listitem');
     expect(rows.map((row) => row.querySelector('p')?.textContent)).toEqual([
       'Revisar el capítulo 4',
@@ -191,7 +199,7 @@ describe('pantalla «Papelera» con notas, temas y Bandeja', () => {
     const { subject, note } = await seedOrganization(bridge.api);
     await bridge.api['notes.delete']({ noteId: note.id });
     render(<TrashScreen />);
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     await user.click(within(list).getByRole('button', { name: 'Restaurar' }));
     expect(await screen.findByText('Volvió a su lugar.')).toBeTruthy();
     expect(await screen.findByText('La papelera está vacía.')).toBeTruthy();
@@ -208,7 +216,7 @@ describe('pantalla «Papelera» con notas, temas y Bandeja', () => {
     const note = await bridge.api['notes.create']({ subjectId: subject.id, topicId: null });
     await bridge.api['notes.delete']({ noteId: note.id });
     render(<TrashScreen />);
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     expect(within(list).getByText('Sin título')).toBeTruthy();
   });
 

@@ -452,8 +452,30 @@ describe('la Bandeja', () => {
         name: 'Papelera',
       }),
     );
-    const list = await screen.findByRole('list', { name: 'Tarjetas en la papelera' });
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
     await user.click(within(list).getByRole('button', { name: 'Restaurar' }));
     expect(await within(rail()).findByRole('button', { name: 'Bandeja, 1 elemento' })).toBeTruthy();
+  });
+
+  it('un tema que no se puede restaurar porque su nombre está en uso lo dice con sus palabras', async () => {
+    const { api, user } = openWindow();
+    const { statistics } = await seedSubjects(api);
+    const first = await api['topics.create']({ subjectId: statistics.id, name: 'Regresión' });
+    await api['topics.delete']({ topicId: first.id });
+    await api['topics.create']({ subjectId: statistics.id, name: 'Regresión' });
+    render(<App />);
+    await screen.findByRole('navigation', { name: 'Riel lateral' });
+    await goTo(user, 'Apuntes');
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Secciones de Apuntes' })).getByRole('button', {
+        name: 'Papelera',
+      }),
+    );
+    const list = await screen.findByRole('list', { name: 'Elementos en la papelera' });
+    await user.click(within(list).getByRole('button', { name: 'Restaurar' }));
+    expect(
+      await screen.findByText('No pude restaurar el tema: ya hay otro con ese nombre.'),
+    ).toBeTruthy();
+    expect(screen.queryByText('Esa tarjeta ya no está en la papelera.')).toBeNull();
   });
 });

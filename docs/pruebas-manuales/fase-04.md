@@ -33,7 +33,7 @@ Los textos de abajo son los que muestra el programa hoy y coinciden letra por le
 
 ## M04.4 · Restaurar de verdad · CA-020
 
-- Hacé: eliminá «¿Qué mide el desvío estándar?». Abrí «Papelera» y tocá «Vaciar papelera»; aparece «Las tarjetas de la papelera se eliminan para siempre.»: tocá «Vaciar». Volvé a «Datos y copias», elegí la copia recién hecha («Hecha por vos») y tocá «Restaurar».
+- Hacé: eliminá «¿Qué mide el desvío estándar?». Abrí «Papelera» y tocá «Vaciar papelera»; aparece «Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.»: tocá «Vaciar». Volvé a «Datos y copias», elegí la copia recién hecha («Hecha por vos») y tocá «Restaurar».
 - Tenés que ver: la tarjeta vuelve a la lista con sus dos renglones de historial, y en la lista de copias aparece una más: «Antes de restaurar».
 - Aclaración: al terminar dice «Listo: volviste a la copia del 22/03/2027 10:00. Lo que había antes quedó en la copia «Antes de restaurar».».
 
@@ -80,7 +80,7 @@ En `docs/pruebas-manuales/capturas/`, en claro y en oscuro (terminan en `-claro.
 - `fase-04-5-actividad-reciente`: tus cambios, con «Deshacer».
 - `fase-04-6-datos-y-copias`: «Todo en orden · 0 diferencias», «Copia hecha y verificada.» y la lista de copias con «Verificada».
 - `fase-04-7-papelera`: la tarjeta eliminada, con la fecha en que se elimina para siempre.
-- `fase-04-8-papelera-confirmacion`: «Las tarjetas de la papelera se eliminan para siempre.» con «Vaciar» y «Cancelar».
+- `fase-04-8-papelera-confirmacion`: «Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.» con «Vaciar» y «Cancelar».
 - `fase-04-9-restaurada`: «Listo: volviste a la copia del 22/03/2027 10:00…» y «Antes de restaurar» primera en la lista.
 - `fase-04-10-diferencias`: una agenda tocada a mano con Retenia cerrado: «Hay 1 diferencia», el detalle y «Reparar desde el historial».
 
