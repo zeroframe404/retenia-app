@@ -14,6 +14,12 @@ export const demoTexts = {
   reset: 'Restablecer fecha',
   failed: 'No pude cambiar la fecha. Probá de nuevo.',
   offline: 'Simular sin conexión',
+  // Abre Retenia con la base vacía, como la primera vez, y vuelve al elenco de ejemplo (Fase 07).
+  firstTime: {
+    start: 'Empezar como la primera vez',
+    back: 'Volver al elenco',
+    failed: 'No pude cambiar los datos de la demostración. Probá de nuevo.',
+  },
   // Ajustes › «Demostración» › «Galería» (H-08): todos los componentes con sus variantes y los
   // seis estados de una vista. Los datos que muestra son de ejemplo.
   gallery: {

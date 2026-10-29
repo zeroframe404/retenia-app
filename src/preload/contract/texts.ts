@@ -5,6 +5,9 @@
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 const numberFormat = new Intl.NumberFormat('es-AR');
+
+// Cómo se llama una nota que no tiene título.
+const UNTITLED = 'Sin título';
 const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
 
 export const texts = {
@@ -30,12 +33,193 @@ export const texts = {
     progress: 'Todavía no disponible. Acá vas a ver cuánto conservás y qué podés hacer.',
     goToNotes: 'Ir a Apuntes',
   },
-  // Apuntes, por ahora, tiene adentro la lista de tarjetas, la Papelera y la Actividad reciente.
+  // Apuntes: las notas con sus temas, la Bandeja y, por ahora, la lista provisoria de tarjetas, la
+  // Papelera y la Actividad reciente.
   notes: {
     tabsLabel: 'Secciones de Apuntes',
+    notesTab: 'Notas',
+    inboxTab: 'Bandeja',
     cards: 'Tarjetas',
     trash: 'Papelera',
     activity: 'Actividad reciente',
+    loadFailed: 'No pude cargar tus notas. Probá de nuevo.',
+    retry: 'Reintentar',
+    actionFailed: 'No pude completar esto. Probá de nuevo.',
+    topics: {
+      label: 'Temas',
+      all: 'Todas las notas',
+      none: 'Sin tema',
+      archived: 'Archivadas',
+      // El nombre del tema con cuántas notas tiene: «Media y dispersión · 2».
+      withCount: (name: string, count: number) => `${name} · ${numberFormat.format(count)}`,
+      newTopic: 'Nuevo tema',
+      nameLabel: 'Nombre del tema',
+      create: 'Crear',
+      cancel: 'Cancelar',
+      rename: 'Renombrar',
+      renameTitle: 'Renombrar el tema',
+      save: 'Guardar',
+      details: 'Detalles',
+      detailsTitle: (name: string) => `Detalles de «${name}»`,
+      archive: 'Archivar tema',
+      unarchive: 'Desarchivar tema',
+      remove: 'Eliminar tema',
+      otherNames: 'Otros nombres',
+      noOtherNames: 'Todavía no tiene otros nombres.',
+      notesCount: (count: number) =>
+        count === 1 ? '1 nota' : `${numberFormat.format(count)} notas`,
+      nameRequired: 'Escribí el nombre del tema',
+      nameTooLong: (max: number) =>
+        `El nombre es demasiado largo: el máximo es ${numberFormat.format(max)} caracteres`,
+      nameTaken: 'Ya tenés un tema con ese nombre en esta materia',
+      archivedTopicsLabel: 'Temas archivados',
+    },
+    list: {
+      label: 'Notas',
+      archivedLabel: 'Notas archivadas',
+      newNote: 'Nueva nota',
+      untitled: UNTITLED,
+      inTopic: (topic: string) => `Tema: ${topic}`,
+      withoutTopic: 'Sin tema',
+      emptyAll: 'Todavía no hay notas en esta materia. Tocá «Nueva nota» para escribir la primera.',
+      emptyNone: 'No hay notas sin tema.',
+      emptyTopic: 'Este tema todavía no tiene notas.',
+      emptyArchived: 'No archivaste nada.',
+      moveTo: 'Mover a…',
+      moveTitle: 'Mover a…',
+      moveNone: 'Sin tema',
+      moveNoTopics: 'Todavía no creaste temas. Podés dejarla sin tema.',
+      archive: 'Archivar',
+      unarchive: 'Desarchivar',
+      remove: 'Eliminar',
+      open: 'Abrir',
+    },
+    toast: {
+      undo: 'Deshacer',
+      undone: 'Listo: deshiciste el cambio.',
+      notUndone: 'Ese cambio ya no se puede deshacer.',
+      archived: 'Nota archivada.',
+      unarchived: 'Nota desarchivada.',
+      moved: (topic: string) => `Nota movida a «${topic}».`,
+      movedToNone: 'Nota movida a «Sin tema».',
+      removed: 'La nota está en la Papelera.',
+      topicCreated: (name: string) => `Tema «${name}» creado.`,
+      topicRenamed: (name: string) => `Tema renombrado a «${name}».`,
+      topicArchived: 'Tema archivado.',
+      topicUnarchived: 'Tema desarchivado.',
+      topicRemoved: 'El tema está en la Papelera.',
+    },
+    editor: {
+      back: 'Volver a las notas',
+      titleLabel: 'Título',
+      contentLabel: 'Contenido de la nota',
+      saveFailed: 'No pude guardar tu nota. Lo que escribiste sigue acá: probá de nuevo.',
+      loadFailed: 'No pude abrir la nota. Probá de nuevo.',
+      fold: 'Plegar',
+      unfold: 'Desplegar',
+      drag: 'Mover el renglón',
+      imageAlt: 'Imagen de la nota',
+      imageFailed: 'No pude guardar la imagen.',
+      imageLoadFailed: 'No pude mostrar la imagen.',
+      mentionList: 'Notas para enlazar',
+      mentionEmpty: 'No encontré notas con ese nombre.',
+      mentionOption: (title: string, topic: string | null) =>
+        topic === null ? title : `${title} · ${topic}`,
+      mentionedIn: 'Mencionada en',
+      noMentions: 'Ninguna nota la menciona todavía.',
+      mentionsLabel: 'Renglones que la mencionan',
+      mentionOpen: (note: string) => `Abrir ${note}`,
+      mentionsFailed: 'No pude cargar las menciones. Probá de nuevo.',
+      missingNote: 'una nota que ya no existe',
+    },
+  },
+  // La materia que estás mirando y la activa; «Cambiar» abre la lista de materias (H-09).
+  subjects: {
+    activeLabel: 'Materia activa',
+    viewing: (name: string) => `Estás mirando: ${name}`,
+    viewingActive: (name: string) => `Estás mirando tu materia activa: ${name}`,
+    active: (name: string) => `Materia activa: ${name}`,
+    noActive: 'Todavía no tenés una materia activa.',
+    change: 'Cambiar',
+    dialogTitle: 'Tus materias',
+    listLabel: 'Materias',
+    newSubject: 'Nueva materia',
+    nameLabel: 'Nombre',
+    create: 'Crear',
+    cancel: 'Cancelar',
+    open: 'Abrir',
+    makeActive: 'Hacer activa',
+    status: {
+      active: 'Activa',
+      maintenance: 'En mantenimiento',
+      paused: 'En pausa',
+      archived: 'Archivada',
+    },
+    // La materia con su estado: «Estadística básica · En mantenimiento».
+    row: (name: string, status: string) => `${name} · ${status}`,
+    activated: (name: string) => `«${name}» es ahora tu materia activa.`,
+    nameRequired: 'Escribí el nombre de la materia',
+    nameTooLong: (max: number) =>
+      `El nombre es demasiado largo: el máximo es ${numberFormat.format(max)} caracteres`,
+    nameTaken: 'Ya tenés una materia con ese nombre',
+    failed: 'No pude completar esto. Probá de nuevo.',
+    loadFailed: 'No pude cargar tus materias. Probá de nuevo.',
+    retry: 'Reintentar',
+  },
+  // La primera vez: una sola pregunta (CA-041).
+  firstTime: {
+    question: '¿Qué querés aprender ahora?',
+    addMaterial: 'Agregar mi primer material',
+    tryExample: 'Probar con un ejemplo (3 min)',
+    nameRequired: 'Escribí qué querés aprender',
+    nameTooLong: (max: number) =>
+      `Es demasiado largo: el máximo es ${numberFormat.format(max)} caracteres`,
+    failed: 'No pude guardar esto. Probá de nuevo.',
+  },
+  // Anotar al vuelo (Ctrl+Mayús+N) y la Bandeja (H-11).
+  inbox: {
+    title: 'Bandeja',
+    listLabel: 'Elementos de la Bandeja',
+    empty: 'La Bandeja está vacía. Con Ctrl+Mayús+N anotás algo al vuelo desde cualquier pantalla.',
+    moveTo: 'Mover a…',
+    moveTitle: 'Mover a…',
+    moveNoTopics: 'Esta materia todavía no tiene temas. Creá uno en Notas y volvé.',
+    remove: 'Eliminar',
+    removed: 'El elemento está en la Papelera.',
+    moved: (topic: string) => `Pasó a «${topic}» como nota.`,
+    captureTitle: 'Anotar al vuelo',
+    captureLabel: 'Anotá lo que se te ocurrió',
+    captureSave: 'Guardar',
+    captured: 'Anotado en la Bandeja.',
+    captureRequired: 'Escribí algo para anotar',
+    captureTooLong: (max: number) =>
+      `Es demasiado largo: el máximo es ${numberFormat.format(max)} caracteres`,
+    captureFailed: 'No pude anotarlo. Probá de nuevo.',
+    loadFailed: 'No pude cargar la Bandeja. Probá de nuevo.',
+    // El contador junto a «Apuntes» en el riel: «Bandeja, 1 elemento».
+    railLabel: (count: number) =>
+      `Bandeja, ${count === 1 ? '1 elemento' : `${numberFormat.format(count)} elementos`}`,
+    railBadge: 'Bandeja',
+  },
+  // La materia «Ejemplo» de «Probar con un ejemplo (3 min)»: contenido real y corto.
+  example: {
+    subject: 'Ejemplo',
+    topic: 'Cómo se aprende mejor',
+    note: 'Primero intentá, después mirá la respuesta',
+    blocks: [
+      {
+        depth: 0,
+        text: 'Intentar recordar antes de mirar la respuesta fortalece la memoria más que releer.',
+      },
+      { depth: 1, text: 'Aunque falles, el intento hace que la respuesta se grabe mejor.' },
+      { depth: 0, text: 'Repasar justo antes de olvidar rinde más que repasar todo seguido.' },
+      {
+        depth: 1,
+        text: 'Por eso Retenia espacia los repasos: cada vez más lejos si te salen bien.',
+      },
+      { depth: 0, text: 'Tus apuntes se escriben en renglones.' },
+      { depth: 1, text: 'Tab mete un renglón adentro del anterior y Mayús+Tab lo saca.' },
+    ],
   },
   // Ctrl+K: por ahora abre un cuadro sin búsqueda.
   search: {
@@ -221,6 +405,10 @@ export const texts = {
     emptied: 'Vaciaste la papelera.',
     loadFailed: 'No pude cargar la papelera. Probá de nuevo.',
     actionFailed: 'No pude completar esto. Probá de nuevo.',
+    // Lo que no es tarjeta: de qué tipo es cada cosa y qué se dice al restaurarla.
+    kinds: { note: 'Nota', topic: 'Tema', inbox: 'Bandeja' },
+    otherRestored: 'Volvió a su lugar.',
+    untitled: UNTITLED,
   },
   activity: {
     title: 'Actividad reciente',
@@ -245,6 +433,45 @@ export const texts = {
     undidEdit: (card: string) => `Deshiciste la edición de ${card}`,
     undidRemove: (card: string) => `Deshiciste la eliminación de ${card}`,
     undidRestore: (card: string) => `Deshiciste la restauración de ${card}`,
+    // Notas, temas, materias y Bandeja (Fase 07). `label` nulo: ya no existe; vacío: una nota sin
+    // título.
+    things: {
+      note: (label: string | null) =>
+        label === null
+          ? 'una nota que ya no existe'
+          : `la nota «${label === '' ? UNTITLED : label}»`,
+      topic: (label: string | null) =>
+        label === null ? 'un tema que ya no existe' : `el tema «${label}»`,
+      subject: (label: string | null) =>
+        label === null ? 'una materia que ya no existe' : `la materia «${label}»`,
+      inbox: (label: string | null) =>
+        label === null ? 'un elemento que ya no existe' : `«${label}» de la Bandeja`,
+    },
+    did: {
+      create: 'Creaste',
+      rename: 'Renombraste',
+      move: 'Moviste',
+      archive: 'Archivaste',
+      unarchive: 'Desarchivaste',
+      remove: 'Eliminaste',
+      restore: 'Restauraste',
+      activate: 'Activaste',
+    },
+    undid: {
+      create: 'Deshiciste la creación de',
+      rename: 'Deshiciste el cambio de nombre de',
+      move: 'Deshiciste el movimiento de',
+      archive: 'Deshiciste el archivado de',
+      unarchive: 'Deshiciste el desarchivado de',
+      remove: 'Deshiciste la eliminación de',
+      restore: 'Deshiciste la restauración de',
+      activate: 'Deshiciste la activación de',
+    },
+    purgedOther: {
+      note: 'Eliminaste para siempre una nota de la papelera',
+      topic: 'Eliminaste para siempre un tema de la papelera',
+      inbox: 'Eliminaste para siempre un elemento de la papelera',
+    },
   },
   settings: {
     title: 'Ajustes',

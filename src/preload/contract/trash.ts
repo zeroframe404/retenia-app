@@ -13,6 +13,21 @@ const trashItemSchema = z.strictObject({
 });
 
 export const trashListResponse = z.strictObject({ items: z.array(trashItemSchema) });
+
+// Lo que no es tarjeta (Fase 07): notas, temas y elementos de la Bandeja. «Restaurar» y «Vaciar
+// papelera» sirven para todo, con el mismo identificador de entrada.
+const trashOrganizationItemSchema = z.strictObject({
+  id: z.uuid(),
+  kind: z.enum(['note', 'topic', 'inbox']),
+  // El título de la nota (vacío si no tenía), el nombre del tema o el texto de la Bandeja.
+  name: z.string(),
+  deletedDay: day,
+  expiresDay: day,
+});
+export const trashOrganizationResponse = z.strictObject({
+  items: z.array(trashOrganizationItemSchema),
+});
+export type TrashOrganizationItem = z.output<typeof trashOrganizationItemSchema>;
 export const trashRestoreRequest = z.strictObject({ entryId: z.uuid() });
 export const trashRestoreResponse = z.strictObject({ restored: z.boolean() });
 export const trashEmptyResponse = z.strictObject({ purged: z.number().int().nonnegative() });

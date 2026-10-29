@@ -24,14 +24,57 @@ import {
 import { noRequest } from './common';
 import type { demoChannels } from './demo';
 import type { labChannels } from './lab';
+import {
+  imagesReadRequest,
+  imagesReadResponse,
+  imagesSaveRequest,
+  imagesSaveResponse,
+  noteIdRequest,
+  noteSchema,
+  noteSummarySchema,
+  notesCreateRequest,
+  notesDeleteResponse,
+  notesGetResponse,
+  notesListRequest,
+  notesListResponse,
+  notesMentionsResponse,
+  notesMoveRequest,
+  notesSaveRequest,
+  notesSaveResponse,
+  notesTitlesRequest,
+  notesTitlesResponse,
+} from './notes';
+import {
+  inboxCaptureRequest,
+  inboxCaptureResponse,
+  inboxDeleteResponse,
+  inboxIdRequest,
+  inboxListRequest,
+  inboxListResponse,
+  inboxMoveRequest,
+  subjectSchema,
+  subjectsActivateRequest,
+  subjectsCreateExampleRequest,
+  subjectsCreateRequest,
+  subjectsListRequest,
+  subjectsListResponse,
+  topicIdRequest,
+  topicSchema,
+  topicsCreateRequest,
+  topicsDeleteResponse,
+  topicsListRequest,
+  topicsListResponse,
+  topicsRenameRequest,
+} from './organization';
 import { pingRequest, pingResponse } from './ping';
 import {
   trashEmptyResponse,
   trashListResponse,
+  trashOrganizationResponse,
   trashRestoreRequest,
   trashRestoreResponse,
 } from './trash';
-import { zoomRequest, zoomResponse } from './window';
+import { flushedRequest, flushedResponse, zoomRequest, zoomResponse } from './window';
 
 // El contrato del puente: por cada canal, el esquema de la petición y el de la respuesta.
 // El puente y el proceso principal se arman recorriendo este mapa; no hay listas a mano.
@@ -47,7 +90,34 @@ export const channels = {
   'cards.edit': { request: cardsEditRequest, response: cardSchema },
   'cards.history': { request: cardIdRequest, response: cardHistorySchema },
   'cards.delete': { request: cardIdRequest, response: cardsDeleteResponse },
+  'subjects.list': { request: subjectsListRequest, response: subjectsListResponse },
+  'subjects.create': { request: subjectsCreateRequest, response: subjectSchema },
+  'subjects.activate': { request: subjectsActivateRequest, response: subjectsListResponse },
+  'subjects.createExample': { request: subjectsCreateExampleRequest, response: subjectSchema },
+  'topics.list': { request: topicsListRequest, response: topicsListResponse },
+  'topics.create': { request: topicsCreateRequest, response: topicSchema },
+  'topics.rename': { request: topicsRenameRequest, response: topicSchema },
+  'topics.archive': { request: topicIdRequest, response: topicSchema },
+  'topics.unarchive': { request: topicIdRequest, response: topicSchema },
+  'topics.delete': { request: topicIdRequest, response: topicsDeleteResponse },
+  'notes.list': { request: notesListRequest, response: notesListResponse },
+  'notes.create': { request: notesCreateRequest, response: noteSchema },
+  'notes.get': { request: noteIdRequest, response: notesGetResponse },
+  'notes.save': { request: notesSaveRequest, response: notesSaveResponse },
+  'notes.move': { request: notesMoveRequest, response: noteSummarySchema },
+  'notes.archive': { request: noteIdRequest, response: noteSummarySchema },
+  'notes.unarchive': { request: noteIdRequest, response: noteSummarySchema },
+  'notes.delete': { request: noteIdRequest, response: notesDeleteResponse },
+  'notes.titles': { request: notesTitlesRequest, response: notesTitlesResponse },
+  'notes.mentions': { request: noteIdRequest, response: notesMentionsResponse },
+  'images.save': { request: imagesSaveRequest, response: imagesSaveResponse },
+  'images.read': { request: imagesReadRequest, response: imagesReadResponse },
+  'inbox.list': { request: inboxListRequest, response: inboxListResponse },
+  'inbox.capture': { request: inboxCaptureRequest, response: inboxCaptureResponse },
+  'inbox.move': { request: inboxMoveRequest, response: noteSummarySchema },
+  'inbox.delete': { request: inboxIdRequest, response: inboxDeleteResponse },
   'trash.list': { request: noRequest, response: trashListResponse },
+  'trash.listOrganization': { request: noRequest, response: trashOrganizationResponse },
   'trash.restore': { request: trashRestoreRequest, response: trashRestoreResponse },
   'trash.empty': { request: noRequest, response: trashEmptyResponse },
   'activity.recent': { request: noRequest, response: activityRecentResponse },
@@ -59,6 +129,7 @@ export const channels = {
   'backups.repairData': { request: noRequest, response: differencesResponse },
   'backups.openFolder': { request: noRequest, response: openFolderResponse },
   'window.zoom': { request: zoomRequest, response: zoomResponse },
+  'window.flushed': { request: flushedRequest, response: flushedResponse },
 };
 
 export type Registry = Readonly<Record<string, { request: z.ZodType; response: z.ZodType }>>;
