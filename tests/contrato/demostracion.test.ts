@@ -151,6 +151,9 @@ describe('contrato: canales de demostración', () => {
       'demo.state',
       'demo.advanceDays',
       'demo.resetDate',
+      'demo.dataMode',
+      'demo.useFirstTime',
+      'demo.useCast',
     ]);
   });
 });
