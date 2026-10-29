@@ -270,11 +270,21 @@ export type OrganizationUndoPlan =
   | { readonly action: 'unarchive' }
   | { readonly action: 'move'; readonly topicId: string | null }
   | { readonly action: 'rename'; readonly name: string }
-  | { readonly action: 'activate'; readonly subjectId: string };
+  | {
+      readonly action: 'activate';
+      readonly subjectId: string;
+      // El estado que tenía la materia que se había activado (en pausa, por ejemplo).
+      readonly restore?: { readonly subjectId: string; readonly status: SubjectStatus };
+    };
 
 const moveDetail = z.object({ from: z.string().nullable(), to: z.string().nullable() });
 const renameDetail = z.object({ before: z.string(), after: z.string() });
-const activateDetail = z.object({ previousActiveId: z.string().nullable() });
+// `activatedPreviousStatus` solo se guarda cuando no era «en mantenimiento», que es lo que deja
+// «Hacer activa» al deshacer por omisión.
+const activateDetail = z.object({
+  previousActiveId: z.string().nullable(),
+  activatedPreviousStatus: z.enum(SUBJECT_STATUSES).optional(),
+});
 
 function restoreFromTrash(
   operation: OrganizationOperation,
@@ -352,12 +362,21 @@ export function undoOrganizationPlan(
       if (!detail.success || snapshot.entity !== 'subject') {
         return null;
       }
-      const { previousActiveId } = detail.data;
-      return previousActiveId !== null &&
-        snapshot.activeSubjectId === operation.entityId &&
-        snapshot.isUsable(previousActiveId)
+      const { previousActiveId, activatedPreviousStatus } = detail.data;
+      if (
+        previousActiveId === null ||
+        snapshot.activeSubjectId !== operation.entityId ||
+        !snapshot.isUsable(previousActiveId)
+      ) {
+        return null;
+      }
+      return activatedPreviousStatus === undefined || activatedPreviousStatus === 'active'
         ? { action: 'activate', subjectId: previousActiveId }
-        : null;
+        : {
+            action: 'activate',
+            subjectId: previousActiveId,
+            restore: { subjectId: operation.entityId, status: activatedPreviousStatus },
+          };
     }
     case 'note.purge':
     case 'topic.purge':

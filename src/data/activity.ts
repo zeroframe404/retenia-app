@@ -14,7 +14,7 @@ import { inboxState, trashInboxItem } from './inbox';
 import { moveNoteRow, noteState, setNoteArchived, trashNote } from './notes';
 import { restoreAnyEntry } from './organization-trash';
 import type { Writer } from './orm';
-import { inboxItems, notes, operations, topics } from './schema';
+import { inboxItems, notes, operations, subjects, topics } from './schema';
 import { activateSubjectRow, subjectName, subjectState } from './subjects';
 import { renameTopicRow, setTopicArchived, topicState, trashTopic } from './topics';
 
@@ -180,8 +180,16 @@ function undoOrganization(
     case 'rename':
       renameTopicRow(tx, clock, id, plan.name, options);
       return true;
-    case 'activate':
-      return activateSubjectRow(tx, clock, plan.subjectId, options);
+    case 'activate': {
+      const changed = activateSubjectRow(tx, clock, plan.subjectId, options);
+      if (plan.restore) {
+        tx.update(subjects)
+          .set({ status: plan.restore.status })
+          .where(eq(subjects.id, plan.restore.subjectId))
+          .run();
+      }
+      return changed;
+    }
   }
 }
 

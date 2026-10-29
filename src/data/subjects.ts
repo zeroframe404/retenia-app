@@ -99,7 +99,13 @@ export function activateSubjectRow(
     kind: 'subject.activate',
     entityType: 'subject',
     entityId: subjectId,
-    detail: { previousActiveId: previous?.id ?? null },
+    detail: {
+      previousActiveId: previous?.id ?? null,
+      // Para que «Deshacer» la deje como estaba (en pausa, archivada); «en mantenimiento» es lo habitual.
+      ...(asStatus(target.status) === 'maintenance'
+        ? {}
+        : { activatedPreviousStatus: asStatus(target.status) }),
+    },
     undoesId,
     source,
   });
