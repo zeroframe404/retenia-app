@@ -548,6 +548,18 @@ describe('qué se puede deshacer de la organización', () => {
     expect(undoOrganizationPlan(activated, subject({ activeSubjectId: 'historia' }))).toBeNull();
   });
 
+  it('[CA-038] deshacer devuelve a la materia activada el estado que tenía antes (en pausa, por ejemplo)', () => {
+    const activated = op('subject.activate', {
+      entityId: 'ejemplo',
+      detail: { previousActiveId: 'estadistica', activatedPreviousStatus: 'paused' },
+    });
+    expect(undoOrganizationPlan(activated, subject({ activeSubjectId: 'ejemplo' }))).toEqual({
+      action: 'activate',
+      subjectId: 'estadistica',
+      restore: { subjectId: 'ejemplo', status: 'paused' },
+    });
+  });
+
   it('activar una materia no se deshace si la anterior ya no existe o está archivada, ni si no había anterior', () => {
     const activated = op('subject.activate', {
       entityId: 'quimica',

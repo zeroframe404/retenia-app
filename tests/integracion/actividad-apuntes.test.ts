@@ -23,6 +23,23 @@ function withSubject(options?: Parameters<typeof openSpace>[0]) {
 
 const kinds = (items: { kind: string }[]) => items.map((item) => item.kind);
 
+describe('«Hacer activa» y «Deshacer»', () => {
+  it('[CA-038] deshacer devuelve la activa de antes y deja a la otra como estaba (en pausa)', () => {
+    const { workspace, subject, recent, undo } = withSubject();
+    const example = workspace.subjects.createExample({ activate: false });
+    expect(example.status).toBe('paused');
+
+    workspace.subjects.activate({ subjectId: example.id });
+    const activation = recent().find((item) => item.kind === 'subject.activate');
+    expect(undo(activation?.id)).toEqual({ undone: true });
+
+    const byId = Object.fromEntries(
+      workspace.subjects.list().subjects.map((entry) => [entry.id, entry.status]),
+    );
+    expect(byId).toEqual({ [subject.id]: 'active', [example.id]: 'paused' });
+  });
+});
+
 describe('qué muestra «Actividad reciente»', () => {
   it('muestra altas, movimientos, archivados y borrados de notas y temas, con su nombre de hoy', () => {
     const { workspace, subject, topic, recent } = withSubject();
