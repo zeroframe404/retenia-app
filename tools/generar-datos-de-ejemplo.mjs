@@ -3,13 +3,15 @@
 // tools/datos-de-ejemplo/contenido.mjs. Los PDF salen del motor de impresión de Electron (el
 // mismo Chromium de Retenia): la página 9 de «Inferencia — capítulos 1 a 4.pdf» es una imagen
 // de un escaneo, sin capa de texto. El audio «good morning» lo dice Kokoro con los modelos de
-// desarrollo (node tools/preparar.mjs los baja). Los archivos quedan en el repositorio: esto
-// solo se vuelve a correr si cambia el contenido.
+// desarrollo (node tools/preparar.mjs los baja). La campana de Gauss del elenco (campana.png, que
+// también va embebida en elenco/materias.json) la arma tools/datos-de-ejemplo/campana.mjs. Los
+// archivos quedan en el repositorio: esto solo se vuelve a correr si cambia el contenido.
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { writeBellCurve } from './datos-de-ejemplo/campana.mjs';
 import * as content from './datos-de-ejemplo/contenido.mjs';
 import { documentHtml, docx, scanHtml } from './datos-de-ejemplo/documentos.mjs';
 import { DEV_MODELS_DIR } from './lib/modelos.mjs';
@@ -136,6 +138,9 @@ async function generate({ app, BrowserWindow }) {
     writeFileSync(join(OUT, 'pagina.html'), content.WEB_PAGE_HTML);
     writeFileSync(join(OUT, 'no-es-un-pdf.pdf'), content.NOT_A_PDF);
     console.log('  notas.md, resumen.docx, pagina.html, no-es-un-pdf.pdf');
+    console.log(
+      `  campana.png (${Math.round(writeBellCurve(OUT) / 1024)} KB, también en el elenco)`,
+    );
     goodMorningWav();
     app.exit(0);
   } catch (error) {

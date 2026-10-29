@@ -22,6 +22,20 @@
       "when": 1792005862095,
       "tag": "0002_libro_mayor_disparadores",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793280610413,
+      "tag": "0003_materias_apuntes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793280621013,
+      "tag": "0004_apuntes_disparadores",
+      "breakpoints": true
     }
   ]
 }

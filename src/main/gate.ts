@@ -63,16 +63,21 @@ export function createGate(): Gate {
   };
 }
 
-// Cada manejador pasa por la compuerta: restaurar una copia, solo; todo lo demás, en común.
+// Cada manejador pasa por la compuerta: restaurar una copia, solo; todo lo demás, en común. Los
+// canales exclusivos de la variante de prueba (cambiar los datos de la demostración, que cierra
+// una base y abre otra) llegan en `extraExclusive`: no se nombran acá para que la versión real no
+// los lleve.
 export function gateHandlers<H extends Readonly<Record<string, AnyHandler>>>(
   handlers: H,
   gate: Gate,
+  extraExclusive: readonly string[] = [],
 ): H {
+  const exclusive = new Set([...EXCLUSIVE_CHANNELS, ...extraExclusive]);
   return Object.fromEntries(
     Object.entries(handlers).map(([name, handler]) => [
       name,
       (request: never) =>
-        EXCLUSIVE_CHANNELS.has(name)
+        exclusive.has(name)
           ? gate.exclusive(() => handler(request))
           : gate.shared(() => handler(request)),
     ]),

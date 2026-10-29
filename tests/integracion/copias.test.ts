@@ -159,6 +159,8 @@ describe('«Hacer copia ahora»', () => {
       '0000_tarjetas',
       '0001_libro_mayor',
       '0002_libro_mayor_disparadores',
+      '0003_materias_apuntes',
+      '0004_apuntes_disparadores',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

@@ -1,0 +1,168 @@
+{
+  "subjects": [
+    {
+      "name": "Estadística básica",
+      "active": true,
+      "topics": ["Media y dispersión", "Intervalos de confianza", "Pruebas de hipótesis"],
+      "notes": [
+        {
+          "title": "Intervalos de confianza",
+          "topic": "Intervalos de confianza",
+          "blocks": [
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Un intervalo de confianza da un rango de valores plausibles para un parámetro, por ejemplo la media de la población."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Error estándar de la media: s / sqrt(n)"
+                }
+              ]
+            },
+            {
+              "depth": 1,
+              "parts": [
+                {
+                  "text": "s es el desvío de la muestra y n es su tamaño."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "El intervalo para la media: $\\bar{x} \\pm t \\cdot s/\\sqrt{n}$"
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "varianza: el promedio de los cuadrados de las distancias a la media."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "El 95 % no es la probabilidad de que la media esté en este intervalo: habla del procedimiento."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "image": "campana",
+                  "alt": "Curva normal, la campana de Gauss"
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Ver también "
+                },
+                {
+                  "link": "Media y desvío"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "Media y desvío",
+          "topic": "Media y dispersión",
+          "blocks": [
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "La media es el promedio de los datos: se suman los valores y se divide por la cantidad."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "El desvío estándar mide cuánto se alejan, en promedio, los datos de la media."
+                }
+              ]
+            },
+            {
+              "depth": 1,
+              "parts": [
+                {
+                  "text": "Es la raíz cuadrada de la varianza."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Para ver cómo se usa en un intervalo: "
+                },
+                {
+                  "link": "Intervalos de confianza"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Historia argentina",
+      "active": false,
+      "topics": ["Independencia"],
+      "notes": [
+        {
+          "title": "Revolución de Mayo",
+          "topic": "Independencia",
+          "blocks": [
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "El 25 de mayo de 1810 se formó en Buenos Aires la Primera Junta."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "El 9 de julio de 1816 el Congreso de Tucumán declaró la Independencia."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Inglés",
+      "active": false,
+      "topics": [],
+      "notes": []
+    }
+  ],
+  "images": {
+    "campana": {
+      "width": 320,
+      "height": 200,
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAAUAAAADICAIAAAAWZq/8AAADmElEQVR42u3d0UkDQRSF4dtJSrMhi7AhW7CEkAfB17yJmIRA2J29Z+Zb/gpm+TjuCFo/32dJoZUjkACWBLAkgCWAJQEsCWBJAEsASwJYEsASwJIAlgSwJIAlgCUBLAlgSQBLAEsCWBLAEsCSAJYEsCSAJYAlASwJYEkASwBLAlgSwBLAkgCWBLAkgCWAJQGsnTu9fdzmWABWnluSAdYkdDEGWAF0P78ut2EMsFrrvev2qWTHCLAy6GIMsHrpfYHuI8YOFmAl6WUYYB2jdxO6dxk7ZIAVppdhgJWtl2GAla2XYYCVrZdhgJWtl2GAtTHgwXr/GvYKAFaeXoYBVrZehgFW2Kevj2GANc/8GmGAla2XYYCVrZdhgBX26etjGGDNM79GGGBl62UYYGXrZRhgASyA6WVYANPLMMACWADTy7AAjgMcqvfXsJcIsPm9GGEBTC/DAAtggAHWCnoZBtjd1SSGvVaAza8RFsD0MgywAAYYYC2hl2GA3V25zRLA5tcIAyx6GQZYAAtgehkWwO6u3GYBLPNrhAE2v0ZYAJtfIwyw6GUYYAEMMMD0MiyA3V25zQJY5tcIA2x+BTDA5tcIC2B6GQZYAAMMML0MC2B3V26zAJb5NcIAm18ZYYDNrxEWwPQyDLAABhhgesUwwO6u3GYJYPNrhAGml0OGAQYYYAFML8MAy92V2yyAza+MMMD0MiyAAQYYYNHLMMDuruQ2C2Dza4QBdgT0MgwwwAIYYHrFMMD0MgywAAYYYHrFMMD0MiyAAQYYYHrFMMD0imGA99ILcDfADANsfo0wwPSKYYDpFcMAAwwwwKKXYYDpFcMA+72R/FYJYHoZBtgPz/KDNMD0imGA6RXDAPv09TEMML1iGGB6xTDA9DK8oOGiVwwDTK8YBpheMQwwvQwvYrjoFcMA0yuGAaZXDANMrxYxXBPTpVf/DM/HuOgVwwDTK4YBRlcYrwaYXi1ruKahS69eMxzNuNAVxrmMi14xnGu40JVyGVeiW3Q1gHGE5IqjS69GGm7OuILcoqsDGfeUXNxKuZKrs1t01ZlxB8nVEC23ipN8FObqwJVbzSR5JOk6BCq3WkryfrBrPFdoBfNWpAcB9naFdADgd4/H8+zpAtib8Hg2efxJHck/+JYEsCSAJQEsASwJYEkASwJYAlgSwJIAlgCWBLAkgCUBLAEsCWBJAEsAOwUJYEkASwJYAlgSwJIAlgSwBLCkFl0BqAFz2Hp5KXEAAAAASUVORK5CYII="
+    }
+  }
+}

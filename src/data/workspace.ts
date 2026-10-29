@@ -25,9 +25,14 @@ import {
 import { type CardsStore, createCardsStore } from './cards';
 import { openDatabase } from './database';
 import { newId } from './ids';
+import { createImagesStore, type ImagesStore } from './images';
+import { createInboxStore, type InboxStore } from './inbox';
 import { continueSequence, readLedgerState } from './ledger';
 import { migrationIds } from './migrations';
+import { createNotesStore, type NotesStore } from './notes';
 import { type DataDifference, repairData, verifyData } from './projections';
+import { createSubjectsStore, type SubjectsStore } from './subjects';
+import { createTopicsStore, type TopicsStore } from './topics';
 import { createTrashStore, type TrashStore } from './trash';
 
 // La carpeta de datos de Retenia y lo que vive en ella: la base (retenia.db), las copias
@@ -41,6 +46,11 @@ export interface Workspace {
   readonly cards: CardsStore;
   readonly trash: TrashStore;
   readonly activity: ActivityStore;
+  readonly subjects: SubjectsStore;
+  readonly topics: TopicsStore;
+  readonly notes: NotesStore;
+  readonly inbox: InboxStore;
+  readonly images: ImagesStore;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
@@ -156,6 +166,11 @@ export function openWorkspace({
       cards: createCardsStore(db, clock),
       trash: createTrashStore(db, clock),
       activity: createActivityStore(db, clock),
+      subjects: createSubjectsStore(db, clock),
+      topics: createTopicsStore(db, clock),
+      notes: createNotesStore(db, clock),
+      inbox: createInboxStore(db, clock),
+      images: createImagesStore(db, dataDir, clock),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -215,6 +230,21 @@ export function openWorkspace({
     },
     get activity() {
       return current().activity;
+    },
+    get subjects() {
+      return current().subjects;
+    },
+    get topics() {
+      return current().topics;
+    },
+    get notes() {
+      return current().notes;
+    },
+    get inbox() {
+      return current().inbox;
+    },
+    get images() {
+      return current().images;
     },
     verifyData: () => verifyData(current().db),
     repairData: () => repairData(current().db),

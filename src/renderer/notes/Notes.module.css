@@ -1,0 +1,117 @@
+/* Apuntes › «Notas»: los temas a un lado y la lista de notas al otro. En una ventana angosta (o con
+   zoom grande) todo se apila y nada se desplaza hacia los costados. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: var(--espacio-24);
+  align-items: start;
+}
+
+.side {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
+}
+
+.topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--espacio-4);
+  min-width: 0;
+}
+
+.topic {
+  display: block;
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-12);
+  font: var(--tipo-cuerpo-fuerte);
+  text-align: left;
+  color: var(--color-tinta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background: transparent;
+  border: var(--trazo-lleno) transparent;
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.topic:hover {
+  background: var(--color-superficie-hundida);
+  transition: background-color var(--movimiento-rapido) var(--curva);
+}
+
+.topic[aria-current="true"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  /* Una barra a la izquierda: se distingue también sin ver el tinte del fondo. */
+  box-shadow: inset var(--espacio-4) 0 0 var(--color-marca);
+}
+
+.content {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: var(--espacio-8);
+  min-width: 0;
+}
+
+.group h4,
+.dialogHeading {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.topicActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}
+
+/* Los cuadros de «Mover a…»: un botón por tema. */
+.choices {
+  display: grid;
+  gap: var(--espacio-8);
+  min-width: 0;
+}
+
+.choices > button {
+  justify-content: flex-start;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.choices > button > span {
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.dialogText {
+  margin: 0;
+  font: var(--tipo-cuerpo);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topics {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .topic {
+    width: auto;
+    max-width: 100%;
+    border-color: var(--color-linea-fuerte);
+    border-radius: var(--radio-pildora);
+  }
+}

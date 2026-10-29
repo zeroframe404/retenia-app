@@ -68,6 +68,44 @@
   min-width: 0;
 }
 
+/* La Bandeja, justo debajo de «Apuntes»: una fila aparte y más chica que un destino, con su número.
+   No marca pantalla actual: no es un destino. */
+.inbox {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-12);
+  width: 100%;
+  min-height: var(--espacio-32);
+  padding: 0 var(--espacio-12) 0 var(--espacio-32);
+  font: var(--tipo-pequeno);
+  text-align: left;
+  color: var(--color-tinta-suave);
+  background: transparent;
+  border: var(--trazo-lleno) transparent;
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.inbox:hover {
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    color var(--movimiento-rapido) var(--curva);
+}
+
+.count {
+  min-width: var(--espacio-24);
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-rotulo);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: var(--rotulo-espaciado);
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-radius: var(--radio-pildora);
+}
+
 .shortcut {
   padding: 0 var(--espacio-4);
   font: var(--tipo-pequeno);
@@ -101,6 +139,14 @@
   .destination {
     justify-content: center;
     padding: 0;
+  }
+
+  /* El ícono con el número abajo: en 48 píxeles de ancho no entran uno al lado del otro. */
+  .inbox {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0;
+    padding: var(--espacio-4) 0;
   }
 }
 
@@ -159,6 +205,22 @@
   border-color: var(--color-marca);
 }
 
+/* El número de una sección (el de la Bandeja), al lado de su nombre. */
+.sectionCount {
+  margin-left: var(--espacio-4);
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-rotulo);
+  text-transform: uppercase;
+  letter-spacing: var(--rotulo-espaciado);
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-radius: var(--radio-pildora);
+}
+
+.section[aria-current="page"] .sectionCount {
+  background: var(--color-superficie);
+}
+
 /* La lista. */
 .list {
   display: grid;
@@ -194,6 +256,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* El título que abre el elemento: un botón que se lee como enlace, con el mismo corte. */
+.itemOpen {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--color-marca-fuerte);
+  text-decoration: underline;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.itemOpen:hover {
+  color: var(--color-marca);
+}
+
+.item[draggable="true"] {
+  cursor: grab;
 }
 
 .itemText {

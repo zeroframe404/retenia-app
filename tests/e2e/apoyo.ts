@@ -48,17 +48,22 @@ type Fixtures = {
   // Abre Retenia en su pantalla inicial (Estudiar), tal como la ve quien la abre.
   launchFromStart: Launch;
   // Abre Retenia y deja a la vista la lista de tarjetas (Apuntes › «Tarjetas»): donde empezaban las
-  // pruebas de las Fases 03 a 05, antes de que existiera el riel.
+  // pruebas de las Fases 03 a 05, antes de que existiera el riel y de que Apuntes tuviera notas.
   launch: Launch;
   app: ElectronApplication;
   appWindow: Page;
 };
 
-// Apuntes › «Tarjetas», por el riel y por el nombre que se ve.
+// Apuntes › «Tarjetas», por el riel y por el nombre que se ve (desde la Fase 07 Apuntes abre en
+// «Notas»).
 async function openCards(page: Page): Promise<void> {
   await page
     .getByRole('navigation', { name: 'Riel lateral' })
     .getByRole('button', { name: 'Apuntes', exact: true })
+    .click();
+  await page
+    .getByRole('navigation', { name: 'Secciones de Apuntes' })
+    .getByRole('button', { name: 'Tarjetas', exact: true })
     .click();
   await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
 }

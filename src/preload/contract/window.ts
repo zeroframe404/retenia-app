@@ -5,3 +5,8 @@ import { z } from 'zod';
 // se lo pone a la ventana (CA-035).
 export const zoomRequest = z.strictObject({ direction: z.enum(['in', 'out', 'reset']) });
 export const zoomResponse = z.strictObject({ factor: z.number().positive() });
+
+// Al cerrar la ventana, el principal le pide a la pantalla que guarde lo que tenga a medio escribir
+// y espera este aviso antes de cerrar (CA-043: cerrar el programa nunca pierde lo escrito).
+export const flushedRequest = z.strictObject({});
+export const flushedResponse = z.strictObject({});

@@ -19,7 +19,8 @@
   font: var(--tipo-cuerpo-fuerte);
 }
 
-.field textarea {
+.field textarea,
+.field input {
   min-height: var(--alto-control);
   padding: var(--espacio-8) var(--espacio-12);
   font: var(--tipo-cuerpo);
@@ -27,12 +28,29 @@
   background: var(--color-papel);
   border: var(--trazo-lleno) var(--color-linea-fuerte);
   border-radius: var(--radio-8);
-  resize: vertical;
   overflow-wrap: anywhere;
 }
 
-.field textarea[aria-invalid="true"] {
+.field textarea {
+  resize: vertical;
+}
+
+.field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.field textarea[aria-invalid="true"],
+.field input[aria-invalid="true"] {
   border: 2px solid var(--color-parcial);
+}
+
+/* El mismo formulario sin la tarjeta alrededor, para los que viven adentro de un cuadro o de una
+   columna. */
+.inline {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
 }
 
 .fieldNotice {

@@ -190,6 +190,8 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0000_tarjetas' },
       { id: '0001_libro_mayor' },
       { id: '0002_libro_mayor_disparadores' },
+      { id: '0003_materias_apuntes' },
+      { id: '0004_apuntes_disparadores' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([
@@ -203,6 +205,15 @@ describe('base de datos: apertura y migraciones', () => {
         'operations',
         'trash_entries',
         'purge_permits',
+        'subjects',
+        'topics',
+        'topic_aliases',
+        'notes',
+        'blocks',
+        'block_versions',
+        'block_links',
+        'images',
+        'inbox_items',
       ]),
     );
   });

@@ -28,8 +28,10 @@ function isDemoFolder(folder) {
 }
 
 // Estado conocido: la carpeta vacía con su marca. Retenia (prueba) siembra sus tarjetas de
-// ejemplo la primera vez que abre una base vacía (src/main/demo/seed.ts), así que después de
-// reiniciar y abrir aparecen las tres de la Fase 03; el elenco completo llega en las fases siguientes.
+// ejemplo y las materias del elenco (con sus notas) la primera vez que abre una base vacía
+// (src/main/demo/seed.ts), así que después de reiniciar y abrir aparecen las tres tarjetas de la
+// Fase 03 y las materias de la Fase 07. Se borra todo, también `primera-vez` (los datos de
+// «Empezar como la primera vez») y `demo-modo.json` (el modo que quedó anotado).
 /** @param {string} [folder] */
 export function resetDemoData(folder = DEMO_DATA_DIR) {
   if (!isDemoFolder(folder)) {

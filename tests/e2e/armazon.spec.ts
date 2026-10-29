@@ -117,7 +117,7 @@ test('[CA-031] cada pantalla abre con su título y tiene exactamente un botón p
   }
 });
 
-test('[CA-031] lo que todavía no existe dice «Todavía no disponible» y «Ir a Apuntes» lleva a Apuntes, donde viven las tarjetas', async ({
+test('[CA-031] lo que todavía no existe dice «Todavía no disponible» y «Ir a Apuntes» lleva a Apuntes, que abre en «Notas»', async ({
   launchFromStart,
 }) => {
   const { page } = await launchFromStart();
@@ -127,8 +127,8 @@ test('[CA-031] lo que todavía no existe dice «Todavía no disponible» y «Ir 
   }
   await page.getByRole('button', { name: 'Ir a Apuntes' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Apuntes' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
-  await expect(page.getByRole('listitem')).toHaveCount(3);
+  await expect(page.getByRole('heading', { level: 3, name: 'Notas' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Nueva nota' })).toBeVisible();
 });
 
 test('[CA-031] la pantalla provisoria «Tarjetas» ya no está en el riel: vive adentro de Apuntes, con la Papelera y la Actividad reciente', async ({
@@ -373,6 +373,11 @@ test('[CA-034] sin mouse: se recorre todo Ajustes con Tab, sin saltear nada, y l
   const { page } = await launchFromStart();
   await page.keyboard.press('Control+6');
   await expect(page.getByRole('heading', { level: 2, name: 'Ajustes' })).toBeFocused();
+  // Ajustes termina de cargar (copias y «Demostración» piden sus datos): recién ahí se cuentan las
+  // paradas de Tab, que si no cambian mientras se las cuenta.
+  await expect(page.getByRole('list', { name: 'Tus copias' })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Simular sin conexión' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Empezar como la primera vez' })).toBeVisible();
   // Cuántas paradas de Tab hay: cada control suelto y una por cada grupo de opciones.
   const expected = await page.evaluate(() => {
     const controls = [
