@@ -18,6 +18,9 @@ function openApp(variant: 'prueba' | 'real') {
   vi.stubGlobal('__VARIANTE__', variant);
   const bridge = openBridge();
   bridges.push(bridge);
+  // Desde la Fase 07 una base sin materias es la primera vez (una sola pregunta, sin riel): el
+  // armazón se prueba con una materia activa.
+  bridge.workspace.subjects.create({ name: 'Estadística básica', makeActive: true });
   let api: unknown = bridge.api;
   if (variant === 'prueba') {
     const demo = createDemoDate(bridge.dataDir);
@@ -104,7 +107,7 @@ describe('el riel lateral', () => {
     }
     expect(found).toEqual({
       Estudiar: ['Ir a Apuntes'],
-      Apuntes: ['Nueva tarjeta'],
+      Apuntes: ['Nueva nota'],
       Materiales: ['Ir a Apuntes'],
       Idiomas: ['Ir a Apuntes'],
       Progreso: ['Ir a Apuntes'],
@@ -133,13 +136,16 @@ describe('Apuntes: adentro está la pantalla provisoria «Tarjetas»', () => {
     expect(within(rail()).queryByRole('button', { name: 'Tarjetas' })).toBeNull();
     expect(within(rail()).queryByRole('button', { name: 'Papelera' })).toBeNull();
     await goTo(user, 'Apuntes');
-    expect(await screen.findByText('¿Capital de Francia?')).toBeTruthy();
     const sections = screen.getByRole('navigation', { name: 'Secciones de Apuntes' });
     expect(
       within(sections)
         .getAllByRole('button')
         .map((button) => button.textContent),
-    ).toEqual(['Tarjetas', 'Papelera', 'Actividad reciente']);
+    ).toEqual(['Notas', 'Bandeja', 'Tarjetas', 'Papelera', 'Actividad reciente']);
+    // Apuntes abre en «Notas»; las tarjetas siguen en su sección.
+    expect(screen.queryByText('¿Capital de Francia?')).toBeNull();
+    await user.click(within(sections).getByRole('button', { name: 'Tarjetas' }));
+    expect(await screen.findByText('¿Capital de Francia?')).toBeTruthy();
     await user.click(within(sections).getByRole('button', { name: 'Papelera' }));
     expect(await screen.findByRole('heading', { level: 3, name: 'Papelera' })).toBeTruthy();
     await user.click(within(sections).getByRole('button', { name: 'Actividad reciente' }));

@@ -41,6 +41,17 @@ async function openApp() {
     'demo.connection': async () => ({ offline: false }),
     'demo.setConnection': async ({ offline }: { offline: boolean }) => ({ offline }),
   } as unknown as typeof window.retenia;
+  const subject = await bridge.api['subjects.create']({
+    name: 'Estadística básica',
+    makeActive: true,
+  });
+  const topic = await bridge.api['topics.create']({
+    subjectId: subject.id,
+    name: 'Media y dispersión',
+  });
+  const note = await bridge.api['notes.create']({ subjectId: subject.id, topicId: topic.id });
+  await bridge.api['notes.save']({ noteId: note.id, title: 'Media y desvío', blocks: note.blocks });
+  await bridge.api['inbox.capture']({ text: 'Revisar el teorema central del límite' });
   await bridge.api['cards.create']({ question: '¿Qué mide el desvío estándar?', answer: 'x' });
   const second = await bridge.api['cards.create']({
     question: '¿Qué es la varianza?',
@@ -83,7 +94,7 @@ describe('las pantallas no muestran textos prohibidos', () => {
     }
   });
 
-  it('[CA-036] las tres secciones de Apuntes, con tarjetas, Papelera y Actividad reciente de verdad', async () => {
+  it('[CA-036] las secciones de Apuntes, con notas, Bandeja, tarjetas, Papelera y Actividad reciente de verdad', async () => {
     const { user } = await openApp();
     render(<App />);
     await user.click(
@@ -91,9 +102,15 @@ describe('las pantallas no muestran textos prohibidos', () => {
         name: 'Apuntes',
       }),
     );
+    expect(await screen.findByRole('button', { name: 'Media y desvío' })).toBeTruthy();
+    expect(problems(), 'Notas').toEqual([]);
+    const sections = screen.getByRole('navigation', { name: 'Secciones de Apuntes' });
+    await user.click(within(sections).getByRole('button', { name: /^Bandeja/ }));
+    expect(await screen.findByText('Revisar el teorema central del límite')).toBeTruthy();
+    expect(problems(), 'Bandeja').toEqual([]);
+    await user.click(within(sections).getByRole('button', { name: 'Tarjetas' }));
     expect(await screen.findByText('¿Qué mide el desvío estándar?')).toBeTruthy();
     expect(problems(), 'Tarjetas').toEqual([]);
-    const sections = screen.getByRole('navigation', { name: 'Secciones de Apuntes' });
     await user.click(within(sections).getByRole('button', { name: 'Papelera' }));
     expect(await screen.findByText('¿Qué es la varianza?')).toBeTruthy();
     expect(problems(), 'Papelera').toEqual([]);
@@ -108,6 +125,11 @@ describe('las pantallas no muestran textos prohibidos', () => {
     await user.click(
       within(screen.getByRole('navigation', { name: 'Riel lateral' })).getByRole('button', {
         name: 'Apuntes',
+      }),
+    );
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Secciones de Apuntes' })).getByRole('button', {
+        name: 'Tarjetas',
       }),
     );
     await user.click(await screen.findByRole('button', { name: 'Nueva tarjeta' }));
@@ -143,6 +165,66 @@ describe('las pantallas no muestran textos prohibidos', () => {
     await user.click(screen.getByRole('button', { name: 'Galería' }));
     expect(await screen.findByRole('heading', { level: 2, name: 'Galería' })).toBeTruthy();
     expect(problems(), 'Galería').toEqual([]);
+  });
+
+  it('[CA-036] Estudiar con la materia activa y los cuadros de materias, captura al vuelo, «Mover a…», «Renombrar» y «Detalles»', async () => {
+    const { user } = await openApp();
+    render(<App />);
+    expect(await screen.findByText('Materia activa')).toBeTruthy();
+    expect(problems(), 'Estudiar').toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(await screen.findByRole('dialog', { name: 'Tus materias' })).toBeTruthy();
+    expect(problems(), 'materias').toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Nueva materia' }));
+    await user.click(screen.getByRole('button', { name: 'Crear' }));
+    expect(await screen.findByText('Escribí el nombre de la materia')).toBeTruthy();
+    expect(problems(), 'materias con aviso').toEqual([]);
+    await user.keyboard('{Escape}');
+
+    await user.keyboard('{Control>}{Shift>}n{/Shift}{/Control}');
+    expect(await screen.findByRole('dialog', { name: 'Anotar al vuelo' })).toBeTruthy();
+    expect(problems(), 'captura').toEqual([]);
+    await user.keyboard('{Enter}');
+    expect(await screen.findByText('Escribí algo para anotar')).toBeTruthy();
+    expect(problems(), 'captura con aviso').toEqual([]);
+    await user.keyboard('{Escape}');
+
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Riel lateral' })).getByRole('button', {
+        name: 'Apuntes',
+      }),
+    );
+    await user.click(await screen.findByRole('button', { name: /^Media y dispersión/ }));
+    await user.click(screen.getByRole('button', { name: 'Detalles' }));
+    expect(await screen.findByRole('dialog', { name: /^Detalles de / })).toBeTruthy();
+    expect(problems(), 'detalles').toEqual([]);
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Renombrar' }));
+    expect(await screen.findByRole('dialog', { name: 'Renombrar el tema' })).toBeTruthy();
+    expect(problems(), 'renombrar').toEqual([]);
+    await user.keyboard('{Escape}');
+    await user.click(await screen.findByRole('button', { name: 'Mover a…' }));
+    expect(await screen.findByRole('dialog', { name: 'Mover a…' })).toBeTruthy();
+    expect(problems(), 'mover').toEqual([]);
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Archivar' }));
+    expect(await screen.findByText('Nota archivada.')).toBeTruthy();
+    expect(problems(), 'con el cartel de deshacer').toEqual([]);
+  });
+
+  it('[CA-036] la pantalla de la primera vez, sin y con aviso', async () => {
+    vi.stubGlobal('__VARIANTE__', 'real');
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    render(<App />);
+    expect(await screen.findByText('¿Qué querés aprender ahora?')).toBeTruthy();
+    expect(problems(), 'primera vez').toEqual([]);
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Agregar mi primer material' }));
+    expect(await screen.findByText('Escribí qué querés aprender')).toBeTruthy();
+    expect(problems(), 'primera vez con aviso').toEqual([]);
   });
 
   it('[CA-036] el barrido de pantallas sabe encontrar un problema: «undefined» en pantalla se marca', () => {
