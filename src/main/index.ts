@@ -10,6 +10,7 @@ import { labChannels } from '../preload/contract/lab';
 import { texts } from '../preload/contract/texts';
 import { createAppearanceStore } from './appearance';
 import { createHandlers, handleMessage, type Variant } from './bridge';
+import { createCloseGuard } from './close-guard';
 import { createDemoHandlers, demoExclusiveChannels } from './demo';
 import { createDemoDate } from './demo/clock';
 import { prepareLabSwitches, startLab } from './demo/lab-setup';
@@ -48,7 +49,6 @@ let mainWindow: BrowserWindow | null = null;
 // que guarde lo que tenga a medio escribir y se cierra cuando contesta (`window.flushed`) o, para que
 // una ventana colgada no impida cerrar, a los tres segundos.
 const FLUSH_TIMEOUT_MS = 3000;
-let closingConfirmed = false;
 let flushDone: (() => void) | null = null;
 
 function flushWindow(target: BrowserWindow): Promise<void> {
@@ -101,17 +101,18 @@ function createWindow(paper: string): void {
   });
   const frame = mainWindow;
   frame.once('ready-to-show', () => frame.show());
-  frame.on('close', (event) => {
-    if (closingConfirmed) {
-      return;
-    }
-    event.preventDefault();
-    closingConfirmed = true;
-    void flushWindow(frame).finally(() => {
+  const closeGuard = createCloseGuard(
+    () => flushWindow(frame),
+    () => {
       if (!frame.isDestroyed()) {
         frame.close();
       }
-    });
+    },
+  );
+  frame.on('close', (event) => {
+    if (closeGuard.onClose() === 'prevent') {
+      event.preventDefault();
+    }
   });
   frame.on('closed', () => {
     mainWindow = null;
