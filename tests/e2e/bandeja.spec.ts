@@ -59,6 +59,19 @@ test('[CA-046] el cuadro de captura funciona desde cualquier pantalla, no acepta
   await expect(badge(page)).toHaveCount(0);
 });
 
+test('[CA-046] anotar con Ctrl+Mayús+N estando en la Bandeja suma el elemento a la lista que se está viendo', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await goTo(page, 'Bandeja');
+  await expect(page.getByText(/^La Bandeja está vacía/)).toBeVisible();
+  await capture(page, 'Anotado mirando la Bandeja');
+  await expect(itemWith(page, 'Anotado mirando la Bandeja')).toBeVisible();
+  await capture(page, 'Otro más');
+  await expect(page.getByRole('listitem')).toHaveCount(2);
+  await expect(badge(page)).toHaveAccessibleName('Bandeja, 2 elementos');
+});
+
 test('[CA-046] lo anotado sigue en la Bandeja al cerrar y abrir Retenia', async ({
   launchFromStart,
   dataDir,
@@ -92,7 +105,8 @@ test('[CA-047] «Mover a…» «Intervalos de confianza» convierte el elemento 
   await expect(badge(page)).toHaveAccessibleName('Bandeja, 1 elemento');
 
   await goTo(page, 'Notas');
-  await page.getByRole('button', { name: /^Intervalos de confianza/ }).click();
+  // El tema, con su cantidad de notas (la nota del elenco se llama igual, pero sin la cantidad).
+  await page.getByRole('button', { name: /^Intervalos de confianza · / }).click();
   await expect(itemWith(page, 'Revisar teorema central del límite')).toBeVisible();
 });
 
