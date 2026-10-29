@@ -1,4 +1,8 @@
-import type { Block, InlineNode } from '../../../preload/contract/notes';
+import {
+  type Block,
+  type InlineNode,
+  MAX_BLOCK_TEXT_LENGTH,
+} from '../../../preload/contract/notes';
 import { newBlockId } from './block-id';
 
 // La conversión entre la lista plana de renglones del contrato (en orden de lectura, con
@@ -96,6 +100,29 @@ function inlineFromJson(content: readonly DocJson[] | undefined): InlineNode[] {
   return nodes;
 }
 
+// El puente acepta hasta MAX_BLOCK_TEXT_LENGTH caracteres por nodo de texto. Un renglón con más se
+// guarda en varios nodos seguidos (el editor los junta al abrir), sin partir un par sustituto
+// (un emoji): antes ese guardado fallaba siempre y al cerrar se perdía lo escrito.
+function splitLongText(nodes: InlineNode[]): InlineNode[] {
+  const out: InlineNode[] = [];
+  for (const node of nodes) {
+    if (node.type !== 'text' || node.text.length <= MAX_BLOCK_TEXT_LENGTH) {
+      out.push(node);
+      continue;
+    }
+    for (let start = 0; start < node.text.length; ) {
+      let end = Math.min(start + MAX_BLOCK_TEXT_LENGTH, node.text.length);
+      const last = node.text.charCodeAt(end - 1);
+      if (end < node.text.length && last >= 0xd800 && last <= 0xdbff) {
+        end -= 1;
+      }
+      out.push({ type: 'text', text: node.text.slice(start, end) });
+      start = end;
+    }
+  }
+  return out;
+}
+
 export function docToBlocks(doc: DocJson): Block[] {
   const blocks: Block[] = [];
   const collect = (list: DocJson, parentId: string | null) => {
@@ -109,7 +136,7 @@ export function docToBlocks(doc: DocJson): Block[] {
         id,
         parentId,
         collapsed: item.attrs?.collapsed === true,
-        content: inlineFromJson(paragraph?.content),
+        content: splitLongText(inlineFromJson(paragraph?.content)),
       });
       const nested = item.content?.find((child) => child.type === 'bulletList');
       if (nested) {
