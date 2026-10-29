@@ -5,6 +5,7 @@ import {
   type Block,
   blockSchema,
   type InlineNode,
+  MAX_BLOCK_TEXT_LENGTH,
   outlineIssue,
 } from '../../src/preload/contract/notes';
 import { newBlockId } from '../../src/renderer/notes/editor/block-id';
@@ -177,6 +178,25 @@ describe('editor · conversión entre los renglones del contrato y el documento'
     const paragraph = doc.content?.[0]?.content?.[0]?.content?.[0];
     expect(paragraph).toEqual({ type: 'paragraph' });
     expect(JSON.stringify(doc)).not.toContain('"text":""');
+  });
+
+  it('[CA-043] un texto más largo que el tope de un nodo se parte en varios nodos que el puente acepta, sin perder ni partir un emoji', () => {
+    const long = `${'a'.repeat(MAX_BLOCK_TEXT_LENGTH - 1)}😀${'ñ'.repeat(MAX_BLOCK_TEXT_LENGTH + 5)}`;
+    const blocks = docToBlocks(
+      blocksToDoc([
+        { id: uuid(1), parentId: null, collapsed: false, content: [{ type: 'text', text: long }] },
+      ]),
+    );
+
+    const content = blocks[0]?.content ?? [];
+    expect(content.length).toBeGreaterThan(1);
+    expect(blockSchema.safeParse(blocks[0]).success).toBe(true);
+    const texts = content.map((node) => (node.type === 'text' ? node.text : ''));
+    expect(texts.join('')).toBe(long);
+    for (const text of texts) {
+      expect(text.length).toBeLessThanOrEqual(MAX_BLOCK_TEXT_LENGTH);
+      expect(text).not.toMatch(/^[�-�]|[�-�]$/);
+    }
   });
 
   it('una nota sin renglones se abre con un renglón vacío que ya tiene su identificador', () => {
