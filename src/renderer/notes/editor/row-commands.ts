@@ -97,7 +97,9 @@ export function splitRow(type: NodeType): Command {
   };
 }
 
-// Retroceso al principio de un renglón anidado: lo saca a su lugar.
+// Retroceso al principio de un renglón. Si está anidado, lo saca a su lugar. Si es de primer nivel y
+// no tiene hijos, su texto pasa al final del renglón de arriba que se ve (el último de sus hijos
+// abiertos, si los tiene). Lo demás lo resuelve Tiptap como siempre.
 export function backspaceRow(type: NodeType): Command {
   const lift = liftRow(type);
   return (state, dispatch) => {
@@ -105,10 +107,43 @@ export function backspaceRow(type: NodeType): Command {
     if (!empty || $from.parentOffset !== 0 || $from.parent.type.name !== 'paragraph') {
       return false;
     }
-    if ($from.depth <= TOP_LEVEL_PARAGRAPH_DEPTH) {
+    if ($from.depth > TOP_LEVEL_PARAGRAPH_DEPTH) {
+      return lift(state, dispatch);
+    }
+    const depth = rowDepth($from);
+    const item = $from.node(depth);
+    const index = $from.index(depth - 1);
+    if (index === 0) {
       return false;
     }
-    return lift(state, dispatch);
+    const start = $from.before(depth);
+    let target = $from.node(depth - 1).child(index - 1);
+    let targetPos = start - target.nodeSize;
+    while (target.childCount > 1 && target.attrs.collapsed !== true) {
+      const nested = target.child(1);
+      const last = nested.child(nested.childCount - 1);
+      targetPos += 1 + target.child(0).nodeSize + 1 + nested.content.size - last.nodeSize;
+      target = last;
+    }
+    if (dispatch) {
+      const paragraphEnd = targetPos + 2 + target.child(0).content.size;
+      const tr = state.tr.delete(start, start + item.nodeSize);
+      // Sus hijos pasan con él: al final de los del renglón de arriba o, si no tiene, como su lista.
+      const children = item.childCount > 1 ? item.child(1) : null;
+      if (children !== null) {
+        const above = target.childCount > 1 ? target.child(1) : null;
+        if (above === null) {
+          tr.insert(paragraphEnd + 1, children);
+        } else {
+          tr.insert(paragraphEnd + 1 + above.content.size + 1, children.content);
+        }
+      }
+      const joinAt = paragraphEnd;
+      tr.insert(joinAt, item.child(0).content);
+      tr.setSelection(TextSelection.create(tr.doc, joinAt));
+      dispatch(tr.scrollIntoView());
+    }
+    return true;
   };
 }
 

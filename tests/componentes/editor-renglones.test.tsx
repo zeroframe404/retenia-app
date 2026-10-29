@@ -243,6 +243,42 @@ describe('editor · Tab, Mayús+Tab, mover y plegar con el teclado', () => {
     expect(outline(editor)).toBe('Uno,,');
   });
 
+  it('Retroceso al principio de un renglón de primer nivel pasa su texto al final del de arriba', async () => {
+    await renderNote(note('Juntar', [row(1, 'Uno'), row(2, 'Dos')]));
+    const editor = contentEditor();
+    putCursor(editor, rowId(2));
+    expect(pressKey(editor, 'Backspace').defaultPrevented).toBe(true);
+    expect(outline(editor)).toBe('UnoDos');
+    expect(blockIds(editor)).toEqual([rowId(1)]);
+    expect(editor.state.selection.$from.parentOffset).toBe(3);
+  });
+
+  it('Retroceso al principio de un renglón de primer nivel se junta con el último hijo abierto del de arriba', async () => {
+    await renderNote(note('Juntar', [row(1, 'Uno'), row(2, 'Hijo', { parent: 1 }), row(3, 'Dos')]));
+    const editor = contentEditor();
+    putCursor(editor, rowId(3));
+    pressKey(editor, 'Backspace');
+    expect(outline(editor)).toBe('Uno[HijoDos]');
+    expect(editor.state.selection.$from.parentOffset).toBe(4);
+  });
+
+  it('Retroceso al principio de un renglón con hijos junta el texto y los hijos pasan con él', async () => {
+    await renderNote(note('Juntar', [row(1, 'Uno'), row(2, 'Dos'), row(3, 'Tres', { parent: 2 })]));
+    const editor = contentEditor();
+    putCursor(editor, rowId(2));
+    pressKey(editor, 'Backspace');
+    expect(outline(editor)).toBe('UnoDos[Tres]');
+    expect(blockIds(editor)).toEqual([rowId(1), rowId(3)]);
+  });
+
+  it('Retroceso al principio del primer renglón no cambia nada', async () => {
+    await renderNote(note('Juntar', [row(1, 'Uno'), row(2, 'Dos')]));
+    const editor = contentEditor();
+    putCursor(editor, rowId(1));
+    pressKey(editor, 'Backspace');
+    expect(outline(editor)).toBe('Uno,Dos');
+  });
+
   it('Retroceso al principio de un renglón anidado lo saca a su lugar', async () => {
     await renderNote(note('Anidados', [row(1, 'Uno'), row(2, 'Dos', { parent: 1 })]));
     const editor = contentEditor();
