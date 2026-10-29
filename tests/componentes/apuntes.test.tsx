@@ -469,6 +469,27 @@ describe('notas', () => {
     );
   });
 
+  it('«Mover a…» al tema donde la nota ya está no cambia nada y no ofrece «Deshacer» de otro cambio', async () => {
+    const { api, user } = openWindow();
+    const { media, note } = await seedStatistics(api);
+    await seedNote(api, { subjectId: media.subjectId, topicId: media.id, title: 'Otra nota' });
+    render(<App />);
+    await openNotes(user);
+    await user.click(noteRow('Media y desvío').getByRole('button', { name: 'Mover a…' }));
+    const first = await screen.findByRole('dialog', { name: 'Mover a…' });
+    await user.click(within(first).getByRole('button', { name: 'Sin tema' }));
+    expect(await screen.findByText('Nota movida a «Sin tema».')).toBeTruthy();
+
+    await user.click(noteRow('Otra nota').getByRole('button', { name: 'Mover a…' }));
+    const second = await screen.findByRole('dialog', { name: 'Mover a…' });
+    await user.click(within(second).getByRole('button', { name: 'Media y dispersión' }));
+
+    expect(await screen.findByText('Esa nota ya está en «Media y dispersión».')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Deshacer' })).toBeNull();
+    const { notes } = await api['notes.list']({ subjectId: media.subjectId });
+    expect(notes.find((n) => n.id === note.id)?.topicId).toBeNull();
+  });
+
   it('sin temas, «Mover a…» lo dice y deja «Sin tema»', async () => {
     const { api, user } = openWindow();
     const { statistics } = await seedSubjects(api);
