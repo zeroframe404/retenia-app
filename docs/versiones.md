@@ -18,7 +18,7 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | Pieza | Versión exacta | Verificado | Licencia | Por qué esta y no otra |
 |---|---|---|---|---|
 | **Aplicación** | | | | |
-| electron | 44.7.0 | 13/10/2026 | MIT | Último parche del mayor estable más nuevo (Node 24.21.0, Chromium 152, ABI 149); Electron mantiene los tres últimos mayores (42, 43, 44). La 45 está en beta. |
+| electron | 44.10.0 | 29/10/2026 | MIT | Último parche del mayor estable más nuevo (Node 24.21.0, Chromium 152, ABI 149); Electron mantiene los tres últimos mayores (42, 43, 44). Subió de 44.7.0 el 29/10/2026 por un aviso de seguridad (GHSA-jr5w-w6x2-84p9, certificados intermedios de eMudhra) publicado después de la Fase 06: el arreglo está desde la 44.9.1. |
 | electron-vite | 5.0.0 | 13/10/2026 | MIT | Única versión estable; arma principal, puente, ventana y procesos de trabajo con una sola configuración. La 6.0 (Vite 8) está en beta 8. |
 | vite | 7.3.7 | 13/10/2026 | MIT | Última de la línea 7, la más alta que acepta electron-vite 5; Vite 8 espera a electron-vite 6. |
 | @vitejs/plugin-react | 5.2.0 | 13/10/2026 | MIT | La más alta que acepta Vite 7. La 6.1.2 (`latest`) declara que pide Vite 8: lo descubrió la instalación de la Fase 02. |

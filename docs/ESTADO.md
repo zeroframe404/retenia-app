@@ -1,6 +1,8 @@
 # Estado del proyecto
 
-**Fase 06 en revisión.** Retenia (prueba) tiene ahora su sistema de diseño y su armazón: a la izquierda un riel con «Buscar» y Estudiar, Apuntes, Materiales, Idiomas, Progreso y Ajustes (Ctrl+1 a Ctrl+6 y Ctrl+K), colores claro y oscuro con las tipografías incluidas en el programa, los 18 componentes y los seis estados de una vista en Ajustes › «Demostración» › «Galería», Ajustes › «Apariencia» («Claro», «Oscuro» y «Según el sistema», al instante y recordado) y el zoom con Ctrl y +. La pantalla provisoria de tarjetas pasó adentro de Apuntes. `npm run verificar` y `npm run verificar:todo` dan VERDE. Falta que hagas las pruebas manuales S1, S2, M06.1 a M06.9 y la prueba libre (`docs/pruebas-manuales/fase-06.md`). El instalador de prueba lo baja el CI: escribí «Bajame el instalador de prueba» en Claude Code.
+**Aviso del 29/10/2026.** El pull request #7 de la Fase 06 ya está fusionado (20/10/2026). Hoy `npm run verificar:todo` da ROJO por una sola cosa: la auditoría de dependencias encontró avisos de seguridad publicados después del 20/10 en `electron` (se arregla con el parche 44.10.0, permitido por `docs/versiones.md`) y en `undici` (pieza interna de herramientas de compilación y de pruebas). Las 1539 pruebas siguen en verde y los 30 criterios, cubiertos. Falta decidir una rama de mantenimiento; ver el informe de ese día. Faltan también los tags `fase-05-ok` y `fase-06-ok` y tus pruebas manuales.
+
+**Fase 06 fusionada, sin tag.** Retenia (prueba) tiene ahora su sistema de diseño y su armazón: a la izquierda un riel con «Buscar» y Estudiar, Apuntes, Materiales, Idiomas, Progreso y Ajustes (Ctrl+1 a Ctrl+6 y Ctrl+K), colores claro y oscuro con las tipografías incluidas en el programa, los 18 componentes y los seis estados de una vista en Ajustes › «Demostración» › «Galería», Ajustes › «Apariencia» («Claro», «Oscuro» y «Según el sistema», al instante y recordado) y el zoom con Ctrl y +. La pantalla provisoria de tarjetas pasó adentro de Apuntes. `npm run verificar` y `npm run verificar:todo` dan VERDE. Falta que hagas las pruebas manuales S1, S2, M06.1 a M06.9 y la prueba libre (`docs/pruebas-manuales/fase-06.md`). El instalador de prueba lo baja el CI: escribí «Bajame el instalador de prueba» en Claude Code.
 
 | Fase | Estado |
 |---|---|
@@ -11,7 +13,7 @@
 | 03 · Esqueleto caminante instalable | Fusionada; tag `fase-03-ok` puesto el 14/10/2026 (red completa en VERDE, 196 pruebas) |
 | 04 · Libro mayor, copias y deshacer | Fusionada; tag `fase-04-ok` puesto el 17/10/2026 (red completa en VERDE, 477 pruebas) |
 | 05 · Laboratorio de piezas riesgosas | Fusionada (17/10/2026, pull request #6), sin tag `fase-05-ok` todavía: lo pongo cuando lo pidas |
-| 06 · Sistema de diseño y armazón | En revisión: pull request abierto (rama `fase-06` sobre `main`), faltan tus pruebas manuales |
+| 06 · Sistema de diseño y armazón | Fusionada (20/10/2026, pull request #7), sin tag `fase-06-ok`: faltan tus pruebas manuales |
 
 Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (3 min 07 s, 20/10/2026). CI del pull request #7, en la última versión: «Red completa y compilación» en verde (32 min 35 s) e «Instaladores y humo del instalador» en verde (8 min 59 s, a la segunda: la primera vez se cortó la bajada de una herramienta de compilación del servidor de GitHub), con las capturas de referencia sin diferencias. Antes hubo cuatro corridas rojas por tiempos y por un error mío de configuración, todas resueltas y explicadas en docs/decisiones.md.
 
