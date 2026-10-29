@@ -1,11 +1,6 @@
 import { Node } from '@tiptap/core';
 import { ReactNodeViewRenderer } from '@tiptap/react';
-import { MentionView } from './MentionView';
-
-export interface MentionOptions {
-  // Un clic (o Enter) en el enlace: abre la nota por su identificador.
-  onOpen: (noteId: string) => void;
-}
+import { type MentionOptions, MentionView } from './MentionView';
 
 // El enlace a otra nota: un nodo chico que guarda el identificador de la nota y el nombre que tenía
 // al armarse. El nombre que se ve lo trae la nota abierta (ya refrescado), así renombrar la nota
