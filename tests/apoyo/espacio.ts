@@ -79,6 +79,6 @@ const PNG_1X1 = Buffer.from(
   'base64',
 );
 
-export function pngBytes(variant = 0): Uint8Array {
+export function pngBytes(variant = 0): Uint8Array<ArrayBuffer> {
   return new Uint8Array(variant === 0 ? PNG_1X1 : Buffer.concat([PNG_1X1, Buffer.from([variant])]));
 }

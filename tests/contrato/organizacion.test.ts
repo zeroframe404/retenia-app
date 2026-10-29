@@ -7,8 +7,10 @@ import { createHandlers, handleMessage } from '../../src/main/bridge';
 import { channels } from '../../src/preload/contract';
 import {
   IMAGE_TYPES,
+  MAX_BLOCK_TEXT_LENGTH,
   MAX_BLOCKS,
   MAX_IMAGE_BYTES,
+  MAX_INLINE_NODES,
   MAX_TITLE_LENGTH,
 } from '../../src/preload/contract/notes';
 import {
@@ -356,6 +358,10 @@ describe('pedidos inválidos: el principal los rechaza antes de tocar nada', () 
       { noteId: UUID, title: '', blocks: [{ ...valid, extra: 1 }] },
       { noteId: UUID, title: '', blocks: [{ ...valid, parentId: 'x' }] },
       withContent([{ type: 'text', text: '' }]),
+      withContent([{ type: 'text', text: 'x'.repeat(MAX_BLOCK_TEXT_LENGTH + 1) }]),
+      withContent(
+        Array.from({ length: MAX_INLINE_NODES + 1 }, () => ({ type: 'text', text: 'a' })),
+      ),
       withContent([{ type: 'text', text: 'a', extra: 1 }]),
       withContent([{ type: 'html', html: '<b>a</b>' }]),
       withContent([{ type: 'mention', id: 'x', label: 'A' }]),

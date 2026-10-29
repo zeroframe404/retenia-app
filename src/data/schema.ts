@@ -139,6 +139,9 @@ export const operations = sqliteTable(
     timeZone: text('time_zone').notNull(),
     deviceId: text('device_id').notNull(),
     seq: integer('seq').notNull(),
+    // Lo que hace falta para deshacer (Fase 07): el tema de antes, el nombre de antes, la materia
+    // activa de antes. JSON.
+    detail: text('detail'),
   },
   (table) => [
     uniqueIndex('operations_device_seq_unique').on(table.deviceId, table.seq),
@@ -174,3 +177,144 @@ export const purgePermits = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.entityType, table.entityId] })],
 );
+
+// --- Organización (Fase 07): materias, temas, notas, renglones, imágenes y Bandeja ---
+
+export const subjects = sqliteTable('subjects', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  // active, maintenance, paused o archived (la lista cerrada vive en core/organization).
+  status: text('status').notNull().default('maintenance'),
+  // La materia «Ejemplo»: lleva la etiqueta EJEMPLO y no suma progreso.
+  isExample: integer('is_example', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull(),
+  deletedAt: text('deleted_at'),
+});
+
+export const topics = sqliteTable(
+  'topics',
+  {
+    id: text('id').primaryKey(),
+    subjectId: text('subject_id')
+      .notNull()
+      .references(() => subjects.id),
+    name: text('name').notNull(),
+    // El orden de creación dentro de la materia.
+    position: integer('position').notNull(),
+    archivedAt: text('archived_at'),
+    createdAt: text('created_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [index('topics_subject_idx').on(table.subjectId)],
+);
+
+// «Otros nombres» de un tema: los que tuvo antes (CA-044).
+export const topicAliases = sqliteTable(
+  'topic_aliases',
+  {
+    topicId: text('topic_id')
+      .notNull()
+      .references(() => topics.id),
+    name: text('name').notNull(),
+    since: text('since').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.topicId, table.name] })],
+);
+
+export const notes = sqliteTable(
+  'notes',
+  {
+    id: text('id').primaryKey(),
+    subjectId: text('subject_id')
+      .notNull()
+      .references(() => subjects.id),
+    // Sin tema es nulo; un tema que se purgó también lo deja nulo.
+    topicId: text('topic_id').references(() => topics.id),
+    title: text('title').notNull().default(''),
+    archivedAt: text('archived_at'),
+    createdAt: text('created_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [index('notes_subject_topic_idx').on(table.subjectId, table.topicId)],
+);
+
+// Un renglón de una nota: la «cabeza» con su lugar. Lo que dice vive en sus versiones.
+export const blocks = sqliteTable(
+  'blocks',
+  {
+    id: text('id').primaryKey(),
+    noteId: text('note_id')
+      .notNull()
+      .references(() => notes.id),
+    parentBlockId: text('parent_block_id'),
+    position: integer('position').notNull(),
+    // Plegado: es del lugar, no del contenido (no crea versión).
+    collapsed: integer('collapsed', { mode: 'boolean' }).notNull().default(false),
+    currentVersionId: text('current_version_id').notNull(),
+    createdAt: text('created_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [
+    index('blocks_note_parent_idx').on(table.noteId, table.parentBlockId, table.position),
+  ],
+);
+
+// Las versiones de un renglón no se modifican (disparador de la migración 0004).
+export const blockVersions = sqliteTable(
+  'block_versions',
+  {
+    id: text('id').primaryKey(),
+    blockId: text('block_id')
+      .notNull()
+      .references(() => blocks.id),
+    // El JSON de lo que hay adentro del renglón: texto, enlaces e imágenes.
+    content: text('content').notNull(),
+    // El texto que usará el buscador (lleva el texto fuente de las fórmulas).
+    textPlain: text('text_plain').notNull(),
+    createdAt: text('created_at').notNull(),
+    cause: text('cause').notNull().default('edit'),
+  },
+  (table) => [index('block_versions_block_idx').on(table.blockId)],
+);
+
+// Los renglones que enlazan a una nota (para «Mencionada en»). Sin clave foránea hacia la nota
+// enlazada: purgar una nota saca los enlaces que apuntan a ella.
+export const blockLinks = sqliteTable(
+  'block_links',
+  {
+    blockId: text('block_id')
+      .notNull()
+      .references(() => blocks.id),
+    targetNoteId: text('target_note_id').notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.blockId, table.targetNoteId] }),
+    index('block_links_target_idx').on(table.targetNoteId),
+  ],
+);
+
+// Las imágenes de las notas: el archivo vive en `imagenes\<sha256>` de la carpeta de datos.
+export const images = sqliteTable(
+  'images',
+  {
+    id: text('id').primaryKey(),
+    sha256: text('sha256').notNull(),
+    mime: text('mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('images_sha256_unique').on(table.sha256)],
+);
+
+// La Bandeja: líneas sueltas, sin materia ni tema, hasta que se las mueve a un tema.
+export const inboxItems = sqliteTable('inbox_items', {
+  id: text('id').primaryKey(),
+  text: text('text').notNull(),
+  createdAt: text('created_at').notNull(),
+  // La nota en la que se convirtió (sin clave foránea: la nota puede purgarse).
+  movedToNoteId: text('moved_to_note_id'),
+  movedAt: text('moved_at'),
+  deletedAt: text('deleted_at'),
+});

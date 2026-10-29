@@ -4,6 +4,7 @@ import { InboxItemNotFoundError, TopicNotFoundError } from '../../src/data/organ
 import { MAX_TITLE_LENGTH, noteSummarySchema } from '../../src/preload/contract/notes';
 import {
   inboxCaptureResponse,
+  inboxItemSchema,
   inboxListResponse,
   MAX_INBOX_LENGTH,
 } from '../../src/preload/contract/organization';
@@ -38,6 +39,7 @@ describe('anotar en la Bandeja', () => {
       count: 1,
     });
     expect(inboxListResponse.safeParse(list).success).toBe(true);
+    expect(inboxItemSchema.safeParse(list.items[0]).success).toBe(true);
     expect(inboxCaptureResponse.safeParse({ count: 1 }).success).toBe(true);
     expect(workspace.subjects.count()).toBe(0);
   });

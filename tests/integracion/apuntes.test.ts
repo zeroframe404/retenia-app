@@ -23,7 +23,8 @@ afterEach(closeSpaces);
 function withSubject() {
   const space = openSpace();
   const subject = space.workspace.subjects.create({ name: 'Estadística básica', makeActive: true });
-  return { ...space, subject };
+  // El mismo objeto (no una copia): `reopen` le cambia el espacio de trabajo.
+  return Object.assign(space, { subject });
 }
 
 const textOf = (block: { content: readonly { type: string; text?: string }[] }) =>
@@ -784,7 +785,7 @@ describe('renombrar una nota enlazada', () => {
     expect(block?.content).toEqual([
       { type: 'mention', id: target.id, label: 'Media y desvío estándar' },
     ]);
-    expect(workspace.notes.mentions({ noteId: target.id }).mentions).toHaveLength(1);
+    expect(space.workspace.notes.mentions({ noteId: target.id }).mentions).toHaveLength(1);
   });
 
   it('[CA-376] una nota enlazada que se queda sin título se muestra como «Sin título»', () => {

@@ -1,5 +1,6 @@
 import fc from 'fast-check';
-import { describe, it } from 'vitest';
+import { afterAll, describe, it } from 'vitest';
+import { demoClock } from '../../src/core/clock';
 import {
   activateSubject,
   type IncomingBlock,
@@ -9,6 +10,9 @@ import {
   SUBJECT_STATUSES,
   sameName,
 } from '../../src/core/organization';
+import { openWorkspace } from '../../src/data/workspace';
+import { tempDataFolder } from '../apoyo/base';
+import { readRows } from '../apoyo/base-cruda';
 
 const SEED = 20270315;
 
@@ -120,7 +124,7 @@ describe('«Otros nombres» de un tema', () => {
   });
 });
 
-// Un árbol de renglones armado en orden de lectura: cada uno cuelga de otro anterior o de la raíz.
+// Un árbol de renglones en orden de lectura: cada padre seguido de sus hijos, uno tras otro.
 const outline = fc
   .array(
     fc.record({
@@ -131,18 +135,22 @@ const outline = fc
     { minLength: 1, maxLength: 12 },
   )
   .map((rows) => {
-    const blocks: IncomingBlock[] = [];
+    const created: IncomingBlock[] = [];
     rows.forEach((row, index) => {
       const parent =
-        index === 0 || row.parent % (index + 1) === index ? null : blocks[row.parent % index];
-      blocks.push({
+        index === 0 || row.parent % (index + 1) === index ? null : created[row.parent % index];
+      created.push({
         id: `b${index}`,
         parentId: parent?.id ?? null,
         collapsed: row.collapsed,
         content: row.text === '' ? [] : [{ type: 'text', text: row.text }],
       });
     });
-    return blocks;
+    const walk = (parentId: string | null): IncomingBlock[] =>
+      created
+        .filter((block) => block.parentId === parentId)
+        .flatMap((block) => [block, ...walk(block.id)]);
+    return walk(null);
   });
 
 // Aplica un plan a lo que había, como lo hace el almacén, para ver que el resultado es lo que llegó.
@@ -200,6 +208,54 @@ function asStored(blocks: readonly IncomingBlock[]): StoredBlock[] {
     return { ...block, position, deleted: false };
   });
 }
+
+describe('guardar un árbol de renglones en la base real', () => {
+  const data = tempDataFolder();
+  const workspace = openWorkspace({
+    dataDir: data.folder,
+    clock: demoClock(),
+    appVersion: '0.0.0-prueba',
+  });
+  afterAll(() => {
+    workspace.close();
+    data.remove();
+  });
+  const subject = workspace.subjects.create({ name: 'Estadística básica', makeActive: true });
+  const note = workspace.notes.create({ subjectId: subject.id, topicId: null });
+
+  const shape = (blocks: readonly IncomingBlock[]) =>
+    JSON.stringify(
+      blocks.map(({ id, parentId, collapsed, content }) => ({ id, parentId, collapsed, content })),
+    );
+
+  it('guardar un árbol y volver a abrir la nota da el mismo árbol, parta del estado que parta', () => {
+    fc.assert(
+      fc.property(outline, outline, (before, after) => {
+        workspace.notes.save({ noteId: note.id, title: '', blocks: before });
+        workspace.notes.save({ noteId: note.id, title: '', blocks: after });
+        return shape(workspace.notes.get({ noteId: note.id }).blocks) === shape(after);
+      }),
+      { seed: SEED, numRuns: 40 },
+    );
+    // Cada guardado espera el disco (synchronous FULL): en una máquina lenta tarda unos segundos.
+  }, 60_000);
+
+  it('guardar lo mismo otra vez nunca agrega versiones', () => {
+    fc.assert(
+      fc.property(outline, (blocks) => {
+        workspace.notes.save({ noteId: note.id, title: '', blocks });
+        const versions = () => readRows(data.file, 'SELECT count(*) AS n FROM block_versions');
+        const before = versions();
+        workspace.notes.save({ noteId: note.id, title: '', blocks });
+        return (
+          JSON.stringify(versions()) === JSON.stringify(before) &&
+          shape(workspace.notes.get({ noteId: note.id }).blocks) === shape(blocks)
+        );
+      }),
+      { seed: SEED, numRuns: 30 },
+    );
+  }, 60_000);
+});
 
 describe('guardar un árbol de renglones', () => {
   it('guardar un árbol y volver a leerlo da el mismo árbol, parta de lo que parta', () => {
