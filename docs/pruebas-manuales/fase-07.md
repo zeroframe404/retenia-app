@@ -1,4 +1,4 @@
-# Pruebas manuales · Fase 07 · Materias, temas, apuntes y bandeja
+| Libre | Pendiente (tuya) |  || M07.12 | OK | Fórmula, imagen, «Mencionada en» || M07.11 | OK | Texto de 117.005 caracteres, entero || M07.10 | OK |  || M07.9 | OK |  || M07.8 | OK | Cartel «Anotado en la Bandeja.» y el 1 en el riel || M07.7 | OK |  || M07.6 | OK |  || M07.5 | OK |  || M07.4 | OK | «Guardado» y la nota completa al reabrir || M07.3 | OK |  || M07.2 | OK |  || M07.1 | OK | Con «Crear» antes de «Hacer activa» (ver aclaración) || S2 | OK | «Todo en orden · 0 diferencias» || S1 | OK | Cinta y pantalla inicial, sin carteles |# Pruebas manuales · Fase 07 · Materias, temas, apuntes y bandeja
 
 Preparación: en la terminal del proyecto, `npm run datos:reiniciar` y después `npm run iniciar`.
 
@@ -102,7 +102,9 @@ Los textos de abajo son los que muestra el programa hoy. Los de tu lista salen *
 
 ## Lo que ya comprobé yo
 
-(Se completa al terminar la fase.)
+El 29/10/2026 corrí, con un guion contra el programa empaquetado («Retenia (prueba)», datos nuevos y cerrar y abrir de verdad), todo lo de arriba menos «Libre»: S1, S2, M07.1 a M07.12 (30 comprobaciones, todas en OK, dos corridas seguidas). Miré las capturas de M07.1, M07.3, M07.6, M07.7, M07.8, M07.10, M07.11 y M07.12 (están en `.cache/manual7`). Lo que **no** pude comprobar: arrastrar notas y renglones con el mouse real (lo cubren las pruebas de pantalla, no un mouse de verdad), pegar una imagen desde el portapapeles de Windows con Ctrl+V (la prueba usa el evento de pegado) y la escala de Windows al 125 %, y por supuesto el uso libre de cinco minutos: eso es tuyo.
+
+**Capturas que cambiaron, para que las apruebes (regla 2 del `CLAUDE.md`).** Actualicé 10 capturas de referencia de la Fase 06 porque la pantalla cambió a propósito: Estudiar con la materia activa (claro y oscuro) y Apuntes con su cabecera «Estás mirando…» y sus secciones nuevas (tarjetas, actividad, papelera y formulario con aviso, en claro y oscuro). Las ves con `git show 4741b07 --stat` y abriendo esos PNG en `tests/e2e/capturas-de-referencia`; si alguna no te gusta, decime y la rehago. Hasta que las apruebes, no fusiones.
 
 ## Registro
 

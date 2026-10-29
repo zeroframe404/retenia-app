@@ -1,5 +1,7 @@
 # Estado del proyecto
 
+**Fase 07 lista para tu revisión (29/10/2026).** Retenia (prueba) tiene ahora materias, temas, apuntes por bloques y la Bandeja. `npm run verificar:todo` da «VERDE · 2523 pruebas · 0 fallas · 0 salteadas · 38 de 38 criterios cubiertos» (6 min 20 s en esta PC), los 15 criterios de la fase (CA-038 a CA-047 y CA-372 a CA-376) tienen prueba y el revisor independiente dejó 11 objeciones: 6 arregladas con prueba y 5 anotadas (`docs/decisiones.md`, Fase 07). Falta que hagas las pruebas manuales S1, S2, M07.1 a M07.12 y la libre (`docs/pruebas-manuales/fase-07.md`) y que apruebes las 10 capturas de la Fase 06 que cambiaron a propósito. Pendientes de esta fase: las copias de seguridad no incluyen la carpeta `imagenes` (restaurar una copia en otra carpeta deja renglones con imagen sin archivo); y una vez, en la red completa, la medición de `verificar` (CA-001) dio rojo sin que pudiera ver por qué y a la repetición dio verde. No fusiones ni pongas el tag hasta confirmar.
+
 **Aviso del 29/10/2026.** El pull request #7 de la Fase 06 ya está fusionado (20/10/2026). Hoy `npm run verificar:todo` da ROJO por una sola cosa: la auditoría de dependencias encontró avisos de seguridad publicados después del 20/10 en `electron` (se arregla con el parche 44.10.0, permitido por `docs/versiones.md`) y en `undici` (pieza interna de herramientas de compilación y de pruebas). Las 1539 pruebas siguen en verde y los 30 criterios, cubiertos. Falta decidir una rama de mantenimiento; ver el informe de ese día. Faltan también los tags `fase-05-ok` y `fase-06-ok` y tus pruebas manuales.
 
 **Fase 06 fusionada, sin tag.** Retenia (prueba) tiene ahora su sistema de diseño y su armazón: a la izquierda un riel con «Buscar» y Estudiar, Apuntes, Materiales, Idiomas, Progreso y Ajustes (Ctrl+1 a Ctrl+6 y Ctrl+K), colores claro y oscuro con las tipografías incluidas en el programa, los 18 componentes y los seis estados de una vista en Ajustes › «Demostración» › «Galería», Ajustes › «Apariencia» («Claro», «Oscuro» y «Según el sistema», al instante y recordado) y el zoom con Ctrl y +. La pantalla provisoria de tarjetas pasó adentro de Apuntes. `npm run verificar` y `npm run verificar:todo` dan VERDE. Falta que hagas las pruebas manuales S1, S2, M06.1 a M06.9 y la prueba libre (`docs/pruebas-manuales/fase-06.md`). El instalador de prueba lo baja el CI: escribí «Bajame el instalador de prueba» en Claude Code.
@@ -14,12 +16,22 @@
 | 04 · Libro mayor, copias y deshacer | Fusionada; tag `fase-04-ok` puesto el 17/10/2026 (red completa en VERDE, 477 pruebas) |
 | 05 · Laboratorio de piezas riesgosas | Fusionada (17/10/2026, pull request #6), sin tag `fase-05-ok` todavía: lo pongo cuando lo pidas |
 | 06 · Sistema de diseño y armazón | Fusionada (20/10/2026, pull request #7), sin tag `fase-06-ok`: faltan tus pruebas manuales |
+| 07 · Materias, temas, apuntes y bandeja | En revisión (rama `fase-07`, pull request abierto): faltan tus pruebas manuales y las capturas |
 
 Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (3 min 07 s, 20/10/2026). CI del pull request #7, en la última versión: «Red completa y compilación» en verde (32 min 35 s) e «Instaladores y humo del instalador» en verde (8 min 59 s, a la segunda: la primera vez se cortó la bajada de una herramienta de compilación del servidor de GitHub), con las capturas de referencia sin diferencias. Antes hubo cuatro corridas rojas por tiempos y por un error mío de configuración, todas resueltas y explicadas en docs/decisiones.md.
 
 Cuando apruebes la Fase 06: fusionar el pull request y pedirme el tag (y el de la Fase 05, que quedó sin poner); los pone `npm run cerrar-fase -- NN`, que antes corre la red completa y guarda en el tag cuántas pruebas había.
 
 ## Qué hay hoy
+
+Fase 07 (en la rama `fase-07`):
+
+- Estudiar muestra la materia activa y «Cambiar» abre la lista de materias con su estado, «Nueva materia» y, por materia, «Abrir» (consultar sin activar) y «Hacer activa». Arriba de Apuntes se ve qué materia mirás y cuál es la activa.
+- Apuntes abre en «Notas»: temas (con «Sin tema», «Archivadas» y «Todas las notas»), «Nuevo tema», «Renombrar» (el nombre viejo queda en «Otros nombres»), «Mover a…», archivar y «Deshacer», eliminar a la Papelera. El editor trabaja por renglones (Enter, Tab, Mayús+Tab, arrastrar, plegar), con fórmulas, imágenes, enlaces con «[[» y «Mencionada en»; guarda a los dos segundos y al cerrar.
+- Ctrl+Mayús+N anota en la Bandeja desde cualquier pantalla; el riel muestra su contador solo cuando hay algo; «Mover a…» la convierte en nota.
+- Primera vez: con la base vacía, una sola pregunta («¿Qué querés aprender ahora?»). En Ajustes › «Demostración»: «Empezar como la primera vez» y «Volver al elenco».
+- Papelera: ahora también guarda notas, temas y elementos de la Bandeja.
+- Cosas que todavía no hay: las copias de seguridad no incluyen las imágenes de los apuntes, y las tarjetas dentro del apunte («>>») llegan en la Fase 08.
 
 - `npm run iniciar`: abre Retenia en modo demostración, con la cinta «DEMOSTRACIÓN · hoy es lunes 15/03/2027» y la pantalla inicial, Estudiar. A la izquierda, el riel (se compacta con menos de 720 píxeles de ancho; la ventana no baja de 400):
   - Atajos: Ctrl+1 a Ctrl+6 abren los seis destinos, Ctrl+K abre «Buscar» (por ahora un cuadro que dice que la búsqueda todavía no está disponible), Esc cierra un cuadro, Ctrl y + / Ctrl y - / Ctrl y 0 cambian el zoom.
