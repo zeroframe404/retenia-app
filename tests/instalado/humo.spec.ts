@@ -107,12 +107,16 @@ async function waitUntil(condition: () => boolean, timeoutMs: number): Promise<b
   return condition();
 }
 
-// Apuntes › «Tarjetas», por el riel: el programa abre en Estudiar y las tarjetas viven adentro de
-// Apuntes (Fase 06).
+// Apuntes › «Tarjetas», por el riel y por el nombre que se ve: el programa abre en Estudiar y las
+// tarjetas viven adentro de Apuntes (Fase 06); desde la Fase 07 Apuntes abre en «Notas».
 async function openCards(page: Page) {
   await page
     .getByRole('navigation', { name: 'Riel lateral' })
     .getByRole('button', { name: 'Apuntes', exact: true })
+    .click();
+  await page
+    .getByRole('navigation', { name: 'Secciones de Apuntes' })
+    .getByRole('button', { name: 'Tarjetas', exact: true })
     .click();
   await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
 }
