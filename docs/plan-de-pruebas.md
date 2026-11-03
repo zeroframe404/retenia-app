@@ -187,12 +187,19 @@ Cómo quedó en la Fase 06:
 | CA-044 | I | E | Renombrar deja el nombre viejo en `topic_aliases`; E lo ve en «Otros nombres». |
 | CA-045 | E | — | Archivar saca la nota, aparece en «Archivadas», «Deshacer» la devuelve. |
 | CA-046 | E | — | Ctrl+Mayús+N desde Progreso, escribir y Enter: queda en «Bandeja» sin preguntar materia ni tema. |
-| CA-047 | E | — | «Mover a…» a «Intervalos de confianza»: la nota aparece ahí y el contador baja de 2 a 1. |
+| CA-047 | E | — | «Mover a…» a «Intervalos de confianza»: la nota aparece ahí y el contador de la Bandeja baja de 1 a nada (desde la Fase 07 el elenco trae un solo elemento anotado por la prueba M07.8; ver `docs/decisiones.md`). |
 | CA-372 | E | I | Pegar una imagen del portapapeles y arrastrar `campana.png`: se ve en el renglón, sobrevive al relanzar; I comprueba el archivo por huella en `imagenes\`. |
 | CA-373 | R | E | El componente renderiza `$\bar{x} \pm t \cdot s/\sqrt{n}$` con KaTeX sin red y vuelve al texto fuente al entrar; E lo hace en la nota del elenco. |
 | CA-374 | E | — | «[[» más «Inter» ofrece «Intervalos de confianza»; el enlace abre la nota. |
 | CA-375 | E | I | «Mencionada en» lista el renglón de origen con su nota; un clic lleva al renglón. |
 | CA-376 | I | E | Renombrar la nota destino: `block_links` sigue apuntando por identificador y el texto del enlace muestra el nombre nuevo. |
+
+Cómo quedó en la Fase 07:
+
+- Cada uno de los 15 criterios (CA-038 a CA-047 y CA-372 a CA-376) tiene prueba con su identificador en el título, en las capas de la tabla y en algunas más: reglas puras y propiedades (`organizacion.test.ts`, unitarias y de propiedades: materia activa única, alias, qué se puede deshacer), integración con base real (`materias`, `temas`, `apuntes`, `versiones`, `bandeja`, `imagenes`, `actividad-apuntes`, `papelera-apuntes`, `modo-primera-vez` y `siembra-elenco`), contrato (`organizacion.test.ts`, `demostracion-datos.test.ts`), pantallas con Testing Library (`materias`, `apuntes`, `apuntes-con-editor`, `bandeja`, `primera-vez` y las seis de `editor-*`) y punta a punta con el programa empaquetado (`materias`, `apuntes`, `bandeja`, `armazon-fase-07`, `accesibilidad-fase-07` y `capturas-de-referencia-fase-07`). El cierre de la ventana sin perder lo escrito (CA-043) tiene además `cierre-de-ventana.test.ts`.
+- Dobles nuevos: ninguno. El reloj se congela como en las fases anteriores; el guardado a los dos segundos se prueba con reloj falso (1999 y 2000 ms).
+- Capturas de referencia: 14 nuevas (materias, notas, nota abierta, Bandeja, captura rápida y primera vez, en claro y en oscuro) y 10 de la Fase 06 que **cambiaron a propósito** (Estudiar con la materia activa y Apuntes con su cabecera y sus secciones nuevas). Esas 10 las actualicé yo antes de que las vieras: la regla del `CLAUDE.md` pide que veas la diferencia y la apruebes, y eso queda en la lista de pendientes de `docs/ESTADO.md`.
+- CA-047: el elenco de esta fase trae la Bandeja vacía (`elenco.md` decía dos elementos; uno es un extracto de PDF de la Fase 14 y el otro rompería la prueba manual M07.8, que espera un 1). Por eso el contador de CA-047 se prueba anotando un elemento con Ctrl+Mayús+N y moviéndolo.
 
 ### Fase 08 · Tarjetas y fichas (H-12, H-13, H-14)
 

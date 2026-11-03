@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { BUENOS_AIRES_ZONE, type Clock } from '../core/clock';
 import { currentEvaluation, nextEvaluation } from '../core/ledger';
 import type { Verdict } from '../core/memory';
+import type { OrganizationOperationKind } from '../core/organization';
 import type { OperationKind } from '../core/undo';
 import { newId } from './ids';
 import type { Writer } from './orm';
@@ -15,6 +16,9 @@ import { evaluations, ledgerState, observations, operations } from './schema';
 
 // Quién originó el evento: vos, Retenia (al adoptar datos viejos) o la siembra del ejemplo.
 export type EventSource = 'user' | 'system' | 'demo';
+
+// Sobre qué clase de cosa se hizo una operación.
+export type OperationEntity = 'card' | 'subject' | 'topic' | 'note' | 'inbox';
 
 const memorySnapshot = z.strictObject({
   state: z.number().int(),
@@ -188,12 +192,16 @@ export function appendOperation(
   tx: Writer,
   clock: Clock,
   input: {
-    kind: OperationKind;
+    kind: OperationKind | OrganizationOperationKind;
+    // Qué clase de cosa cambió (por defecto, una tarjeta).
+    entityType?: OperationEntity;
     entityId: string;
     versionBeforeId?: string | null;
     versionAfterId?: string | null;
     trashEntryId?: string | null;
     undoesId?: string | null;
+    // Lo que hace falta para deshacer, como objeto (se guarda como JSON).
+    detail?: Record<string, unknown>;
     source: EventSource;
   },
 ): { id: string } {
@@ -204,12 +212,13 @@ export function appendOperation(
     .values({
       id,
       kind: input.kind,
-      entityType: 'card',
+      entityType: input.entityType ?? 'card',
       entityId: input.entityId,
       versionBeforeId: input.versionBeforeId ?? null,
       versionAfterId: input.versionAfterId ?? null,
       trashEntryId: input.trashEntryId ?? null,
       undoesId: input.undoesId ?? null,
+      detail: input.detail === undefined ? null : JSON.stringify(input.detail),
       source: input.source,
       occurredAt: now,
       recordedAt: now,

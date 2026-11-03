@@ -12,3 +12,18 @@ export function zoomDirection(key: string): ZoomDirection | null {
   }
   return key === '0' ? 'reset' : null;
 }
+
+// Ctrl+Mayús+N: anotar al vuelo desde cualquier pantalla. Por la tecla física («KeyN») para que
+// ande igual con cualquier distribución del teclado (con Mayús apretada la letra llega en
+// mayúscula).
+export function isQuickCapture(event: {
+  ctrlKey: boolean;
+  shiftKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+  code: string;
+}): boolean {
+  return (
+    event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey && event.code === 'KeyN'
+  );
+}

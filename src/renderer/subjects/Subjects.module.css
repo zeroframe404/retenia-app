@@ -1,0 +1,55 @@
+/* La materia activa (en Estudiar) y la que se mira (en Apuntes), con «Cambiar». */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-12) var(--espacio-16);
+  padding: var(--espacio-12) var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.info {
+  display: grid;
+  flex: 1 1 200px;
+  gap: var(--espacio-4);
+  min-width: 0;
+}
+
+.caption {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-8);
+  min-width: 0;
+}
+
+.name {
+  min-width: 0;
+  font: var(--tipo-subtitulo);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.line {
+  margin: 0;
+  min-width: 0;
+  font: var(--tipo-cuerpo);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.dialogBody {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+}

@@ -55,7 +55,9 @@ test('accesibilidad: el historial, editar, la papelera con su confirmación, la 
   expect(await violationsNow(appWindow), 'papelera').toEqual([]);
   await appWindow.getByRole('button', { name: 'Vaciar papelera' }).click();
   await expect(
-    appWindow.getByText('Las tarjetas de la papelera se eliminan para siempre.'),
+    appWindow.getByText(
+      'Todo lo que está en la papelera se elimina para siempre: tarjetas, notas, temas y anotaciones de la Bandeja.',
+    ),
   ).toBeVisible();
   expect(await violationsNow(appWindow), 'papelera: confirmación').toEqual([]);
   await appWindow.getByRole('button', { name: 'Cancelar' }).click();

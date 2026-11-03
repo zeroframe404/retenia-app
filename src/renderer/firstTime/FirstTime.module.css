@@ -1,0 +1,28 @@
+/* La primera vez: una sola pregunta, centrada, sin riel. */
+.page {
+  display: grid;
+  grid-row: 2;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: var(--espacio-32) var(--espacio-16);
+  overflow: auto;
+}
+
+.card {
+  display: grid;
+  gap: var(--espacio-24);
+  width: min(520px, 100%);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font: var(--tipo-display);
+  color: var(--color-marca-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.question {
+  font: var(--tipo-consigna);
+}

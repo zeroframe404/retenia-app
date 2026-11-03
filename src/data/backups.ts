@@ -48,6 +48,15 @@ const COUNTED_TABLES = [
   'evaluations',
   'operations',
   'trash_entries',
+  'subjects',
+  'topics',
+  'topic_aliases',
+  'notes',
+  'blocks',
+  'block_versions',
+  'block_links',
+  'images',
+  'inbox_items',
 ];
 
 const manifestSchema = z.strictObject({

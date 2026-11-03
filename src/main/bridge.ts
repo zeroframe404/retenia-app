@@ -45,6 +45,7 @@ export function createHandlers({
   openFolder,
   onAppearanceChange,
   zoom,
+  onFlushed,
 }: {
   clock: Clock;
   variant: Variant;
@@ -55,6 +56,8 @@ export function createHandlers({
   onAppearanceChange?: (choice: ThemeChoice) => void;
   // Cambia el zoom de la ventana y devuelve el factor que quedó (sin ventana, 1).
   zoom?: (direction: ZoomDirection) => number;
+  // La pantalla avisa que ya guardó lo pendiente: el cierre de la ventana espera este aviso.
+  onFlushed?: () => void;
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
@@ -73,7 +76,34 @@ export function createHandlers({
     'cards.edit': async (request) => workspace.cards.edit(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
+    'subjects.list': async () => workspace.subjects.list(),
+    'subjects.create': async (request) => workspace.subjects.create(request),
+    'subjects.activate': async (request) => workspace.subjects.activate(request),
+    'subjects.createExample': async () => workspace.subjects.createExample(),
+    'topics.list': async (request) => workspace.topics.list(request),
+    'topics.create': async (request) => workspace.topics.create(request),
+    'topics.rename': async (request) => workspace.topics.rename(request),
+    'topics.archive': async (request) => workspace.topics.archive(request),
+    'topics.unarchive': async (request) => workspace.topics.unarchive(request),
+    'topics.delete': async (request) => workspace.topics.remove(request),
+    'notes.list': async (request) => workspace.notes.list(request),
+    'notes.create': async (request) => workspace.notes.create(request),
+    'notes.get': async (request) => workspace.notes.get(request),
+    'notes.save': async (request) => workspace.notes.save(request),
+    'notes.move': async (request) => workspace.notes.move(request),
+    'notes.archive': async (request) => workspace.notes.archive(request),
+    'notes.unarchive': async (request) => workspace.notes.unarchive(request),
+    'notes.delete': async (request) => workspace.notes.remove(request),
+    'notes.titles': async (request) => workspace.notes.titles(request),
+    'notes.mentions': async (request) => workspace.notes.mentions(request),
+    'images.save': async (request) => workspace.images.save(request),
+    'images.read': async (request) => workspace.images.read(request),
+    'inbox.list': async () => workspace.inbox.list(),
+    'inbox.capture': async (request) => workspace.inbox.capture(request),
+    'inbox.move': async (request) => workspace.inbox.move(request),
+    'inbox.delete': async (request) => workspace.inbox.remove(request),
     'trash.list': async () => ({ items: workspace.trash.list() }),
+    'trash.listOrganization': async () => workspace.trash.listOrganization(),
     'trash.restore': async (request) => workspace.trash.restore(request),
     'trash.empty': async () => workspace.trash.empty(),
     'activity.recent': async () => ({ items: workspace.activity.recent() }),
@@ -90,6 +120,10 @@ export function createHandlers({
     'backups.verifyData': async () => ({ differences: workspace.verifyData() }),
     'backups.repairData': async () => ({ differences: workspace.repairData() }),
     'window.zoom': async ({ direction }) => ({ factor: zoom ? zoom(direction) : 1 }),
+    'window.flushed': async () => {
+      onFlushed?.();
+      return {};
+    },
     'backups.openFolder': async () => {
       const problem = await openFolder(workspace.copiesFolder());
       if (problem !== '') {

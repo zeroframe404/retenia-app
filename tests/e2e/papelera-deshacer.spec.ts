@@ -14,7 +14,7 @@ test('[CA-022] eliminar una tarjeta la manda a «Papelera» por 30 días y «Res
 
   await goTo(appWindow, 'Papelera');
   const row = appWindow
-    .getByRole('list', { name: 'Tarjetas en la papelera' })
+    .getByRole('list', { name: 'Elementos en la papelera' })
     .getByRole('listitem');
   await expect(row).toHaveCount(1);
   await expect(row).toContainText(question);

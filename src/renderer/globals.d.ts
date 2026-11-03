@@ -6,5 +6,9 @@ declare global {
 
   interface Window {
     retenia: ReteniaApi;
+    // Lo entrega el puente. Antes de cerrar la ventana avisa a quien se registró con `alCerrar`: el
+    // programa no se cierra hasta que su promesa se resuelve (así lo escrito a medias se guarda).
+    // Devuelve cómo desregistrarse. No existe en las pruebas de pantallas.
+    reteniaCierre?: { alCerrar(handler: () => Promise<void> | void): () => void };
   }
 }

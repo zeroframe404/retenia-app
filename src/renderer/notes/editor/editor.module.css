@@ -1,0 +1,203 @@
+/* El editor de la nota: renglones con sus hijos, fórmulas, imágenes, enlaces y la lista de notas
+   para enlazar. Todo con los tokens; el foco siempre se ve. */
+.host {
+  position: relative;
+}
+
+.editor {
+  min-height: calc(var(--alto-control) * 4);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  overflow-wrap: anywhere;
+}
+
+.editor:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+.editor ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editor li {
+  list-style: none;
+}
+
+/* Un renglón: los controles a la izquierda y el texto; los hijos debajo, con sangría. */
+.row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--espacio-4);
+  align-items: start;
+}
+
+.controls {
+  display: flex;
+  grid-column: 1;
+  grid-row: 1;
+  align-items: center;
+  height: var(--espacio-24);
+  user-select: none;
+}
+
+.content,
+.content > div {
+  display: contents;
+}
+
+.content p {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.content ul {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  padding-inline-start: var(--espacio-24);
+}
+
+.editor li[data-collapsed="true"] > .row ul {
+  display: none;
+}
+
+.handle,
+.control {
+  display: inline-grid;
+  place-items: center;
+  width: var(--espacio-24);
+  height: var(--espacio-24);
+  padding: 0;
+  color: var(--color-tinta-suave);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radio-4);
+  cursor: pointer;
+}
+
+.handle {
+  cursor: grab;
+}
+
+.handle:hover,
+.control:hover {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    color var(--movimiento-rapido) var(--curva);
+}
+
+.spacer {
+  display: inline-block;
+  width: var(--espacio-24);
+  height: var(--espacio-24);
+}
+
+.bullet {
+  width: var(--espacio-8);
+  height: var(--espacio-8);
+  margin: 0 var(--espacio-4);
+  background: var(--color-tinta-suave);
+  border-radius: var(--radio-pildora);
+}
+
+.editor :global(.ProseMirror-selectednode) {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: var(--foco-separacion);
+}
+
+/* El enlace a otra nota. */
+.mention {
+  color: var(--color-marca-fuerte);
+  text-decoration: underline;
+  text-underline-offset: var(--espacio-4);
+  border-radius: var(--radio-4);
+  cursor: pointer;
+}
+
+/* Imágenes: se achican al ancho disponible sin deformarse. */
+.imageNode {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radio-8);
+}
+
+.imageFailed {
+  font: var(--tipo-pequeno);
+  color: var(--color-parcial);
+}
+
+/* Fórmulas: el dibujo de KaTeX reemplaza al texto mientras el cursor no está adentro. El texto no
+   se saca con display: none (rompería el movimiento del cursor): queda sin ancho, sin verse y
+   fuera del lector de pantalla, que lee el MathML del dibujo. */
+.formula {
+  display: inline-block;
+  vertical-align: baseline;
+  cursor: text;
+}
+
+.formulaSource {
+  display: inline-block;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  visibility: hidden;
+  vertical-align: bottom;
+}
+
+/* La lista de notas para enlazar, junto al cursor. */
+.menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1;
+  min-width: calc(var(--alto-control) * 6);
+  max-width: 100%;
+  padding: var(--espacio-4);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.options {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.option {
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta);
+  border-radius: var(--radio-4);
+  cursor: pointer;
+}
+
+.option[aria-selected="true"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+}
+
+.menuEmpty {
+  margin: 0;
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}

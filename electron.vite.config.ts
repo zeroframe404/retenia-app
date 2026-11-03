@@ -70,6 +70,12 @@ export default defineConfig({
   renderer: {
     define,
     plugins: [react(), ...(variant === 'real' ? [withoutPdfjs] : [])],
-    build: { outDir: resolve(out, 'renderer') },
+    build: {
+      outDir: resolve(out, 'renderer'),
+      // Las tipografías (las de KaTeX incluidas) viajan siempre como archivos: la política de
+      // contenido de la ventana (`font-src 'self'`) no deja usar una incrustada como `data:`, y
+      // Vite incrusta por defecto lo que pesa menos de 4 KB.
+      assetsInlineLimit: (file) => (/\.(woff2?|ttf)$/.test(file) ? false : undefined),
+    },
   },
 });

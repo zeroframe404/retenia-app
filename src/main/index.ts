@@ -10,10 +10,11 @@ import { labChannels } from '../preload/contract/lab';
 import { texts } from '../preload/contract/texts';
 import { createAppearanceStore } from './appearance';
 import { createHandlers, handleMessage, type Variant } from './bridge';
-import { createDemoHandlers } from './demo';
+import { createCloseGuard } from './close-guard';
+import { createDemoHandlers, demoExclusiveChannels } from './demo';
 import { createDemoDate } from './demo/clock';
 import { prepareLabSwitches, startLab } from './demo/lab-setup';
-import { seedDemoCards } from './demo/seed';
+import { createDemoWorkspace } from './demo/switcher';
 import { createGate, gateHandlers } from './gate';
 
 const variant: Variant = __VARIANTE__;
@@ -43,6 +44,29 @@ if (__VARIANTE__ === 'prueba' && process.env.RETENIA_DATOS) {
 app.setPath('userData', dataDir);
 
 let mainWindow: BrowserWindow | null = null;
+
+// Cerrar la ventana nunca pierde lo escrito (CA-043): se frena el cierre, se le pide a la pantalla
+// que guarde lo que tenga a medio escribir y se cierra cuando contesta (`window.flushed`) o, para que
+// una ventana colgada no impida cerrar, a los tres segundos.
+const FLUSH_TIMEOUT_MS = 3000;
+let flushDone: (() => void) | null = null;
+
+function flushWindow(target: BrowserWindow): Promise<void> {
+  const contents = target.webContents;
+  if (contents.isDestroyed() || contents.isCrashed() || contents.isLoading()) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timer);
+      flushDone = null;
+      resolve();
+    };
+    const timer = setTimeout(finish, FLUSH_TIMEOUT_MS);
+    flushDone = finish;
+    contents.send('retenia:cierre');
+  });
+}
 
 // La apariencia elegida también manda sobre el marco de la ventana (la barra de título) y sobre lo
 // que el sistema le dice a la página (`prefers-color-scheme`). Devuelve el papel del tema que
@@ -75,14 +99,27 @@ function createWindow(paper: string): void {
       spellcheck: false,
     },
   });
-  const window = mainWindow;
-  window.once('ready-to-show', () => window.show());
-  window.on('closed', () => {
+  const frame = mainWindow;
+  frame.once('ready-to-show', () => frame.show());
+  const closeGuard = createCloseGuard(
+    () => flushWindow(frame),
+    () => {
+      if (!frame.isDestroyed()) {
+        frame.close();
+      }
+    },
+  );
+  frame.on('close', (event) => {
+    if (closeGuard.onClose() === 'prevent') {
+      event.preventDefault();
+    }
+  });
+  frame.on('closed', () => {
     mainWindow = null;
   });
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  window.webContents.on('will-navigate', (event) => event.preventDefault());
-  void window.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
+  frame.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  frame.webContents.on('will-navigate', (event) => event.preventDefault());
+  void frame.loadFile(resolve(import.meta.dirname, '../renderer/index.html'));
 }
 
 // Una sola instancia (CA-014): si se abre una segunda, la primera pasa al frente.
@@ -101,11 +138,16 @@ function start(): void {
   // En la variante de prueba, la fecha de la demostración (con los días sumados).
   const demo = __VARIANTE__ === 'prueba' ? createDemoDate(dataDir) : null;
   const clock = demo ? demo.clock : systemClock();
-  const workspace = openWorkspace({ dataDir, clock, appVersion: app.getVersion() });
-  app.on('quit', () => workspace.close());
-  if (__VARIANTE__ === 'prueba') {
-    seedDemoCards(workspace.cards);
-  }
+  // En la variante de prueba los datos son los del elenco o los de la primera vez (Ajustes ›
+  // «Demostración»); el espacio de trabajo que se usa delega en el que corresponda y siembra el
+  // elenco al abrirlo.
+  const demoData =
+    __VARIANTE__ === 'prueba'
+      ? createDemoWorkspace({ dataDir, clock, appVersion: app.getVersion() })
+      : null;
+  const workspace =
+    demoData?.workspace ?? openWorkspace({ dataDir, clock, appVersion: app.getVersion() });
+  app.on('quit', () => (demoData ? demoData.close() : workspace.close()));
 
   const paper = applyFrameTheme(createAppearanceStore(dataDir).get());
   let handlers: Record<string, (request: never) => Promise<unknown>> = createHandlers({
@@ -114,6 +156,7 @@ function start(): void {
     workspace,
     version: app.getVersion(),
     openFolder: (path) => shell.openPath(path),
+    onFlushed: () => flushDone?.(),
     onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
     zoom: (direction) => {
       const contents = mainWindow?.webContents;
@@ -126,16 +169,19 @@ function start(): void {
     },
   });
   let registry: Registry = channels;
-  if (__VARIANTE__ === 'prueba' && demo) {
+  let exclusive: readonly string[] = [];
+  if (__VARIANTE__ === 'prueba' && demo && demoData) {
     const lab = startLab({ dataDir, bringToFront });
     app.on('quit', lab.stop);
-    handlers = { ...handlers, ...createDemoHandlers(demo), ...lab.handlers };
+    handlers = { ...handlers, ...createDemoHandlers(demo, demoData), ...lab.handlers };
     registry = { ...channels, ...demoChannels(), ...labChannels() };
+    exclusive = demoExclusiveChannels;
   }
 
-  // Mientras se restaura una copia, todo lo demás espera (la base se cierra y se reemplaza).
+  // Mientras se restaura una copia o se cambian los datos de la demostración, todo lo demás
+  // espera (la base se cierra y se reemplaza).
   const gate = createGate();
-  const routes = gateHandlers(handlers, gate);
+  const routes = gateHandlers(handlers, gate, exclusive);
 
   Menu.setApplicationMenu(null);
   // Todo permiso se niega, salvo el micrófono (solo audio) que pide la ventana de Retenia al

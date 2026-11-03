@@ -2,6 +2,7 @@ import {
   BookOpen,
   ChartNoAxesColumn,
   GraduationCap,
+  Inbox,
   Languages,
   Library,
   type LucideIcon,
@@ -9,10 +10,18 @@ import {
   Settings,
   X,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useId, useRef } from 'react';
+import {
+  type DragEventHandler,
+  Fragment,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { texts } from '../../preload/contract/texts';
-import { IconButton } from './Boton';
+import { Boton, IconButton } from './Boton';
 import styles from './Frame.module.css';
 import { Icon } from './Icon';
 
@@ -35,15 +44,20 @@ export const DESTINATIONS: readonly { destination: Destination; text: string; ic
 // El riel lateral: el nombre del programa escrito con la tipografía de títulos, «Buscar» (Ctrl+K)
 // y los seis destinos. En una ventana angosta se compacta: quedan los íconos y cada botón
 // conserva su nombre para el lector de pantalla. Sin elementos de lista: las listas de la ventana
-// son solo las de los datos.
+// son solo las de los datos. Cuando la Bandeja tiene algo, una fila aparte (no es un destino: sin
+// atajo ni marca de pantalla actual) con su número va justo debajo de «Apuntes».
 export function SideRail({
   current,
   onChange,
   onSearch,
+  inboxCount = 0,
+  onOpenInbox,
 }: {
   current: Destination;
   onChange: (destination: Destination) => void;
   onSearch: () => void;
+  inboxCount?: number;
+  onOpenInbox?: () => void;
 }) {
   return (
     <div className={styles.rail}>
@@ -62,18 +76,32 @@ export function SideRail({
           <kbd className={styles.shortcut}>{texts.nav.searchShortcut}</kbd>
         </button>
         {DESTINATIONS.map(({ destination, text, icon }, index) => (
-          <button
-            key={destination}
-            type="button"
-            className={styles.destination}
-            aria-current={destination === current ? 'page' : undefined}
-            aria-keyshortcuts={`Control+${index + 1}`}
-            title={text}
-            onClick={() => onChange(destination)}
-          >
-            <Icon icon={icon} />
-            <span className={styles.label}>{text}</span>
-          </button>
+          <Fragment key={destination}>
+            <button
+              type="button"
+              className={styles.destination}
+              aria-current={destination === current ? 'page' : undefined}
+              aria-keyshortcuts={`Control+${index + 1}`}
+              title={text}
+              onClick={() => onChange(destination)}
+            >
+              <Icon icon={icon} />
+              <span className={styles.label}>{text}</span>
+            </button>
+            {destination === 'notes' && inboxCount > 0 ? (
+              <button
+                type="button"
+                className={styles.inbox}
+                aria-label={texts.inbox.railLabel(inboxCount)}
+                title={texts.inbox.railLabel(inboxCount)}
+                onClick={onOpenInbox}
+              >
+                <Icon icon={Inbox} />
+                <span className={styles.label}>{texts.inbox.railBadge}</span>{' '}
+                <span className={styles.count}>{inboxCount}</span>
+              </button>
+            ) : null}
+          </Fragment>
         ))}
       </nav>
     </div>
@@ -117,7 +145,8 @@ export function ScreenFrame({
   );
 }
 
-// Las secciones de una pantalla (hoy, las de Apuntes): botones con la actual marcada.
+// Las secciones de una pantalla (hoy, las de Apuntes): botones con la actual marcada y, si una
+// tiene algo pendiente, su número al lado del nombre.
 export function SectionTabs<T extends string>({
   label,
   sections,
@@ -125,13 +154,13 @@ export function SectionTabs<T extends string>({
   onChange,
 }: {
   label: string;
-  sections: readonly { value: T; text: string }[];
+  sections: readonly { value: T; text: string; count?: number | undefined }[];
   current: T;
   onChange: (value: T) => void;
 }) {
   return (
     <nav className={styles.sections} aria-label={label}>
-      {sections.map(({ value, text }) => (
+      {sections.map(({ value, text, count }) => (
         <button
           key={value}
           type="button"
@@ -140,6 +169,12 @@ export function SectionTabs<T extends string>({
           onClick={() => onChange(value)}
         >
           {text}
+          {count === undefined ? null : (
+            <>
+              {' '}
+              <span className={styles.sectionCount}>{count}</span>
+            </>
+          )}
         </button>
       ))}
     </nav>
@@ -165,25 +200,44 @@ export function ItemList({
   );
 }
 
+// Con `onOpen` el título es un botón con el nombre del elemento (abre ese elemento). Con
+// `onDragStart` el renglón se puede arrastrar con el mouse.
 export function ListItem({
   title,
   text,
   detail,
   actions,
+  onOpen,
+  onDragStart,
+  onDragEnd,
   children,
 }: {
-  title?: string;
-  text?: string;
-  detail?: string;
+  title?: string | undefined;
+  text?: string | undefined;
+  detail?: string | undefined;
   actions?: ReactNode;
+  onOpen?: (() => void) | undefined;
+  onDragStart?: DragEventHandler<HTMLLIElement> | undefined;
+  onDragEnd?: DragEventHandler<HTMLLIElement> | undefined;
   children?: ReactNode;
 }) {
   return (
-    <li className={styles.item}>
+    <li
+      className={styles.item}
+      draggable={onDragStart ? true : undefined}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+    >
       <div className={styles.body}>
         {title === undefined ? null : (
           <p className={styles.itemTitle} title={title}>
-            {title}
+            {onOpen ? (
+              <button type="button" className={styles.itemOpen} onClick={onOpen}>
+                {title}
+              </button>
+            ) : (
+              title
+            )}
           </p>
         )}
         {text === undefined ? null : <p className={styles.itemText}>{text}</p>}
@@ -198,14 +252,16 @@ export function ListItem({
 export type ToastTone = 'info' | 'success' | 'attention';
 
 // El cartel breve: dice qué pasó después de una acción («Tarjeta guardada»). La zona se anuncia
-// al lector de pantalla y está siempre; sin texto no se ve.
+// al lector de pantalla y está siempre; sin texto no se ve. Con `action` suma un botón («Deshacer»).
 export function Toast({
   tone = 'info',
   onClose,
+  action,
   children,
 }: {
   tone?: ToastTone | undefined;
   onClose?: () => void;
+  action?: { text: string; onClick: () => void } | undefined;
   children?: ReactNode;
 }) {
   return (
@@ -213,6 +269,7 @@ export function Toast({
       {children ? (
         <div className={styles.toast} data-component="toast" data-tone={tone}>
           <p className={styles.toastMessage}>{children}</p>
+          {action ? <Boton onClick={action.onClick}>{action.text}</Boton> : null}
           {onClose ? <IconButton icon={X} label={texts.ui.close} onClick={onClose} /> : null}
         </div>
       ) : null}
@@ -263,12 +320,19 @@ export function Dialog({
   const dialog = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  // Lo que tenía el foco antes de abrir, tomado al armar el cuadro: un campo de adentro que pide el
+  // foco al montarse (`autoFocus`) no puede quedar como «lo anterior».
+  const [previous] = useState(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
 
   useEffect(() => {
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const root = document.getElementById('raiz');
     root?.setAttribute('inert', '');
-    dialog.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    // El foco entra al cuadro: al primer control, salvo que un campo de adentro ya lo tenga.
+    if (!dialog.current?.contains(document.activeElement)) {
+      dialog.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -302,7 +366,7 @@ export function Dialog({
         previous.focus();
       }
     };
-  }, []);
+  }, [previous]);
 
   return createPortal(
     <div className={styles.scrim}>
