@@ -304,7 +304,7 @@ describe('[CA-054] «¿Cambió lo que hay que recordar?» al guardar', () => {
     await editAnswer(user, '.');
     await user.click(await screen.findByRole('button', { name: 'No, solo la redacción' }));
     expect(await screen.findByText('Cambios guardados')).toBeTruthy();
-    expect(screen.getByText(`Próximo repaso: miércoles 17/03/2027`)).toBeTruthy();
+    expect(await screen.findByText('Próximo repaso: miércoles 17/03/2027')).toBeTruthy();
     expect(workspace.cards.get({ cardId: card.id }).nextReviewDay).toBe(before);
     expect(workspace.cards.get({ cardId: card.id }).answer).toBe('El promedio de los datos.');
   });
