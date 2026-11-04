@@ -6,7 +6,7 @@ import styles from './Cards.module.css';
 import { visibleWindow } from './windowing';
 
 // Cada fila tiene un alto fijo: así se sabe cuáles se ven sin medir las demás.
-const ROW_HEIGHT = 76;
+const ROW_HEIGHT = 84;
 const OVERSCAN = 6;
 const DEFAULT_VIEWPORT = 640;
 

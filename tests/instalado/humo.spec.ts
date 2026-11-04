@@ -139,7 +139,7 @@ test('[CA-012] el instalador de «Retenia (prueba)» se instala en silencio y de
   );
 });
 
-test('[CA-012] el programa instalado abre con el título «Retenia», la cinta de demostración y las tres tarjetas de ejemplo, y guarda sus datos en la carpeta de «Retenia (prueba)»', async () => {
+test('[CA-012] el programa instalado abre con el título «Retenia», la cinta de demostración y las 180 tarjetas de ejemplo, y guarda sus datos en la carpeta de «Retenia (prueba)»', async () => {
   const app = await launchInstalled();
   try {
     const page = await app.firstWindow();
@@ -152,7 +152,7 @@ test('[CA-012] el programa instalado abre con el título «Retenia», la cinta d
     ).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Estudiar' })).toBeVisible();
     await openCards(page);
-    await expect(page.getByRole('listitem')).toHaveCount(3);
+    await expect(page.getByText('180 tarjetas')).toBeVisible();
     await expect(page.getByRole('listitem').first()).toContainText('¿Qué mide el desvío estándar?');
 
     // Los datos: en la carpeta de datos de aplicaciones de la cuenta, aparte de «Retenia» y
@@ -187,7 +187,7 @@ test('[CA-009] una tarjeta creada en el programa instalado sigue ahí después d
   try {
     const page = await second.firstWindow();
     await openCards(page);
-    await expect(page.getByRole('listitem')).toHaveCount(4);
+    await expect(page.getByText('181 tarjetas')).toBeVisible();
     await expect(page.getByRole('listitem').first()).toContainText('¿Capital de Francia?');
   } finally {
     await second.close();
