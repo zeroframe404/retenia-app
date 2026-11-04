@@ -7,7 +7,7 @@ import { canonicalJson } from '../organization';
 // del renglón» y una de completar es «la del hueco» (cada hueco lleva su identificador).
 
 // Lo que lleva un renglón por dentro, ahora con huecos.
-export type RowNode =
+type RowNode =
   | { readonly type: 'text'; readonly text: string }
   | { readonly type: 'mention'; readonly id: string; readonly label: string }
   | {
@@ -234,13 +234,13 @@ export const SHEET_STATES = ['proposed', 'reviewed', 'verified', 'in_review', 'r
 export type SheetState = (typeof SHEET_STATES)[number];
 // Los que vos podés elegir: «Propuesta» es de la IA.
 export const USER_SHEET_STATES = ['reviewed', 'verified', 'in_review', 'retired'] as const;
-export const FORM_TYPES = ['exact', 'meaning'] as const;
+const FORM_TYPES = ['exact', 'meaning'] as const;
 export type FormType = (typeof FORM_TYPES)[number];
 
 export const MAX_ESSENTIALS = 4;
 export const MAX_HINTS = 3;
 
-export class SheetLimitError extends Error {
+class SheetLimitError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SheetLimitError';
@@ -262,17 +262,6 @@ export interface Sheet {
   formType: FormType;
   state: SheetState;
 }
-
-export const EMPTY_SHEET: Sheet = {
-  referenceAnswer: '',
-  variants: [],
-  essentials: [],
-  hints: [],
-  explanation: '',
-  source: '',
-  formType: 'exact',
-  state: 'reviewed',
-};
 
 const cleanList = (list: readonly string[] | undefined) =>
   (list ?? []).map((item) => item.trim()).filter((item) => item !== '');

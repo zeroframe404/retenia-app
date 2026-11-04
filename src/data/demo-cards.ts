@@ -28,7 +28,7 @@ export interface SeedCard {
 
 // Los repasos de una tarjeta, en orden: cada uno con la versión que evaluó, y la agenda recalculada
 // desde el historial al terminar.
-export function plantReviews(
+function plantReviews(
   tx: Writer,
   clock: Clock,
   cardId: string,

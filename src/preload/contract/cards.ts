@@ -21,11 +21,11 @@ export const SHEET_STATE_VALUES = [
   'in_review',
   'retired',
 ] as const;
-export const sheetStateSchema = z.enum(SHEET_STATE_VALUES);
+const sheetStateSchema = z.enum(SHEET_STATE_VALUES);
 export type SheetStateValue = z.output<typeof sheetStateSchema>;
-export const userSheetStateSchema = z.enum(['reviewed', 'verified', 'in_review', 'retired']);
-export const formTypeSchema = z.enum(['exact', 'meaning']);
-export const cardKindSchema = z.enum(['qa', 'cloze']);
+const userSheetStateSchema = z.enum(['reviewed', 'verified', 'in_review', 'retired']);
+const formTypeSchema = z.enum(['exact', 'meaning']);
+const cardKindSchema = z.enum(['qa', 'cloze']);
 
 // Los topes de la ficha: hasta 4 componentes esenciales (unidades de idea) y hasta 3 pistas.
 export const MAX_ESSENTIALS = 4;
@@ -50,7 +50,7 @@ export const cardSchema = z.strictObject({
 export type Card = z.output<typeof cardSchema>;
 
 // La ficha de una tarjeta completa. Todos los campos existen siempre (vacíos si no los cargaste).
-export const sheetSchema = z.strictObject({
+const sheetSchema = z.strictObject({
   referenceAnswer: z.string(),
   variants: z.array(z.string()),
   essentials: z.array(z.string()).max(MAX_ESSENTIALS),
@@ -60,10 +60,9 @@ export const sheetSchema = z.strictObject({
   formType: formTypeSchema,
   state: sheetStateSchema,
 });
-export type CardSheet = z.output<typeof sheetSchema>;
 
 // Lo que mandás al guardar la ficha: solo lo que cambia.
-export const sheetInputSchema = z.strictObject({
+const sheetInputSchema = z.strictObject({
   referenceAnswer: sheetLine.optional(),
   variants: z.array(sheetLine).max(MAX_SHEET_ITEMS).optional(),
   essentials: z.array(sheetLine).max(MAX_SHEET_ITEMS).optional(),
@@ -76,7 +75,7 @@ export const sheetInputSchema = z.strictObject({
 export type CardSheetInput = z.input<typeof sheetInputSchema>;
 
 // El camino de contexto (CA-051): «Estadística básica › Regresión › Regresión lineal».
-export const cardPathSchema = z.strictObject({
+const cardPathSchema = z.strictObject({
   subjectName: z.string().nullable(),
   topicName: z.string().nullable(),
   noteTitle: z.string().nullable(),

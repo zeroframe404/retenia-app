@@ -65,7 +65,7 @@ class AttemptConflictError extends Error {
   }
 }
 
-export interface ListInput {
+interface ListInput {
   subjectId?: string | undefined;
   topicId?: string | undefined;
   sheetState?: SheetStateValue | undefined;

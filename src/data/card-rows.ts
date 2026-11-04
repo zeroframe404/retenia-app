@@ -23,7 +23,7 @@ import { cards, cardVersions, notes, topics, trashEntries } from './schema';
 // transacción que el guardado de la nota, y sus operaciones son del sistema (no aparecen en
 // «Actividad reciente»: el cambio es tuyo en la nota, no en la tarjeta).
 
-export interface RowCardNotice {
+interface RowCardNotice {
   cardId: string;
   question: string;
 }
@@ -42,7 +42,7 @@ function storedContent(json: string | null, fallback: string): RowContent {
   return parseContent(json) ?? plainContent(fallback);
 }
 
-export function contentJson(content: RowContent): string {
+function contentJson(content: RowContent): string {
   return canonicalJson(content);
 }
 

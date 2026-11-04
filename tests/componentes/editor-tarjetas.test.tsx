@@ -178,7 +178,7 @@ describe('[CA-049] escribir «{{texto}}» también crea el hueco', () => {
     const { from, to } = editor.state.selection;
     run(() => {
       const handled = editor.view.someProp('handleTextInput', (handler) =>
-        handler(editor.view, from, to, char),
+        handler(editor.view, from, to, char, () => editor.state.tr.insertText(char, from, to)),
       );
       if (!handled) {
         editor.view.dispatch(editor.state.tr.insertText(char, from, to));

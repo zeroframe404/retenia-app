@@ -31,8 +31,8 @@ export function CardsScreen({
   subject,
   onOpenNote,
 }: {
-  subject?: Subject;
-  onOpenNote?: (noteId: string, blockId: string) => void;
+  subject?: Subject | undefined;
+  onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
 }) {
   const subjectId = subject?.id;
   const [cards, setCards] = useState<Card[] | null>(null);
