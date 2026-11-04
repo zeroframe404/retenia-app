@@ -207,6 +207,9 @@ export function NoteEditor({
     const lostCards = result.lostCards ?? [];
     const editedCards = result.editedCards ?? [];
     if (lostCards.length > 0) {
+      // Se anota ya, sin esperar el próximo dibujo: «Volver a las notas» mira este número recién
+      // terminado el guardado y no tiene que dejar la pregunta sin hacer.
+      pendingLost.current = Math.max(pendingLost.current, lostCards.length);
       setLost((current) => merge(current, lostCards));
     }
     if (editedCards.length > 0) {

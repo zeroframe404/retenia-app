@@ -358,6 +358,31 @@ describe('[CA-052] el guardado avisa de las tarjetas que perdieron su renglón',
     ).toBeTruthy();
   });
 
+  it('[CA-052] «Volver a las notas» antes de los dos segundos no sale mientras la pregunta sigue sin contestar', async () => {
+    const remove = vi.fn(async () => ({ trashEntryId: uuid(41) }));
+    windowWith({ lostCards: [lost], editedCards: [] }, { 'cards.delete': remove });
+    const { onBack } = await renderNote(
+      note('Regresión lineal', [row(1, 'Pendiente >> algo'), row(2, '')]),
+    );
+    putCursor(contentEditor(), rowId(2));
+    typeText(contentEditor(), 'x');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Volver a las notas' }));
+    });
+    expect(
+      await screen.findByRole('dialog', {
+        name: 'Este renglón tiene una tarjeta con historial. ¿Qué hacemos?',
+      }),
+    ).toBeTruthy();
+    expect(onBack).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Conservar la tarjeta' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Volver a las notas' }));
+    });
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
   it('[CA-054] una tarjeta de la nota con historial que cambió pregunta «¿Cambió lo que hay que recordar?»', async () => {
     const mark = vi.fn(async (_request: { cardId: string }) => ({}));
     windowWith(
