@@ -158,9 +158,7 @@ function applyReview(
     state: next.state,
     stability: next.stability,
     difficulty: next.difficulty,
-    // Los días enteros se suman a la hora real del repaso: Buenos Aires no cambia de horario, así
-    // que el día de estudio de la fecha es el del repaso más el intervalo.
-    dueAt: new Date(review.occurredAt.getTime() + next.scheduled_days * DAY_MS),
+    dueAt: dueAfter(review.occurredAt, review.day, next.scheduled_days),
     lastReviewAt: review.occurredAt,
     reps: next.reps,
     lapses: next.lapses,
@@ -168,9 +166,36 @@ function applyReview(
   };
 }
 
-// Por qué un intento contó o no: lo tomó el motor, estaba anulado, ya hubo uno ese día de estudio o
-// no tenía calificación para el motor (interrumpido o defectuoso).
-type StepReason = 'counted' | 'annulled' | 'sameDay' | 'noGrade';
+// La próxima fecha: la hora real del repaso, el día de estudio del repaso más el intervalo. Se
+// suman días enteros y, si Buenos Aires cambiara de horario en el medio (lo hizo hasta 2009), se
+// corrige de a una hora hasta caer en ese día de estudio.
+function dueAfter(occurredAt: Date, day: string, interval: number): Date {
+  const target = new Date(noonOf(day).getTime() + interval * DAY_MS).toISOString().slice(0, 10);
+  let due = new Date(occurredAt.getTime() + interval * DAY_MS);
+  for (let turn = 0; turn < 3 && studyDayOf(due) !== target; turn += 1) {
+    due = new Date(due.getTime() + (studyDayOf(due) > target ? -1 : 1) * 3_600_000);
+  }
+  return due;
+}
+
+// Una agenda heredada de la Fase 03 se calculó con la retención fija de 0,90. Con otra retención
+// (su materia está en mantenimiento), la fecha sale de su estabilidad con la retención de hoy.
+function adoptedWith(memory: CardMemory, retention: number): CardMemory {
+  if (retention === ACTIVE_RETENTION || memory.lastReviewAt === null || memory.reps === 0) {
+    return memory;
+  }
+  const interval = schedulerFor(retention, false).next_interval(memory.stability, 0);
+  return {
+    ...memory,
+    scheduledDays: interval,
+    dueAt: dueAfter(memory.lastReviewAt, studyDayOf(memory.lastReviewAt), interval),
+  };
+}
+
+// Por qué un intento contó o no: lo tomó el motor, estaba anulado, ya hubo uno ese día de estudio,
+// tiene un día anterior al último que contó (la fecha volvió atrás) o no tenía calificación para el
+// motor (interrumpido o defectuoso).
+type StepReason = 'counted' | 'annulled' | 'sameDay' | 'earlier' | 'noGrade';
 
 interface TraceStep {
   readonly id: string;
@@ -193,8 +218,8 @@ export interface MemoryTrace {
   // Lo que tomó el motor en el último repaso que contó (null si no hubo, o si viene de una agenda
   // heredada sin detalle).
   readonly lastGrade: Grade | null;
-  // Tus intentos que el motor pudo usar (sin anulados, interrumpidos ni defectuosos), desde el
-  // último reinicio.
+  // Tus intentos que el motor usó (sin anulados, interrumpidos, defectuosos ni repetidos en el día),
+  // desde el último reinicio.
   readonly attempts: number;
 }
 
@@ -216,7 +241,7 @@ export function traceCardMemoryV2(
       continue;
     }
     if (event.kind === 'adopted') {
-      memory = event.memory;
+      memory = adoptedWith(event.memory, config.retention);
       lastDay = memory.lastReviewAt === null ? null : studyDayOf(memory.lastReviewAt);
       lastGrade = null;
       attempts = memory.reps;
@@ -254,13 +279,13 @@ export function traceCardMemoryV2(
       skip('noGrade');
       continue;
     }
-    attempts += 1;
-    // Un segundo intento el mismo día de estudio (o uno de un día anterior, si el reloj volvió
-    // atrás) queda en el historial y no llega al motor.
+    // Un segundo intento el mismo día de estudio, o uno de un día anterior al último que contó (la
+    // fecha volvió atrás), queda en el historial y no llega al motor.
     if (lastDay !== null && day <= lastDay) {
-      skip('sameDay');
+      skip(day === lastDay ? 'sameDay' : 'earlier');
       continue;
     }
+    attempts += 1;
     const elapsedDays = lastDay === null ? null : daysBetween(day, lastDay);
     memory = applyReview(
       memory,
@@ -304,6 +329,9 @@ export function outOfTen(probability: number): number {
 
 export type DueExplanation =
   | { readonly kind: 'new'; readonly general: true }
+  // El último repaso tiene un día posterior a hoy: la fecha volvió atrás (el reloj de la PC o
+  // «Restablecer fecha» en la demostración).
+  | { readonly kind: 'ahead'; readonly general: boolean }
   | {
       readonly kind: 'seen';
       readonly daysSince: number;
@@ -320,12 +348,17 @@ export function explainDue(trace: MemoryTrace, today: string): DueExplanation {
   if (probability === null || memory.lastReviewAt === null) {
     return { kind: 'new', general: true };
   }
+  const general = trace.attempts < GENERAL_ESTIMATE_ATTEMPTS;
+  const daysSince = daysBetween(today, studyDayOf(memory.lastReviewAt));
+  if (daysSince < 0) {
+    return { kind: 'ahead', general };
+  }
   return {
     kind: 'seen',
-    daysSince: Math.max(0, daysBetween(today, studyDayOf(memory.lastReviewAt))),
+    daysSince,
     lastResult: trace.lastGrade,
     outOfTen: outOfTen(probability),
-    general: trace.attempts < GENERAL_ESTIMATE_ATTEMPTS,
+    general,
   };
 }
 

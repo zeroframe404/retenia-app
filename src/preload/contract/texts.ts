@@ -403,6 +403,8 @@ export const texts = {
     // «¿Por qué hoy?» (Fase 09): la probabilidad, dicha sin decimales.
     whyToday: '¿Por qué hoy?',
     whyTodayNew: 'Es nueva: todavía no la repasaste.',
+    whyTodayAhead:
+      'La última vez que la viste figura con una fecha posterior a hoy: la fecha volvió atrás.',
     whyTodaySeen: (
       daysSince: number,
       lastResult: 'again' | 'hard' | 'good' | null,
@@ -513,6 +515,7 @@ export const texts = {
     // Fase 09: el repaso deshecho y el segundo del mismo día.
     annulled: 'Anulado',
     sameDay: 'Otro repaso del mismo día: no cambió la fecha',
+    earlier: 'Con una fecha anterior al último repaso que contó: no cambió la fecha',
     marked: (row: string, mark: string) => `${row} · ${mark}`,
     adopted: 'Repasos anteriores, sin detalle',
     reset: 'Cambió lo que hay que recordar: volvió a programarse como nueva',

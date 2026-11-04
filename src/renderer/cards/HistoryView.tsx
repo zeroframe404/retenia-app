@@ -14,14 +14,17 @@ const RESULTS: Record<CardHistory['entries'][number]['result'], string> = {
   reset: texts.history.reset,
 };
 
-// El renglón de un repaso: la fecha, el resultado y, desde la Fase 09, «Anulado» si se deshizo o la
-// aclaración de que fue otro repaso del mismo día.
+// El renglón de un repaso: la fecha, el resultado y, desde la Fase 09, «Anulado» si se deshizo o por
+// qué no cambió la fecha (otro repaso del mismo día, o uno con fecha anterior al último que contó).
 function rowText(entry: CardHistory['entries'][number]): string {
   const row = texts.history.row(formatShortDate(entry.day), RESULTS[entry.result]);
   if (entry.annulled) {
     return texts.history.marked(row, texts.history.annulled);
   }
-  return entry.sameDay ? texts.history.marked(row, texts.history.sameDay) : row;
+  if (entry.skipped === 'sameDay') {
+    return texts.history.marked(row, texts.history.sameDay);
+  }
+  return entry.skipped === 'earlier' ? texts.history.marked(row, texts.history.earlier) : row;
 }
 
 // «Historial» de una tarjeta: un renglón por repaso, con la fecha y el resultado, en el orden en

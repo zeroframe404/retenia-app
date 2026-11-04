@@ -40,7 +40,9 @@ export function WhyToday({ cardId }: { cardId: string }) {
           <p>
             {answer.kind === 'new'
               ? texts.cards.whyTodayNew
-              : texts.cards.whyTodaySeen(answer.daysSince, answer.lastResult, answer.outOfTen)}
+              : answer.kind === 'ahead'
+                ? texts.cards.whyTodayAhead
+                : texts.cards.whyTodaySeen(answer.daysSince, answer.lastResult, answer.outOfTen)}
           </p>
           {answer.general ? (
             <p className={styles.fieldHelp}>{texts.cards.generalEstimate}</p>

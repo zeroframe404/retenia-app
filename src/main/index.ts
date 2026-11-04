@@ -16,6 +16,7 @@ import { createDemoDate } from './demo/clock';
 import { prepareLabSwitches, startLab } from './demo/lab-setup';
 import { createDemoWorkspace } from './demo/switcher';
 import { createGate, gateHandlers } from './gate';
+import { fuzzForVariant } from './memory-options';
 
 const variant: Variant = __VARIANTE__;
 const isTest = __VARIANTE__ === 'prueba';
@@ -149,7 +150,7 @@ function start(): void {
   // demostración no.
   const workspace =
     demoData?.workspace ??
-    openWorkspace({ dataDir, clock, appVersion: app.getVersion(), fuzz: true });
+    openWorkspace({ dataDir, clock, appVersion: app.getVersion(), fuzz: fuzzForVariant(variant) });
   app.on('quit', () => (demoData ? demoData.close() : workspace.close()));
 
   const paper = applyFrameTheme(createAppearanceStore(dataDir).get());

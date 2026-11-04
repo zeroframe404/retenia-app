@@ -555,7 +555,7 @@ export function createCardsStore(
           day: studyDayOf(event.occurredAt),
           result: event.result,
           annulled: event.annulled,
-          sameDay: event.sameDay,
+          skipped: event.skipped,
         })),
       };
     },

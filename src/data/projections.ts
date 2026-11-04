@@ -54,8 +54,9 @@ export interface HistoryEvent {
   readonly result: 'again' | 'hard' | 'good' | 'adopted' | 'reset';
   // El repaso se deshizo (CA-063): figura como «Anulado».
   readonly annulled: boolean;
-  // Hubo otro repaso antes ese mismo día de estudio: quedó anotado y no cambió la fecha.
-  readonly sameDay: boolean;
+  // Por qué un repaso quedó anotado sin cambiar la fecha: ya había otro ese día de estudio, o tiene
+  // un día anterior al último que contó (la fecha volvió atrás).
+  readonly skipped: 'sameDay' | 'earlier' | null;
 }
 
 // Los eventos que mueven la agenda, con la calificación de la evaluación vigente de cada repaso.
@@ -205,7 +206,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
             occurredAt: at,
             result: event.kind === 'adopted' ? 'adopted' : 'reset',
             annulled: false,
-            sameDay: false,
+            skipped: null,
           },
         ];
       }
@@ -217,7 +218,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
           occurredAt: at,
           result: event.grade,
           annulled: step?.reason === 'annulled',
-          sameDay: step?.reason === 'sameDay',
+          skipped: step?.reason === 'sameDay' || step?.reason === 'earlier' ? step.reason : null,
         },
       ];
     })
