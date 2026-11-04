@@ -239,6 +239,13 @@ Cómo quedó en la Fase 08:
 | CA-064 | U | — | Acierto con A2 o A3 cuenta como «Con dudas»; con A4, «No la sabía»; interrumpido o defectuoso no mueve nada. |
 | CA-065 | E | U | «¿Por qué hoy?» muestra la frase con 23 días, «te costó» y «unos 7 de cada 10»; U calcula la probabilidad. |
 
+Cómo quedó en la Fase 09:
+
+- La tabla de casos es `docs/especificacion/casos-memoria.md` (51 casos). `tests/unitarias/casos-memoria.test.ts` corre cada renglón con el motor de Retenia (una prueba por renglón, con «$id» en el título, que el tablero muestra como «Tabla de casos del motor» con lo esperado y lo obtenido) y, aparte, comprueba que la biblioteca y la fórmula publicada de FSRS-6 (`tools/lib/fsrs6.mjs`, escrita sin la biblioteca) siguen dando lo congelado. «Agregá un caso:» se prueba sobre una copia de la tabla (`casos-memoria-herramienta.test.ts`).
+- Propiedades (`tests/propiedades/motor-de-memoria.test.ts`, semilla fija): recalcular en cualquier orden da lo mismo (CA-062), la estabilidad nunca baja tras un acierto sin ayuda, un repaso tardío acertado nunca programa antes que uno en fecha (CA-061), anular y rehacer deja el estado idéntico con o sin variación al azar (CA-063), y a menor retención, intervalo mayor o igual (CA-060).
+- CA-060 suma I (`motor-de-memoria.test.ts`: la retención según el estado de la materia, también al hacer activa otra y al deshacerlo) y E (una tarjeta nueva de «Historia argentina» vuelve el viernes 19/03/2027). CA-062 suma I sobre el elenco entero (borrar la agenda de las 192 tarjetas y repararla da las mismas filas). CA-063 suma I, C, R y E. CA-064 suma I (la ayuda se guarda con el intento y el motor la aplica). CA-065 suma I, C y R, y la E se hace con las dos tarjetas del elenco que nombran el criterio y M09.5.
+- Dobles nuevos: ninguno. La variación al azar no es un doble: se apaga en las pruebas como en la demostración (`openSpace({ fuzz })` en `tests/apoyo/espacio.ts`) y una prueba la enciende para comprobar que es reproducible.
+
 ### Fase 10 · Sesión de estudio (H-16, H-17, H-18)
 
 | Criterio | Capa | También | Cómo se comprueba |

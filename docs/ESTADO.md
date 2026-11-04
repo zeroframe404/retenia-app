@@ -1,5 +1,7 @@
 # Estado del proyecto
 
+**Fase 09 lista para tu revisión (04/11/2026).** Retenia (prueba) tiene ahora el motor de memoria de verdad: FSRS-6 con sus parámetros por defecto, en días de estudio, con un solo repaso por día que cuenta, la retención de la materia (0,90 la activa, 0,85 las demás), «Deshacer» después de calificar (el repaso queda como «Anulado» en el historial) y «¿Por qué hoy?» en cada tarjeta. La tabla de casos congelada tiene 51 casos (`docs/especificacion/casos-memoria.md`) y el tablero la muestra como «Tabla de casos del motor». `npm run verificar:todo` da «PENDIENTE_VEREDICTO»; los 8 criterios de la fase (CA-058 a CA-065) tienen prueba. Falta que hagas las pruebas manuales S1, S2, M09.1 a M09.6 y la libre (`docs/pruebas-manuales/fase-09.md`). M09.2 cambió con tu acuerdo: la tercera fecha es dos días después del fallo. PENDIENTE_REVISOR No fusiones ni pongas el tag hasta confirmar.
+
 **Fase 08 lista para tu revisión (04/11/2026).** Retenia (prueba) tiene ahora tarjetas dentro de los apuntes («>>» y huecos con Ctrl+Mayús+C, con sus renglones marcados), fichas, versiones, inversas y pausa, y la pestaña «Tarjetas» nueva con contador, filtros y una lista que no se traba. Las 180 tarjetas de Estadística básica y las 12 de Historia argentina vienen con historial. `npm run verificar:todo` da «VERDE · 2886 pruebas · 0 fallas · 0 salteadas · 35 de 35 criterios cubiertos» (7 min 48 s en esta PC); los 12 criterios de la fase (CA-048 a CA-057, CA-377 y CA-378) tienen prueba. Falta que hagas las pruebas manuales S1, S2, M08.1 a M08.11 y la libre (`docs/pruebas-manuales/fase-08.md`) y que apruebes las 4 capturas de referencia de «Apuntes › Tarjetas» que cambiaron a propósito (más las 10 de la Fase 06 que siguen pendientes). El revisor independiente dejó 15 objeciones: 13 arregladas (casi todas con prueba) y 2 anotadas (`docs/decisiones.md`, Fase 08). No fusiones ni pongas el tag hasta confirmar.
 
 **Fase 07 lista para tu revisión (29/10/2026).** Retenia (prueba) tiene ahora materias, temas, apuntes por bloques y la Bandeja. `npm run verificar:todo` da «VERDE · 2523 pruebas · 0 fallas · 0 salteadas · 38 de 38 criterios cubiertos» (6 min 20 s en esta PC), los 15 criterios de la fase (CA-038 a CA-047 y CA-372 a CA-376) tienen prueba y el revisor independiente dejó 11 objeciones: 6 arregladas con prueba y 5 anotadas (`docs/decisiones.md`, Fase 07). Falta que hagas las pruebas manuales S1, S2, M07.1 a M07.12 y la libre (`docs/pruebas-manuales/fase-07.md`) y que apruebes las 10 capturas de la Fase 06 que cambiaron a propósito. Pendientes de esta fase: las copias de seguridad no incluyen la carpeta `imagenes` (restaurar una copia en otra carpeta deja renglones con imagen sin archivo); y una vez, en la red completa, la medición de `verificar` (CA-001) dio rojo sin que pudiera ver por qué y a la repetición dio verde. No fusiones ni pongas el tag hasta confirmar.
@@ -19,13 +21,25 @@
 | 05 · Laboratorio de piezas riesgosas | Fusionada (17/10/2026, pull request #6), sin tag `fase-05-ok` todavía: lo pongo cuando lo pidas |
 | 06 · Sistema de diseño y armazón | Fusionada (20/10/2026, pull request #7), sin tag `fase-06-ok`: faltan tus pruebas manuales |
 | 07 · Materias, temas, apuntes y bandeja | Fusionada (29/10/2026, pull request #8), sin tag `fase-07-ok`: faltan tus pruebas manuales y las capturas |
-| 08 · Tarjetas y fichas | En revisión (rama `fase-08`, pull request #9): faltan tus pruebas manuales y las capturas |
+| 08 · Tarjetas y fichas | Fusionada (04/11/2026, pull request #9), sin tag `fase-08-ok`: faltan tus pruebas manuales y las capturas |
+| 09 · Motor de memoria FSRS-6 | En revisión (rama `fase-09`, pull request PENDIENTE_PR): faltan tus pruebas manuales |
 
 Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (3 min 07 s, 20/10/2026). CI del pull request #7, en la última versión: «Red completa y compilación» en verde (32 min 35 s) e «Instaladores y humo del instalador» en verde (8 min 59 s, a la segunda: la primera vez se cortó la bajada de una herramienta de compilación del servidor de GitHub), con las capturas de referencia sin diferencias. Antes hubo cuatro corridas rojas por tiempos y por un error mío de configuración, todas resueltas y explicadas en docs/decisiones.md.
 
 Cuando apruebes la Fase 06: fusionar el pull request y pedirme el tag (y el de la Fase 05, que quedó sin poner); los pone `npm run cerrar-fase -- NN`, que antes corre la red completa y guarda en el tag cuántas pruebas había.
 
 ## Qué hay hoy
+
+Fase 09 (en la rama `fase-09`, que sale de `main` con la 08 fusionada):
+
+- El motor de memoria (versión 2): FSRS-6 con sus 21 parámetros por defecto (no se ajustan con tus datos), sin pasos de minutos. «No la sabía», «Con dudas» y «La sabía» (no hay «fácil»). Cuenta días de estudio (el día cambia a las 04:00) y usa los días que pasaron de verdad: un repaso tardío acertado espacia más, y uno omitido no es un fallo. Solo el primer repaso de cada día llega al motor; los demás quedan en el historial como «Otro repaso del mismo día: no cambió la fecha».
+- Retención objetivo según el estado de la materia al calcular: 0,90 la activa, 0,85 en mantenimiento (o en pausa, o archivada). «Hacer activa» reprograma en el momento las tarjetas de las dos materias. En «Historia argentina» una tarjeta nueva con «La sabía» vuelve el viernes 19/03/2027.
+- En el repaso, después de calificar, «Deshacer»: el repaso se anula, la tarjeta vuelve a la pregunta y su próximo repaso es otra vez el de antes; en «Historial» ese renglón dice «Anulado».
+- «¿Por qué hoy?» en la pantalla de cada tarjeta y en el repaso: «La viste hace 23 días; la última vez te costó; probabilidad estimada de recordarla: unos 7 de cada 10», con «Estimación general (sin datos tuyos)» mientras la tarjeta tenga menos de 5 intentos.
+- Cada repaso guarda lo que predecía el motor, los días reales, por qué apareció la tarjeta y con qué motor y parámetros se calculó. La agenda guarda la versión del motor; al abrir, las calculadas con el motor de antes se recalculan solas.
+- La variación al azar de las fechas: solo en «Retenia» (uso real), con semilla de la tarjeta y del repaso; en «Retenia (prueba)» no hay.
+- La tabla de casos del motor (51 casos) y «Agregá un caso:» en Claude Code (`node tools/casos-memoria.mjs agregar "…"`, también `mostrar` y `revisar`).
+- Cosas que todavía no hay: la sesión de estudio con su «Deshacer» y Ctrl+Z (Fase 10); las pistas y «La tarjeta está mal» (las reglas de ayuda ya están en el motor, pero ninguna pantalla manda ayuda todavía; Fases 10 y 16); el sondeo (Fase 27).
 
 Fase 08 (en la rama `fase-08`, que sale de la 07):
 
