@@ -72,7 +72,7 @@ Los textos de abajo son los que muestra el programa hoy. Los de tu lista salen *
 
 - Hacé: en cualquier tarjeta tocá «Pausar esta tarjeta». Después «Reanudar».
 - Tenés que ver: pausada, muestra «En pausa» en vez del próximo repaso; al reanudar vuelve su fecha.
-- Aclaración: «En pausa» se ve en la pantalla de la tarjeta y en su fila de la lista. Sigue pausada aunque cierres y abras Retenia.
+- Aclaración: «En pausa» se ve en la pantalla de la tarjeta y en su fila de la lista. Mientras está en pausa no se ofrece «Repasar» (vuelve al reanudar). Sigue pausada aunque cierres y abras Retenia.
 
 ## M08.11 · Borrar un renglón con tarjeta · CA-052
 
