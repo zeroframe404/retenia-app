@@ -86,6 +86,14 @@ const blocksSchema = z
     if (issue !== null) {
       context.addIssue({ code: 'custom', message: issue });
     }
+    // Dentro de un renglón, cada hueco tiene su propio identificador.
+    for (const block of blocks) {
+      const holes = block.content.flatMap((node) => (node.type === 'cloze' ? [node.id] : []));
+      if (new Set(holes).size !== holes.length) {
+        context.addIssue({ code: 'custom', message: 'hueco repetido en un renglón' });
+        break;
+      }
+    }
   });
 
 export const noteSummarySchema = z.strictObject({

@@ -8,6 +8,9 @@ import { ViewState } from '../ui/ViewStates';
 import { CardFace } from './CardFace';
 import styles from './Cards.module.css';
 
+// Una pista por lugar (hasta tres): la clave es el lugar, no el texto (dos pistas pueden coincidir).
+const HINT_SLOTS = ['primera', 'segunda', 'tercera'] as const;
+
 // El camino de contexto de la tarjeta: «Estadística básica › Regresión › Regresión lineal». Una
 // nota sin tema pasa por «Sin tema»; una nota sin título, por «Sin título».
 function pathText(card: CardDetail): string {
@@ -153,7 +156,7 @@ export function CardDetailView({
             <li>{texts.cards.essentialsLine(sheet.essentials.join('; '))}</li>
           )}
           {sheet.hints.map((hint, index) => (
-            <li key={hint}>{texts.cards.hintLine(index + 1, hint)}</li>
+            <li key={HINT_SLOTS[index] ?? 'otra'}>{texts.cards.hintLine(index + 1, hint)}</li>
           ))}
           {sheet.explanation === '' ? null : (
             <li>{texts.cards.explanationLine(sheet.explanation)}</li>
@@ -170,7 +173,7 @@ export function CardDetailView({
         <Boton variant="primary" onClick={() => onEdit(card)}>
           {texts.cards.editSheet}
         </Boton>
-        <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>
+        {card.paused ? null : <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>}
         {card.kind === 'qa' && !card.hasInverse && card.inverseOfCardId === null ? (
           <Boton onClick={() => void createInverse()}>{texts.cards.createInverse}</Boton>
         ) : null}

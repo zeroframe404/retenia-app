@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { demoClock } from '../../src/core/clock';
-import { type Grade, newCardMemory, reviewCard } from '../../src/core/memory';
+import {
+  DEFAULT_RETENTION,
+  type Grade,
+  MEMORY_ENGINE_VERSION,
+  newCardMemory,
+  projectCardMemory,
+  reviewCard,
+} from '../../src/core/memory';
 import { studyDayOf } from '../../src/core/study-day';
 import { formatLongDate } from '../../src/preload/contract/texts';
 import { inBuenosAires } from '../apoyo/fechas';
@@ -104,5 +111,56 @@ describe('memoria: ts-fsrs con FSRS-6 y parámetros por defecto', () => {
     const failed = reviewCard(learned, 'again', second);
     expect(failed.lapses).toBe(1);
     expect(failed.stability).toBeLessThan(learned.stability);
+  });
+});
+
+describe('cambió lo que hay que recordar: el reinicio de la agenda', () => {
+  const day = (n: number) => new Date(Date.UTC(2027, 2, 15 + n, 13));
+
+  it('un repaso, un reinicio y otro repaso dan lo mismo que un repaso de una tarjeta nueva en ese momento', () => {
+    const memory = projectCardMemory(
+      {
+        createdAt: day(0),
+        events: [
+          { kind: 'review', id: 'a', seq: 1, occurredAt: day(1), grade: 'good' },
+          { kind: 'reset', id: 'b', seq: 2, occurredAt: day(5) },
+          { kind: 'review', id: 'c', seq: 3, occurredAt: day(6), grade: 'good' },
+        ],
+      },
+      { retention: DEFAULT_RETENTION },
+      MEMORY_ENGINE_VERSION,
+    );
+    const fresh = reviewCard(newCardMemory(day(5)), 'good', day(6));
+    expect(memory).toEqual(fresh);
+  });
+
+  it('un reinicio sin repasos después deja la tarjeta como nueva', () => {
+    const memory = projectCardMemory(
+      {
+        createdAt: day(0),
+        events: [
+          { kind: 'review', id: 'a', seq: 1, occurredAt: day(1), grade: 'good' },
+          { kind: 'reset', id: 'b', seq: 2, occurredAt: day(5) },
+        ],
+      },
+      { retention: DEFAULT_RETENTION },
+      MEMORY_ENGINE_VERSION,
+    );
+    expect(memory.reps).toBe(0);
+    expect(memory.state).toBe(0);
+    expect(memory.dueAt).toEqual(day(5));
+  });
+
+  it('el orden lo da el número de secuencia, no la hora', () => {
+    const events = [
+      { kind: 'reset' as const, id: 'b', seq: 2, occurredAt: day(0) },
+      { kind: 'review' as const, id: 'a', seq: 1, occurredAt: day(3), grade: 'good' as const },
+    ];
+    const memory = projectCardMemory(
+      { createdAt: day(0), events },
+      { retention: DEFAULT_RETENTION },
+      MEMORY_ENGINE_VERSION,
+    );
+    expect(memory.reps).toBe(0);
   });
 });

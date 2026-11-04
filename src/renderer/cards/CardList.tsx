@@ -123,9 +123,11 @@ function Row({
             {card.question}
           </button>
         </p>
-        <Boton variant="quiet" onClick={() => onReview(card)}>
-          {texts.cards.review}
-        </Boton>
+        {card.paused ? null : (
+          <Boton variant="quiet" onClick={() => onReview(card)}>
+            {texts.cards.review}
+          </Boton>
+        )}
       </div>
       <p className={styles.rowMeta} title={meta}>
         {meta}

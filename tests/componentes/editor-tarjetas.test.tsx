@@ -4,10 +4,12 @@ import { rowCardKind } from '../../src/core/cards';
 import { AUTOSAVE_MS, type InlineNode } from '../../src/preload/contract/notes';
 import { rowCardOf } from '../../src/renderer/notes/editor/card-marker';
 import {
+  blockIds,
   contentEditor,
   contentElement,
   installApi,
   note,
+  pressKey,
   putCursor,
   renderNote,
   row,
@@ -164,6 +166,31 @@ describe('[CA-049] Ctrl+Mayús+C convierte la selección en un hueco', () => {
     for (const ids of byRow.values()) {
       expect(new Set(ids).size).toBe(ids.length);
     }
+  });
+});
+
+describe('la identidad del renglón no cambia al apretar Enter', () => {
+  beforeEach(() => {
+    installApi();
+  });
+
+  it('Enter al principio de un renglón que es tarjeta deja arriba un renglón vacío nuevo: la tarjeta sigue ligada al mismo renglón', async () => {
+    await renderNote(note('Regresión lineal', [row(1, 'Pendiente >> Cuánto cambia')]));
+    putCursor(contentEditor(), rowId(1), 0);
+    pressKey(contentEditor(), 'Enter');
+    const doc = contentEditor().state.doc;
+    const texts: string[] = [];
+    doc.descendants((node) => {
+      if (node.type.name === 'paragraph') {
+        texts.push(node.textContent);
+      }
+    });
+    expect(texts).toEqual(['', 'Pendiente >> Cuánto cambia']);
+    // El renglón con el texto conserva su identificador; el vacío es el nuevo.
+    const ids = blockIds(contentEditor());
+    expect(ids).toHaveLength(2);
+    expect(ids[1]).toBe(rowId(1));
+    expect(ids[0]).not.toBe(rowId(1));
   });
 });
 

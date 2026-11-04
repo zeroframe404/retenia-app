@@ -147,6 +147,12 @@ describe('qué tarjetas salen de un renglón', () => {
     expect(specs.map((s) => plain(s.answer))).toEqual(['4', '4']);
   });
 
+  it('dos huecos con el mismo identificador dan una sola tarjeta (el primero manda)', () => {
+    const specs = rowCardSpecs([text('a '), hole('x', 'uno'), text(' b '), hole('x', 'dos')]);
+    expect(specs.map((s) => s.key)).toEqual(['x']);
+    expect(plain(specs[0]?.answer ?? [])).toBe('uno');
+  });
+
   it('un hueco vacío no da tarjeta', () => {
     expect(rowCardSpecs([text('antes '), hole('v', '  '), text(' después')])).toEqual([]);
   });

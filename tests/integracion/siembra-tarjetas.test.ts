@@ -133,7 +133,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
 });
 
 describe('elenco de tarjetas: las que tienen nombre propio', () => {
-  it('«¿Qué mide el desvío estándar?» vence hoy, es la primera de la cola y se vio por última vez el 20/02/2027 con dudas', () => {
+  it('«¿Qué mide el desvío estándar?» es la más atrasada de las vencidas (vence el 25/02/2027, hace 18 días) y se vio por última vez el 20/02/2027 con dudas', () => {
     const { workspace } = seeded();
     const card = named(workspace, 'Estadística básica', '¿Qué mide el desvío estándar?');
     expect(card.answer).toBe('Cuánto se alejan, en promedio, los datos de la media.');
@@ -148,6 +148,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
     const earliest = Math.min(...due.map((other) => Date.parse(other.nextReviewDay ?? '')));
     expect(Date.parse(card.nextReviewDay ?? '')).toBe(earliest);
     expect(due.filter((other) => other.nextReviewDay === card.nextReviewDay)).toHaveLength(1);
+    expect(card.nextReviewDay).toBe('2027-02-25');
     const history = workspace.cards.history({ cardId: card.id }).entries;
     expect(history.at(-1)).toMatchObject({ day: '2027-02-20', result: 'hard' });
   });
@@ -223,7 +224,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
       const days = (Date.parse(TODAY) - Date.parse(last.day)) / 86_400_000;
       return days >= 27 && days <= 33;
     });
-    expect(stale.length).toBeGreaterThanOrEqual(11);
+    expect(stale).toHaveLength(11);
   });
 
   it('tres tarjetas nacieron en la nota «Intervalos de confianza»: una con «>>» y dos hermanas de un renglón con dos huecos, todas con historial', () => {

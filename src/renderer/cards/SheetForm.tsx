@@ -86,6 +86,10 @@ export function SheetForm({
   const textChanged = question.trim() !== card.question || answer.trim() !== card.answer;
 
   function validate(): boolean {
+    // El texto de una tarjeta que nació en una nota se edita en la nota: acá no se toca.
+    if (card.linked) {
+      return true;
+    }
     const parsed = cardsCreateRequest.safeParse({ question, answer });
     const found: { question?: string; answer?: string } = {};
     if (!parsed.success) {
@@ -129,7 +133,10 @@ export function SheetForm({
       explanation,
       source,
       formType,
-      state: STATES.find((option) => option === state) ?? 'reviewed',
+      // «Propuesta» solo la cambia quien la propuso: guardar la ficha no la vuelve «Revisada».
+      ...(state === 'proposed'
+        ? {}
+        : { state: STATES.find((option) => option === state) ?? 'reviewed' }),
     };
     try {
       onSaved(

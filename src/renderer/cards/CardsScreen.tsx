@@ -75,6 +75,15 @@ export function CardsScreen({
     }
   }, [subjectId, filters]);
 
+  // Al pasar a otra materia no queda nada de la anterior: ni el filtro de tema ni una tarjeta abierta.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando cambia la materia.
+  useEffect(() => {
+    setFilters(NO_FILTERS);
+    setView({ kind: 'list' });
+    setNotice('');
+    setTopics([]);
+  }, [subjectId]);
+
   useEffect(() => {
     void load();
   }, [load]);

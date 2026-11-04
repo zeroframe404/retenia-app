@@ -376,6 +376,19 @@ describe('pedidos inválidos: el principal los rechaza antes de tocar nada', () 
     }
   });
 
+  it('«notes.save»: dos huecos con el mismo identificador en un renglón', async () => {
+    const hole = (text: string) => ({ type: 'cloze', id: UUID, text });
+    const blocks = [
+      {
+        id: UUID,
+        parentId: null,
+        collapsed: false,
+        content: [hole('uno'), { type: 'text', text: ' y ' }, hole('dos')],
+      },
+    ];
+    await rejected('notes.save', { noteId: UUID, title: '', blocks });
+  });
+
   it('«notes.save»: más renglones que el tope', async () => {
     const blocks = Array.from({ length: MAX_BLOCKS + 1 }, () => ({
       id: newId(),

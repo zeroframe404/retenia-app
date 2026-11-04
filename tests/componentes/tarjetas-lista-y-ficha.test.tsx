@@ -418,6 +418,42 @@ describe('[CA-057] «Pausar esta tarjeta» y «Reanudar»', () => {
   });
 });
 
+describe('[CA-057] una tarjeta pausada no se ofrece para repasar', () => {
+  it('[CA-057] «Repasar» no está ni en su fila ni en su pantalla mientras está en pausa, y vuelve al reanudar', async () => {
+    const { open, user, add } = setup();
+    add('Pausable');
+    open();
+    await openCard(user, 'Pausable');
+    expect(screen.getByRole('button', { name: 'Repasar' })).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Pausar esta tarjeta' }));
+    await screen.findByText('En pausa');
+    expect(screen.queryByRole('button', { name: 'Repasar' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
+    await screen.findByText('1 tarjeta');
+    expect(screen.queryByRole('button', { name: 'Repasar' })).toBeNull();
+    await openCard(user, 'Pausable');
+    await user.click(screen.getByRole('button', { name: 'Reanudar' }));
+    expect(await screen.findByRole('button', { name: 'Repasar' })).toBeTruthy();
+  });
+});
+
+describe('[CA-056] al pasar a otra materia no quedan los filtros de la anterior', () => {
+  it('el filtro de tema de una materia no se arrastra a la otra', async () => {
+    const { workspace, media, open, user, add } = setup();
+    add('De estadística', media.id);
+    const other = workspace.subjects.create({ name: 'Historia argentina' });
+    workspace.cards.create({ question: 'De historia', answer: 'R', subjectId: other.id });
+    const view = open();
+    expect(await screen.findByText('1 tarjeta')).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText('Tema'), media.id);
+    await screen.findByText('1 tarjeta');
+    view.rerender(<CardsScreen subject={other} />);
+    expect(await screen.findByText('De historia')).toBeTruthy();
+    expect((screen.getByLabelText('Tema') as HTMLSelectElement).value).toBe('');
+    expect(screen.queryByText('Ninguna tarjeta cumple esos filtros.')).toBeNull();
+  });
+});
+
 describe('[CA-377] y [CA-378] imagen y fórmula de la tarjeta en el repaso', () => {
   async function cardWithImageAndFormula() {
     const ctx = setup();

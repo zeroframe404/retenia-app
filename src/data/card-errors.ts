@@ -21,6 +21,13 @@ export class InverseNotAllowedError extends Error {
   }
 }
 
+export class CardPausedError extends Error {
+  constructor() {
+    super('La tarjeta está en pausa: reanudala para repasarla');
+    this.name = 'CardPausedError';
+  }
+}
+
 export class SheetStateNotAllowedError extends Error {
   constructor() {
     super('Ese estado no se puede elegir a mano');

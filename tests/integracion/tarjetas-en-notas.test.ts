@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { newId } from '../../src/data/ids';
 import { readRows, runRaw } from '../apoyo/base-cruda';
-import { closeSpaces, openSpace } from '../apoyo/espacio';
+import { closeSpaces, openSpace, pngBytes } from '../apoyo/espacio';
 
 // Las tarjetas que nacen en un renglón (H-12), su ficha y sus versiones (H-13) y la lista (H-14),
 // con la base real: la identidad de una tarjeta es el renglón (y el hueco), nunca su texto.
@@ -322,6 +322,7 @@ describe('[CA-054] versiones y «¿Cambió lo que hay que recordar?»', () => {
   it('[CA-054] «No, solo la redacción» conserva el próximo repaso', () => {
     const { workspace, card, scheduleOf } = withHistory();
     const before = scheduleOf();
+    const dayBefore = workspace.cards.get({ cardId: card.id }).nextReviewDay;
     const edited = workspace.cards.edit({
       cardId: card.id,
       question: card.question,
@@ -330,7 +331,7 @@ describe('[CA-054] versiones y «¿Cambió lo que hay que recordar?»', () => {
     });
     expect(scheduleOf()).toEqual(before);
     expect(edited.nextReviewDay).not.toBeNull();
-    expect(edited.nextReviewDay).toBe(card.nextReviewDay ?? edited.nextReviewDay);
+    expect(edited.nextReviewDay).toBe(dayBefore);
   });
 
   it('[CA-054] «Sí» la programa como nueva y el historial anterior sigue a la vista', () => {
@@ -647,5 +648,89 @@ describe('todo lo anterior deja los datos sanos', () => {
     save([row(newId(), [text('otro')])]);
     workspace.cards.remove({ cardId: id });
     expect(workspace.verifyData()).toEqual([]);
+  });
+});
+
+describe('lo que marcó la revisión independiente', () => {
+  const image = (sha: string) => ({
+    type: 'image' as const,
+    sha,
+    width: 1,
+    height: 1,
+    alt: '',
+  });
+
+  it('una tarjeta nacida en una nota cuya nota se fue a la Papelera se edita como una suelta (y su pantalla no dice que está ligada)', () => {
+    const { first, save, cards, workspace, note, grade } = setup();
+    save([row(first, [text('P >> R')])]);
+    const id = cards()[0]?.id ?? '';
+    grade(id);
+    expect(workspace.cards.get({ cardId: id }).linked).toBe(true);
+    workspace.notes.remove({ noteId: note.id });
+    const detail = workspace.cards.get({ cardId: id });
+    expect(detail.linked).toBe(false);
+    const edited = workspace.cards.edit({
+      cardId: id,
+      question: 'P nueva',
+      answer: 'R nueva',
+      meaningChanged: false,
+    });
+    expect(edited).toMatchObject({ question: 'P nueva', answer: 'R nueva' });
+  });
+
+  it('con la nota eliminada para siempre la tarjeta también se puede editar', () => {
+    const { first, save, cards, workspace, note } = setup();
+    save([row(first, [text('P >> R')])]);
+    const id = cards()[0]?.id ?? '';
+    workspace.notes.remove({ noteId: note.id });
+    workspace.trash.empty();
+    expect(workspace.cards.edit({ cardId: id, question: 'P2', answer: 'R' }).question).toBe('P2');
+  });
+
+  it('un renglón que es solo una imagen en un lado da una tarjeta con texto (nunca vacío), y su ficha se puede guardar', () => {
+    const { first, save, cards, workspace } = setup();
+    const { sha } = workspace.images.save({
+      bytes: pngBytes(),
+      mime: 'image/png',
+      width: 1,
+      height: 1,
+    });
+    save([row(first, [text('Curva >> '), image(sha) as never])]);
+    const card = cards()[0];
+    expect(card?.question).toBe('Curva');
+    expect(card?.answer).not.toBe('');
+    const saved = workspace.cards.edit({
+      cardId: card?.id ?? '',
+      question: card?.question ?? '',
+      answer: card?.answer ?? '',
+      sheet: { explanation: 'x' },
+    });
+    expect(saved.sheet.explanation).toBe('x');
+  });
+
+  it('un renglón con dos huecos con el mismo identificador crea una sola tarjeta y no la deja desactualizada', () => {
+    const { first, save, cards } = setup();
+    const same = newId();
+    save([row(first, [text('a '), hole(same, 'uno'), text(' b '), hole(same, 'dos')])]);
+    expect(cards()).toHaveLength(1);
+    save([row(first, [text('a '), hole(same, 'uno!'), text(' b '), hole(same, 'dos')])]);
+    expect(cards()).toHaveLength(1);
+    expect(cards()[0]?.answer).toBe('uno!');
+  });
+
+  it('una tarjeta pausada no se puede repasar hasta que la reanudes', () => {
+    const { workspace, subject, grade } = setup();
+    const card = workspace.cards.create({ question: 'P', answer: 'R', subjectId: subject.id });
+    workspace.cards.setPaused({ cardId: card.id, paused: true });
+    expect(() => grade(card.id)).toThrow(/pausa/i);
+    workspace.cards.setPaused({ cardId: card.id, paused: false });
+    expect(grade(card.id).nextReviewDay).not.toBeNull();
+  });
+
+  it('la inversa de una inversa no se crea (sería un duplicado de la original)', () => {
+    const { workspace, subject } = setup();
+    const card = workspace.cards.create({ question: 'P', answer: 'R', subjectId: subject.id });
+    const inverse = workspace.cards.createInverse({ cardId: card.id }).card;
+    expect(() => workspace.cards.createInverse({ cardId: inverse.id })).toThrow();
   });
 });

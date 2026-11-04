@@ -9,6 +9,7 @@ import {
 } from '../core/cards';
 import type { Clock } from '../core/clock';
 import { canonicalJson } from '../core/organization';
+import { texts } from '../preload/contract/texts';
 import { hasHistoryOf, parseContent, restoreTrashEntry, trashCard } from './content';
 import { newId } from './ids';
 import { appendOperation, type EventSource } from './ledger';
@@ -40,6 +41,19 @@ const plainContent = (text: string): RowContent => [{ type: 'text', text }];
 
 function storedContent(json: string | null, fallback: string): RowContent {
   return parseContent(json) ?? plainContent(fallback);
+}
+
+// El texto de un lado de la tarjeta. Un lado que es solo una imagen se llama como la imagen (o «Imagen
+// de la nota»): nunca queda vacío, así la lista y las preguntas tienen qué mostrar.
+function sideText(content: RowContent): string {
+  const text = plainOfContent(content).trim();
+  if (text !== '') {
+    return text;
+  }
+  const image = content.find((node) => node.type === 'image');
+  return image?.type === 'image' && image.alt.trim() !== ''
+    ? image.alt.trim()
+    : texts.notes.editor.imageAlt;
 }
 
 function contentJson(content: RowContent): string {
@@ -87,8 +101,8 @@ function writeNoteVersion(
     .values({
       ...current.card_versions,
       id: versionId,
-      question: plainOfContent(spec.question),
-      answer: plainOfContent(spec.answer),
+      question: sideText(spec.question),
+      answer: sideText(spec.answer),
       questionContent: contentJson(spec.question),
       answerContent: contentJson(spec.answer),
       createdAt: clock.now().toISOString(),
@@ -136,8 +150,8 @@ function createFromRow(
     .values({
       id: versionId,
       cardId,
-      question: plainOfContent(spec.question),
-      answer: plainOfContent(spec.answer),
+      question: sideText(spec.question),
+      answer: sideText(spec.answer),
       questionContent: contentJson(spec.question),
       answerContent: contentJson(spec.answer),
       createdAt: now,
@@ -222,7 +236,7 @@ export function syncRowCards(
     for (const { cardId, spec } of plan.update) {
       writeNoteVersion(tx, clock, cardId, spec, source);
       if (hasHistoryOf(tx, cardId)) {
-        result.editedCards.push({ cardId, question: plainOfContent(spec.question) });
+        result.editedCards.push({ cardId, question: sideText(spec.question) });
       }
     }
     for (const { cardId, spec } of plan.reattach) {
@@ -242,7 +256,7 @@ export function syncRowCards(
       ) {
         writeNoteVersion(tx, clock, cardId, spec, source);
         if (hasHistoryOf(tx, cardId)) {
-          result.editedCards.push({ cardId, question: plainOfContent(spec.question) });
+          result.editedCards.push({ cardId, question: sideText(spec.question) });
         }
       }
     }

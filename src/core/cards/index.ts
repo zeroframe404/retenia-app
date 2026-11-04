@@ -100,10 +100,15 @@ function trimEnds(nodes: RowContent): RowNode[] {
 }
 
 function clozeSpecs(content: RowContent): CardSpec[] {
-  const holes = content.filter(
-    (node): node is Extract<RowNode, { type: 'cloze' }> =>
-      node.type === 'cloze' && node.text.trim() !== '',
-  );
+  // Dos huecos con el mismo identificador no pueden ser dos tarjetas: manda el primero.
+  const seen = new Set<string>();
+  const holes = content.filter((node): node is Extract<RowNode, { type: 'cloze' }> => {
+    if (node.type !== 'cloze' || node.text.trim() === '' || seen.has(node.id)) {
+      return false;
+    }
+    seen.add(node.id);
+    return true;
+  });
   return holes.map((hole) => {
     const question = content.map((node): RowNode => {
       if (node.type !== 'cloze') {

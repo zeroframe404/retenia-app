@@ -19,6 +19,7 @@ import type {
   SheetStateValue,
 } from '../preload/contract/cards';
 import {
+  CardPausedError,
   InverseNotAllowedError,
   LinkedCardTextError,
   MeaningQuestionRequiredError,
@@ -154,6 +155,32 @@ function listCards(db: Writer, input: ListInput): { cards: Card[]; total: number
   return { cards: shown, total: rows.length };
 }
 
+// ¿El renglón de la tarjeta sigue ahí y la pide? Si la nota está en la Papelera o ya no existe, la
+// tarjeta se edita como una suelta.
+function isTiedToRow(db: Writer, row: CardRow): boolean {
+  if (
+    row.origin !== 'note' ||
+    row.detachedAt !== null ||
+    row.noteId === null ||
+    row.blockId === null
+  ) {
+    return false;
+  }
+  const note = db
+    .select({ deletedAt: notes.deletedAt })
+    .from(notes)
+    .where(eq(notes.id, row.noteId))
+    .get();
+  const block = db
+    .select({ deletedAt: blocks.deletedAt })
+    .from(blocks)
+    .where(eq(blocks.id, row.blockId))
+    .get();
+  return (
+    note !== undefined && note.deletedAt === null && block !== undefined && block.deletedAt === null
+  );
+}
+
 function detailOf(db: Writer, row: CardRow): CardDetail {
   const subject =
     row.subjectId === null
@@ -283,6 +310,9 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
     review({ cardId, grade, attemptId }) {
       return orm.transaction((tx) => {
         const current = activeCard(tx, cardId);
+        if (current.pausedAt !== null) {
+          throw new CardPausedError();
+        }
         const observation = appendObservation(tx, clock, {
           kind: 'review.graded',
           payload: {
@@ -331,7 +361,7 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
         if (!textChanged && !sheetChanged) {
           return detailOf(tx, current);
         }
-        const tiedToRow = current.origin === 'note' && current.detachedAt === null;
+        const tiedToRow = isTiedToRow(tx, current);
         if (textChanged && tiedToRow) {
           throw new LinkedCardTextError();
         }
@@ -413,7 +443,7 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
     createInverse({ cardId }) {
       return orm.transaction((tx) => {
         const original = activeCard(tx, cardId);
-        if (original.kind === 'cloze') {
+        if (original.kind === 'cloze' || original.inverseOfCardId !== null) {
           throw new InverseNotAllowedError();
         }
         const existing = tx
