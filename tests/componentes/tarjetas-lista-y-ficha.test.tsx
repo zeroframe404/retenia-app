@@ -116,10 +116,20 @@ describe('[CA-056] la lista con su contador y sus filtros', () => {
   });
 
   it('soporta miles de filas sin armar miles de elementos', async () => {
-    const { workspace, subject, open } = setup();
-    for (let n = 0; n < 3000; n++) {
-      workspace.cards.create({ question: `Tarjeta ${n}`, answer: 'R', subjectId: subject.id });
-    }
+    const { workspace, subject, media, open } = setup();
+    // Las 3.000 entran juntas, en una sola transacción: una por una, la máquina del CI (unas diez
+    // veces más lenta) pasaba el minuto solo armando los datos.
+    workspace.cards.plantCast(
+      Array.from({ length: 3000 }, (_, n) => ({
+        question: `Tarjeta ${n}`,
+        answer: 'R',
+        kind: 'qa' as const,
+        subjectId: subject.id,
+        topicId: media.id,
+        createdAt: new Date('2027-01-01T13:00:00Z'),
+        reviews: [],
+      })),
+    );
     open();
     expect(await screen.findByText('3.000 tarjetas')).toBeTruthy();
     const rows = within(screen.getByRole('list', { name: 'Tus tarjetas' })).getAllByRole(
