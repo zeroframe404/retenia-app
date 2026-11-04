@@ -33,12 +33,12 @@ const DECAY = -(w[20] ?? 0);
 const FACTOR = r8(0.9 ** (1 / DECAY) - 1);
 
 /** R(t, S) = (1 + FACTOR · t / S)^DECAY. @param {number} t @param {number} s */
-export function retrievability(t, s) {
+function retrievability(t, s) {
   return r8((1 + (FACTOR * t) / s) ** DECAY);
 }
 
 /** I(r, S) = S / FACTOR · (r^(1/DECAY) − 1), en días enteros, al menos 1. @param {number} s @param {number} retention */
-export function interval(s, retention) {
+function interval(s, retention) {
   const modifier = r8((retention ** (1 / DECAY) - 1) / FACTOR);
   return Math.min(Math.max(1, Math.round(s * modifier)), MAX_INTERVAL);
 }

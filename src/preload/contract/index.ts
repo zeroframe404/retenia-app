@@ -23,6 +23,8 @@ import {
   cardsListResponse,
   cardsPauseRequest,
   cardsReviewRequest,
+  cardsUndoReviewRequest,
+  cardsWhyTodayResponse,
 } from './cards';
 import { noRequest } from './common';
 import type { demoChannels } from './demo';
@@ -89,6 +91,8 @@ export const channels = {
   'cards.create': { request: cardsCreateRequest, response: cardSchema },
   'cards.list': { request: cardsListRequest, response: cardsListResponse },
   'cards.review': { request: cardsReviewRequest, response: cardSchema },
+  'cards.undoReview': { request: cardsUndoReviewRequest, response: cardSchema },
+  'cards.whyToday': { request: cardIdRequest, response: cardsWhyTodayResponse },
   'cards.edit': { request: cardsEditRequest, response: cardDetailSchema },
   'cards.get': { request: cardIdRequest, response: cardDetailSchema },
   'cards.markMeaningChanged': { request: cardIdRequest, response: cardSchema },

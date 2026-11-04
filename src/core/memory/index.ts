@@ -1,109 +1,70 @@
-import {
-  createEmptyCard,
-  type Grade as FsrsGrade,
-  fsrs,
-  generatorParameters,
-  Rating,
-} from 'ts-fsrs';
-import { inCanonicalOrder } from '../ledger';
+import { type MemoryTrace, traceCardMemoryV2 } from './engine';
+import type { CardHistoryInput, CardMemory, Grade, MemoryConfig } from './types';
+import { projectV1 } from './v1';
 
-// El motor de repaso mínimo de la Fase 03: ts-fsrs con FSRS-6 y sus parámetros por defecto,
-// sin variación al azar y sin pasos de aprendizaje de minutos. El reloj llega siempre como
-// argumento. La Fase 09 lo amplía; la fecha de CA-010 tiene que seguir dando lo mismo.
+// El motor de memoria (H-15): ts-fsrs con FSRS-6 y sus parámetros por defecto, envuelto en reglas
+// puras. Recibe todo por parámetro (el historial de la tarjeta, la retención objetivo y el día de
+// hoy) y devuelve su estado (estabilidad, dificultad), la próxima fecha y la probabilidad estimada
+// de recordarla hoy. No lee la hora del sistema ni toca la base.
+//
+// Hay dos versiones. La 1 es la de las Fases 03 a 08 y queda para recalcular lo que se calculó con
+// ella. La 2 (Fase 09, engine.ts) es la que usa Retenia: días de estudio, un solo repaso por día,
+// la ayuda, las anulaciones, la retención de la materia y la variación al azar del uso real.
 
-export type Grade = 'again' | 'hard' | 'good';
+export {
+  ACTIVE_RETENTION,
+  type AppearanceRule,
+  appearanceRule,
+  type DueExplanation,
+  daysBetween,
+  engineGradeOf,
+  explainDue,
+  GENERAL_ESTIMATE_ATTEMPTS,
+  MAINTENANCE_RETENTION,
+  MEMORY_PARAMETERS,
+  MEMORY_PARAMETERS_VERSION,
+  type MemoryTrace,
+  outOfTen,
+  recallProbability,
+  retentionForSubject,
+} from './engine';
+export type { CardMemory, Grade, HelpLevel, MemoryConfig, MemoryEvent } from './types';
+export { newCardMemory, reviewCard } from './v1';
 
 export const DEFAULT_RETENTION = 0.9;
 
-// La versión del motor con la que se calcula la agenda. Una agenda guardada se recalcula con la
-// misma versión; la Fase 09 trae la siguiente.
-export const MEMORY_ENGINE_VERSION = 1;
+// La versión del motor con la que se calcula la agenda. Se guarda en la agenda de cada tarjeta y
+// junto a cada intento.
+export const MEMORY_ENGINE_VERSION = 2;
 
-const RATINGS: Record<Grade, FsrsGrade> = {
-  again: Rating.Again,
-  hard: Rating.Hard,
-  good: Rating.Good,
-};
-
-export interface CardMemory {
-  // 0 = nueva, 2 = en repaso (los números de State de ts-fsrs).
-  state: number;
-  stability: number;
-  difficulty: number;
-  dueAt: Date;
-  lastReviewAt: Date | null;
-  reps: number;
-  lapses: number;
-  scheduledDays: number;
-}
-
-// Con `enable_short_term: false` ts-fsrs fuerza intervalos crecientes entre los tres botones
-// y «La sabía» de una tarjeta nueva da 3 días. Con los pasos vacíos da 2 (el redondeo de la
-// estabilidad inicial 2,3065), que es lo que fijan CA-010 y CA-058. Ambas formas evitan los
-// minutos; esta es la que coincide con la especificación.
-function scheduler(retention: number) {
-  return fsrs(
-    generatorParameters({
-      request_retention: retention,
-      enable_fuzz: false,
-      enable_short_term: true,
-      learning_steps: [],
-      relearning_steps: [],
-    }),
-  );
-}
-
-export function newCardMemory(now: Date): CardMemory {
-  const card = createEmptyCard(now);
-  return {
-    state: card.state,
-    stability: card.stability,
-    difficulty: card.difficulty,
-    dueAt: card.due,
-    lastReviewAt: null,
-    reps: card.reps,
-    lapses: card.lapses,
-    scheduledDays: card.scheduled_days,
-  };
-}
-
-export function reviewCard(
-  memory: CardMemory,
-  grade: Grade,
-  now: Date,
-  retention: number = DEFAULT_RETENTION,
-): CardMemory {
-  // Si el reloj retrocede (la PC se atrasó o se restableció la fecha de demostración), ts-fsrs
-  // rechaza un tiempo negativo: se cuenta desde el último repaso, como si no hubiera pasado nada.
-  if (memory.lastReviewAt && now < memory.lastReviewAt) {
-    now = memory.lastReviewAt;
+export class UnknownEngineError extends Error {
+  constructor(version: number) {
+    super(`No conozco la versión ${version} del motor de memoria`);
+    this.name = 'UnknownEngineError';
   }
-  const next = scheduler(retention).next(
-    {
-      due: memory.dueAt,
-      stability: memory.stability,
-      difficulty: memory.difficulty,
-      elapsed_days: 0,
-      scheduled_days: memory.scheduledDays,
-      learning_steps: 0,
-      reps: memory.reps,
-      lapses: memory.lapses,
-      state: memory.state,
-      ...(memory.lastReviewAt ? { last_review: memory.lastReviewAt } : {}),
-    },
-    now,
-    RATINGS[grade],
-  ).card;
-  return {
-    state: next.state,
-    stability: next.stability,
-    difficulty: next.difficulty,
-    dueAt: next.due,
-    lastReviewAt: now,
-    reps: next.reps,
-    lapses: next.lapses,
-    scheduledDays: next.scheduled_days,
-  };
+}
+
+// La agenda de una tarjeta como proyección: se recalcula entera desde sus eventos, la
+// configuración y la versión del motor, en el orden canónico. Da lo mismo que haber repasado
+// uno por uno en el momento, así «Verificar datos» la puede comparar con la guardada.
+export function projectCardMemory(
+  input: CardHistoryInput,
+  config: MemoryConfig,
+  engineVersion: number,
+): CardMemory {
+  if (engineVersion === 1) {
+    return projectV1(input.createdAt, input.events, config);
+  }
+  if (engineVersion !== MEMORY_ENGINE_VERSION) {
+    throw new UnknownEngineError(engineVersion);
+  }
+  return traceCardMemoryV2(input, config).memory;
+}
+
+// La agenda y, además, qué pasó con cada intento (si contó y por qué), para el historial, «¿Por qué
+// hoy?» y lo que se guarda junto a cada intento. Siempre con la versión vigente del motor.
+export function traceCardMemory(input: CardHistoryInput, config: MemoryConfig): MemoryTrace {
+  return traceCardMemoryV2(input, config);
 }
 
 // Cómo se calificó un repaso (la evaluación) y con qué botón se repasa la tarjeta.
@@ -118,64 +79,4 @@ export function verdictOfGrade(grade: Grade): Verdict {
 
 export function gradeOfVerdict(verdict: Verdict): Grade {
   return GRADES[verdict];
-}
-
-// Lo que mueve la agenda de una tarjeta: un repaso (con la calificación de su evaluación
-// vigente) o la agenda que traía de antes del libro mayor (bases de la Fase 03).
-export type MemoryEvent =
-  | {
-      readonly kind: 'review';
-      readonly id: string;
-      readonly seq: number;
-      readonly occurredAt: Date;
-      readonly grade: Grade;
-    }
-  | {
-      readonly kind: 'adopted';
-      readonly id: string;
-      readonly seq: number;
-      readonly memory: CardMemory;
-    }
-  // Cambió lo que hay que recordar (Fase 08): la tarjeta se programa como nueva desde ese momento;
-  // el historial anterior queda.
-  | {
-      readonly kind: 'reset';
-      readonly id: string;
-      readonly seq: number;
-      readonly occurredAt: Date;
-    };
-
-export interface MemoryConfig {
-  readonly retention: number;
-}
-
-export class UnknownEngineError extends Error {
-  constructor(version: number) {
-    super(`No conozco la versión ${version} del motor de memoria`);
-    this.name = 'UnknownEngineError';
-  }
-}
-
-// La agenda de una tarjeta como proyección: se recalcula entera desde sus eventos, la
-// configuración y la versión del motor, en el orden canónico. Da lo mismo que haber repasado
-// uno por uno en el momento, así «Verificar datos» la puede comparar con la guardada.
-export function projectCardMemory(
-  { createdAt, events }: { createdAt: Date; events: readonly MemoryEvent[] },
-  config: MemoryConfig,
-  engineVersion: number,
-): CardMemory {
-  if (engineVersion !== MEMORY_ENGINE_VERSION) {
-    throw new UnknownEngineError(engineVersion);
-  }
-  let memory = newCardMemory(createdAt);
-  for (const event of inCanonicalOrder(events)) {
-    if (event.kind === 'adopted') {
-      memory = event.memory;
-    } else if (event.kind === 'reset') {
-      memory = newCardMemory(event.occurredAt);
-    } else {
-      memory = reviewCard(memory, event.grade, event.occurredAt, config.retention);
-    }
-  }
-  return memory;
 }

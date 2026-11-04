@@ -28,6 +28,14 @@ export class CardPausedError extends Error {
   }
 }
 
+// «Deshacer» un repaso que no existe o que es de otra tarjeta (Fase 09).
+export class ReviewNotFoundError extends Error {
+  constructor() {
+    super('No encontré ese repaso de esta tarjeta para deshacerlo');
+    this.name = 'ReviewNotFoundError';
+  }
+}
+
 export class SheetStateNotAllowedError extends Error {
   constructor() {
     super('Ese estado no se puede elegir a mano');

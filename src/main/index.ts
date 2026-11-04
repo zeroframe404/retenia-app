@@ -145,8 +145,11 @@ function start(): void {
     __VARIANTE__ === 'prueba'
       ? createDemoWorkspace({ dataDir, clock, appVersion: app.getVersion() })
       : null;
+  // En el uso real las fechas de repaso llevan la variación al azar del motor (Fase 09); en la
+  // demostración no.
   const workspace =
-    demoData?.workspace ?? openWorkspace({ dataDir, clock, appVersion: app.getVersion() });
+    demoData?.workspace ??
+    openWorkspace({ dataDir, clock, appVersion: app.getVersion(), fuzz: true });
   app.on('quit', () => (demoData ? demoData.close() : workspace.close()));
 
   const paper = applyFrameTheme(createAppearanceStore(dataDir).get());

@@ -90,6 +90,9 @@ export const cardSchedule = sqliteTable(
     lapses: integer('lapses').notNull().default(0),
     scheduledDays: integer('scheduled_days').notNull().default(0),
     retentionTarget: real('retention_target').notNull().default(0.9),
+    // La versión del motor de memoria con que se calculó (Fase 09). Las de la 1 se recalculan
+    // solas con la vigente al abrir la base.
+    engineVersion: integer('engine_version').notNull().default(1),
   },
   (table) => [index('card_schedule_due_idx').on(table.dueAt)],
 );

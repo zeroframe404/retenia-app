@@ -7,29 +7,41 @@ import {
 } from '../core/data-check';
 import { currentEvaluation } from '../core/ledger';
 import {
+  type AppearanceRule,
+  appearanceRule,
   type CardMemory,
-  DEFAULT_RETENTION,
+  type DueExplanation,
+  daysBetween,
+  explainDue,
   gradeOfVerdict,
+  type HelpLevel,
   MEMORY_ENGINE_VERSION,
+  MEMORY_PARAMETERS_VERSION,
   type MemoryEvent,
-  projectCardMemory,
+  type MemoryTrace,
+  recallProbability,
+  retentionForSubject,
+  traceCardMemory,
   type Verdict,
 } from '../core/memory';
+import { SUBJECT_STATUSES } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
-import type { ReteniaDatabase } from './database';
 import { readPayload } from './ledger';
 import type { Writer } from './orm';
-import { cardSchedule, cards, cardVersions, evaluations, observations } from './schema';
+import { cardSchedule, cards, cardVersions, evaluations, observations, subjects } from './schema';
 
 // La agenda de cada tarjeta es una proyección (docs/modelo-de-datos.md, sección 1.3): se
 // recalcula entera desde sus eventos con la misma función pura de core, al guardar un repaso y
 // al verificar los datos. Así lo guardado y lo recalculado no pueden diferir salvo por un error.
+// Desde la Fase 09 la calcula el motor 2 con la retención de la materia de la tarjeta, tomada de su
+// estado en el momento de calcular (0,90 la activa, 0,85 las demás).
 
-// La configuración de esta fase: la retención fija de 0,90 (las materias con su propia
-// retención llegan en la Fase 09).
-const MEMORY_CONFIG = { retention: DEFAULT_RETENTION };
-
-const MEMORY_KINDS = ['review.graded', 'schedule.adopted', 'card.meaning_changed'];
+const MEMORY_KINDS = [
+  'review.graded',
+  'review.annulled',
+  'schedule.adopted',
+  'card.meaning_changed',
+];
 
 type ObservationRow = typeof observations.$inferSelect;
 
@@ -40,13 +52,17 @@ export interface HistoryEvent {
   // La calificación que vale (la de la evaluación vigente) o «adopted» para la agenda heredada.
   // «reset»: cambió lo que hay que recordar y la tarjeta volvió a programarse como nueva.
   readonly result: 'again' | 'hard' | 'good' | 'adopted' | 'reset';
+  // El repaso se deshizo (CA-063): figura como «Anulado».
+  readonly annulled: boolean;
+  // Hubo otro repaso antes ese mismo día de estudio: quedó anotado y no cambió la fecha.
+  readonly sameDay: boolean;
 }
 
 // Los eventos que mueven la agenda, con la calificación de la evaluación vigente de cada repaso.
 function memoryEventsOf(
   rows: readonly ObservationRow[],
   verdicts: ReadonlyMap<string, Verdict>,
-): { cardId: string; event: MemoryEvent; history: HistoryEvent }[] {
+): { cardId: string; event: MemoryEvent }[] {
   return rows.map((row) => {
     if (row.kind === 'schedule.adopted') {
       const { cardId, memory } = readPayload('schedule.adopted', row.schemaVersion, row.payload);
@@ -55,34 +71,34 @@ function memoryEventsOf(
         dueAt: new Date(memory.dueAt),
         lastReviewAt: memory.lastReviewAt === null ? null : new Date(memory.lastReviewAt),
       };
-      return {
-        cardId,
-        event: { kind: 'adopted', id: row.id, seq: row.seq, memory: adopted },
-        history: {
-          id: row.id,
-          seq: row.seq,
-          occurredAt: new Date(row.occurredAt),
-          result: 'adopted',
-        },
-      };
+      return { cardId, event: { kind: 'adopted', id: row.id, seq: row.seq, memory: adopted } };
     }
     if (row.kind === 'card.meaning_changed') {
       const { cardId } = readPayload('card.meaning_changed', row.schemaVersion, row.payload);
-      const occurredAt = new Date(row.occurredAt);
       return {
         cardId,
-        event: { kind: 'reset', id: row.id, seq: row.seq, occurredAt },
-        history: { id: row.id, seq: row.seq, occurredAt, result: 'reset' },
+        event: { kind: 'reset', id: row.id, seq: row.seq, occurredAt: new Date(row.occurredAt) },
       };
     }
-    const { cardId, grade } = readPayload('review.graded', row.schemaVersion, row.payload);
+    if (row.kind === 'review.annulled') {
+      const { cardId, reviewId } = readPayload('review.annulled', row.schemaVersion, row.payload);
+      return { cardId, event: { kind: 'annulled', id: row.id, seq: row.seq, reviewId } };
+    }
+    const payload = readPayload('review.graded', row.schemaVersion, row.payload);
     const verdict = verdicts.get(row.id);
-    const current = verdict === undefined ? grade : gradeOfVerdict(verdict);
-    const occurredAt = new Date(row.occurredAt);
+    const grade = verdict === undefined ? payload.grade : gradeOfVerdict(verdict);
+    const helpLevel: HelpLevel = payload.helpLevel;
     return {
-      cardId,
-      event: { kind: 'review', id: row.id, seq: row.seq, occurredAt, grade: current },
-      history: { id: row.id, seq: row.seq, occurredAt, result: current },
+      cardId: payload.cardId,
+      event: {
+        kind: 'review',
+        id: row.id,
+        seq: row.seq,
+        occurredAt: new Date(row.occurredAt),
+        grade,
+        helpLevel,
+        fuzz: 'fuzz' in payload ? payload.fuzz : false,
+      },
     };
   });
 }
@@ -105,7 +121,7 @@ function currentVerdicts(
   return verdicts;
 }
 
-function cardEvents(db: Writer, cardId: string) {
+function cardEvents(db: Writer, cardId: string): MemoryEvent[] {
   const rows = db
     .select()
     .from(observations)
@@ -125,26 +141,132 @@ function cardEvents(db: Writer, cardId: string) {
       .where(eq(observations.cardId, cardId))
       .all(),
   );
-  return memoryEventsOf(rows, verdicts);
+  return memoryEventsOf(rows, verdicts).map(({ event }) => event);
 }
 
-// El historial de una tarjeta en el orden en que se registró.
-export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
-  return cardEvents(db, cardId)
-    .map(({ history }) => history)
-    .sort((a, b) => a.seq - b.seq);
+const asStatus = (value: string | null) =>
+  value === null ? null : (SUBJECT_STATUSES.find((status) => status === value) ?? 'maintenance');
+
+interface CardBasics {
+  readonly createdAt: string;
+  readonly retention: number;
 }
 
-function project(createdAt: string, events: readonly MemoryEvent[]): CardMemory {
-  return projectCardMemory(
-    { createdAt: new Date(createdAt), events },
-    MEMORY_CONFIG,
-    MEMORY_ENGINE_VERSION,
+// Cuándo se creó la tarjeta y la retención objetivo de su materia hoy.
+function cardBasics(db: Writer, cardId: string): CardBasics {
+  const card = db
+    .select({ createdAt: cards.createdAt, status: subjects.status })
+    .from(cards)
+    .leftJoin(subjects, eq(subjects.id, cards.subjectId))
+    .where(eq(cards.id, cardId))
+    .get();
+  if (!card) {
+    throw new Error('No encontré la tarjeta para recalcular su agenda');
+  }
+  return { createdAt: card.createdAt, retention: retentionForSubject(asStatus(card.status)) };
+}
+
+function trace(cardId: string, basics: CardBasics, events: readonly MemoryEvent[]): MemoryTrace {
+  return traceCardMemory(
+    { cardId, createdAt: new Date(basics.createdAt), events },
+    { retention: basics.retention },
   );
 }
 
+// Lo que el motor sabe hoy de una tarjeta: su memoria y qué pasó con cada intento.
+function cardTrace(db: Writer, cardId: string): MemoryTrace {
+  return trace(cardId, cardBasics(db, cardId), cardEvents(db, cardId));
+}
+
+// El historial de una tarjeta en el orden en que se registró, con los repasos anulados y los del
+// mismo día marcados.
+export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
+  const events = cardEvents(db, cardId);
+  const steps = new Map(cardTrace(db, cardId).steps.map((step) => [step.id, step]));
+  const occurredAt = new Map(
+    db
+      .select({ id: observations.id, occurredAt: observations.occurredAt })
+      .from(observations)
+      .where(eq(observations.cardId, cardId))
+      .all()
+      .map((row) => [row.id, new Date(row.occurredAt)]),
+  );
+  return events
+    .flatMap((event): HistoryEvent[] => {
+      const at = occurredAt.get(event.id) ?? new Date(0);
+      if (event.kind === 'annulled') {
+        return [];
+      }
+      if (event.kind !== 'review') {
+        return [
+          {
+            id: event.id,
+            seq: event.seq,
+            occurredAt: at,
+            result: event.kind === 'adopted' ? 'adopted' : 'reset',
+            annulled: false,
+            sameDay: false,
+          },
+        ];
+      }
+      const step = steps.get(event.id);
+      return [
+        {
+          id: event.id,
+          seq: event.seq,
+          occurredAt: at,
+          result: event.grade,
+          annulled: step?.reason === 'annulled',
+          sameDay: step?.reason === 'sameDay',
+        },
+      ];
+    })
+    .sort((a, b) => a.seq - b.seq);
+}
+
+// «¿Por qué hoy?» de una tarjeta, el día de estudio `today`.
+export function whyToday(db: Writer, cardId: string, today: string): DueExplanation {
+  return explainDue(cardTrace(db, cardId), today);
+}
+
+// Lo que se guarda junto a un intento (Fase 09): lo que el motor predecía en ese momento, los días
+// que pasaron de verdad, por qué apareció la tarjeta y con qué motor y parámetros se calcula.
+export function reviewFacts(
+  db: Writer,
+  cardId: string,
+  occurredAt: Date,
+  fuzz: boolean,
+): {
+  predictedRecall: number | null;
+  elapsedDays: number | null;
+  rule: AppearanceRule;
+  engineVersion: number;
+  parametersVersion: string;
+  retention: number;
+  fuzz: boolean;
+} {
+  const basics = cardBasics(db, cardId);
+  const { memory, steps } = trace(cardId, basics, cardEvents(db, cardId));
+  const today = studyDayOf(occurredAt);
+  const failedToday = steps.some(
+    (step) => step.reason !== 'annulled' && step.studyDay === today && step.engineGrade === 'again',
+  );
+  return {
+    predictedRecall: recallProbability(memory, today),
+    elapsedDays:
+      memory.lastReviewAt === null
+        ? null
+        : Math.max(0, daysBetween(today, studyDayOf(memory.lastReviewAt))),
+    rule: appearanceRule({ memory, today, failedToday }),
+    engineVersion: MEMORY_ENGINE_VERSION,
+    parametersVersion: MEMORY_PARAMETERS_VERSION,
+    retention: basics.retention,
+    fuzz,
+  };
+}
+
 function writeSchedule(db: Writer, row: ScheduleRow): void {
-  const values = { ...row };
+  const values = { ...row, engineVersion: row.engineVersion ?? MEMORY_ENGINE_VERSION };
   db.insert(cardSchedule)
     .values(values)
     .onConflictDoUpdate({ target: cardSchedule.cardId, set: values })
@@ -154,26 +276,46 @@ function writeSchedule(db: Writer, row: ScheduleRow): void {
 // Recalcula y guarda la agenda de una tarjeta desde todos sus eventos (en la misma transacción
 // que el evento que la cambió).
 export function recomputeCardSchedule(db: Writer, cardId: string): CardMemory {
-  const card = db
-    .select({ createdAt: cards.createdAt })
-    .from(cards)
-    .where(eq(cards.id, cardId))
-    .get();
-  if (!card) {
-    throw new Error('No encontré la tarjeta para recalcular su agenda');
-  }
-  const memory = project(
-    card.createdAt,
-    cardEvents(db, cardId).map(({ event }) => event),
-  );
-  writeSchedule(db, scheduleRowOf(cardId, memory, MEMORY_CONFIG.retention));
+  const basics = cardBasics(db, cardId);
+  const { memory } = trace(cardId, basics, cardEvents(db, cardId));
+  writeSchedule(db, scheduleRowOf(cardId, memory, basics.retention, MEMORY_ENGINE_VERSION));
   return memory;
+}
+
+// Las agendas que no están al día con el motor vigente o con la retención de su materia (se
+// calcularon con el motor de antes, o la materia cambió de estado): se recalculan. Corre al abrir
+// la base y cada vez que una materia cambia de estado o recibe tarjetas sin materia.
+export function refreshStaleSchedules(db: Writer): number {
+  const rows = db
+    .select({
+      cardId: cardSchedule.cardId,
+      engineVersion: cardSchedule.engineVersion,
+      retentionTarget: cardSchedule.retentionTarget,
+      status: subjects.status,
+    })
+    .from(cardSchedule)
+    .innerJoin(cards, eq(cards.id, cardSchedule.cardId))
+    .leftJoin(subjects, eq(subjects.id, cards.subjectId))
+    .all();
+  const stale = rows.filter(
+    (row) =>
+      row.engineVersion !== MEMORY_ENGINE_VERSION ||
+      row.retentionTarget !== retentionForSubject(asStatus(row.status)),
+  );
+  for (const row of stale) {
+    recomputeCardSchedule(db, row.cardId);
+  }
+  return stale.length;
 }
 
 // Lo que debería estar guardado para cada tarjeta existente (también las de la Papelera),
 // recalculado desde el historial completo.
 function expectedSchedules(db: Writer): ScheduleRow[] {
-  const allCards = db.select({ id: cards.id, createdAt: cards.createdAt }).from(cards).all();
+  const allCards = db
+    .select({ id: cards.id, createdAt: cards.createdAt, status: subjects.status })
+    .from(cards)
+    .leftJoin(subjects, eq(subjects.id, cards.subjectId))
+    .all();
   const rows = db.select().from(observations).where(inArray(observations.kind, MEMORY_KINDS)).all();
   const verdicts = currentVerdicts(
     db
@@ -190,13 +332,14 @@ function expectedSchedules(db: Writer): ScheduleRow[] {
   for (const { cardId, event } of memoryEventsOf(rows, verdicts)) {
     eventsByCard.set(cardId, [...(eventsByCard.get(cardId) ?? []), event]);
   }
-  return allCards.map((card) =>
-    scheduleRowOf(
-      card.id,
-      project(card.createdAt, eventsByCard.get(card.id) ?? []),
-      MEMORY_CONFIG.retention,
-    ),
-  );
+  return allCards.map((card) => {
+    const basics = {
+      createdAt: card.createdAt,
+      retention: retentionForSubject(asStatus(card.status)),
+    };
+    const { memory } = trace(card.id, basics, eventsByCard.get(card.id) ?? []);
+    return scheduleRowOf(card.id, memory, basics.retention, MEMORY_ENGINE_VERSION);
+  });
 }
 
 function storedSchedules(db: Writer): ScheduleRow[] {
@@ -220,7 +363,8 @@ export interface DataDifference {
 const dayOf = (instant: string | null) => (instant === null ? null : studyDayOf(new Date(instant)));
 
 // «Verificar datos»: recalcula todo desde el historial y lo compara con lo guardado.
-export function verifyData(db: ReteniaDatabase): DataDifference[] {
+// (Recibe la base abierta; se nombra por su `orm` para no importar database.ts, que importa esto.)
+export function verifyData(db: { readonly orm: Writer }): DataDifference[] {
   const { differences } = compare(db.orm);
   if (differences.length === 0) {
     return [];
@@ -244,7 +388,7 @@ export function verifyData(db: ReteniaDatabase): DataDifference[] {
 
 // «Reparar desde el historial»: reescribe, agrega o saca filas de la agenda (una proyección).
 // Nunca toca un evento. Devuelve lo que queda distinto después (nada, salvo un error).
-export function repairData(db: ReteniaDatabase): DataDifference[] {
+export function repairData(db: { readonly orm: Writer }): DataDifference[] {
   db.orm.transaction((tx) => {
     const { differences, expected } = compare(tx);
     const byCard = new Map(expected.map((row) => [row.cardId, row]));

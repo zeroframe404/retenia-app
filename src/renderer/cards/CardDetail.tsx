@@ -7,6 +7,7 @@ import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
 import { CardFace } from './CardFace';
 import styles from './Cards.module.css';
+import { WhyToday } from './WhyToday';
 
 // Una pista por lugar (hasta tres): la clave es el lugar, no el texto (dos pistas pueden coincidir).
 const HINT_SLOTS = ['primera', 'segunda', 'tercera'] as const;
@@ -141,6 +142,7 @@ export function CardDetailView({
         <CardFace content={card.answerContent} />
       </div>
       <p className={contentStyles.highlight}>{next}</p>
+      <WhyToday cardId={card.id} />
       <section className={contentStyles.section} aria-label={texts.cards.sheetHeading}>
         <h4>{texts.cards.sheetHeading}</h4>
         <ul className={styles.sheetList}>

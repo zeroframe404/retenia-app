@@ -8,7 +8,7 @@ import {
   USER_SHEET_STATES,
 } from '../core/cards';
 import type { Clock } from '../core/clock';
-import { type Grade, verdictOfGrade } from '../core/memory';
+import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
 import type {
@@ -23,6 +23,7 @@ import {
   InverseNotAllowedError,
   LinkedCardTextError,
   MeaningQuestionRequiredError,
+  ReviewNotFoundError,
   SheetStateNotAllowedError,
 } from './card-errors';
 import {
@@ -44,7 +45,7 @@ import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
 import { SubjectNotFoundError, TopicNotFoundError } from './organization-errors';
 import type { Writer } from './orm';
-import { cardHistory, recomputeCardSchedule } from './projections';
+import { cardHistory, recomputeCardSchedule, reviewFacts, whyToday } from './projections';
 import {
   blocks,
   cards,
@@ -87,7 +88,18 @@ export interface CardsStore {
   // La lista filtrada y cuántas tiene la materia sin filtrar.
   listWithTotal(input?: ListInput): { cards: Card[]; total: number };
   get(input: { cardId: string }): CardDetail;
-  review(input: { cardId: string; grade: Grade; attemptId: string }): Card;
+  // Un repaso. `helpLevel` es la ayuda que se usó (A0 si no se dice); las pistas llegan con su fase.
+  review(input: {
+    cardId: string;
+    grade: Grade;
+    attemptId: string;
+    helpLevel?: HelpLevel | undefined;
+  }): Card;
+  // «Deshacer» el repaso recién hecho (CA-063): queda en el historial como «Anulado» y la agenda
+  // vuelve a ser la de antes. Deshacerlo dos veces no agrega nada.
+  undoReview(input: { cardId: string; attemptId: string }): Card;
+  // «¿Por qué hoy?» (CA-065).
+  whyToday(input: { cardId: string }): DueExplanation;
   // Editar la tarjeta y su ficha. Con historial, cambiar la pregunta o la respuesta exige contestar
   // «¿Cambió lo que hay que recordar?» (`meaningChanged`).
   edit(input: {
@@ -245,8 +257,12 @@ const sheetKey = (sheet: Sheet) => canonicalJson(sheet);
 // Cada cambio pasa por el libro mayor: el alta, la edición, el borrado y el repaso agregan
 // eventos, y la agenda se recalcula desde el historial en la misma transacción (un corte deja
 // todo o nada). Los repasos usan el reloj inyectado: en la variante de prueba, el de la
-// demostración.
-export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore {
+// demostración. `fuzz`: la variación al azar de las fechas, solo en el uso real (Fase 09).
+export function createCardsStore(
+  db: ReteniaDatabase,
+  clock: Clock,
+  { fuzz = false }: { fuzz?: boolean } = {},
+): CardsStore {
   const { orm } = db;
 
   // Programa de nuevo como nueva una tarjeta con historial: un evento «cambió lo que hay que
@@ -307,7 +323,7 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
       return detailOf(orm, activeCard(orm, cardId));
     },
 
-    review({ cardId, grade, attemptId }) {
+    review({ cardId, grade, attemptId, helpLevel = 'A0' }) {
       return orm.transaction((tx) => {
         const current = activeCard(tx, cardId);
         if (current.pausedAt !== null) {
@@ -318,9 +334,10 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
           payload: {
             cardId,
             grade,
-            helpLevel: 'A0',
+            helpLevel,
             dueAtThen: current.dueAt,
             versionId: current.versionId,
+            ...reviewFacts(tx, cardId, clock.now(), fuzz),
           },
           idempotencyKey: `review:${attemptId}`,
           source: 'user',
@@ -345,6 +362,33 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
         }
         return cardOf(tx, cardId);
       });
+    },
+
+    undoReview({ cardId, attemptId }) {
+      return orm.transaction((tx) => {
+        activeCard(tx, cardId);
+        const review = tx
+          .select({ id: observations.id, kind: observations.kind, cardId: observations.cardId })
+          .from(observations)
+          .where(eq(observations.idempotencyKey, `review:${attemptId}`))
+          .get();
+        if (review?.kind !== 'review.graded' || review.cardId !== cardId) {
+          throw new ReviewNotFoundError();
+        }
+        appendObservation(tx, clock, {
+          kind: 'review.annulled',
+          payload: { cardId, reviewId: review.id },
+          idempotencyKey: `annul:${review.id}`,
+          source: 'user',
+        });
+        recomputeCardSchedule(tx, cardId);
+        return cardOf(tx, cardId);
+      });
+    },
+
+    whyToday({ cardId }) {
+      activeCard(orm, cardId);
+      return whyToday(orm, cardId, studyDayOf(clock.now()));
     },
 
     edit({ cardId, question, answer, sheet, meaningChanged }) {
@@ -510,6 +554,8 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
           id: event.id,
           day: studyDayOf(event.occurredAt),
           result: event.result,
+          annulled: event.annulled,
+          sameDay: event.sameDay,
         })),
       };
     },

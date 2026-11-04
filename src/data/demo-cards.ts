@@ -5,7 +5,7 @@ import { hasHistoryOf } from './content';
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation } from './ledger';
 import type { Writer } from './orm';
-import { recomputeCardSchedule } from './projections';
+import { recomputeCardSchedule, reviewFacts } from './projections';
 import { cardSchedule, cards, cardVersions } from './schema';
 
 // La siembra del historial de la demostración: repasos de otros días, con origen «demostración».
@@ -56,6 +56,8 @@ function plantReviews(
         helpLevel: 'A0',
         dueAtThen: before?.dueAt ?? review.at.toISOString(),
         versionId: card.versionId,
+        // Lo que decía el motor en ese momento; la demostración nunca lleva variación al azar.
+        ...reviewFacts(tx, cardId, review.at, false),
       },
       idempotencyKey: `demo:${cardId}:${index}`,
       source: 'demo',

@@ -13,6 +13,7 @@ import { expandTemplates, latestResults, STATUS_LABELS } from './lib/historial.m
 import { listTitles } from './lib/listado.mjs';
 import { ROOT } from './lib/proceso.mjs';
 import { formatDateTime, formatDuration, now } from './lib/reloj.mjs';
+import { casesSection } from './lib/tablero-casos.mjs';
 import { crossCheck } from './lib/trazabilidad.mjs';
 
 /** @typedef {import('./lib/trazabilidad.mjs').TracedCriterion} TracedCriterion */
@@ -160,32 +161,6 @@ function layerLine(id, name, noData) {
   return `<li>${h(name)}: ${state} (${h(formatDateTime(new Date(found.date)))})</li>`;
 }
 
-function casesSection() {
-  /** @type {Map<string, import('./lib/historial.mjs').KnownResult[]>} */
-  const tables = new Map();
-  for (const test of tests.values()) {
-    if (test.tableCase) {
-      tables.set(test.tableCase.table, [...(tables.get(test.tableCase.table) ?? []), test]);
-    }
-  }
-  if (tables.size === 0) {
-    return '<p class="nota">Todavía no hay tablas de casos con resultados.</p>';
-  }
-  return [...tables]
-    .map(
-      ([table, rows]) => `<h3>${h(table)}</h3>
-<table><thead><tr><th>Entrada</th><th>Esperado</th><th>Obtenido</th><th>Resultado</th></tr></thead><tbody>
-${rows
-  .map(
-    (t) =>
-      `<tr><td>${h(t.tableCase?.input)}</td><td>${h(t.tableCase?.expected)}</td><td>${h(t.tableCase?.actual)}</td><td><span class="chip ${t.status}">${h(STATUS_LABELS[t.status])}</span></td></tr>`,
-  )
-  .join('\n')}
-</tbody></table>`,
-    )
-    .join('\n');
-}
-
 const a11yTests = [...tests.values()].filter((t) => t.title.startsWith('accesibilidad:'));
 /** @param {number} n */
 const decimal = (n) => String(n).replace('.', ',');
@@ -213,7 +188,8 @@ th, td { text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--bo
 .falla, .failed, .skipped { color:var(--falla); background:var(--falla-fondo); }
 .pendiente, .not-run { color:var(--pend); background:var(--pend-fondo); }
 .sin { color:var(--sin); background:var(--sin-fondo); }
-details.fase { margin:.5rem 0; } summary { cursor:pointer; }
+details.fase, details.casos { margin:.5rem 0; } summary { cursor:pointer; }
+details.casos > summary { font-weight:600; }
 code { font-family:Consolas,monospace; }
 </style>
 </head>
@@ -229,7 +205,7 @@ code { font-family:Consolas,monospace; }
 ${spec.phases.map(phaseSection).join('\n')}
 </section>
 
-<section aria-labelledby="s-casos"><h2 id="s-casos">Tablas de casos: lo esperado y lo obtenido</h2>${casesSection()}</section>
+<section aria-labelledby="s-casos"><h2 id="s-casos">Tablas de casos: lo esperado y lo obtenido</h2>${casesSection(tests.values())}</section>
 
 <section aria-labelledby="s-cobertura"><h2 id="s-cobertura">Cobertura de reglas</h2>
 ${coverage ? `<p>Las pruebas recorren el ${decimal(coverage.branches)} % de las ramas y el ${decimal(coverage.lines)} % de las líneas del núcleo (las reglas puras). Mínimo de ramas: ${coverage.threshold} %.</p>` : '<p class="nota">Todavía sin medir: corré «npm run verificar».</p>'}

@@ -69,7 +69,7 @@ describe('motor de memoria: el primer repaso de una tarjeta nueva', () => {
 
   it('[CA-058] no existe «fácil»: el motor solo recibe «No la sabía», «Con dudas» y «La sabía»', () => {
     expect(() =>
-      project([{ ...review('15/03/2027 10:00', 'good'), grade: 'easy' as unknown as Grade }]),
+      project([{ ...review('15/03/2027 10:00', 'good'), grade: 'easy' } as unknown as MemoryEvent]),
     ).toThrow();
   });
 
@@ -399,7 +399,7 @@ describe('motor de memoria: variación al azar de las fechas', () => {
     expect(spread.size).toBeGreaterThan(1);
   });
 
-  it('con variación, las fechas cortas de CA-058 no cambian: no hay variación por debajo de los 2,5 días', () => {
+  it('[CA-058] con variación al azar, las fechas cortas no cambian: no hay variación por debajo de los 2,5 días', () => {
     for (const [grade, expected] of [
       ['good', '2027-03-17'],
       ['hard', '2027-03-16'],

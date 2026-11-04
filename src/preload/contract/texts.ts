@@ -395,6 +395,31 @@ export const texts = {
     gradeGood: 'La sabía',
     reviewFailed: 'No pude guardar el repaso. Probá de nuevo.',
     backToCards: 'Volver a las tarjetas',
+    // Deshacer el repaso recién hecho (Fase 09).
+    undoReview: 'Deshacer',
+    reviewAnnulled: (longDate: string) => `Repaso anulado. Próximo repaso: ${longDate}`,
+    reviewAnnulledNew: 'Repaso anulado. La tarjeta quedó sin repasar.',
+    undoFailed: 'No pude deshacer el repaso. Probá de nuevo.',
+    // «¿Por qué hoy?» (Fase 09): la probabilidad, dicha sin decimales.
+    whyToday: '¿Por qué hoy?',
+    whyTodayNew: 'Es nueva: todavía no la repasaste.',
+    whyTodaySeen: (
+      daysSince: number,
+      lastResult: 'again' | 'hard' | 'good' | null,
+      outOfTen: number,
+    ) => {
+      const when =
+        daysSince === 0
+          ? 'La viste hoy'
+          : `La viste hace ${daysSince} ${daysSince === 1 ? 'día' : 'días'}`;
+      const how =
+        lastResult === null
+          ? ''
+          : `; la última vez ${{ good: 'te salió bien', hard: 'te costó', again: 'no te salió' }[lastResult]}`;
+      return `${when}${how}; probabilidad estimada de recordarla: unos ${outOfTen} de cada 10`;
+    },
+    generalEstimate: 'Estimación general (sin datos tuyos)',
+    whyTodayFailed: 'No pude calcularlo. Probá de nuevo.',
     // La lista (Fase 08).
     counter: (shown: number, total: number) => {
       const noun = (count: number) => (count === 1 ? 'tarjeta' : 'tarjetas');
@@ -485,6 +510,10 @@ export const texts = {
     empty: 'Todavía no la repasaste.',
     // El día y el resultado de un repaso. Más adelante suma la ayuda usada.
     row: (date: string, result: string) => `${date} · ${result}`,
+    // Fase 09: el repaso deshecho y el segundo del mismo día.
+    annulled: 'Anulado',
+    sameDay: 'Otro repaso del mismo día: no cambió la fecha',
+    marked: (row: string, mark: string) => `${row} · ${mark}`,
     adopted: 'Repasos anteriores, sin detalle',
     reset: 'Cambió lo que hay que recordar: volvió a programarse como nueva',
     loadFailed: 'No pude cargar el historial. Probá de nuevo.',

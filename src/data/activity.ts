@@ -14,6 +14,7 @@ import { inboxState, trashInboxItem } from './inbox';
 import { moveNoteRow, noteState, setNoteArchived, trashNote } from './notes';
 import { restoreAnyEntry } from './organization-trash';
 import type { Writer } from './orm';
+import { refreshStaleSchedules } from './projections';
 import { inboxItems, notes, operations, subjects, topics } from './schema';
 import { activateSubjectRow, subjectName, subjectState } from './subjects';
 import { renameTopicRow, setTopicArchived, topicState, trashTopic } from './topics';
@@ -187,6 +188,7 @@ function undoOrganization(
           .set({ status: plan.restore.status })
           .where(eq(subjects.id, plan.restore.subjectId))
           .run();
+        refreshStaleSchedules(tx);
       }
       return changed;
     }

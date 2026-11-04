@@ -31,38 +31,84 @@ const memorySnapshot = z.strictObject({
   scheduledDays: z.number().int(),
 });
 
-// Lo esencial de cada tipo de observación, versión 1 del esquema. Los esquemas viejos se
-// conservan para leer historial viejo; uno nuevo sube la versión.
-const PAYLOADS = {
-  // Un repaso de una tarjeta: el botón que se tocó, sin ayuda (las pistas llegan en la Fase 16)
-  // y la fecha en que vencía.
-  'review.graded': z.strictObject({
-    cardId: z.uuid(),
-    grade: z.enum(['again', 'hard', 'good']),
-    helpLevel: z.literal('A0'),
-    dueAtThen: z.iso.datetime(),
-    // La versión de la tarjeta que se evaluó (Fase 08). Los repasos de antes no la traen.
-    versionId: z.uuid().optional(),
-  }),
-  // Cambió lo que hay que recordar (Fase 08): la tarjeta vuelve a programarse como nueva.
-  'card.meaning_changed': z.strictObject({ cardId: z.uuid(), versionId: z.uuid() }),
-  // La agenda que traía una tarjeta de la Fase 03, repasada antes de que existiera el libro.
-  'schedule.adopted': z.strictObject({ cardId: z.uuid(), memory: memorySnapshot }),
-};
-const SCHEMA_VERSION = 1;
+const reviewGradedV1 = z.strictObject({
+  cardId: z.uuid(),
+  grade: z.enum(['again', 'hard', 'good']),
+  helpLevel: z.literal('A0'),
+  dueAtThen: z.iso.datetime(),
+  // La versión de la tarjeta que se evaluó (Fase 08). Los repasos de antes no la traen.
+  versionId: z.uuid().optional(),
+});
 
-export type ObservationKind = keyof typeof PAYLOADS;
-export type ObservationPayload<K extends ObservationKind> = z.output<(typeof PAYLOADS)[K]>;
+// Fase 09: además de lo de la versión 1, la ayuda de la escala única y lo que decía el motor en el
+// momento del intento.
+const reviewGradedV2 = z.strictObject({
+  cardId: z.uuid(),
+  grade: z.enum(['again', 'hard', 'good']),
+  helpLevel: z.enum(['A0', 'A1', 'A2', 'A3', 'A4']),
+  dueAtThen: z.iso.datetime(),
+  versionId: z.uuid().optional(),
+  // La probabilidad de recordarla que predecía el motor (nula en una tarjeta nueva).
+  predictedRecall: z.number().min(0).max(1).nullable(),
+  // Los días de estudio desde el repaso anterior que contó (nulo en el primero).
+  elapsedDays: z.number().int().nonnegative().nullable(),
+  // Por qué apareció: vencida, reaprendizaje, elegida por mí o sondeo.
+  rule: z.enum(['due', 'relearning', 'chosen', 'probe']),
+  // Con qué motor y qué parámetros se calculó, la retención de la materia y si llevó la variación
+  // al azar del uso real.
+  engineVersion: z.number().int().positive(),
+  parametersVersion: z.string().min(1),
+  retention: z.number().gt(0).lte(1),
+  fuzz: z.boolean(),
+});
+
+// Lo esencial de cada tipo de observación, por versión del esquema. Los esquemas viejos se
+// conservan para leer historial viejo; uno nuevo sube la versión y se escribe siempre con la
+// última.
+const PAYLOADS = {
+  // Un repaso de una tarjeta: el botón que se tocó, la ayuda y la fecha en que vencía.
+  'review.graded': { 1: reviewGradedV1, 2: reviewGradedV2 },
+  // «Deshacer» un repaso (Fase 09): el repaso queda en el historial y deja de contar.
+  'review.annulled': { 1: z.strictObject({ cardId: z.uuid(), reviewId: z.uuid() }) },
+  // Cambió lo que hay que recordar (Fase 08): la tarjeta vuelve a programarse como nueva.
+  'card.meaning_changed': { 1: z.strictObject({ cardId: z.uuid(), versionId: z.uuid() }) },
+  // La agenda que traía una tarjeta de la Fase 03, repasada antes de que existiera el libro.
+  'schedule.adopted': { 1: z.strictObject({ cardId: z.uuid(), memory: memorySnapshot }) },
+};
+const CURRENT_VERSION = {
+  'review.graded': 2,
+  'review.annulled': 1,
+  'card.meaning_changed': 1,
+  'schedule.adopted': 1,
+} as const;
+
+type Payloads = typeof PAYLOADS;
+export type ObservationKind = keyof Payloads;
+type CurrentVersion<K extends ObservationKind> = (typeof CURRENT_VERSION)[K];
+// Lo que se escribe hoy: siempre la última versión del esquema.
+export type ObservationPayload<K extends ObservationKind> = z.output<
+  Payloads[K][CurrentVersion<K> & keyof Payloads[K]] & z.ZodType
+>;
+// Lo que se puede leer: cualquiera de las versiones que existieron.
+type StoredPayload<K extends ObservationKind> = z.output<
+  Payloads[K][keyof Payloads[K]] & z.ZodType
+>;
+
+function schemaOf(kind: ObservationKind, version: number): z.ZodType | undefined {
+  const versions: Record<number, z.ZodType> = PAYLOADS[kind];
+  return versions[version];
+}
 
 export function readPayload<K extends ObservationKind>(
   kind: K,
   schemaVersion: number,
   payload: string,
-): ObservationPayload<K> {
-  if (schemaVersion !== SCHEMA_VERSION) {
+): StoredPayload<K> {
+  const schema = schemaOf(kind, schemaVersion);
+  if (!schema) {
     throw new Error(`No sé leer la versión ${schemaVersion} de «${kind}»`);
   }
-  return PAYLOADS[kind].parse(JSON.parse(payload)) as ObservationPayload<K>;
+  return schema.parse(JSON.parse(payload)) as StoredPayload<K>;
 }
 
 // La primera vez que se abre una base, se crea su dispositivo.
@@ -131,7 +177,12 @@ export function appendObservation<K extends ObservationKind>(
   if (existing) {
     return { id: existing.id, inserted: false };
   }
-  const payload = JSON.stringify(PAYLOADS[input.kind].parse(input.payload));
+  const schemaVersion = CURRENT_VERSION[input.kind];
+  const schema = schemaOf(input.kind, schemaVersion);
+  if (!schema) {
+    throw new Error(`No hay esquema para «${input.kind}»`);
+  }
+  const payload = JSON.stringify(schema.parse(input.payload));
   const now = clock.now();
   const { deviceId, seq } = nextSeq(tx);
   const id = newId();
@@ -146,7 +197,7 @@ export function appendObservation<K extends ObservationKind>(
       deviceId,
       seq,
       payload,
-      schemaVersion: SCHEMA_VERSION,
+      schemaVersion,
       idempotencyKey: input.idempotencyKey,
       source: input.source,
     })

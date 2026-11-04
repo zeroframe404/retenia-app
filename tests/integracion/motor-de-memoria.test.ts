@@ -58,10 +58,12 @@ const reviewPayloads = (file: string, cardId: string) =>
     file,
     "SELECT payload, schema_version FROM observations WHERE kind = 'review.graded' AND card_id = ? ORDER BY seq",
     cardId,
-  ).map((row) => ({
-    ...(JSON.parse(String(row.payload)) as Record<string, unknown>),
-    schemaVersion: row.schema_version,
-  }));
+  ).map(
+    (row): Record<string, unknown> => ({
+      ...(JSON.parse(String(row.payload)) as Record<string, unknown>),
+      schemaVersion: row.schema_version,
+    }),
+  );
 
 describe('motor de memoria: la retención objetivo según la materia', () => {
   it('[CA-060] una tarjeta nueva de una materia en mantenimiento con «La sabía» el 15/03/2027 vuelve el viernes 19/03/2027; en la activa, el miércoles 17/03/2027', () => {

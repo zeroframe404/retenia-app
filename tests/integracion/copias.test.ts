@@ -163,6 +163,7 @@ describe('«Hacer copia ahora»', () => {
       '0003_materias_apuntes',
       '0004_apuntes_disparadores',
       '0005_tarjetas_fichas',
+      '0006_motor_de_memoria',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

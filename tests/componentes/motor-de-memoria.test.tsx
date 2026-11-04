@@ -25,10 +25,11 @@ function setup() {
     makeActive: true,
   });
   const user = userEvent.setup();
-  render(<CardsScreen subject={subject} />);
+  // La pantalla se abre después de preparar las tarjetas: lee la lista al abrirse.
+  const open = () => render(<CardsScreen subject={subject} />);
   const add = (question: string, answer = 'R') =>
     bridge.workspace.cards.create({ question, answer, subjectId: subject.id });
-  return { bridge, user, add, workspace: bridge.workspace };
+  return { bridge, user, add, open, workspace: bridge.workspace };
 }
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -50,8 +51,9 @@ const sentOn = (bridge: TestBridge, channel: string) =>
 
 describe('«Deshacer» un repaso', () => {
   it('[CA-063] después de calificar aparece «Deshacer»; al tocarlo, el repaso se anula y la tarjeta vuelve a la pregunta sin calificar', async () => {
-    const { bridge, user, add } = setup();
+    const { bridge, user, add, open } = setup();
     add('¿Capital de Francia?', 'París');
+    open();
     await gradeFromDetail(user, '¿Capital de Francia?', 'La sabía');
     expect(await screen.findByText('Próximo repaso: miércoles 17/03/2027')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Deshacer' }));
@@ -67,7 +69,7 @@ describe('«Deshacer» un repaso', () => {
   });
 
   it('[CA-063] con historial, «Deshacer» dice el próximo repaso de antes, y volver a calificar es otro intento', async () => {
-    const { bridge, user, add, workspace } = setup();
+    const { bridge, user, add, workspace, open } = setup();
     const card = add('¿Qué es la varianza?');
     workspace.cards.plantHistory([
       {
@@ -76,6 +78,7 @@ describe('«Deshacer» un repaso', () => {
         reviews: [{ at: inBuenosAires('10/03/2027 10:00'), grade: 'good' }],
       },
     ]);
+    open();
     await gradeFromDetail(user, '¿Qué es la varianza?', 'Con dudas');
     await user.click(await screen.findByRole('button', { name: 'Deshacer' }));
     expect(
@@ -92,8 +95,9 @@ describe('«Deshacer» un repaso', () => {
   });
 
   it('[CA-063] el historial muestra el repaso deshecho con «Anulado»', async () => {
-    const { user, add } = setup();
+    const { user, add, open } = setup();
     add('¿Capital de Francia?', 'París');
+    open();
     await gradeFromDetail(user, '¿Capital de Francia?', 'La sabía');
     await user.click(await screen.findByRole('button', { name: 'Deshacer' }));
     await user.click(await screen.findByRole('button', { name: 'Volver a las tarjetas' }));
@@ -107,13 +111,14 @@ describe('«Deshacer» un repaso', () => {
   });
 
   it('un segundo repaso el mismo día figura en el historial como del mismo día y no cambia la fecha', async () => {
-    const { user, add, workspace } = setup();
+    const { user, add, workspace, open } = setup();
     const card = add('¿Capital de Italia?', 'Roma');
     workspace.cards.review({
       cardId: card.id,
       grade: 'again',
       attemptId: '01969f1e-0000-4000-8000-000000000c01',
     });
+    open();
     await gradeFromDetail(user, '¿Capital de Italia?', 'La sabía');
     expect(await screen.findByText('Próximo repaso: martes 16/03/2027')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
@@ -131,7 +136,7 @@ describe('«Deshacer» un repaso', () => {
 
 describe('«¿Por qué hoy?»', () => {
   it('[CA-065] en una tarjeta que vence hoy: los días desde el último repaso, cómo salió y unos N de cada 10, con la estimación general', async () => {
-    const { user, add, workspace } = setup();
+    const { user, add, workspace, open } = setup();
     const card = add('¿Qué mide el desvío estándar?');
     workspace.cards.plantHistory([
       {
@@ -144,6 +149,7 @@ describe('«¿Por qué hoy?»', () => {
         ],
       },
     ]);
+    open();
     await openCard(user, '¿Qué mide el desvío estándar?');
     await user.click(screen.getByRole('button', { name: '¿Por qué hoy?' }));
     expect(
@@ -155,7 +161,7 @@ describe('«¿Por qué hoy?»', () => {
   });
 
   it('[CA-065] también durante el repaso, antes de mostrar la respuesta', async () => {
-    const { user, add, workspace } = setup();
+    const { user, add, workspace, open } = setup();
     const card = add('¿Capital de Francia?', 'París');
     workspace.cards.plantHistory([
       {
@@ -164,6 +170,7 @@ describe('«¿Por qué hoy?»', () => {
         reviews: [{ at: inBuenosAires('14/03/2027 10:00'), grade: 'good' }],
       },
     ]);
+    open();
     await openCard(user, '¿Capital de Francia?');
     await user.click(screen.getByRole('button', { name: 'Repasar' }));
     await user.click(await screen.findByRole('button', { name: '¿Por qué hoy?' }));
@@ -176,8 +183,9 @@ describe('«¿Por qué hoy?»', () => {
   });
 
   it('[CA-065] una tarjeta nueva dice que es nueva', async () => {
-    const { user, add } = setup();
+    const { user, add, open } = setup();
     add('¿Capital de Portugal?', 'Lisboa');
+    open();
     await openCard(user, '¿Capital de Portugal?');
     await user.click(screen.getByRole('button', { name: '¿Por qué hoy?' }));
     expect(await screen.findByText('Es nueva: todavía no la repasaste.')).toBeTruthy();
@@ -185,7 +193,7 @@ describe('«¿Por qué hoy?»', () => {
   });
 
   it('con 5 intentos o más deja de decir «Estimación general»; la frase nunca tiene decimales', async () => {
-    const { user, add, workspace } = setup();
+    const { user, add, workspace, open } = setup();
     const card = add('¿Capital de España?', 'Madrid');
     workspace.cards.plantHistory([
       {
@@ -197,6 +205,7 @@ describe('«¿Por qué hoy?»', () => {
         })),
       },
     ]);
+    open();
     await openCard(user, '¿Capital de España?');
     await user.click(screen.getByRole('button', { name: '¿Por qué hoy?' }));
     const phrase = await screen.findByText(/^La viste hace 14 días; la última vez te salió bien;/);

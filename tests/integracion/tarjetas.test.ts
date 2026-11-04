@@ -193,6 +193,7 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0003_materias_apuntes' },
       { id: '0004_apuntes_disparadores' },
       { id: '0005_tarjetas_fichas' },
+      { id: '0006_motor_de_memoria' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([

@@ -36,8 +36,8 @@ const tsfsrs = require('ts-fsrs');
 /** El día en que se crea la tarjeta de cada caso: el «hoy» de la demostración. */
 export const CASE_START_DAY = '2027-03-15';
 /** Retención objetivo de la materia activa y de una en mantenimiento. */
-export const ACTIVE_RETENTION = 0.9;
-export const MAINTENANCE_RETENTION = 0.85;
+const ACTIVE_RETENTION = 0.9;
+const MAINTENANCE_RETENTION = 0.85;
 
 export class SequenceError extends Error {
   /** @param {string} message */
@@ -256,7 +256,7 @@ export const UNREVIEWED = 'sin repasar';
  * @param {{ grade: Grade, help: HelpLevel, defective?: boolean, interrupted?: boolean }} attempt
  * @returns {Grade | null}
  */
-export function engineGradeOf(attempt) {
+function engineGradeOf(attempt) {
   if (attempt.interrupted || attempt.defective) {
     return null;
   }
@@ -283,7 +283,7 @@ const GRADE_NUMBER = /** @type {const} */ ({ again: 1, hard: 2, good: 3 });
  * de minutos (`enable_short_term` con los pasos vacíos), contando los días como días de estudio.
  * @type {Scheduler}
  */
-export const libraryScheduler = (previous, day, grade, retention) => {
+const libraryScheduler = (previous, day, grade, retention) => {
   const f = tsfsrs.fsrs(
     tsfsrs.generatorParameters({
       request_retention: retention,
@@ -324,7 +324,7 @@ export const libraryScheduler = (previous, day, grade, retention) => {
  * Con la fórmula publicada (tools/lib/fsrs6.mjs), sin la biblioteca.
  * @type {Scheduler}
  */
-export const formulaScheduler = (previous, day, grade, retention) => {
+const formulaScheduler = (previous, day, grade, retention) => {
   const t = previous === null ? 0 : daysBetween(day, previous.lastDay);
   const next = formula.review(previous, t, GRADE_NUMBER[grade], retention);
   return {
@@ -344,7 +344,7 @@ export const formulaScheduler = (previous, day, grade, retention) => {
  * @param {readonly TimelineEvent[]} events @param {number} retention @param {Scheduler} scheduler
  * @returns {Projected | null}
  */
-export function replay(events, retention, scheduler) {
+function replay(events, retention, scheduler) {
   /** @type {Projected | null} */
   let current = null;
   for (const event of events) {
@@ -369,7 +369,7 @@ export function replay(events, retention, scheduler) {
  * @param {Sequence} sequence @param {Scheduler} scheduler
  * @returns {{ due: string[], final: Projected | null, events: TimelineEvent[], days: (string | null)[] }}
  */
-export function runSequence(sequence, scheduler) {
+function runSequence(sequence, scheduler) {
   const retention = sequence.maintenance ? MAINTENANCE_RETENTION : ACTIVE_RETENTION;
   /** @type {TimelineEvent[]} */
   const events = [];
@@ -458,7 +458,7 @@ export function readCases(text) {
 }
 
 /** Estabilidad y dificultad con coma decimal y cuatro decimales. @param {Projected | null} final */
-export function memoryText(final) {
+function memoryText(final) {
   if (final === null) {
     return 'nueva';
   }

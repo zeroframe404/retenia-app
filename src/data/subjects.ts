@@ -16,6 +16,7 @@ import { appendOperation, type EventSource } from './ledger';
 import { createNoteRow, noteOf, saveNoteRows } from './notes';
 import { DuplicateNameError, SubjectNotFoundError } from './organization-errors';
 import type { Writer } from './orm';
+import { refreshStaleSchedules } from './projections';
 import { subjects } from './schema';
 import { createTopicRow } from './topics';
 
@@ -72,6 +73,8 @@ function applyStatuses(tx: Writer, rows: readonly SubjectRow[], next: readonly S
       tx.update(subjects).set({ status: subject.status }).where(eq(subjects.id, subject.id)).run();
     }
   }
+  // La retención objetivo sale del estado de la materia: sus tarjetas se reprograman (Fase 09).
+  refreshStaleSchedules(tx);
 }
 
 function makeActive(tx: Writer, subjectId: string): void {
@@ -150,7 +153,9 @@ export function createSubjectsStore(db: ReteniaDatabase, clock: Clock): Subjects
           makeActive(tx, id);
         }
         // Las tarjetas de antes de que hubiera materias esperan a la primera.
-        adoptUnassignedCards(tx);
+        if (adoptUnassignedCards(tx) > 0) {
+          refreshStaleSchedules(tx);
+        }
         const created = listSubjects(tx).find((subject) => subject.id === id);
         if (!created) {
           throw new SubjectNotFoundError();

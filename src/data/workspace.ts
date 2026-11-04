@@ -135,12 +135,16 @@ export function openWorkspace({
   appVersion,
   onStatement,
   onStep,
+  fuzz = false,
 }: {
   dataDir: string;
   clock: Clock;
   appVersion: string;
   onStatement?: (statement: string) => void;
   onStep?: Step;
+  // La variación al azar de las fechas de repaso: encendida solo en el uso real (Fase 09); la
+  // demostración y las pruebas la dejan apagada.
+  fuzz?: boolean;
 }): Workspace {
   const dbFile = join(dataDir, 'retenia.db');
   const copiesDir = join(dataDir, 'copias');
@@ -163,7 +167,7 @@ export function openWorkspace({
     const db = openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
     return {
       db,
-      cards: createCardsStore(db, clock),
+      cards: createCardsStore(db, clock, { fuzz }),
       trash: createTrashStore(db, clock),
       activity: createActivityStore(db, clock),
       subjects: createSubjectsStore(db, clock),
