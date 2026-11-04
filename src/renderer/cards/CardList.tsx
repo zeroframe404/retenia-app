@@ -89,6 +89,21 @@ function Row({
   onOpen: (card: Card) => void;
   onReview: (card: Card) => void;
 }) {
+  // Una sola línea (se corta con puntos suspensivos y se lee entera apoyando el mouse): cuándo
+  // vuelve a aparecer, de qué tipo es, en qué estado está y de qué tema.
+  const when = card.paused
+    ? texts.cards.paused
+    : card.nextReviewDay
+      ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
+      : texts.cards.notReviewed;
+  const meta = [
+    when,
+    card.kind === 'cloze' ? texts.cards.kindCloze : texts.cards.kindQa,
+    texts.cards.sheetStates[card.sheetState],
+    card.topicName,
+  ]
+    .filter((part): part is string => part !== null)
+    .join(texts.cards.metaSeparator);
   return (
     <li
       className={styles.row}
@@ -97,10 +112,11 @@ function Row({
       aria-setsize={count}
     >
       <div className={styles.rowLine}>
-        <p className={styles.rowTitle} title={card.question}>
+        <p className={styles.rowTitle}>
           <button
             type="button"
             className={styles.open}
+            title={card.question}
             aria-label={texts.cards.open(card.question)}
             onClick={() => onOpen(card)}
           >
@@ -111,21 +127,8 @@ function Row({
           {texts.cards.review}
         </Boton>
       </div>
-      <p className={styles.rowMeta}>
-        {card.paused ? (
-          <span className={styles.paused}>{texts.cards.paused}</span>
-        ) : (
-          <span>
-            {card.nextReviewDay
-              ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
-              : texts.cards.notReviewed}
-          </span>
-        )}
-        <span className={styles.chip}>
-          {card.kind === 'cloze' ? texts.cards.kindCloze : texts.cards.kindQa}
-        </span>
-        <span className={styles.chip}>{texts.cards.sheetStates[card.sheetState]}</span>
-        {card.topicName === null ? null : <span>{card.topicName}</span>}
+      <p className={styles.rowMeta} title={meta}>
+        {meta}
       </p>
     </li>
   );

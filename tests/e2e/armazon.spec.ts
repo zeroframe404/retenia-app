@@ -626,7 +626,12 @@ test('[CA-035] un título de lista larguísimo se corta con puntos suspensivos p
   await page.getByRole('textbox', { name: 'Pregunta' }).fill(question);
   await page.getByRole('textbox', { name: 'Respuesta' }).fill('x');
   await page.getByRole('button', { name: 'Guardar' }).click();
-  const title = page.getByRole('listitem').first().locator('p').first();
+  // Desde la Fase 08 el título de cada tarjeta es el botón que abre su detalle: él se corta y lleva
+  // el texto completo.
+  const title = page
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: /^Abrir la tarjeta/ });
   await expect(title).toHaveAttribute('title', question);
   expect(await title.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(true);
 });

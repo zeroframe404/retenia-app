@@ -218,6 +218,14 @@ Cómo quedó en la Fase 07:
 | CA-056 | E | — | Filtrar por «Intervalos de confianza» muestra solo esas con su próximo repaso; sin filtro, el contador dice 180. |
 | CA-057 | I | E | «Pausar esta tarjeta» la saca de la cola hasta «Reanudar» y conserva el historial. |
 
+Cómo quedó en la Fase 08:
+
+- Los 12 criterios (CA-048 a CA-057, CA-377 y CA-378) tienen prueba con su identificador en el título. Reglas puras (`tarjetas-en-renglones.test.ts`, unitaria: «>>» con dos flechas, sin lado, al inicio o al final; huecos vacíos, al inicio, anidados y pegados; qué tarjetas salen de un renglón; la identidad por renglón y por hueco, nunca por texto; los topes de la ficha; la regla de «¿Cambió lo que hay que recordar?»; los filtros), la lista que no se traba (`lista-virtual.test.ts`), integración con base real (`tarjetas-en-notas.test.ts`: identidad estable al editar, versiones inmutables, lo que pasa al borrar un renglón con y sin historial, la ficha, la inversa, la pausa y «Verificar datos» limpio; `siembra-tarjetas.test.ts`: el elenco, con los conteos exactos del 15/03/2027), pantallas (`editor-tarjetas.test.tsx`: el hueco con Ctrl+Mayús+C y con «{{…}}», la marca del renglón y las dos preguntas; `tarjetas-lista-y-ficha.test.tsx`: contador, filtros, camino, ficha, las dos respuestas a «¿Cambió lo que hay que recordar?», inversa, pausa, imagen y fórmula) y punta a punta con el programa empaquetado (`tarjetas-fichas.spec.ts`, con los pasos y textos de las pruebas manuales).
+- La marca del renglón que es tarjeta la calculan dos copias de la misma regla (el guardado, en `src/core/cards`, y la ventana, en `card-marker.ts`, porque la ventana no puede importar del núcleo). Una prueba compara las dos con 14 casos (`editor-tarjetas.test.tsx`).
+- CA-377 y CA-378 dicen «en sesión», y la sesión llega en la Fase 10. Los comprobé en el repaso mínimo de «Tarjetas», que dibuja la pregunta y la respuesta con el mismo componente (`CardFace`) que usará la sesión: la imagen queda del lado en que estaba en el renglón y las fórmulas se ven como en un libro. Cuando exista la sesión se suma una prueba punta a punta con ella.
+- Elenco: el conteo del 15/03/2027 (60 vencidas, 30 nuevas, 90 programadas) cuenta como programada a la tarjeta con 4 fallos, porque queda fuera de la cola (lo dice `elenco.md`). Las tarjetas con cita del PDF, las del PDF de la página 7 y los ejercicios no están: llegan con las Fases 13, 14 y 16.
+- Dobles nuevos: ninguno.
+
 ### Fase 09 · Motor de memoria FSRS-6 (H-15)
 
 | Criterio | Capa | También | Cómo se comprueba |

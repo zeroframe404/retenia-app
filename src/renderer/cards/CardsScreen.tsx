@@ -18,8 +18,8 @@ type View =
   | { kind: 'form' }
   | { kind: 'detail'; cardId: string; version: number }
   | { kind: 'edit'; card: CardDetail }
-  | { kind: 'review'; card: Card; back: 'list' | 'detail' }
-  | { kind: 'history'; card: Card; back: 'list' | 'detail' };
+  | { kind: 'review'; card: Card }
+  | { kind: 'history'; card: Card };
 
 type Topic = { id: string; name: string };
 
@@ -103,36 +103,11 @@ export function CardsScreen({
   };
 
   if (view.kind === 'review') {
-    const { back, card } = view;
-    return (
-      <ReviewView
-        card={card}
-        onReviewed={() => undefined}
-        onClose={() => {
-          if (back === 'detail') {
-            setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
-          } else {
-            backToList();
-          }
-        }}
-      />
-    );
+    return <ReviewView card={view.card} onReviewed={() => undefined} onClose={backToList} />;
   }
 
   if (view.kind === 'history') {
-    const { back, card } = view;
-    return (
-      <HistoryView
-        card={card}
-        onClose={() => {
-          if (back === 'detail') {
-            setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
-          } else {
-            backToList();
-          }
-        }}
-      />
-    );
+    return <HistoryView card={view.card} onClose={backToList} />;
   }
 
   if (view.kind === 'edit') {
@@ -166,8 +141,8 @@ export function CardsScreen({
             setNotice('');
             setView({ kind: 'edit', card });
           }}
-          onReview={(card) => setView({ kind: 'review', card, back: 'detail' })}
-          onHistory={(card) => setView({ kind: 'history', card, back: 'detail' })}
+          onReview={(card) => setView({ kind: 'review', card })}
+          onHistory={(card) => setView({ kind: 'history', card })}
           onOpenNote={onOpenNote}
           onChanged={() => void load()}
           onRemoved={backToList}
@@ -238,7 +213,7 @@ export function CardsScreen({
             setNotice('');
             setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
           }}
-          onReview={(card) => setView({ kind: 'review', card, back: 'list' })}
+          onReview={(card) => setView({ kind: 'review', card })}
         />
       ) : null}
     </ScreenFrame>

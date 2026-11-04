@@ -45,6 +45,11 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'cards.list',
       'cards.review',
       'cards.edit',
+      // Tarjetas y fichas (Fase 08).
+      'cards.get',
+      'cards.markMeaningChanged',
+      'cards.setPaused',
+      'cards.createInverse',
       'cards.history',
       'cards.delete',
       // Materias, temas, notas, imágenes y Bandeja (Fase 07).

@@ -3,8 +3,9 @@
 // saca capturas de las pantallas de esa fase en claro y en oscuro en docs/pruebas-manuales/capturas.
 // Sirven para que una persona (y quien revisa) mire cómo se ve antes de aprobar; no se comparan
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
-// Fases: fase-03, fase-04, fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs
-// --modelos») y fase-06.
+// Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
+// Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
+// fase-06 y fase-08.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -335,9 +336,121 @@ async function phase06(page) {
   await page.getByRole('radio', { name: 'Según el sistema' }).check();
 }
 
-let { app, page } = await launch({}, name !== 'fase-06');
+// Las pantallas nuevas de la Fase 08 con los datos de las pruebas manuales: el editor con los
+// renglones que son tarjeta, la lista con su contador y sus filtros, el detalle, la ficha, las dos
+// preguntas («¿Cambió lo que hay que recordar?» y la del renglón con historial) y la pausa.
+/** @param {import('@playwright/test').Page} page */
+async function phase08(page) {
+  const saved = page.getByText('Guardado', { exact: true });
+  const editor = page.getByRole('textbox', { name: 'Contenido de la nota' });
+
+  // La nota «Regresión lineal» con un renglón de flecha y uno con dos huecos.
+  await goToDestination(page, 'Apuntes');
+  await page.getByRole('button', { name: 'Nuevo tema' }).click();
+  await page.getByRole('textbox', { name: 'Nombre del tema' }).fill('Regresión');
+  await page.getByRole('button', { name: 'Crear' }).click();
+  await page.getByRole('button', { name: /^Regresión/ }).click();
+  await page.getByRole('button', { name: 'Nueva nota' }).click();
+  await page.getByRole('textbox', { name: 'Título' }).fill('Regresión lineal');
+  await editor.click();
+  await page.keyboard.type('Pendiente >> Cuánto cambia y por cada unidad de x');
+  await page.keyboard.press('Enter');
+  const line = 'La media de 2, 4 y 6 es 4 y la mediana es 4.';
+  await page.keyboard.type(line);
+  for (const back of [1, line.length - (line.indexOf('es 4 y') + 4)]) {
+    await page.keyboard.press('End');
+    for (let index = 0; index < back; index += 1) {
+      await page.keyboard.press('ArrowLeft');
+    }
+    await page.keyboard.press('Shift+ArrowLeft');
+    await page.keyboard.press('Control+Shift+C');
+  }
+  await page.keyboard.press('Enter');
+  await saved.waitFor();
+  await shoot(page, '1-editor-tarjetas');
+
+  await page.getByRole('button', { name: 'Volver a las notas' }).click();
+  await goTo(page, 'Tarjetas');
+  await page.getByText('182 tarjetas').waitFor();
+  await shoot(page, '2-lista');
+
+  await page.getByLabel('Tema').selectOption({ label: 'Intervalos de confianza' });
+  await page.getByText('61 de 182 tarjetas').waitFor();
+  await shoot(page, '3-lista-filtrada');
+  await page.getByLabel('Tema').selectOption({ label: 'Todos los temas' });
+
+  await page.getByRole('button', { name: 'Abrir la tarjeta «Pendiente»' }).click();
+  await page.getByRole('navigation', { name: 'Camino de la tarjeta' }).waitFor();
+  await shoot(page, '4-detalle');
+
+  await page.getByRole('button', { name: 'Editar ficha' }).click();
+  await page
+    .getByRole('textbox', { name: 'Variantes aceptables (una por renglón)' })
+    .fill('inclinación de la recta');
+  await page.getByRole('textbox', { name: 'Pista 1' }).fill('Empieza con P');
+  await shoot(page, '5-ficha');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByText('Cambios guardados').waitFor();
+
+  await page.getByRole('button', { name: 'Crear inversa' }).click();
+  await page.getByText('Creé la tarjeta inversa.').waitFor();
+  await shoot(page, '6-inversa');
+  await page.getByRole('button', { name: 'Pausar esta tarjeta' }).click();
+  await page.getByText('En pausa', { exact: true }).waitFor();
+  await shoot(page, '7-pausa');
+  await page.getByRole('button', { name: 'Volver a las tarjetas' }).click();
+
+  // La tarjeta con historial: cambiar su respuesta pregunta si cambió lo que hay que recordar.
+  const media = page.getByRole('button', { name: 'Abrir la tarjeta «¿Qué es la media muestral?»' });
+  const scroller = page.locator('section[tabindex="0"]');
+  for (let turn = 0; turn < 60 && (await media.count()) === 0; turn += 1) {
+    await scroller.evaluate((element) => {
+      element.scrollTop += element.clientHeight / 2;
+    });
+    await page.evaluate(() => new Promise((next) => requestAnimationFrame(next)));
+  }
+  await media.click();
+  await page.getByRole('button', { name: 'Editar ficha' }).click();
+  await page.getByRole('textbox', { name: 'Respuesta' }).fill('Otra respuesta, de fondo distinta.');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByRole('dialog', { name: '¿Cambió lo que hay que recordar?' }).waitFor();
+  await shoot(page, '8-pregunta-cambio');
+  await page.getByRole('button', { name: 'Sí' }).click();
+  await page.getByText('Todavía sin repasar').waitFor();
+  await page.getByRole('button', { name: 'Historial' }).click();
+  await page.getByRole('list', { name: 'Repasos de la tarjeta' }).waitFor();
+  await shoot(page, '9-historial');
+
+  // Borrar un renglón que es tarjeta con historial.
+  await goToDestination(page, 'Apuntes');
+  await page
+    .getByRole('navigation', { name: 'Secciones de Apuntes' })
+    .getByRole('button', { name: 'Notas', exact: true })
+    .click();
+  await page
+    .getByRole('button', { name: /^Intervalos de confianza/ })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Intervalos de confianza', exact: true }).first().click();
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: 'Intervalo de confianza >> Rango de valores plausibles' })
+    .click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Home');
+  await page.keyboard.press('Backspace');
+  await page.keyboard.press('Backspace');
+  await page
+    .getByRole('dialog', { name: 'Este renglón tiene una tarjeta con historial. ¿Qué hacemos?' })
+    .waitFor();
+  await shoot(page, '10-renglon-con-historial');
+}
+
+let { app, page } = await launch({}, name !== 'fase-06' && name !== 'fase-08');
 try {
-  if (name === 'fase-06') {
+  if (name === 'fase-08') {
+    await phase08(page);
+  } else if (name === 'fase-06') {
     await phase06(page);
   } else if (name === 'fase-05') {
     app = await phase05({ app, page });

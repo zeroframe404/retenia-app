@@ -33,8 +33,8 @@ test('accesibilidad: la lista, el formulario (con y sin avisos) y el repaso no t
   await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
   await appWindow.evaluate(AXE);
 
-  // La lista con las tres tarjetas de ejemplo.
-  await expect(appWindow.getByRole('listitem')).toHaveCount(3);
+  // La lista con las 180 tarjetas del elenco, su contador y sus filtros.
+  await expect(appWindow.getByText('180 tarjetas')).toBeVisible();
   expect(await violationsNow(appWindow), 'lista').toEqual([]);
 
   // El formulario vacío y con el aviso «Escribí la pregunta».

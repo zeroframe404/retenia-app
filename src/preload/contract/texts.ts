@@ -412,6 +412,7 @@ export const texts = {
     kindQa: 'Pregunta y respuesta',
     kindCloze: 'Completar',
     open: (question: string) => `Abrir la tarjeta «${question}»`,
+    metaSeparator: ' · ',
     sheetStates: {
       proposed: 'Propuesta',
       reviewed: 'Revisada',

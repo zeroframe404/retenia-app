@@ -70,7 +70,7 @@ describe('«Historial» de una tarjeta', () => {
       '22/03/2027 · Con dudas',
     ]);
     await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
-    expect(await screen.findByRole('heading', { name: 'Tarjeta' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tarjetas' })).toBeTruthy();
   });
 
   it('una tarjeta sin repasos dice «Todavía no la repasaste.»', async () => {

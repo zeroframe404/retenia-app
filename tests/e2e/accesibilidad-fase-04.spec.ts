@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { Page } from '@playwright/test';
 import { expect, test } from './apoyo';
-import { goTo, itemWith, review } from './pasos';
+import { createCard, goTo, openCardByQuestion, review } from './pasos';
 
 const require = createRequire(import.meta.url);
 const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -31,23 +31,26 @@ async function violationsNow(page: Page): Promise<string[]> {
 test('accesibilidad: el historial, editar, la papelera con su confirmación, la actividad reciente, datos y copias y la demostración no tienen faltas según axe-core, en claro y en oscuro', async ({
   appWindow,
 }) => {
-  const question = '¿Qué mide el desvío estándar?';
+  const question = '¿Capital de Francia?';
   await expect(appWindow.getByRole('heading', { level: 3, name: 'Tarjetas' })).toBeVisible();
   await appWindow.evaluate(AXE);
   expect(await violationsNow(appWindow), 'tarjetas con sus botones').toEqual([]);
 
+  await createCard(appWindow, question, 'París');
   await review(appWindow, question, 'La sabía');
-  await itemWith(appWindow, question).getByRole('button', { name: 'Historial' }).click();
+  await openCardByQuestion(appWindow, question);
+  await appWindow.getByRole('button', { name: 'Historial' }).click();
   await expect(appWindow.getByRole('heading', { name: 'Historial' })).toBeVisible();
   expect(await violationsNow(appWindow), 'historial').toEqual([]);
   await appWindow.getByRole('button', { name: 'Volver a las tarjetas' }).click();
 
-  await itemWith(appWindow, question).getByRole('button', { name: 'Editar' }).click();
-  await expect(appWindow.getByRole('heading', { name: 'Editar tarjeta' })).toBeVisible();
+  await openCardByQuestion(appWindow, question);
+  await appWindow.getByRole('button', { name: 'Editar ficha' }).click();
+  await expect(appWindow.getByRole('heading', { name: 'Editar ficha' })).toBeVisible();
   expect(await violationsNow(appWindow), 'editar').toEqual([]);
   await appWindow.getByRole('button', { name: 'Cancelar' }).click();
 
-  await itemWith(appWindow, question).getByRole('button', { name: 'Eliminar' }).click();
+  await appWindow.getByRole('button', { name: 'Eliminar' }).click();
   await expect(appWindow.getByText('La tarjeta está en la Papelera.')).toBeVisible();
   expect(await violationsNow(appWindow), 'lista con el aviso de la papelera').toEqual([]);
 

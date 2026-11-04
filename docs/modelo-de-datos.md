@@ -1,6 +1,6 @@
 # Modelo de datos
 
-Versión 3 (Fase 07, 29/10/2026): las materias, los temas, las notas por renglones con versiones inmutables, la Bandeja y las imágenes ya existen (ver «Organización»). Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
+Versión 4 (Fase 08): las tarjetas se ligan a sus renglones y llevan ficha (ver «Tarjetas y ejercicios»). Versión 3 (Fase 07, 29/10/2026): las materias, los temas, las notas por renglones con versiones inmutables, la Bandeja y las imágenes ya existen (ver «Organización»). Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
 
 Una sola base SQLite por instalación (`retenia.db`), en modo WAL con `synchronous = FULL`, manejada solo desde `src/data` con Drizzle. Las tablas se nombran en inglés, en `snake_case`; los identificadores son UUID versión 7 en texto; los instantes van en ISO 8601 UTC y los días de estudio como `YYYY-MM-DD` calculados por `core` con el corte de las 04:00 de Buenos Aires.
 
@@ -38,9 +38,10 @@ Tipos de observación (`kind`) y lo esencial de su `payload`:
 
 | `kind` | Payload | Historias |
 |---|---|---|
-| `review.graded` | `cardId, sessionId, grade ('again' \| 'hard' \| 'good'), helpLevel ('A0'…'A4'), optionsQuestion (bool), shownAt, durationMs, dueAtThen`. Versión 1 del esquema (Fase 04): `cardId, grade, helpLevel 'A0', dueAtThen`; la sesión, los tiempos y la ayuda llegan con su fase como versión 2. Clave de idempotencia `review:<attemptId>` (la ventana genera `attemptId` al abrir el repaso). | H-02, H-04, H-15, H-16, H-21 |
+| `review.graded` | `cardId, sessionId, grade ('again' \| 'hard' \| 'good'), helpLevel ('A0'…'A4'), optionsQuestion (bool), shownAt, durationMs, dueAtThen`. Versión 1 del esquema (Fase 04): `cardId, grade, helpLevel 'A0', dueAtThen` y, desde la Fase 08, `versionId` (la versión de la tarjeta que se evaluó; opcional para leer los repasos de antes); la sesión, los tiempos y la ayuda llegan con su fase como versión 2. Clave de idempotencia `review:<attemptId>` (la ventana genera `attemptId` al abrir el repaso). | H-02, H-04, H-15, H-16, H-21 |
 | `schedule.adopted` | `cardId, memory` (la agenda que traía una tarjeta de una base de la Fase 03, repasada sin historial). Una sola vez por tarjeta, clave `adopt:<cardId>`, fuente `system` (Fase 04). | H-04 |
 | `review.annulled` | `reviewId` (la observación anulada) | H-15, H-16 |
+| `card.meaning_changed` | `cardId, versionId` (Fase 08): «¿Cambió lo que hay que recordar?» contestada con «Sí»; la tarjeta vuelve a programarse como nueva desde ese evento y su historial anterior queda. Clave `meaning:<versionId>` | H-13 |
 | `attempt.submitted` | `activityType ('card' \| 'exercise' \| 'lesson' \| 'word' \| 'contrast' \| 'writing' \| 'dictation' \| 'probe30' \| 'simulacro'), activityId, sessionId?, answer (texto, número u opción), helpLevel, optionsQuestion, variantId?, durationMs` | H-31, H-32, H-37 a H-39, H-54, H-59, H-61, H-63 a H-65, H-67 |
 | `hint.requested` | `activityId, sessionId, level` | H-32, H-47 |
 | `confidence.declared` | `attemptId, level ('guessing' \| 'think_so' \| 'sure')` | H-55 |
@@ -177,6 +178,13 @@ Fase 07 (migraciones `0003_materias_apuntes` y `0004_apuntes_disparadores`): exi
 | `exercises` | `id, subject_id, topic_id?, kind ('open' \| 'numeric' \| 'options' \| 'procedure' \| 'method_choice' \| 'micro'), current_version_id, created_at, deleted_at` | H-31, H-37 a H-39 |
 | `exercise_versions` | `id, exercise_id, prompt, model_answer_units (JSON, 2 a 4), steps (JSON, con el paso clave), variant_family (JSON: plantilla y rangos), options (JSON con explicación por opción), tolerance, created_at, cause` | H-31, H-37 a H-39 |
 | `candidates` | `id, material_id, section_id, question, answer, objective_text, quote, similar_to_card_id?, defects (JSON), decision ('pending' \| 'accepted' \| 'edited' \| 'discarded'), created_at` | H-44 |
+
+Fase 08 (migración `0005_tarjetas_fichas`, todo agregando; explicado en `docs/decisiones.md`, sección Fase 08):
+
+- `cards` suma `subject_id`, `topic_id`, `note_id`, `block_id`, `cloze_id`, `kind ('qa' \| 'cloze')`, `origin ('manual' \| 'note')`, `sibling_group_id`, `inverse_of_card_id`, `paused_at` y `detached_at`. Ninguna es clave foránea: la tarjeta sobrevive a que el renglón, la nota o el tema se purguen. **La identidad de una tarjeta nunca depende de su texto**: la de pregunta y respuesta es «la del renglón» (`block_id` con `cloze_id` nulo) y la de completar es «la del hueco» (`block_id` y `cloze_id`, el identificador del hueco en el renglón). `detached_at` marca que el renglón dejó de pedirla (lo borraste o le sacaste la marca); si la marca vuelve (Ctrl+Z en el editor), se vuelve a ligar. Las hermanas de un renglón comparten `sibling_group_id` (el identificador del renglón); una tarjeta y su inversa también. La regla de no mostrarlas el mismo día se aplica en la Fase 10.
+- `card_versions` suma `question_content` y `answer_content` (JSON con imágenes y huecos ya resueltos; nulos en las tarjetas escritas a mano), `reference_answer`, `variants`, `essentials` (hasta 4), `hints` (hasta 3, en orden), `explanation`, `source_text`, `form_type ('exact' \| 'meaning')` y `sheet_state ('proposed' \| 'reviewed' \| 'verified' \| 'in_review' \| 'retired')`. Cada cambio de pregunta, respuesta o ficha agrega una versión (`cause`: `edit`, `note` si vino del renglón, `undo`); la anterior no se toca. `meaning_changed` del modelo original no existe como columna: «Sí» a «¿Cambió lo que hay que recordar?» se guarda como la observación `card.meaning_changed`, que sí tiene lugar en el orden de los eventos.
+- `block_versions.content` admite el nodo `cloze` (`{type, id, text}`); `text_plain` lleva su texto.
+- Una tarjeta nacida de un renglón se crea, se edita y se suelta dentro de la misma transacción que guarda la nota; sus operaciones son del sistema y no aparecen en «Actividad reciente». Una suelta tiene `block_id` nulo.
 
 ### Materiales
 

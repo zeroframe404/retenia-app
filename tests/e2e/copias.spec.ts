@@ -1,10 +1,10 @@
 import { expect, test } from './apoyo';
-import { advanceDemoDate, goTo, itemWith, review } from './pasos';
+import { advanceDemoDate, createCard, goTo, itemWith, openCardByQuestion, review } from './pasos';
 
 // Punta a punta de H-05: copias en Ajustes › «Datos y copias», sobre Retenia (prueba)
 // empaquetada. Al abrir una carpeta nueva por primera vez, Retenia ya hace una copia automática.
 
-const QUESTION = '¿Qué mide el desvío estándar?';
+const QUESTION = '¿Capital de Francia?';
 const copies = (page: import('@playwright/test').Page) =>
   page.getByRole('list', { name: 'Tus copias' }).getByRole('listitem');
 
@@ -24,9 +24,10 @@ test('[CA-019] «Hacer copia ahora» suma a la lista una copia con fecha 15/03/2
   await expect(made).toContainText('Verificada');
 });
 
-test('[CA-020] eliminar «¿Qué mide el desvío estándar?», vaciar la papelera y restaurar la copia la devuelve con sus dos renglones, y aparece «Antes de restaurar»', async ({
+test('[CA-020] eliminar «¿Capital de Francia?», vaciar la papelera y restaurar la copia la devuelve con sus dos renglones, y aparece «Antes de restaurar»', async ({
   appWindow,
 }) => {
+  await createCard(appWindow, QUESTION, 'París');
   await review(appWindow, QUESTION, 'La sabía');
   await advanceDemoDate(appWindow, '+7 días');
   await goTo(appWindow, 'Tarjetas');
@@ -36,7 +37,8 @@ test('[CA-020] eliminar «¿Qué mide el desvío estándar?», vaciar la papeler
   await expect(copies(appWindow).filter({ hasText: 'Hecha por vos' })).toContainText('22/03/2027');
 
   await goTo(appWindow, 'Tarjetas');
-  await itemWith(appWindow, QUESTION).getByRole('button', { name: 'Eliminar' }).click();
+  await openCardByQuestion(appWindow, QUESTION);
+  await appWindow.getByRole('button', { name: 'Eliminar' }).click();
   await expect(appWindow.getByText('La tarjeta está en la Papelera.')).toBeVisible();
   await expect(itemWith(appWindow, QUESTION)).toHaveCount(0);
   await goTo(appWindow, 'Papelera');
@@ -57,7 +59,8 @@ test('[CA-020] eliminar «¿Qué mide el desvío estándar?», vaciar la papeler
   await expect(copies(appWindow).filter({ hasText: 'Antes de restaurar' })).toHaveCount(1);
 
   await goTo(appWindow, 'Tarjetas');
-  await itemWith(appWindow, QUESTION).getByRole('button', { name: 'Historial' }).click();
+  await openCardByQuestion(appWindow, QUESTION);
+  await appWindow.getByRole('button', { name: 'Historial' }).click();
   await expect(
     appWindow.getByRole('list', { name: 'Repasos de la tarjeta' }).getByRole('listitem'),
   ).toHaveText(['15/03/2027 · La sabía', '22/03/2027 · Con dudas']);
