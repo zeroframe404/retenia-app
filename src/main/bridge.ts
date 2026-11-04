@@ -77,6 +77,8 @@ export function createHandlers({
     'cards.setPaused': async (request) => workspace.cards.setPaused(request),
     'cards.createInverse': async (request) => workspace.cards.createInverse(request),
     'cards.review': async (request) => workspace.cards.review(request),
+    'cards.undoReview': async (request) => workspace.cards.undoReview(request),
+    'cards.whyToday': async (request) => workspace.cards.whyToday(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),

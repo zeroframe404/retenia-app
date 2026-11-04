@@ -85,7 +85,9 @@ describe('proyección de la agenda de una tarjeta', () => {
   });
 
   it('con una versión del motor que no conoce, falla en vez de inventar una agenda', () => {
-    expect(() => projectCardMemory({ createdAt: created, events: [] }, CONFIG, 2)).toThrow(
+    // Hasta la Fase 08 la desconocida de esta prueba era la 2; la Fase 09 trae la versión 2 del
+    // motor, así que ahora se prueba con una que no existe.
+    expect(() => projectCardMemory({ createdAt: created, events: [] }, CONFIG, 99)).toThrow(
       UnknownEngineError,
     );
   });

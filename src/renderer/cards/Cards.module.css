@@ -200,6 +200,27 @@
   color: var(--color-tinta-suave);
 }
 
+/* «¿Por qué hoy?» (Fase 09): el botón y, al tocarlo, la frase con la probabilidad. */
+.why {
+  display: grid;
+  gap: var(--espacio-8);
+  max-width: var(--ancho-lectura);
+}
+
+.whyAnswer {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.whyAnswer p {
+  margin: 0;
+}
+
 .select {
   min-height: var(--alto-control);
   padding: var(--espacio-4) var(--espacio-12);

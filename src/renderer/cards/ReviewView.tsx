@@ -7,6 +7,7 @@ import styles from '../ui/Content.module.css';
 import { ScreenFrame } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import { CardFace } from './CardFace';
+import { WhyToday } from './WhyToday';
 
 type Grade = 'again' | 'hard' | 'good';
 
@@ -18,6 +19,8 @@ const GRADES: { grade: Grade; label: string }[] = [
 
 // El repaso mínimo: se ve la pregunta, se intenta, después «Mostrar respuesta» y se califica.
 // Al calificar los botones se deshabilitan para que un doble toque no cuente dos repasos.
+// «Deshacer» (Fase 09) anula el repaso recién hecho: la tarjeta vuelve a la pregunta sin calificar
+// y su próximo repaso es otra vez el de antes; volver a calificarla es otro intento.
 export function ReviewView({
   card,
   onReviewed,
@@ -50,11 +53,13 @@ export function ReviewView({
   }, [card.id]);
   const [result, setResult] = useState<Card | null>(null);
   const [saving, setSaving] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState('');
+  const [notice, setNotice] = useState('');
   const inFlight = useRef(false);
   // Identifica este intento: si el repaso llega dos veces (un doble toque, un reintento después
-  // de un error), el principal lo guarda una sola vez.
-  const [attemptId] = useState(() => crypto.randomUUID());
+  // de un error), el principal lo guarda una sola vez. Después de «Deshacer», el intento siguiente
+  // es otro.
+  const [attemptId, setAttemptId] = useState(() => crypto.randomUUID());
 
   async function grade(value: Grade) {
     if (inFlight.current) {
@@ -62,7 +67,8 @@ export function ReviewView({
     }
     inFlight.current = true;
     setSaving(true);
-    setFailed(false);
+    setFailed('');
+    setNotice('');
     try {
       const reviewed = await window.retenia['cards.review']({
         cardId: card.id,
@@ -71,10 +77,36 @@ export function ReviewView({
       });
       setResult(reviewed);
       setStep('done');
+      setSaving(false);
       onReviewed(reviewed);
     } catch {
-      setFailed(true);
+      setFailed(texts.cards.reviewFailed);
       inFlight.current = false;
+      setSaving(false);
+    }
+  }
+
+  async function undo() {
+    if (saving) {
+      return;
+    }
+    setSaving(true);
+    setFailed('');
+    try {
+      const restored = await window.retenia['cards.undoReview']({ cardId: card.id, attemptId });
+      setNotice(
+        restored.nextReviewDay === null
+          ? texts.cards.reviewAnnulledNew
+          : texts.cards.reviewAnnulled(formatLongDate(restored.nextReviewDay)),
+      );
+      setResult(null);
+      setAttemptId(crypto.randomUUID());
+      setStep('question');
+      inFlight.current = false;
+      onReviewed(restored);
+    } catch {
+      setFailed(texts.cards.undoFailed);
+    } finally {
       setSaving(false);
     }
   }
@@ -82,6 +114,11 @@ export function ReviewView({
   return (
     <ScreenFrame level={3} title={texts.cards.reviewTitle}>
       <div className={styles.stack}>
+        {notice === '' ? null : (
+          <p role="status" className={styles.highlight}>
+            {notice}
+          </p>
+        )}
         <div className={styles.block}>
           <CardFace content={faces.question} />
         </div>
@@ -96,22 +133,18 @@ export function ReviewView({
             <CardFace content={faces.answer} />
           </div>
         )}
+        {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
         {step === 'answer' ? (
-          <>
-            {failed ? (
-              <BannerEstado tone="attention">{texts.cards.reviewFailed}</BannerEstado>
-            ) : null}
-            <fieldset className={styles.group}>
-              <legend>{texts.cards.gradeGroup}</legend>
-              <div className={styles.actions}>
-                {GRADES.map(({ grade: value, label }) => (
-                  <Boton key={value} disabled={saving} onClick={() => grade(value)}>
-                    {label}
-                  </Boton>
-                ))}
-              </div>
-            </fieldset>
-          </>
+          <fieldset className={styles.group}>
+            <legend>{texts.cards.gradeGroup}</legend>
+            <div className={styles.actions}>
+              {GRADES.map(({ grade: value, label }) => (
+                <Boton key={value} disabled={saving} onClick={() => grade(value)}>
+                  {label}
+                </Boton>
+              ))}
+            </div>
+          </fieldset>
         ) : null}
         {step === 'done' && result?.nextReviewDay ? (
           <>
@@ -122,9 +155,21 @@ export function ReviewView({
               <Boton variant="primary" onClick={onClose}>
                 {texts.cards.backToCards}
               </Boton>
+              <Boton disabled={saving} onClick={() => void undo()}>
+                {texts.cards.undoReview}
+              </Boton>
             </div>
           </>
-        ) : null}
+        ) : (
+          <>
+            <WhyToday key={attemptId} cardId={card.id} />
+            <div className={styles.actions}>
+              <Boton variant="quiet" onClick={onClose}>
+                {texts.cards.backToCards}
+              </Boton>
+            </div>
+          </>
+        )}
       </div>
     </ScreenFrame>
   );

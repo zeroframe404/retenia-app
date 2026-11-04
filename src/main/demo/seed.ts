@@ -206,6 +206,15 @@ const DUE: readonly Template[] = [
     [16, again],
   ],
 ];
+// Las vencidas de una materia en mantenimiento (Historia argentina): con su retención de 0,85 los
+// intervalos son más largos (Fase 09), y estas siguen venciendo hoy.
+const DUE_KEPT: readonly Template[] = [
+  [
+    [22, good],
+    [16, again],
+  ],
+  [[9, hard]],
+];
 const SCHEDULED: readonly Template[] = [
   [[1, good]],
   [
@@ -359,6 +368,7 @@ export function seedDemoCardCast(workspace: Workspace): number {
   const elenco = cardCastSchema().parse(cardCast);
   const created = new Date(DEMO_NOW.getTime() - 90 * DAY_MS);
   let dueTurn = 0;
+  let keptTurn = 0;
   let scheduledTurn = 0;
   let unseenUsed = 0;
   const entries: SeedCard[] = [];
@@ -382,7 +392,9 @@ export function seedDemoCardCast(workspace: Workspace): number {
           throw new Error(`Tarjeta de completar sin hueco: ${card.q}`);
         }
         let template: Template | undefined = SPECIAL[card.p];
-        if (card.p === 'd') {
+        if (card.p === 'd' && subject.status !== 'active') {
+          template = DUE_KEPT[keptTurn++ % DUE_KEPT.length];
+        } else if (card.p === 'd') {
           template = DUE[dueTurn++ % DUE.length];
         } else if (card.p === 's') {
           // Una de cada ocho programadas lleva entre 27 y 33 días sin verse.

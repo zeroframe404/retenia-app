@@ -1,0 +1,1 @@
+ALTER TABLE `card_schedule` ADD `engine_version` integer DEFAULT 1 NOT NULL;

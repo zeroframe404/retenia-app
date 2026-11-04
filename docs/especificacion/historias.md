@@ -403,7 +403,7 @@ Como estudiante quiero que cada tarjeta vuelva justo antes de que la olvide, par
   - cuando toco «¿Por qué hoy?»,
   - entonces leo una frase como «La viste hace 23 días; la última vez te costó; probabilidad estimada de recordarla: unos 7 de cada 10».
 
-Notas: la «tabla de casos» de CA-059 no existe todavía. La genera la Fase 09 con la versión congelada de la biblioteca y queda como anexo de este documento (`casos-memoria.md`). Cálculo preliminar con FSRS-6 y sin pasos de aprendizaje de corto plazo: «La sabía» en una tarjeta nueva da 2 días con retención 0,90 y 4 días con 0,85 (CA-060 daría 19/03/2027); la Fase 09 lo confirma. En el elenco, «¿Qué mide el desvío estándar?» se vio por última vez el 20/02/2027 con «Con dudas», para que CA-065 tenga sus números. La vuelta dentro de la sesión de CA-070 no pasa por el motor.
+Notas: la «tabla de casos» de CA-059 la generó la Fase 09 (04/11/2026) con la versión congelada de la biblioteca (ts-fsrs 5.4.2) y es el anexo `casos-memoria.md` de este documento, con 51 casos revisados contra la fórmula publicada de FSRS-6. Con FSRS-6 y sin pasos de aprendizaje de corto plazo, «La sabía» en una tarjeta nueva da 2 días con retención 0,90 y 4 días con 0,85 (CA-060 da 19/03/2027), confirmado en la Fase 09. En el elenco, «¿Qué mide el desvío estándar?» se vio por última vez el 20/02/2027 con «Con dudas», para que CA-065 tenga sus números. La vuelta dentro de la sesión de CA-070 no pasa por el motor.
 
 ## H-16 · Imprescindible · Fase 10
 

@@ -14,8 +14,21 @@ const RESULTS: Record<CardHistory['entries'][number]['result'], string> = {
   reset: texts.history.reset,
 };
 
+// El renglón de un repaso: la fecha, el resultado y, desde la Fase 09, «Anulado» si se deshizo o por
+// qué no cambió la fecha (otro repaso del mismo día, o uno con fecha anterior al último que contó).
+function rowText(entry: CardHistory['entries'][number]): string {
+  const row = texts.history.row(formatShortDate(entry.day), RESULTS[entry.result]);
+  if (entry.annulled) {
+    return texts.history.marked(row, texts.history.annulled);
+  }
+  if (entry.skipped === 'sameDay') {
+    return texts.history.marked(row, texts.history.sameDay);
+  }
+  return entry.skipped === 'earlier' ? texts.history.marked(row, texts.history.earlier) : row;
+}
+
 // «Historial» de una tarjeta: un renglón por repaso, con la fecha y el resultado, en el orden en
-// que se hicieron. Solo se agrega: un renglón nunca cambia.
+// que se hicieron. Solo se agrega: un renglón nunca cambia; uno deshecho dice «Anulado».
 export function HistoryView({ card, onClose }: { card: Card; onClose: () => void }) {
   const [history, setHistory] = useState<CardHistory | null>(null);
   const [failed, setFailed] = useState(false);
@@ -49,10 +62,7 @@ export function HistoryView({ card, onClose }: { card: Card; onClose: () => void
         {history !== null && history.entries.length > 0 ? (
           <ItemList ordered label={texts.history.listLabel}>
             {history.entries.map((entry) => (
-              <ListItem
-                key={entry.id}
-                text={texts.history.row(formatShortDate(entry.day), RESULTS[entry.result])}
-              />
+              <ListItem key={entry.id} text={rowText(entry)} />
             ))}
           </ItemList>
         ) : null}

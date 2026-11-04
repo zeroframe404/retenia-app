@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06 y fase-08.
+// fase-06, fase-08 y fase-09.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -466,9 +466,79 @@ async function phase08(page) {
   await shoot(page, '10-renglon-con-historial');
 }
 
+/** @param {import('@playwright/test').Page} page @param {string} question */
+async function openCard(page, question) {
+  const button = page.getByRole('button', { name: `Abrir la tarjeta «${question}»` });
+  const scroller = page.locator('section[tabindex="0"]');
+  await page.getByText(/^[\d.]+ tarjetas?$/).waitFor();
+  for (let turn = 0; turn < 60 && (await button.count()) === 0; turn += 1) {
+    await scroller.evaluate((element) => {
+      element.scrollTop += element.clientHeight / 2;
+    });
+    await page.evaluate(() => new Promise((next) => requestAnimationFrame(next)));
+  }
+  await button.click();
+  await page.getByRole('heading', { level: 3, name: 'Tarjeta' }).waitFor();
+}
+
+// Las pantallas de la Fase 09: «¿Por qué hoy?», el repaso con «Deshacer», el repaso anulado, el
+// historial con «Anulado» y una tarjeta de una materia en mantenimiento.
+/** @param {import('@playwright/test').Page} page */
+async function phase09(page) {
+  await openCard(page, '¿Qué mide el desvío estándar?');
+  await page.getByRole('button', { name: '¿Por qué hoy?' }).click();
+  await page.getByText('Estimación general (sin datos tuyos)').waitFor();
+  await shoot(page, '1-por-que-hoy');
+
+  await page.getByRole('button', { name: 'Repasar' }).click();
+  await page.getByRole('button', { name: '¿Por qué hoy?' }).click();
+  await page.getByText(/^La viste hace 23 días/).waitFor();
+  await shoot(page, '2-repaso-por-que-hoy');
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'Con dudas', exact: true }).click();
+  await page.getByRole('button', { name: 'Deshacer' }).waitFor();
+  await shoot(page, '3-repaso-con-deshacer');
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await page.getByText(/^Repaso anulado\./).waitFor();
+  await shoot(page, '4-repaso-anulado');
+
+  await page.getByRole('button', { name: 'Volver a las tarjetas' }).click();
+  await openCard(page, '¿Qué mide el desvío estándar?');
+  await page.getByRole('button', { name: 'Historial' }).click();
+  await page.getByText(/· Anulado$/).waitFor();
+  await shoot(page, '5-historial-anulado');
+
+  // Historia argentina está en mantenimiento: una tarjeta nueva con «La sabía» vuelve el 19/03.
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Cambiar', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Tus materias' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Historia argentina' })
+    .getByRole('button', { name: 'Abrir' })
+    .click();
+  await goTo(page, 'Tarjetas');
+  await page.getByRole('button', { name: 'Nueva tarjeta' }).click();
+  await page
+    .getByRole('textbox', { name: 'Pregunta' })
+    .fill('¿Quién escribió el Plan de Operaciones?');
+  await page.getByRole('textbox', { name: 'Respuesta' }).fill('Mariano Moreno');
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByText('Tarjeta guardada').waitFor();
+  await itemWith(page, '¿Quién escribió el Plan de Operaciones?')
+    .getByRole('button', { name: 'Repasar' })
+    .click();
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+  await page.getByText('Próximo repaso: viernes 19/03/2027').waitFor();
+  await shoot(page, '6-mantenimiento');
+}
+
 let { app, page } = await launch({}, name !== 'fase-06' && name !== 'fase-08');
 try {
-  if (name === 'fase-08') {
+  if (name === 'fase-09') {
+    await phase09(page);
+  } else if (name === 'fase-08') {
     await phase08(page);
   } else if (name === 'fase-06') {
     await phase06(page);

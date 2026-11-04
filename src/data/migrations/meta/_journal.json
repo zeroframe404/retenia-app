@@ -43,6 +43,13 @@
       "when": 1793759205273,
       "tag": "0005_tarjetas_fichas",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793814501328,
+      "tag": "0006_motor_de_memoria",
+      "breakpoints": true
     }
   ]
 }

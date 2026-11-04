@@ -44,6 +44,9 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'cards.create',
       'cards.list',
       'cards.review',
+      // Deshacer un repaso y «¿Por qué hoy?» (Fase 09).
+      'cards.undoReview',
+      'cards.whyToday',
       'cards.edit',
       // Tarjetas y fichas (Fase 08).
       'cards.get',

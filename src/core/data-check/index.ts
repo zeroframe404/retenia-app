@@ -14,10 +14,19 @@ export interface ScheduleRow {
   readonly lapses: number;
   readonly scheduledDays: number;
   readonly retentionTarget: number;
+  // La versión del motor con que se calculó (Fase 09). Solo se compara cuando las dos filas la
+  // traen.
+  readonly engineVersion?: number;
 }
 
-export function scheduleRowOf(cardId: string, memory: CardMemory, retention: number): ScheduleRow {
+export function scheduleRowOf(
+  cardId: string,
+  memory: CardMemory,
+  retention: number,
+  engineVersion?: number,
+): ScheduleRow {
   return {
+    ...(engineVersion === undefined ? {} : { engineVersion }),
     cardId,
     state: memory.state,
     stability: memory.stability,
@@ -52,6 +61,7 @@ const MEMORY_FIELDS = [
   'lapses',
   'scheduledDays',
   'retentionTarget',
+  'engineVersion',
 ] as const;
 
 export function compareSchedules(

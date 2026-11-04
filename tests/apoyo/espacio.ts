@@ -12,30 +12,44 @@ export interface Space {
   dataDir: string;
   file: string;
   clock: Clock;
-  // Cierra y vuelve a abrir la misma carpeta, como al cerrar y abrir Retenia.
-  reopen: () => Workspace;
+  // Cierra y vuelve a abrir la misma carpeta, como al cerrar y abrir Retenia. Se puede volver a
+  // abrir con o sin la variación al azar de las fechas (la del uso real).
+  reopen: (options?: { fuzz?: boolean }) => Workspace;
 }
 
 const folders: ReturnType<typeof tempDataFolder>[] = [];
 const open: Workspace[] = [];
 
-export function openSpace({ clock = demoClock() }: { clock?: Clock } = {}): Space {
+// `fuzz`: la variación al azar de las fechas del uso real (Fase 09). Las pruebas la usan apagada,
+// como la demostración, salvo las que la prueban a ella.
+export function openSpace({
+  clock = demoClock(),
+  fuzz = false,
+}: {
+  clock?: Clock;
+  fuzz?: boolean;
+} = {}): Space {
   const folder = tempDataFolder();
   folders.push(folder);
   const dataDir = folder.folder;
-  const start = () => {
-    const workspace = openWorkspace({ dataDir, clock, appVersion: '0.0.0-prueba' });
+  const start = (withFuzz: boolean) => {
+    const workspace = openWorkspace({
+      dataDir,
+      clock,
+      appVersion: '0.0.0-prueba',
+      fuzz: withFuzz,
+    });
     open.push(workspace);
     return workspace;
   };
   const space: Space = {
-    workspace: start(),
+    workspace: start(fuzz),
     dataDir,
     file: join(dataDir, 'retenia.db'),
     clock,
-    reopen: () => {
+    reopen: (options) => {
       space.workspace.close();
-      space.workspace = start();
+      space.workspace = start(options?.fuzz ?? fuzz);
       return space.workspace;
     },
   };

@@ -140,6 +140,37 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     expect(mentionNodes().map((attrs) => attrs.id)).toEqual([MEDIA, INTERVALOS]);
   });
 
+  it('[CA-374] una flecha apretada en el mismo instante en que aparece la lista ya mueve la elegida', async () => {
+    const api = installApi();
+    api.titles.mockResolvedValue(titles(intervalos, media));
+    await renderNote(note('Enlaces', [row(1, 'Ver ')]));
+    // ↓ se aprieta apenas la lista con opciones queda en la pantalla, antes de que React termine
+    // lo que deja para después de pintar (en una máquina cargada ese hueco se nota).
+    const seen: { early: KeyboardEvent | null } = { early: null };
+    const watcher = new MutationObserver(() => {
+      if (seen.early === null && document.querySelector('[role="listbox"] [role="option"]')) {
+        seen.early = new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        });
+        contentEditor().view.dom.dispatchEvent(seen.early);
+      }
+    });
+    watcher.observe(document.body, { childList: true, subtree: true });
+    try {
+      writeAfterLinks('[[');
+      await screen.findByRole('listbox', { name: 'Notas para enlazar' });
+      await waitFor(() => expect(seen.early).not.toBeNull());
+    } finally {
+      watcher.disconnect();
+    }
+    expect(seen.early?.defaultPrevented).toBe(true);
+    await waitFor(() =>
+      expect(screen.getAllByRole('option')[1]?.getAttribute('aria-selected')).toBe('true'),
+    );
+  });
+
   it('[CA-374] Esc cierra la lista y deja lo escrito como está', async () => {
     const api = installApi();
     api.titles.mockResolvedValue(titles(intervalos));

@@ -144,6 +144,27 @@ export const cardsEditRequest = z.strictObject({
 
 export const cardIdRequest = z.strictObject({ cardId: z.uuid() });
 
+// «Deshacer» el repaso recién hecho (Fase 09, CA-063): el mismo intento que se mandó a
+// «cards.review».
+export const cardsUndoReviewRequest = z.strictObject({ cardId: z.uuid(), attemptId: z.uuid() });
+
+// «¿Por qué hoy?» (Fase 09, CA-065): una tarjeta nueva, o los días desde el último repaso, cómo
+// salió (nulo si viene de una agenda heredada sin detalle) y la probabilidad dicha como «unos N de
+// cada 10». `general`: «Estimación general (sin datos tuyos)», con menos de 5 intentos.
+export const cardsWhyTodayResponse = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('new'), general: z.literal(true) }),
+  // El último repaso tiene un día posterior a hoy: la fecha volvió atrás.
+  z.strictObject({ kind: z.literal('ahead'), general: z.boolean() }),
+  z.strictObject({
+    kind: z.literal('seen'),
+    daysSince: z.number().int().nonnegative(),
+    lastResult: gradeSchema.nullable(),
+    outOfTen: z.number().int().min(0).max(10),
+    general: z.boolean(),
+  }),
+]);
+export type CardWhyToday = z.output<typeof cardsWhyTodayResponse>;
+
 export const cardsPauseRequest = z.strictObject({ cardId: z.uuid(), paused: z.boolean() });
 export const cardsInverseResponse = z.strictObject({ card: cardSchema, created: z.boolean() });
 
@@ -153,6 +174,9 @@ export const cardsDeleteResponse = z.strictObject({ trashEntryId: z.uuid() });
 // Un renglón del historial: el día de estudio y el resultado que vale. «adopted» son los
 // repasos de antes de que existiera el historial (bases de la Fase 03), sin detalle; «reset» es
 // el momento en que cambió lo que hay que recordar y la tarjeta volvió a programarse como nueva.
+// Desde la Fase 09: `annulled`, el repaso se deshizo («Anulado»); `skipped`, quedó anotado sin
+// cambiar la fecha porque ya había otro ese día (`sameDay`) o porque tiene un día anterior al
+// último que contó (`earlier`: la fecha volvió atrás).
 export const cardHistorySchema = z.strictObject({
   question: z.string(),
   entries: z.array(
@@ -160,6 +184,8 @@ export const cardHistorySchema = z.strictObject({
       id: z.uuid(),
       day,
       result: z.enum(['again', 'hard', 'good', 'adopted', 'reset']),
+      annulled: z.boolean(),
+      skipped: z.enum(['sameDay', 'earlier']).nullable(),
     }),
   ),
 });

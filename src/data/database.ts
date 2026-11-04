@@ -6,6 +6,7 @@ import { type Clock, systemClock } from '../core/clock';
 import { adoptLegacySchedules, adoptUnassignedCards } from './adoption';
 import { ensureLedgerState } from './ledger';
 import { applyMigrations } from './migrations';
+import { refreshStaleSchedules } from './projections';
 import * as schema from './schema';
 
 export interface ReteniaDatabase {
@@ -54,6 +55,9 @@ export function openDatabase(
       ensureLedgerState(tx, clock.now());
       adoptLegacySchedules(tx, clock);
       adoptUnassignedCards(tx);
+      // Las agendas calculadas con el motor de antes, o con la retención de una materia que cambió
+      // de estado, se recalculan con el motor vigente (Fase 09).
+      refreshStaleSchedules(tx);
     });
   } catch (error) {
     sqlite.close();
