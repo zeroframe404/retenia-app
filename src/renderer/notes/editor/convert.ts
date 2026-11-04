@@ -75,7 +75,7 @@ export function blocksToDoc(blocks: readonly Block[]): DocJson {
   return { type: 'doc', content: [{ type: 'bulletList', content: rows }] };
 }
 
-function inlineFromJson(content: readonly DocJson[] | undefined): InlineNode[] {
+export function inlineFromJson(content: readonly DocJson[] | undefined): InlineNode[] {
   const nodes: InlineNode[] = [];
   for (const node of content ?? []) {
     const hole = node.marks?.find((mark) => mark.type === 'cloze');

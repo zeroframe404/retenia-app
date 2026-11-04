@@ -5,8 +5,9 @@ import { demoClock } from '../../src/core/clock';
 import { CardsScreen } from '../../src/renderer/cards/CardsScreen';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
-// La pantalla «Tarjetas» con lo nuevo de la Fase 04: «Historial», «Editar» y «Eliminar», contra
-// el puente real (manejadores del principal y una carpeta de datos real).
+// La pantalla «Tarjetas» con lo de la Fase 04: «Historial», editar y «Eliminar», contra el puente
+// real (manejadores del principal y una carpeta de datos real). Desde la Fase 08 esas acciones
+// viven en el detalle de cada tarjeta (se abre tocando su pregunta) y editar es «Editar ficha».
 
 const bridges: TestBridge[] = [];
 function openScreen() {
@@ -26,6 +27,12 @@ const itemWith = async (text: string) =>
   (await screen.findAllByRole('listitem')).find((item) => item.textContent?.includes(text)) as
     | HTMLElement
     | undefined;
+
+// Abre el detalle de la tarjeta tocando su pregunta en la lista.
+async function openCard(user: ReturnType<typeof userEvent.setup>, question: string) {
+  await user.click(await screen.findByRole('button', { name: `Abrir la tarjeta «${question}»` }));
+  await screen.findByRole('heading', { name: 'Tarjeta' });
+}
 
 describe('«Historial» de una tarjeta', () => {
   it('[CA-015] muestra un renglón por repaso con la fecha y el resultado, en el orden en que se hicieron', async () => {
@@ -51,8 +58,8 @@ describe('«Historial» de una tarjeta', () => {
       attemptId: crypto.randomUUID(),
     });
     render(<CardsScreen />);
-    const item = await itemWith('¿Qué mide el desvío estándar?');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Historial' }));
+    await openCard(user, '¿Qué mide el desvío estándar?');
+    await user.click(screen.getByRole('button', { name: 'Historial' }));
     expect(await screen.findByRole('heading', { name: 'Historial' })).toBeTruthy();
     expect(screen.getByText('¿Qué mide el desvío estándar?')).toBeTruthy();
     const rows = within(
@@ -63,15 +70,15 @@ describe('«Historial» de una tarjeta', () => {
       '22/03/2027 · Con dudas',
     ]);
     await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
-    expect(await screen.findByRole('heading', { name: 'Tarjetas' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tarjeta' })).toBeTruthy();
   });
 
   it('una tarjeta sin repasos dice «Todavía no la repasaste.»', async () => {
     const { bridge, user } = openScreen();
     bridge.workspace.cards.create({ question: 'Sin repasos', answer: 'R' });
     render(<CardsScreen />);
-    const item = await itemWith('Sin repasos');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Historial' }));
+    await openCard(user, 'Sin repasos');
+    await user.click(screen.getByRole('button', { name: 'Historial' }));
     expect(await screen.findByText('Todavía no la repasaste.')).toBeTruthy();
   });
 
@@ -82,21 +89,21 @@ describe('«Historial» de una tarjeta', () => {
       throw new Error('base bloqueada');
     };
     render(<CardsScreen />);
-    const item = await itemWith('P');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Historial' }));
+    await openCard(user, 'P');
+    await user.click(screen.getByRole('button', { name: 'Historial' }));
     expect(await screen.findByText('No pude cargar el historial. Probá de nuevo.')).toBeTruthy();
     expect(screen.queryByText(/base bloqueada/)).toBeNull();
   });
 });
 
-describe('«Editar» una tarjeta', () => {
+describe('«Editar ficha» de una tarjeta', () => {
   it('[CA-023] el formulario viene con la pregunta y la respuesta, y al guardar la lista muestra la nueva', async () => {
     const { bridge, user } = openScreen();
     bridge.workspace.cards.create({ question: '¿Qué es la varianza?', answer: 'El cuadrado' });
     render(<CardsScreen />);
-    const item = await itemWith('¿Qué es la varianza?');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Editar' }));
-    expect(await screen.findByRole('heading', { name: 'Editar tarjeta' })).toBeTruthy();
+    await openCard(user, '¿Qué es la varianza?');
+    await user.click(screen.getByRole('button', { name: 'Editar ficha' }));
+    expect(await screen.findByRole('heading', { name: 'Editar ficha' })).toBeTruthy();
     const question = screen.getByRole('textbox', { name: 'Pregunta' });
     expect((question as HTMLTextAreaElement).value).toBe('¿Qué es la varianza?');
     expect((screen.getByRole('textbox', { name: 'Respuesta' }) as HTMLTextAreaElement).value).toBe(
@@ -105,6 +112,7 @@ describe('«Editar» una tarjeta', () => {
     await user.type(question, ' PRUEBA');
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(await screen.findByText('Cambios guardados')).toBeTruthy();
+    await user.click(await screen.findByRole('button', { name: 'Volver a las tarjetas' }));
     expect(await itemWith('¿Qué es la varianza? PRUEBA')).toBeTruthy();
     expect(bridge.workspace.cards.list()[0]?.question).toBe('¿Qué es la varianza? PRUEBA');
   });
@@ -113,8 +121,8 @@ describe('«Editar» una tarjeta', () => {
     const { bridge, user } = openScreen();
     bridge.workspace.cards.create({ question: 'P', answer: 'R' });
     render(<CardsScreen />);
-    const item = await itemWith('P');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Editar' }));
+    await openCard(user, 'P');
+    await user.click(screen.getByRole('button', { name: 'Editar ficha' }));
     await user.clear(await screen.findByRole('textbox', { name: 'Pregunta' }));
     await user.click(screen.getByRole('button', { name: 'Guardar' }));
     expect(await screen.findByText('Escribí la pregunta')).toBeTruthy();
@@ -122,15 +130,15 @@ describe('«Editar» una tarjeta', () => {
     expect(bridge.sent.filter((message) => message.channel === 'cards.edit')).toEqual([]);
   });
 
-  it('«Cancelar» vuelve a la lista sin cambiar nada', async () => {
+  it('«Cancelar» vuelve al detalle sin cambiar nada', async () => {
     const { bridge, user } = openScreen();
     bridge.workspace.cards.create({ question: 'P', answer: 'R' });
     render(<CardsScreen />);
-    const item = await itemWith('P');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Editar' }));
+    await openCard(user, 'P');
+    await user.click(screen.getByRole('button', { name: 'Editar ficha' }));
     await user.type(await screen.findByRole('textbox', { name: 'Pregunta' }), ' cambio');
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(await screen.findByRole('heading', { name: 'Tarjetas' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'Tarjeta' })).toBeTruthy();
     expect(bridge.workspace.cards.list()[0]?.question).toBe('P');
   });
 });
@@ -141,8 +149,8 @@ describe('«Eliminar» una tarjeta', () => {
     bridge.workspace.cards.create({ question: 'Se va', answer: 'R' });
     bridge.workspace.cards.create({ question: 'Se queda', answer: 'R' });
     render(<CardsScreen />);
-    const item = await itemWith('Se va');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Eliminar' }));
+    await openCard(user, 'Se va');
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     expect(await screen.findByText('La tarjeta está en la Papelera.')).toBeTruthy();
     expect((await screen.findAllByRole('listitem')).map((row) => row.textContent)).toEqual([
       expect.stringContaining('Se queda'),
@@ -157,9 +165,9 @@ describe('«Eliminar» una tarjeta', () => {
       throw new Error('disco lleno');
     };
     render(<CardsScreen />);
-    const item = await itemWith('P');
-    await user.click(within(item as HTMLElement).getByRole('button', { name: 'Eliminar' }));
+    await openCard(user, 'P');
+    await user.click(screen.getByRole('button', { name: 'Eliminar' }));
     expect(await screen.findByText('No pude eliminar la tarjeta. Probá de nuevo.')).toBeTruthy();
-    expect(await itemWith('P')).toBeTruthy();
+    expect(bridge.workspace.cards.list().map((card) => card.question)).toEqual(['P']);
   });
 });

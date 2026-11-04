@@ -353,28 +353,3 @@ export function matchesFilter(
   }
   return !(filter.kind && card.kind !== filter.kind);
 }
-
-// Las filas que hay que dibujar de una lista larga: solo las que se ven, más un margen.
-export function visibleWindow({
-  count,
-  rowHeight,
-  viewportHeight,
-  scrollTop,
-  overscan,
-}: {
-  count: number;
-  rowHeight: number;
-  viewportHeight: number;
-  scrollTop: number;
-  overscan: number;
-}): { start: number; end: number; offsetTop: number; totalHeight: number } {
-  if (count <= 0) {
-    return { start: 0, end: 0, offsetTop: 0, totalHeight: 0 };
-  }
-  const top = Math.min(Math.max(0, scrollTop), Math.max(0, count * rowHeight - viewportHeight));
-  const first = Math.floor(top / rowHeight);
-  const last = Math.ceil((top + viewportHeight) / rowHeight);
-  const start = Math.max(0, Math.min(count, first - overscan));
-  const end = Math.min(count, last + overscan);
-  return { start, end, offsetTop: start * rowHeight, totalHeight: count * rowHeight };
-}

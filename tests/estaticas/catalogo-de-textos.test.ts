@@ -61,7 +61,8 @@ describe('catálogo de textos', () => {
     expect(texts.notes.activity).toBe('Actividad reciente');
     expect(texts.nav.settings).toBe('Ajustes');
     expect(texts.cards.history).toBe('Historial');
-    expect(texts.cards.edit).toBe('Editar');
+    // Desde la Fase 08 el botón «Editar» pasó a ser «Editar ficha» (el plan de la fase lo nombra así).
+    expect(texts.cards.editSheet).toBe('Editar ficha');
     expect(texts.cards.remove).toBe('Eliminar');
     expect(texts.history.title).toBe('Historial');
     expect(texts.history.row('15/03/2027', texts.cards.gradeGood)).toBe('15/03/2027 · La sabía');

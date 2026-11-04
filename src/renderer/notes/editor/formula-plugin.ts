@@ -1,46 +1,10 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
 import styles from './editor.module.css';
 import { findFormulas } from './formula';
+import { drawFormula as draw } from './formula-render';
 
-const MAX_REMEMBERED = 500;
-
-// Cada fórmula se dibuja una sola vez; lo que KaTeX no entiende queda en null (se ve el texto).
-const drawn = new Map<string, HTMLElement | null>();
-
-// KaTeX arma nodos del navegador (nada de cadenas de HTML con `style`, que la política de contenido
-// de la ventana descartaría). Con `throwOnError` una fórmula inválida da un error en vez de pintarse
-// de color: así se queda el texto original.
-function draw(source: string): HTMLElement | null {
-  const known = drawn.get(source);
-  if (known !== undefined) {
-    return known;
-  }
-  const element = document.createElement('span');
-  let result: HTMLElement | null = element;
-  try {
-    katex.render(source, element, {
-      throwOnError: true,
-      trust: false,
-      strict: 'ignore',
-      output: 'htmlAndMathml',
-    });
-  } catch {
-    result = null;
-  }
-  if (drawn.size >= MAX_REMEMBERED) {
-    drawn.clear();
-  }
-  drawn.set(source, result);
-  return result;
-}
-
-// Lo que está entre signos $ sigue siendo texto de la nota (así se guarda y así lo encuentra el
-// buscador). Mientras el cursor o la selección no tocan ese tramo, un dibujo de KaTeX lo reemplaza
-// a la vista; al entrar, se ve el texto original para editarlo.
 export const Formulas = Extension.create({
   name: 'formulas',
 

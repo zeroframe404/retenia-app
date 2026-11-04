@@ -11,6 +11,7 @@ const RESULTS: Record<CardHistory['entries'][number]['result'], string> = {
   hard: texts.cards.gradeHard,
   again: texts.cards.gradeAgain,
   adopted: texts.history.adopted,
+  reset: texts.history.reset,
 };
 
 // «Historial» de una tarjeta: un renglón por repaso, con la fecha y el resultado, en el orden en

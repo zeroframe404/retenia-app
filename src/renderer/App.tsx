@@ -11,7 +11,7 @@ import { FirstTimeScreen } from './firstTime/FirstTimeScreen';
 import { CaptureDialog } from './inbox/CaptureDialog';
 import { trackInputMode } from './inputMode';
 import { EmptyDestination } from './screens/EmptyDestination';
-import { NotesScreen, type NotesSectionName } from './screens/NotesScreen';
+import { type NoteRequest, NotesScreen, type NotesSectionName } from './screens/NotesScreen';
 import { SearchDialog } from './screens/SearchDialog';
 import { SettingsScreen } from './settings/SettingsScreen';
 import { isQuickCapture, zoomDirection } from './shortcuts';
@@ -53,6 +53,9 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   // otra para consultarla no la activa.
   const [viewedId, setViewedId] = useState<string | null>(null);
   const [inboxCount, setInboxCount] = useState(0);
+  // «Ver en la nota» de una tarjeta: la nota que hay que abrir, en su renglón.
+  const [noteRequest, setNoteRequest] = useState<NoteRequest | null>(null);
+  const requests = useRef(0);
   const [toast, setToast] = useState('');
   const content = useRef<HTMLElement>(null);
   const subjectsLoaded = useRef(false);
@@ -191,6 +194,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
 
   const goToNotes = () => go('notes');
 
+  const openNoteFromCard = (noteId: string, blockId: string) => {
+    requests.current += 1;
+    setNoteRequest({ noteId, blockId, nonce: requests.current });
+    setNotesSection('notes');
+  };
+
   const active = subjects?.find((subject) => subject.status === 'active') ?? null;
   const viewed = subjects
     ? (subjects.find((subject) => subject.id === viewedId) ?? active ?? subjects[0] ?? null)
@@ -274,6 +283,9 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onChangeSubject={() => setChangingSubject(true)}
               onViewSubject={setViewedId}
               onDataChanged={reloadShared}
+              noteRequest={noteRequest}
+              onOpenNoteFromCard={openNoteFromCard}
+              onNoteRequestHandled={() => setNoteRequest(null)}
             />
           ) : null}
           {destination === 'materials' ? (

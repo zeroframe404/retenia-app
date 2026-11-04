@@ -10,6 +10,14 @@ import { ScreenFrame, SectionTabs } from '../ui/Frame';
 
 export type NotesSectionName = 'notes' | 'inbox' | 'cards' | 'trash' | 'activity';
 
+// Abrir una nota en un renglón desde otra pantalla («Ver en la nota» de una tarjeta).
+export interface NoteRequest {
+  noteId: string;
+  blockId: string;
+  // Cada pedido es distinto aunque pida la misma nota otra vez.
+  nonce: number;
+}
+
 // Apuntes: arriba, la materia que se mira y la activa; después las secciones. «Notas» es la de
 // entrada; «Tarjetas» es la pantalla provisoria de la Fase 03.
 export function NotesScreen({
@@ -23,6 +31,9 @@ export function NotesScreen({
   onChangeSubject,
   onViewSubject,
   onDataChanged,
+  noteRequest = null,
+  onOpenNoteFromCard,
+  onNoteRequestHandled,
 }: {
   focusTitle?: boolean;
   subject: Subject;
@@ -35,6 +46,9 @@ export function NotesScreen({
   onViewSubject: (subjectId: string) => void;
   // Algo que cambia lo que muestra el resto de la ventana (la materia activa, la Bandeja).
   onDataChanged: () => void;
+  noteRequest?: NoteRequest | null;
+  onOpenNoteFromCard?: (noteId: string, blockId: string) => void;
+  onNoteRequestHandled?: () => void;
 }) {
   const sections = [
     { value: 'notes', text: texts.notes.notesTab },
@@ -58,12 +72,19 @@ export function NotesScreen({
         onChange={onSectionChange}
       />
       {section === 'notes' ? (
-        <NotesSection subject={subject} onViewSubject={onViewSubject} />
+        <NotesSection
+          subject={subject}
+          onViewSubject={onViewSubject}
+          noteRequest={noteRequest}
+          onNoteRequestHandled={onNoteRequestHandled}
+        />
       ) : null}
       {section === 'inbox' ? (
         <InboxSection subjectId={subject.id} count={inboxCount} onCount={onInboxCount} />
       ) : null}
-      {section === 'cards' ? <CardsScreen /> : null}
+      {section === 'cards' ? (
+        <CardsScreen subject={subject} onOpenNote={onOpenNoteFromCard} />
+      ) : null}
       {section === 'trash' ? (
         <TrashScreen onBackToCards={toCards} onChanged={onDataChanged} />
       ) : null}

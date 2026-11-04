@@ -4,6 +4,7 @@ import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Form.module.css';
 import { BannerEstado } from '../ui/Process';
+import cardStyles from './Cards.module.css';
 
 type Errors = { question?: string | undefined; answer?: string | undefined };
 
@@ -33,21 +34,24 @@ function validate(question: string, answer: string): Errors {
   return errors;
 }
 
-// El formulario «Nueva tarjeta» y, con una tarjeta, «Editar tarjeta» (arranca con su pregunta y
-// su respuesta). Si falta algo, marca el campo y conserva todo lo escrito; al guardar se
-// deshabilita el botón para que un doble toque no guarde dos veces.
+// El formulario «Nueva tarjeta»: una tarjeta suelta, sin nota, en la materia que mirás y, si querés,
+// en un tema. Si falta algo, marca el campo y conserva todo lo escrito; al guardar se deshabilita el
+// botón para que un doble toque no guarde dos veces. (Editar una tarjeta es «Editar ficha».)
 export function CardForm({
-  card,
+  subjectId,
+  topics = [],
   onSaved,
   onCancel,
 }: {
-  card?: Card;
+  subjectId?: string | undefined;
+  topics?: readonly { id: string; name: string }[];
   onSaved: (card: Card) => void;
   onCancel: () => void;
 }) {
   const ids = useId();
-  const [question, setQuestion] = useState(card?.question ?? '');
-  const [answer, setAnswer] = useState(card?.answer ?? '');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [topicId, setTopicId] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
@@ -71,9 +75,13 @@ export function CardForm({
     setSaving(true);
     try {
       onSaved(
-        card
-          ? await window.retenia['cards.edit']({ cardId: card.id, question, answer })
-          : await window.retenia['cards.create']({ question, answer }),
+        await window.retenia['cards.create']({
+          question,
+          answer,
+          ...(subjectId === undefined
+            ? {}
+            : { subjectId, topicId: topicId === '' ? null : topicId }),
+        }),
       );
     } catch {
       setSaveFailed(true);
@@ -85,12 +93,7 @@ export function CardForm({
   const questionErrorId = `${ids}-pregunta-error`;
   const answerErrorId = `${ids}-respuesta-error`;
   return (
-    <form
-      className={styles.form}
-      aria-label={card ? texts.cards.editTitle : texts.cards.formLabel}
-      onSubmit={submit}
-      noValidate
-    >
+    <form className={styles.form} aria-label={texts.cards.formLabel} onSubmit={submit} noValidate>
       <div className={styles.field}>
         <label htmlFor={`${ids}-pregunta`}>{texts.cards.questionLabel}</label>
         <textarea
@@ -133,6 +136,24 @@ export function CardForm({
           </p>
         ) : null}
       </div>
+      {subjectId !== undefined && topics.length > 0 ? (
+        <div className={styles.field}>
+          <label htmlFor={`${ids}-tema`}>{texts.cards.topicLabel}</label>
+          <select
+            id={`${ids}-tema`}
+            className={cardStyles.select}
+            value={topicId}
+            onChange={(event) => setTopicId(event.target.value)}
+          >
+            <option value="">{texts.cards.noTopic}</option>
+            {topics.map((topic) => (
+              <option key={topic.id} value={topic.id}>
+                {topic.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       {saveFailed ? <BannerEstado tone="attention">{texts.cards.saveFailed}</BannerEstado> : null}
       <div className={styles.actions}>
         <Boton type="submit" variant="primary" disabled={saving}>

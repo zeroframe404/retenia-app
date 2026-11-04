@@ -99,6 +99,8 @@ export const cardDetailSchema = z.strictObject({
   hasInverse: z.boolean(),
   // Nació en un renglón y sigue ligada: su pregunta y respuesta se editan en la nota.
   linked: z.boolean(),
+  // El renglón dejó de pedirla (lo borraste o le sacaste la marca) y la conservaste.
+  detached: z.boolean(),
   hasHistory: z.boolean(),
 });
 export type CardDetail = z.output<typeof cardDetailSchema>;
@@ -120,7 +122,7 @@ export const cardsListRequest = z.strictObject({
 });
 export const cardsListResponse = z.strictObject({
   cards: z.array(cardSchema),
-  total: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative().default(0),
 });
 
 // `attemptId` lo genera la ventana al abrir el repaso: si el mismo repaso llega dos veces (un

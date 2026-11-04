@@ -207,6 +207,7 @@ function detailOf(db: Writer, row: CardRow): CardDetail {
     inverseOfCardId: row.inverseOfCardId,
     hasInverse: inverse !== undefined,
     linked: row.origin === 'note' && canOpenNote,
+    detached: row.detachedAt !== null,
     hasHistory: hasHistoryOf(db, row.id),
   };
 }
@@ -234,11 +235,21 @@ export function createCardsStore(db: ReteniaDatabase, clock: Clock): CardsStore 
   }
 
   return {
-    create({ question, answer, subjectId = null, topicId = null }, { source = 'user' } = {}) {
+    create(input, { source = 'user' } = {}) {
+      const { question, answer, topicId = null } = input;
       const now = clock.now().toISOString();
       const cardId = newId();
       const versionId = newId();
       return orm.transaction((tx) => {
+        // Sin materia (un pedido de antes de la Fase 08) va a la materia activa, si hay.
+        const subjectId =
+          input.subjectId === undefined
+            ? (tx
+                .select({ id: subjects.id })
+                .from(subjects)
+                .where(and(eq(subjects.status, 'active'), isNull(subjects.deletedAt)))
+                .get()?.id ?? null)
+            : input.subjectId;
         assertPlace(tx, subjectId, topicId);
         tx.insert(cards)
           .values({ id: cardId, currentVersionId: versionId, createdAt: now, subjectId, topicId })
