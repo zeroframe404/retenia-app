@@ -1,6 +1,7 @@
 import { Node } from '@tiptap/core';
 import { type Command, Plugin, PluginKey } from '@tiptap/pm/state';
 import { ReactNodeViewRenderer } from '@tiptap/react';
+import { rowCardOfNode } from './card-marker';
 import { RowView } from './RowView';
 import {
   backspaceRow,
@@ -73,6 +74,8 @@ export const Row = Node.create({
       attrs: ({ node }) => ({
         ...(typeof node.attrs.blockId === 'string' ? { 'data-block-id': node.attrs.blockId } : {}),
         'data-collapsed': String(node.attrs.collapsed === true),
+        // El renglón que es tarjeta se marca también en el elemento de la lista.
+        'data-card': rowCardOfNode(node)?.kind ?? 'none',
       }),
     });
   },

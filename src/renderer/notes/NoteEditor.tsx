@@ -6,6 +6,7 @@ import {
   AUTOSAVE_MS,
   MAX_TITLE_LENGTH,
   type Note,
+  type NoteSaveResult,
   type notesMentionsResponse,
 } from '../../preload/contract/notes';
 import { texts } from '../../preload/contract/texts';
@@ -14,6 +15,7 @@ import { ItemList, ListItem, ScreenFrame } from '../ui/Frame';
 import { IndicadorBorrador } from '../ui/Labels';
 import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
+import { type CardNotice, CardNotices } from './CardNotices';
 import { Autosaver, type SaveStatus } from './editor/autosave';
 import { docToBlocks } from './editor/convert';
 import { RowsEditor } from './editor/RowsEditor';
@@ -123,12 +125,25 @@ export function NoteEditor({
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [imageFailed, setImageFailed] = useState(false);
   const [mentionsOpen, setMentionsOpen] = useState(false);
+  // Las preguntas del guardado sobre las tarjetas de los renglones (Fase 08).
+  const [lost, setLost] = useState<CardNotice[]>([]);
+  const [edited, setEdited] = useState<CardNotice[]>([]);
+  const [cardMessage, setCardMessage] = useState('');
+  const pendingLost = useRef(0);
+  pendingLost.current = lost.length;
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   // Lo último que hay en pantalla, para guardarlo aunque el editor ya no esté.
   const titleNow = useRef(note.title);
   const docNow = useRef<ProseMirrorNode | null>(null);
-  const latest = useRef({ noteId: note.id, onSaved });
-  latest.current = { noteId: note.id, onSaved };
+  const latest = useRef({ noteId: note.id, onSaved, onCards: showCards });
+  latest.current = { noteId: note.id, onSaved, onCards: showCards };
 
   const [autosaver] = useState(
     () =>
@@ -139,14 +154,17 @@ export function NoteEditor({
           if (doc === null) {
             return;
           }
-          await window.retenia['notes.save']({
+          return window.retenia['notes.save']({
             noteId: latest.current.noteId,
             title: titleNow.current,
             blocks: docToBlocks(doc.toJSON()),
           });
         },
         onStatus: setStatus,
-        onSaved: () => latest.current.onSaved?.(),
+        onSaved: (result) => {
+          latest.current.onSaved?.();
+          latest.current.onCards(result as NoteSaveResult | undefined);
+        },
       }),
   );
 
@@ -177,9 +195,58 @@ export function NoteEditor({
     [autosaver],
   );
 
+  // La respuesta de un guardado: las tarjetas que perdieron su renglón y las que cambiaron.
+  function showCards(result: NoteSaveResult | undefined) {
+    if (!result || !mounted.current) {
+      return;
+    }
+    const merge = (current: CardNotice[], incoming: readonly CardNotice[]) => [
+      ...current.filter((item) => !incoming.some((other) => other.cardId === item.cardId)),
+      ...incoming,
+    ];
+    const lostCards = result.lostCards ?? [];
+    const editedCards = result.editedCards ?? [];
+    if (lostCards.length > 0) {
+      // Se anota ya, sin esperar el próximo dibujo: «Volver a las notas» mira este número recién
+      // terminado el guardado y no tiene que dejar la pregunta sin hacer.
+      pendingLost.current = Math.max(pendingLost.current, lostCards.length);
+      setLost((current) => merge(current, lostCards));
+    }
+    if (editedCards.length > 0) {
+      setEdited((current) => merge(current, editedCards));
+    }
+  }
+
   async function goBack() {
-    if (await autosaver.flush()) {
+    // Si el guardado dejó preguntas sobre tarjetas, se responden antes de salir.
+    if ((await autosaver.flush()) && pendingLost.current === 0) {
       onBack();
+    }
+  }
+
+  async function removeLostCard(notice: CardNotice): Promise<boolean> {
+    try {
+      await window.retenia['cards.delete']({ cardId: notice.cardId });
+      setLost((current) => current.filter((item) => item.cardId !== notice.cardId));
+      setCardMessage(texts.cards.removed);
+      return true;
+    } catch {
+      setCardMessage(texts.cards.removeFailed);
+      return false;
+    }
+  }
+
+  async function answerMeaning(notice: CardNotice, changed: boolean): Promise<boolean> {
+    try {
+      if (changed) {
+        await window.retenia['cards.markMeaningChanged']({ cardId: notice.cardId });
+        setCardMessage(texts.cards.meaningReset);
+      }
+      setEdited((current) => current.filter((item) => item.cardId !== notice.cardId));
+      return true;
+    } catch {
+      setCardMessage(texts.cards.saveFailed);
+      return false;
     }
   }
 
@@ -222,6 +289,17 @@ export function NoteEditor({
         {imageFailed ? (
           <BannerEstado tone="attention">{texts.notes.editor.imageFailed}</BannerEstado>
         ) : null}
+        {cardMessage === '' ? null : <BannerEstado tone="info">{cardMessage}</BannerEstado>}
+        <CardNotices
+          lost={lost}
+          edited={edited}
+          onKeep={(notice) => {
+            setLost((current) => current.filter((item) => item.cardId !== notice.cardId));
+            setCardMessage(texts.cards.lostKept);
+          }}
+          onRemove={removeLostCard}
+          onMeaning={answerMeaning}
+        />
         <RowsEditor
           blocks={note.blocks}
           focusBlockId={focusBlockId}

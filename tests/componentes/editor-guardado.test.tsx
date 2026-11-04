@@ -6,11 +6,13 @@ import {
   deferred,
   installApi,
   NOTE_ID,
+  NOTHING_TO_ASK,
   note,
   putCursorAtEnd,
   renderNote,
   row,
   rowId,
+  type SaveResult,
   typeText,
 } from './editor-apoyo';
 
@@ -121,7 +123,7 @@ describe('[CA-043] el guardado automático', () => {
 
   it('guarda de a una vez: un cambio que llega mientras se guarda espera a que termine y se guarda después', async () => {
     const { api, editor } = await openNote();
-    const first = deferred<Record<string, never>>();
+    const first = deferred<SaveResult>();
     api.save.mockReturnValueOnce(first.promise);
 
     typeText(editor, ' a');
@@ -133,7 +135,7 @@ describe('[CA-043] el guardado automático', () => {
     await advance(AUTOSAVE_MS);
     expect(api.save).toHaveBeenCalledTimes(1);
 
-    first.resolve({});
+    first.resolve(NOTHING_TO_ASK);
     await settle();
     expect(api.save).toHaveBeenCalledTimes(2);
     expect(api.save.mock.calls[1]?.[0].blocks[0]?.content).toEqual(text('Hola a b'));
@@ -143,13 +145,13 @@ describe('[CA-043] el guardado automático', () => {
 
   it('un cambio que llega mientras se guarda y todavía no cumplió sus dos segundos no guarda antes de tiempo', async () => {
     const { api, editor } = await openNote();
-    const first = deferred<Record<string, never>>();
+    const first = deferred<SaveResult>();
     api.save.mockReturnValueOnce(first.promise);
 
     typeText(editor, ' a');
     await advance(AUTOSAVE_MS);
     typeText(editor, ' b');
-    first.resolve({});
+    first.resolve(NOTHING_TO_ASK);
     await settle();
     expect(api.save).toHaveBeenCalledTimes(1);
     expect(saved()).toBeNull();
@@ -186,7 +188,7 @@ describe('[CA-043] el guardado automático', () => {
 describe('[CA-043] guardar lo pendiente de inmediato', () => {
   it('«Volver a las notas» guarda lo pendiente sin esperar los dos segundos y recién después vuelve', async () => {
     const { api, editor, onBack } = await openNote();
-    const pending = deferred<Record<string, never>>();
+    const pending = deferred<SaveResult>();
     api.save.mockReturnValueOnce(pending.promise);
     typeText(editor, ' final');
 
@@ -195,7 +197,7 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
     expect(api.save).toHaveBeenCalledTimes(1);
     expect(onBack).not.toHaveBeenCalled();
 
-    pending.resolve({});
+    pending.resolve(NOTHING_TO_ASK);
     await settle();
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(api.save).toHaveBeenCalledTimes(1);
@@ -231,14 +233,14 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
 
   it('al dejar la pantalla con un guardado en curso espera a que termine y guarda lo que llegó después', async () => {
     const { api, editor, unmount } = await openNote();
-    const first = deferred<Record<string, never>>();
+    const first = deferred<SaveResult>();
     api.save.mockReturnValueOnce(first.promise);
     typeText(editor, ' a');
     await advance(AUTOSAVE_MS);
     typeText(editor, ' b');
     unmount();
     expect(api.save).toHaveBeenCalledTimes(1);
-    first.resolve({});
+    first.resolve(NOTHING_TO_ASK);
     await settle();
     expect(api.save).toHaveBeenCalledTimes(2);
     expect(api.save.mock.calls[1]?.[0].blocks[0]?.content).toEqual(text('Hola a b'));
@@ -260,7 +262,7 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
     it('el aviso espera a que se guarde lo pendiente', async () => {
       const { close } = registerClose();
       const { api, editor } = await openNote();
-      const pending = deferred<Record<string, never>>();
+      const pending = deferred<SaveResult>();
       api.save.mockReturnValueOnce(pending.promise);
       typeText(editor, ' último');
 
@@ -272,7 +274,7 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
       expect(api.save).toHaveBeenCalledTimes(1);
       expect(done).toBe(false);
 
-      pending.resolve({});
+      pending.resolve(NOTHING_TO_ASK);
       await act(async () => {
         await closing;
       });
@@ -282,8 +284,8 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
     it('el aviso cubre un guardado ya en curso y también lo que llegó después', async () => {
       const { close } = registerClose();
       const { api, editor } = await openNote();
-      const first = deferred<Record<string, never>>();
-      const second = deferred<Record<string, never>>();
+      const first = deferred<SaveResult>();
+      const second = deferred<SaveResult>();
       api.save.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
       typeText(editor, ' a');
       await advance(AUTOSAVE_MS);
@@ -295,11 +297,11 @@ describe('[CA-043] guardar lo pendiente de inmediato', () => {
       });
       await settle();
       expect(done).toBe(false);
-      first.resolve({});
+      first.resolve(NOTHING_TO_ASK);
       await settle();
       expect(api.save).toHaveBeenCalledTimes(2);
       expect(done).toBe(false);
-      second.resolve({});
+      second.resolve(NOTHING_TO_ASK);
       await act(async () => {
         await closing;
       });

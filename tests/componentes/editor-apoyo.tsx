@@ -3,7 +3,7 @@ import type { Editor } from '@tiptap/core';
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import { vi } from 'vitest';
 import type { ReteniaApi } from '../../src/preload/contract';
-import type { Block, InlineNode, Note } from '../../src/preload/contract/notes';
+import type { Block, InlineNode, Note, NoteSaveResult } from '../../src/preload/contract/notes';
 import { NoteEditor } from '../../src/renderer/notes/NoteEditor';
 
 // Lo que usan las pruebas del editor: la ventana falsa (una frontera: el puente real no hace
@@ -63,6 +63,10 @@ export function note(title: string, blocks: Block[], id = NOTE_ID): Note {
   return { id, subjectId: uuid(2), topicId: null, title, archived: false, blocks };
 }
 
+// Lo que responde el guardado de una nota cuando no tiene nada que preguntar sobre sus tarjetas.
+export type SaveResult = NoteSaveResult;
+export const NOTHING_TO_ASK: SaveResult = { lostCards: [], editedCards: [] };
+
 export function deferred<T = void>() {
   let resolve: (value: T) => void = () => undefined;
   let reject: (reason: unknown) => void = () => undefined;
@@ -79,7 +83,7 @@ type Channel = 'notes.save' | 'notes.titles' | 'notes.mentions' | 'images.save' 
 // cada prueba cambia a su gusto.
 export function installApi() {
   const api = {
-    save: vi.fn<ReteniaApi['notes.save']>(async () => ({})),
+    save: vi.fn<ReteniaApi['notes.save']>(async () => NOTHING_TO_ASK),
     titles: vi.fn<ReteniaApi['notes.titles']>(async () => ({ notes: [] })),
     mentions: vi.fn<ReteniaApi['notes.mentions']>(async () => ({ mentions: [] })),
     saveImage: vi.fn<ReteniaApi['images.save']>(async () => ({ sha: SHA_A })),

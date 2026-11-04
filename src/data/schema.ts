@@ -21,8 +21,30 @@ export const cards = sqliteTable(
     currentVersionId: text('current_version_id').notNull(),
     createdAt: text('created_at').notNull(),
     deletedAt: text('deleted_at'),
+    // Fase 08. Sin claves foráneas: la tarjeta sobrevive a que el renglón, la nota o el tema se
+    // purguen. Nulos en las tarjetas de antes; la materia se completa al crear la primera.
+    subjectId: text('subject_id'),
+    topicId: text('topic_id'),
+    // La nota y el renglón en que nació, y el hueco (nulo en las de pregunta y respuesta).
+    noteId: text('note_id'),
+    blockId: text('block_id'),
+    clozeId: text('cloze_id'),
+    // 'qa' (pregunta y respuesta) o 'cloze' (completar).
+    kind: text('kind').notNull().default('qa'),
+    // 'manual' (la escribiste en Tarjetas) o 'note' (nació en un renglón).
+    origin: text('origin').notNull().default('manual'),
+    // Las hermanas (los huecos de un renglón, una tarjeta y su inversa) comparten este grupo.
+    siblingGroupId: text('sibling_group_id'),
+    inverseOfCardId: text('inverse_of_card_id'),
+    pausedAt: text('paused_at'),
+    // El renglón dejó de pedir esta tarjeta (borraste el renglón o le sacaste la marca).
+    detachedAt: text('detached_at'),
   },
-  (table) => [index('cards_created_idx').on(table.createdAt, table.id)],
+  (table) => [
+    index('cards_created_idx').on(table.createdAt, table.id),
+    index('cards_subject_topic_idx').on(table.subjectId, table.topicId),
+    index('cards_block_idx').on(table.blockId),
+  ],
 );
 
 export const cardVersions = sqliteTable(
@@ -36,6 +58,18 @@ export const cardVersions = sqliteTable(
     answer: text('answer').notNull(),
     createdAt: text('created_at').notNull(),
     cause: text('cause').notNull().default('edit'),
+    // Fase 08: el contenido con imágenes (JSON, nulo en las de antes) y la ficha.
+    questionContent: text('question_content'),
+    answerContent: text('answer_content'),
+    referenceAnswer: text('reference_answer').notNull().default(''),
+    variants: text('variants').notNull().default('[]'),
+    essentials: text('essentials').notNull().default('[]'),
+    hints: text('hints').notNull().default('[]'),
+    explanation: text('explanation').notNull().default(''),
+    sourceText: text('source_text').notNull().default(''),
+    // 'exact' o 'meaning'.
+    formType: text('form_type').notNull().default('exact'),
+    sheetState: text('sheet_state').notNull().default('reviewed'),
   },
   (table) => [index('card_versions_card_idx').on(table.cardId)],
 );

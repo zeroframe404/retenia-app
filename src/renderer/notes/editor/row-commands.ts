@@ -77,6 +77,23 @@ export function splitRow(type: NodeType): Command {
       return true;
     }
 
+    // Con el cursor al principio de un renglón con texto, el renglón vacío nuevo va ARRIBA y el
+    // renglón con su texto sigue siendo el mismo (con su identificador): una tarjeta no puede
+    // cambiar de renglón porque alguien dejó una línea en blanco encima.
+    if ($from.parentOffset === 0 && $from.parent.content.size > 0) {
+      const created = emptyRow(type);
+      if (created === null) {
+        return false;
+      }
+      if (dispatch) {
+        const at = $from.before(depth);
+        const tr = state.tr.insert(at, created);
+        tr.setSelection(TextSelection.create(tr.doc, at + created.nodeSize + 2));
+        dispatch(tr.scrollIntoView());
+      }
+      return true;
+    }
+
     if (split(state, dispatch)) {
       return true;
     }

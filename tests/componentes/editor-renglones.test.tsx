@@ -62,7 +62,8 @@ describe('editor · el documento por renglones', () => {
       'paragraph',
       'text',
     ]);
-    expect(Object.keys(schema.marks)).toEqual([]);
+    // La única marca es el hueco de una tarjeta de completar (Fase 08); nada de formato.
+    expect(Object.keys(schema.marks)).toEqual(['cloze']);
   });
 
   it('Ctrl+B no pone negrita ni cambia nada', async () => {

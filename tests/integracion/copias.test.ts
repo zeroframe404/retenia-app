@@ -81,6 +81,7 @@ function withData(workspace: Workspace) {
     cardId: b.id,
     question: '¿Qué es la varianza? (editada)',
     answer: 'El cuadrado',
+    meaningChanged: false,
   });
   return { a, b };
 }
@@ -161,6 +162,7 @@ describe('«Hacer copia ahora»', () => {
       '0002_libro_mayor_disparadores',
       '0003_materias_apuntes',
       '0004_apuntes_disparadores',
+      '0005_tarjetas_fichas',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

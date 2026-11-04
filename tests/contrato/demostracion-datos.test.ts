@@ -111,7 +111,7 @@ describe('contrato: canales de los datos de la demostración', () => {
       cards: { question: string }[];
     };
     expect(cards.map((card) => card.question)).not.toContain('P');
-    expect(cards).toHaveLength(3);
+    expect(cards).toHaveLength(192);
   });
 
   it('los canales de cambio de modo no aceptan datos de más', async () => {

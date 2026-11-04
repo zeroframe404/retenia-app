@@ -1,13 +1,26 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { z } from 'zod';
+import { type FormType, SHEET_STATES, type Sheet, type SheetState } from '../core/cards';
 import type { Clock } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
 import { isTrashExpired, trashExpiry } from '../core/trash';
 import type { CardState } from '../core/undo';
 import type { Card } from '../preload/contract/cards';
+import { type InlineNode, inlineNodeSchema } from '../preload/contract/notes';
 import { newId } from './ids';
 import { appendOperation, type EventSource } from './ledger';
 import type { Writer } from './orm';
-import { cardSchedule, cards, cardVersions, purgePermits, trashEntries } from './schema';
+import {
+  cardSchedule,
+  cards,
+  cardVersions,
+  observations,
+  purgePermits,
+  topics,
+  trashEntries,
+} from './schema';
+
+const contentSchema = z.array(inlineNodeSchema);
 
 // El contenido de una tarjeta y sus cambios: cada uno agrega una operación al registro de
 // «Actividad reciente». Eliminar no borra nada (va a la Papelera); solo vaciarla o el vencimiento
@@ -25,9 +38,77 @@ export interface CardRow {
   versionId: string;
   question: string;
   answer: string;
+  questionContent: string | null;
+  answerContent: string | null;
   reps: number;
   dueAt: string;
   deletedAt: string | null;
+  subjectId: string | null;
+  // El tema que se ve: nulo si no tiene o si está en la Papelera.
+  topicId: string | null;
+  topicName: string | null;
+  noteId: string | null;
+  blockId: string | null;
+  clozeId: string | null;
+  kind: string;
+  origin: string;
+  siblingGroupId: string | null;
+  inverseOfCardId: string | null;
+  pausedAt: string | null;
+  detachedAt: string | null;
+  referenceAnswer: string;
+  variants: string;
+  essentials: string;
+  hints: string;
+  explanation: string;
+  sourceText: string;
+  formType: string;
+  sheetState: string;
+}
+
+function asKind(value: string): 'qa' | 'cloze' {
+  return value === 'cloze' ? 'cloze' : 'qa';
+}
+
+function asSheetState(value: string): SheetState {
+  return SHEET_STATES.find((state) => state === value) ?? 'reviewed';
+}
+
+function asFormType(value: string): FormType {
+  return value === 'meaning' ? 'meaning' : 'exact';
+}
+
+function asList(json: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function sheetOf(row: CardRow): Sheet {
+  return {
+    referenceAnswer: row.referenceAnswer,
+    variants: asList(row.variants),
+    essentials: asList(row.essentials),
+    hints: asList(row.hints),
+    explanation: row.explanation,
+    source: row.sourceText,
+    formType: asFormType(row.formType),
+    state: asSheetState(row.sheetState),
+  };
+}
+
+export function parseContent(json: string | null): InlineNode[] | null {
+  if (json === null) {
+    return null;
+  }
+  try {
+    return contentSchema.parse(JSON.parse(json));
+  } catch {
+    return null;
+  }
 }
 
 // Mientras no se repasó, la tarjeta no tiene próximo repaso que mostrar.
@@ -37,10 +118,15 @@ export function toCard(row: CardRow): Card {
     question: row.question,
     answer: row.answer,
     nextReviewDay: row.reps === 0 ? null : studyDayOf(new Date(row.dueAt)),
+    kind: asKind(row.kind),
+    sheetState: asSheetState(row.sheetState),
+    paused: row.pausedAt !== null,
+    topicId: row.topicId,
+    topicName: row.topicName,
   };
 }
 
-// La tarjeta con su versión vigente y su agenda.
+// La tarjeta con su versión vigente, su agenda y su tema.
 export function selectCards(db: Writer) {
   return db
     .select({
@@ -48,13 +134,36 @@ export function selectCards(db: Writer) {
       versionId: cardVersions.id,
       question: cardVersions.question,
       answer: cardVersions.answer,
+      questionContent: cardVersions.questionContent,
+      answerContent: cardVersions.answerContent,
       reps: cardSchedule.reps,
       dueAt: cardSchedule.dueAt,
       deletedAt: cards.deletedAt,
+      subjectId: cards.subjectId,
+      topicId: topics.id,
+      topicName: topics.name,
+      noteId: cards.noteId,
+      blockId: cards.blockId,
+      clozeId: cards.clozeId,
+      kind: cards.kind,
+      origin: cards.origin,
+      siblingGroupId: cards.siblingGroupId,
+      inverseOfCardId: cards.inverseOfCardId,
+      pausedAt: cards.pausedAt,
+      detachedAt: cards.detachedAt,
+      referenceAnswer: cardVersions.referenceAnswer,
+      variants: cardVersions.variants,
+      essentials: cardVersions.essentials,
+      hints: cardVersions.hints,
+      explanation: cardVersions.explanation,
+      sourceText: cardVersions.sourceText,
+      formType: cardVersions.formType,
+      sheetState: cardVersions.sheetState,
     })
     .from(cards)
     .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
-    .innerJoin(cardSchedule, eq(cardSchedule.cardId, cards.id));
+    .innerJoin(cardSchedule, eq(cardSchedule.cardId, cards.id))
+    .leftJoin(topics, and(eq(topics.id, cards.topicId), isNull(topics.deletedAt)));
 }
 
 export function findCard(db: Writer, cardId: string): CardRow | undefined {
@@ -70,6 +179,22 @@ export function activeCard(db: Writer, cardId: string): CardRow {
     throw new CardNotFoundError();
   }
   return row;
+}
+
+// ¿Tiene historial? Algún repaso, o la agenda que traía de antes del libro mayor.
+export function hasHistoryOf(db: Writer, cardId: string): boolean {
+  return (
+    db
+      .select({ id: observations.id })
+      .from(observations)
+      .where(
+        and(
+          eq(observations.cardId, cardId),
+          inArray(observations.kind, ['review.graded', 'schedule.adopted']),
+        ),
+      )
+      .get() !== undefined
+  );
 }
 
 export function cardOf(db: Writer, cardId: string): Card {
@@ -243,7 +368,8 @@ export function purgeTrashEntry(
   });
 }
 
-// Deshacer una edición: una versión nueva igual a la que había (nunca se reescribe la vieja).
+// Deshacer una edición: una versión nueva igual a la que había, con toda su ficha (nunca se
+// reescribe la vieja).
 export function restoreVersion(
   tx: Writer,
   clock: Clock,
@@ -252,17 +378,15 @@ export function restoreVersion(
   { undoesId }: { undoesId: string },
 ): void {
   const current = activeCard(tx, cardId);
-  const content = versionContent(tx, versionId);
-  if (content === null) {
+  const old = tx.select().from(cardVersions).where(eq(cardVersions.id, versionId)).get();
+  if (!old || old.cardId !== cardId) {
     throw new CardNotFoundError();
   }
   const restoredId = newId();
   tx.insert(cardVersions)
     .values({
+      ...old,
       id: restoredId,
-      cardId,
-      question: content.question,
-      answer: content.answer,
       createdAt: clock.now().toISOString(),
       cause: 'undo',
     })

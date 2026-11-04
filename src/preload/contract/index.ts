@@ -11,14 +11,17 @@ import {
   openFolderResponse,
 } from './backups';
 import {
+  cardDetailSchema,
   cardHistorySchema,
   cardIdRequest,
   cardSchema,
   cardsCreateRequest,
   cardsDeleteResponse,
   cardsEditRequest,
+  cardsInverseResponse,
   cardsListRequest,
   cardsListResponse,
+  cardsPauseRequest,
   cardsReviewRequest,
 } from './cards';
 import { noRequest } from './common';
@@ -86,7 +89,11 @@ export const channels = {
   'cards.create': { request: cardsCreateRequest, response: cardSchema },
   'cards.list': { request: cardsListRequest, response: cardsListResponse },
   'cards.review': { request: cardsReviewRequest, response: cardSchema },
-  'cards.edit': { request: cardsEditRequest, response: cardSchema },
+  'cards.edit': { request: cardsEditRequest, response: cardDetailSchema },
+  'cards.get': { request: cardIdRequest, response: cardDetailSchema },
+  'cards.markMeaningChanged': { request: cardIdRequest, response: cardSchema },
+  'cards.setPaused': { request: cardsPauseRequest, response: cardSchema },
+  'cards.createInverse': { request: cardIdRequest, response: cardsInverseResponse },
   'cards.history': { request: cardIdRequest, response: cardHistorySchema },
   'cards.delete': { request: cardIdRequest, response: cardsDeleteResponse },
   'subjects.list': { request: subjectsListRequest, response: subjectsListResponse },

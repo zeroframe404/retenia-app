@@ -3,7 +3,7 @@ import { dirname } from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import { type BetterSQLite3Database, drizzle } from 'drizzle-orm/better-sqlite3';
 import { type Clock, systemClock } from '../core/clock';
-import { adoptLegacySchedules } from './adoption';
+import { adoptLegacySchedules, adoptUnassignedCards } from './adoption';
 import { ensureLedgerState } from './ledger';
 import { applyMigrations } from './migrations';
 import * as schema from './schema';
@@ -53,6 +53,7 @@ export function openDatabase(
     orm.transaction((tx) => {
       ensureLedgerState(tx, clock.now());
       adoptLegacySchedules(tx, clock);
+      adoptUnassignedCards(tx);
     });
   } catch (error) {
     sqlite.close();

@@ -2,6 +2,7 @@ import { NodeViewContent, type NodeViewProps, NodeViewWrapper } from '@tiptap/re
 import { ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { texts } from '../../../preload/contract/texts';
 import { Icon } from '../../ui/Icon';
+import { rowCardOfNode } from './card-marker';
 import styles from './editor.module.css';
 
 // El dibujo de un renglón: el asa para arrastrarlo, el botón de plegar (solo si tiene hijos) y un
@@ -10,8 +11,10 @@ export function RowView({ node, updateAttributes }: NodeViewProps) {
   const collapsed = node.attrs.collapsed === true;
   const hasChildren = node.childCount > 1;
   const foldLabel = collapsed ? texts.notes.editor.unfold : texts.notes.editor.fold;
+  // El renglón que es tarjeta (con «>>» o con huecos) se marca.
+  const card = rowCardOfNode(node);
   return (
-    <NodeViewWrapper className={styles.row}>
+    <NodeViewWrapper className={styles.row} data-card={card?.kind}>
       <div className={styles.controls} contentEditable={false}>
         <button
           type="button"
@@ -42,6 +45,22 @@ export function RowView({ node, updateAttributes }: NodeViewProps) {
         <span className={styles.bullet} aria-hidden="true" />
       </div>
       <NodeViewContent className={styles.content} />
+      {card === null ? null : (
+        <span
+          className={styles.cardTag}
+          contentEditable={false}
+          role="img"
+          aria-label={
+            card.kind === 'cloze'
+              ? texts.notes.editor.cardTagLabelCloze
+              : texts.notes.editor.cardTagLabelQa
+          }
+        >
+          {card.kind === 'cloze'
+            ? texts.notes.editor.cardTagCloze(card.count)
+            : texts.notes.editor.cardTag}
+        </span>
+      )}
     </NodeViewWrapper>
   );
 }

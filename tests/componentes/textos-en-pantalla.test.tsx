@@ -144,6 +144,14 @@ describe('las pantallas no muestran textos prohibidos', () => {
     expect(await screen.findByText(/^Próximo repaso: /)).toBeTruthy();
     expect(problems(), 'resultado del repaso').toEqual([]);
     await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
+    expect(problems(), 'lista de tarjetas con filtros').toEqual([]);
+    await user.click(await screen.findByRole('button', { name: /^Abrir la tarjeta/ }));
+    expect(await screen.findByRole('button', { name: 'Editar ficha' })).toBeTruthy();
+    expect(problems(), 'detalle de la tarjeta').toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Editar ficha' }));
+    expect(await screen.findByRole('textbox', { name: 'Respuesta de referencia' })).toBeTruthy();
+    expect(problems(), 'ficha de la tarjeta').toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
     await user.click(await screen.findByRole('button', { name: 'Historial' }));
     expect(await screen.findByRole('list', { name: 'Repasos de la tarjeta' })).toBeTruthy();
     expect(problems(), 'historial').toEqual([]);

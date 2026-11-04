@@ -71,7 +71,11 @@ export function createHandlers({
       return { choice };
     },
     'cards.create': async (request) => workspace.cards.create(request),
-    'cards.list': async () => ({ cards: workspace.cards.list() }),
+    'cards.list': async (request) => workspace.cards.listWithTotal(request),
+    'cards.get': async (request) => workspace.cards.get(request),
+    'cards.markMeaningChanged': async (request) => workspace.cards.markMeaningChanged(request),
+    'cards.setPaused': async (request) => workspace.cards.setPaused(request),
+    'cards.createInverse': async (request) => workspace.cards.createInverse(request),
     'cards.review': async (request) => workspace.cards.review(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
     'cards.history': async (request) => workspace.cards.history(request),

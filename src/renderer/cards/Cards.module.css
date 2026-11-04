@@ -1,0 +1,217 @@
+/* La pestaña «Tarjetas»: filtros, lista que no se traba con miles de filas, detalle y ficha. */
+.counter {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12) var(--espacio-16);
+  align-items: end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filter {
+  display: grid;
+  gap: var(--espacio-4);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.filter select {
+  min-height: var(--alto-control);
+  padding: var(--espacio-4) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+/* La lista: un recuadro con su propia barra; solo se arman las filas que se ven. */
+.scroller {
+  position: relative;
+  max-height: min(70vh, 640px);
+  min-height: calc(var(--alto-control) * 3);
+  overflow-y: auto;
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.rows {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  position: absolute;
+  inset-inline: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--espacio-4);
+  box-sizing: border-box;
+  padding: var(--espacio-8) var(--espacio-16);
+  border-bottom: var(--trazo-lleno) var(--color-linea);
+}
+
+.rowLine {
+  display: flex;
+  gap: var(--espacio-12);
+  align-items: center;
+  min-width: 0;
+}
+
+.rowTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.open {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--color-marca-fuerte);
+  text-decoration: underline;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.open:hover {
+  color: var(--color-marca);
+}
+
+.rowMeta {
+  min-width: 0;
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chip {
+  flex: none;
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta);
+  background: var(--color-marca-suave);
+  border-radius: var(--radio-pildora);
+}
+
+.paused {
+  font: var(--tipo-pequeno);
+  font-weight: 600;
+  color: var(--color-parcial);
+}
+
+/* El detalle de una tarjeta. */
+.path {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.face {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.facePanel {
+  display: grid;
+  gap: var(--espacio-8);
+  max-width: var(--ancho-lectura);
+  padding: var(--espacio-16) var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.facePanel h4 {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.sheetList {
+  display: grid;
+  gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--tipo-cuerpo);
+}
+
+.formula {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radio-8);
+}
+
+.imageFailed {
+  font: var(--tipo-pequeno);
+  color: var(--color-parcial);
+}
+
+/* La ficha: varios campos en una sola columna. */
+.pair {
+  display: grid;
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pair legend {
+  padding: 0;
+  margin-bottom: var(--espacio-4);
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.fieldHelp {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.select {
+  min-height: var(--alto-control);
+  padding: var(--espacio-4) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}

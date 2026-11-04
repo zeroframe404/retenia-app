@@ -38,10 +38,10 @@ function open(dir = dataDir()) {
 }
 
 describe('el modo elenco', () => {
-  it('abre por defecto en el elenco: las tres tarjetas y las cuatro materias, en la carpeta de siempre', () => {
+  it('abre por defecto en el elenco: las 192 tarjetas y las cuatro materias, en la carpeta de siempre', () => {
     const { demo, dir } = open();
     expect(demo.mode()).toBe('cast');
-    expect(demo.workspace.cards.count()).toBe(3);
+    expect(demo.workspace.cards.count()).toBe(192);
     expect(demo.workspace.subjects.count()).toBe(4);
     expect(existsSync(join(dir, 'retenia.db'))).toBe(true);
     expect(existsSync(join(dir, 'primera-vez'))).toBe(false);
@@ -52,7 +52,7 @@ describe('el modo elenco', () => {
     demo.close();
     const again = open(dir).demo;
     expect(again.workspace.subjects.count()).toBe(4);
-    expect(again.workspace.cards.count()).toBe(3);
+    expect(again.workspace.cards.count()).toBe(192);
   });
 
   it('el espacio de trabajo expone la misma carpeta de datos en los dos modos', () => {

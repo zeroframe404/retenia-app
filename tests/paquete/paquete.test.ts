@@ -233,7 +233,7 @@ describe('paquete de uso real: nada de demostración', () => {
     const leaks = real
       .filter((file) => file.path.startsWith('app.asar/out/real/'))
       .filter((file) =>
-        /demo\.state|demo\.advanceDays|demo\.resetDate|demoChannels|createDemoHandlers|createDemoDate|createDemoWorkspace|seedDemoCards|seedDemoOrganization|Restablecer fecha/.test(
+        /demo\.state|demo\.advanceDays|demo\.resetDate|demoChannels|createDemoHandlers|createDemoDate|createDemoWorkspace|seedDemoCardCast|seedDemoOrganization|Restablecer fecha/.test(
           file.text ?? '',
         ),
       );

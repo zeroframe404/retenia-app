@@ -1,5 +1,5 @@
 import { expect, test } from './apoyo';
-import { goTo, itemWith, review } from './pasos';
+import { createCard, goTo, itemWith, openCardByQuestion, review } from './pasos';
 
 // Punta a punta de H-06: «Papelera» y «Actividad reciente» con «Deshacer», sobre Retenia
 // (prueba) empaquetada.
@@ -7,9 +7,11 @@ import { goTo, itemWith, review } from './pasos';
 test('[CA-022] eliminar una tarjeta la manda a «Papelera» por 30 días y «Restaurar» la devuelve con su historial', async ({
   appWindow,
 }) => {
-  const question = '¿Qué es la varianza?';
+  const question = '¿Capital de Francia?';
+  await createCard(appWindow, question, 'París');
   await review(appWindow, question, 'La sabía');
-  await itemWith(appWindow, question).getByRole('button', { name: 'Eliminar' }).click();
+  await openCardByQuestion(appWindow, question);
+  await appWindow.getByRole('button', { name: 'Eliminar' }).click();
   await expect(itemWith(appWindow, question)).toHaveCount(0);
 
   await goTo(appWindow, 'Papelera');
@@ -24,7 +26,8 @@ test('[CA-022] eliminar una tarjeta la manda a «Papelera» por 30 días y «Res
 
   await goTo(appWindow, 'Tarjetas');
   await expect(itemWith(appWindow, question)).toContainText('Próximo repaso: miércoles 17/03/2027');
-  await itemWith(appWindow, question).getByRole('button', { name: 'Historial' }).click();
+  await openCardByQuestion(appWindow, question);
+  await appWindow.getByRole('button', { name: 'Historial' }).click();
   await expect(
     appWindow.getByRole('list', { name: 'Repasos de la tarjeta' }).getByRole('listitem'),
   ).toHaveText(['15/03/2027 · La sabía']);
@@ -33,12 +36,15 @@ test('[CA-022] eliminar una tarjeta la manda a «Papelera» por 30 días y «Res
 test('[CA-023] editar la pregunta agregando PRUEBA y tocar «Deshacer» en «Actividad reciente» la deja sin PRUEBA', async ({
   appWindow,
 }) => {
-  const question = '¿Qué es la varianza?';
-  await itemWith(appWindow, question).getByRole('button', { name: 'Editar' }).click();
+  const question = '¿Capital de Francia?';
+  await createCard(appWindow, question, 'París');
+  await openCardByQuestion(appWindow, question);
+  await appWindow.getByRole('button', { name: 'Editar ficha' }).click();
   const field = appWindow.getByRole('textbox', { name: 'Pregunta' });
   await field.fill(`${question} PRUEBA`);
   await appWindow.getByRole('button', { name: 'Guardar' }).click();
   await expect(appWindow.getByText('Cambios guardados')).toBeVisible();
+  await appWindow.getByRole('button', { name: 'Volver a las tarjetas' }).click();
   await expect(itemWith(appWindow, `${question} PRUEBA`)).toHaveCount(1);
 
   await goTo(appWindow, 'Actividad reciente');

@@ -3,9 +3,10 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 export interface AutosaverOptions {
   delay: number;
   // Guarda lo que hay en pantalla en el momento de llamarla (lee los datos al empezar).
-  save: () => Promise<void>;
+  // Lo que devuelve (la respuesta del guardado) llega a `onSaved`.
+  save: () => Promise<unknown>;
   onStatus: (status: SaveStatus) => void;
-  onSaved: () => void;
+  onSaved: (result: unknown) => void;
 }
 
 // El guardado automático: pasan `delay` milisegundos desde el último cambio y se guarda; cada
@@ -17,6 +18,7 @@ export class Autosaver {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private inFlight: Promise<boolean> | null = null;
   private dirty = false;
+  private lastResult: unknown = undefined;
 
   constructor(options: AutosaverOptions) {
     this.options = options;
@@ -67,7 +69,7 @@ export class Autosaver {
     this.dirty = false;
     const attempt = (async () => {
       try {
-        await this.options.save();
+        this.lastResult = await this.options.save();
         return true;
       } catch {
         return false;
@@ -76,7 +78,7 @@ export class Autosaver {
     this.inFlight = attempt.then((saved) => {
       this.inFlight = null;
       if (saved) {
-        this.options.onSaved();
+        this.options.onSaved(this.lastResult);
         // Si llegó un cambio mientras se guardaba, el indicador sigue en «Guardando…».
         if (!this.dirty) {
           this.options.onStatus('saved');

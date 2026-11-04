@@ -29,7 +29,7 @@ import { cardSchedule, cards, cardVersions, evaluations, observations } from './
 // retención llegan en la Fase 09).
 const MEMORY_CONFIG = { retention: DEFAULT_RETENTION };
 
-const MEMORY_KINDS = ['review.graded', 'schedule.adopted'];
+const MEMORY_KINDS = ['review.graded', 'schedule.adopted', 'card.meaning_changed'];
 
 type ObservationRow = typeof observations.$inferSelect;
 
@@ -38,7 +38,8 @@ export interface HistoryEvent {
   readonly seq: number;
   readonly occurredAt: Date;
   // La calificación que vale (la de la evaluación vigente) o «adopted» para la agenda heredada.
-  readonly result: 'again' | 'hard' | 'good' | 'adopted';
+  // «reset»: cambió lo que hay que recordar y la tarjeta volvió a programarse como nueva.
+  readonly result: 'again' | 'hard' | 'good' | 'adopted' | 'reset';
 }
 
 // Los eventos que mueven la agenda, con la calificación de la evaluación vigente de cada repaso.
@@ -63,6 +64,15 @@ function memoryEventsOf(
           occurredAt: new Date(row.occurredAt),
           result: 'adopted',
         },
+      };
+    }
+    if (row.kind === 'card.meaning_changed') {
+      const { cardId } = readPayload('card.meaning_changed', row.schemaVersion, row.payload);
+      const occurredAt = new Date(row.occurredAt);
+      return {
+        cardId,
+        event: { kind: 'reset', id: row.id, seq: row.seq, occurredAt },
+        history: { id: row.id, seq: row.seq, occurredAt, result: 'reset' },
       };
     }
     const { cardId, grade } = readPayload('review.graded', row.schemaVersion, row.payload);

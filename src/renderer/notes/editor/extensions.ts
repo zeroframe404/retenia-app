@@ -1,4 +1,5 @@
 import StarterKit from '@tiptap/starter-kit';
+import { Cloze } from './cloze';
 import { Formulas } from './formula-plugin';
 import { Image, ImageInput } from './image';
 import { Mention } from './mention';
@@ -43,6 +44,7 @@ export function createExtensions({ onOpenNote, onImageError, suggestion }: Edito
     }),
     Mention.configure({ onOpen: onOpenNote }),
     Image,
+    Cloze,
     UniqueBlockIds,
     Formulas,
     ImageInput.configure({ onError: onImageError }),

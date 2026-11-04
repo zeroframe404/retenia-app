@@ -87,3 +87,30 @@ export const editor = (page: Page) => page.getByRole('textbox', { name: 'Conteni
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+// Abre el detalle de una tarjeta por su pregunta. La lista solo arma las filas que se ven: si la
+// tarjeta no está a la vista, se baja por la lista hasta que aparezca.
+export async function openCardByQuestion(page: Page, question: string) {
+  const button = page.getByRole('button', { name: `Abrir la tarjeta «${question}»` });
+  const scroller = page.locator('section[tabindex="0"]');
+  // La lista ya se leyó cuando muestra su contador.
+  await expect(page.getByText(/^[\d.]+ tarjetas?$/)).toBeVisible();
+  for (let turn = 0; turn < 60 && (await button.count()) === 0; turn += 1) {
+    await scroller.evaluate((element) => {
+      element.scrollTop += element.clientHeight / 2;
+    });
+    await page.evaluate(() => new Promise((next) => requestAnimationFrame(next)));
+  }
+  await button.click();
+  await expect(page.getByRole('heading', { level: 3, name: 'Tarjeta' })).toBeVisible();
+}
+
+// «Nueva tarjeta» → pregunta y respuesta → «Guardar», con Apuntes › «Tarjetas» a la vista. La
+// tarjeta nueva queda primera en la lista.
+export async function createCard(page: Page, question: string, answer: string) {
+  await page.getByRole('button', { name: 'Nueva tarjeta' }).click();
+  await page.getByRole('textbox', { name: 'Pregunta' }).fill(question);
+  await page.getByRole('textbox', { name: 'Respuesta' }).fill(answer);
+  await page.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText('Tarjeta guardada')).toBeVisible();
+}

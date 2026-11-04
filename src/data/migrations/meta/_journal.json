@@ -36,6 +36,13 @@
       "when": 1793280621013,
       "tag": "0004_apuntes_disparadores",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793759205273,
+      "tag": "0005_tarjetas_fichas",
+      "breakpoints": true
     }
   ]
 }

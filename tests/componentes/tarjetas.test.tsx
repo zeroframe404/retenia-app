@@ -297,14 +297,15 @@ describe('pantalla «Tarjetas»: repaso', () => {
     await user.click(screen.getByRole('button', { name: 'La sabía' }));
     await user.click(await screen.findByRole('button', { name: 'Volver a las tarjetas' }));
     const item = (await screen.findAllByRole('listitem'))[0] as HTMLElement;
-    expect(within(item).getByText('Próximo repaso: miércoles 17/03/2027')).toBeTruthy();
+    // Desde la Fase 08 la fila es una sola línea: próximo repaso, tipo, estado y tema.
+    expect(item.textContent).toContain('Próximo repaso: miércoles 17/03/2027');
   });
 
   it('una tarjeta sin repasar dice «Todavía sin repasar»', async () => {
     const { user } = openScreen();
     await fillAndSave(user, { question: 'P', answer: 'R' });
     const item = (await screen.findAllByRole('listitem'))[0] as HTMLElement;
-    expect(within(item).getByText('Todavía sin repasar')).toBeTruthy();
+    expect(item.textContent).toContain('Todavía sin repasar');
   });
 
   it('si el repaso falla, avisa sin jerga y deja volver a calificar', async () => {

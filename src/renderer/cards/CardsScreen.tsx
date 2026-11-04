@@ -1,75 +1,118 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Card } from '../../preload/contract/cards';
-import { formatLongDate, texts } from '../../preload/contract/texts';
+import type { Card, CardDetail } from '../../preload/contract/cards';
+import type { Subject } from '../../preload/contract/organization';
+import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
-import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
+import { ScreenFrame, Toast } from '../ui/Frame';
 import { ViewState } from '../ui/ViewStates';
+import { CardDetailView } from './CardDetail';
 import { CardForm } from './CardForm';
+import { CardFilters, CardList, type Filters, NO_FILTERS } from './CardList';
+import styles from './Cards.module.css';
 import { HistoryView } from './HistoryView';
 import { ReviewView } from './ReviewView';
+import { SheetForm } from './SheetForm';
 
 type View =
   | { kind: 'list' }
   | { kind: 'form' }
+  | { kind: 'detail'; cardId: string; version: number }
+  | { kind: 'edit'; card: CardDetail }
   | { kind: 'review'; card: Card }
-  | { kind: 'history'; card: Card }
-  | { kind: 'edit'; card: Card };
+  | { kind: 'history'; card: Card };
 
-// La pantalla provisoria «Tarjetas» (adentro de Apuntes): la lista, el alta, el repaso mínimo, el
-// historial, editar y eliminar.
-export function CardsScreen() {
+type Topic = { id: string; name: string };
+
+// Apuntes › «Tarjetas»: todas las tarjetas de la materia que se mira, con su contador y sus filtros
+// por tema, estado y tipo; el detalle de cada una (camino de contexto, ficha, «Editar ficha»,
+// «Crear inversa», «Pausar esta tarjeta», «Historial», «Ver en la nota» y «Eliminar») y «Nueva
+// tarjeta» suelta. Sin materia (las pruebas de la Fase 03) muestra todas.
+export function CardsScreen({
+  subject,
+  onOpenNote,
+}: {
+  subject?: Subject | undefined;
+  onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
+}) {
+  const subjectId = subject?.id;
   const [cards, setCards] = useState<Card[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [topics, setTopics] = useState<Topic[]>([]);
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [loadFailed, setLoadFailed] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [notice, setNotice] = useState('');
-  const removing = useRef(false);
+  // Una lectura vieja que llega tarde no pisa a una más nueva.
+  const requests = useRef(0);
+  // Cada vez que se abre el detalle se lo vuelve a leer: este número lo avisa.
+  const versions = useRef(0);
+  const nextVersion = () => {
+    versions.current += 1;
+    return versions.current;
+  };
 
   const load = useCallback(async () => {
+    requests.current += 1;
+    const mine = requests.current;
     setLoadFailed(false);
     try {
-      setCards((await window.retenia['cards.list']({})).cards);
+      const response = await window.retenia['cards.list']({
+        ...(subjectId === undefined ? {} : { subjectId }),
+        ...(filters.topicId === '' ? {} : { topicId: filters.topicId }),
+        ...(filters.sheetState === ''
+          ? {}
+          : { sheetState: filters.sheetState as Card['sheetState'] }),
+        ...(filters.kind === '' ? {} : { kind: filters.kind as Card['kind'] }),
+      });
+      if (requests.current === mine) {
+        setCards(response.cards);
+        setTotal(response.total);
+      }
     } catch {
-      setLoadFailed(true);
+      if (requests.current === mine) {
+        setLoadFailed(true);
+      }
     }
-  }, []);
+  }, [subjectId, filters]);
+
+  // Al pasar a otra materia no queda nada de la anterior: ni el filtro de tema ni una tarjeta abierta.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando cambia la materia.
+  useEffect(() => {
+    setFilters(NO_FILTERS);
+    setView({ kind: 'list' });
+    setNotice('');
+    setTopics([]);
+  }, [subjectId]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const replaceCard = (updated: Card) =>
-    setCards((current) => current?.map((c) => (c.id === updated.id ? updated : c)) ?? null);
-
-  const backToList = () => {
-    setNotice('');
-    setView({ kind: 'list' });
-  };
-
-  const openForm = () => {
-    setNotice('');
-    setView({ kind: 'form' });
-  };
-
-  // «Eliminar»: a la Papelera. Un candado evita que un doble toque la elimine dos veces.
-  async function remove(card: Card) {
-    if (removing.current) {
+  useEffect(() => {
+    if (subjectId === undefined) {
       return;
     }
-    removing.current = true;
-    setNotice('');
-    try {
-      await window.retenia['cards.delete']({ cardId: card.id });
-      setCards((current) => current?.filter((c) => c.id !== card.id) ?? null);
-      setNotice(texts.cards.removed);
-    } catch {
-      setNotice(texts.cards.removeFailed);
-    } finally {
-      removing.current = false;
-    }
-  }
+    let current = true;
+    window.retenia['topics.list']({ subjectId }).then(
+      ({ topics: loaded }) => {
+        if (current) {
+          setTopics(loaded.map((topic) => ({ id: topic.id, name: topic.name })));
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [subjectId]);
+
+  const backToList = () => {
+    setView({ kind: 'list' });
+    void load();
+  };
 
   if (view.kind === 'review') {
-    return <ReviewView card={view.card} onReviewed={replaceCard} onClose={backToList} />;
+    return <ReviewView card={view.card} onReviewed={() => undefined} onClose={backToList} />;
   }
 
   if (view.kind === 'history') {
@@ -77,16 +120,42 @@ export function CardsScreen() {
   }
 
   if (view.kind === 'edit') {
+    const { card } = view;
     return (
-      <ScreenFrame level={3} title={texts.cards.editTitle}>
-        <CardForm
-          card={view.card}
-          onCancel={backToList}
-          onSaved={(updated) => {
-            replaceCard(updated);
+      <ScreenFrame level={3} title={texts.cards.sheetTitle}>
+        <SheetForm
+          card={card}
+          onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}
+          onSaved={() => {
             setNotice(texts.cards.edited);
-            setView({ kind: 'list' });
+            setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
           }}
+        />
+      </ScreenFrame>
+    );
+  }
+
+  if (view.kind === 'detail') {
+    return (
+      <ScreenFrame level={3} title={texts.cards.detailTitle}>
+        <Toast>{notice}</Toast>
+        <CardDetailView
+          cardId={view.cardId}
+          version={view.version}
+          onBack={() => {
+            setNotice('');
+            backToList();
+          }}
+          onEdit={(card) => {
+            setNotice('');
+            setView({ kind: 'edit', card });
+          }}
+          onReview={(card) => setView({ kind: 'review', card })}
+          onHistory={(card) => setView({ kind: 'history', card })}
+          onOpenNote={onOpenNote}
+          onChanged={() => void load()}
+          onRemoved={backToList}
+          onNotice={setNotice}
         />
       </ScreenFrame>
     );
@@ -94,6 +163,7 @@ export function CardsScreen() {
 
   // El botón principal queda siempre arriba, junto al título: el estado vacío lo nombra («Tocá
   // «Nueva tarjeta»…») y no lo repite.
+  const filtering = filters.topicId !== '' || filters.sheetState !== '' || filters.kind !== '';
   const showEmpty = cards !== null && cards.length === 0 && view.kind === 'list' && !loadFailed;
   return (
     <ScreenFrame
@@ -101,7 +171,13 @@ export function CardsScreen() {
       title={texts.cards.title}
       actions={
         view.kind === 'list' ? (
-          <Boton variant="primary" onClick={openForm}>
+          <Boton
+            variant="primary"
+            onClick={() => {
+              setNotice('');
+              setView({ kind: 'form' });
+            }}
+          >
             {texts.cards.newCard}
           </Boton>
         ) : null
@@ -110,11 +186,13 @@ export function CardsScreen() {
       <Toast>{notice}</Toast>
       {view.kind === 'form' ? (
         <CardForm
+          subjectId={subjectId}
+          topics={topics}
           onCancel={() => setView({ kind: 'list' })}
-          onSaved={(card) => {
-            setCards((current) => [card, ...(current ?? [])]);
+          onSaved={() => {
             setNotice(texts.cards.saved);
             setView({ kind: 'list' });
+            void load();
           }}
         />
       ) : null}
@@ -125,40 +203,27 @@ export function CardsScreen() {
           action={{ text: texts.cards.retry, onClick: () => void load() }}
         />
       ) : null}
-      {showEmpty ? <ViewState kind="empty" phrase={texts.cards.empty} /> : null}
+      {cards !== null && !loadFailed && (total > 0 || filtering) ? (
+        <>
+          <p className={styles.counter} aria-live="polite">
+            {texts.cards.counter(cards.length, total)}
+          </p>
+          <CardFilters filters={filters} topics={topics} onChange={setFilters} />
+        </>
+      ) : null}
+      {showEmpty && total === 0 ? <ViewState kind="empty" phrase={texts.cards.empty} /> : null}
+      {showEmpty && total > 0 ? (
+        <ViewState kind="empty" phrase={texts.cards.emptyFiltered} />
+      ) : null}
       {cards !== null && cards.length > 0 ? (
-        <ItemList label={texts.cards.listLabel}>
-          {cards.map((card) => (
-            <ListItem
-              key={card.id}
-              title={card.question}
-              detail={
-                card.nextReviewDay
-                  ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
-                  : texts.cards.notReviewed
-              }
-              actions={
-                <>
-                  <Boton onClick={() => setView({ kind: 'review', card })}>
-                    {texts.cards.review}
-                  </Boton>
-                  <Boton onClick={() => setView({ kind: 'history', card })}>
-                    {texts.cards.history}
-                  </Boton>
-                  <Boton
-                    onClick={() => {
-                      setNotice('');
-                      setView({ kind: 'edit', card });
-                    }}
-                  >
-                    {texts.cards.edit}
-                  </Boton>
-                  <Boton onClick={() => void remove(card)}>{texts.cards.remove}</Boton>
-                </>
-              }
-            />
-          ))}
-        </ItemList>
+        <CardList
+          cards={cards}
+          onOpen={(card) => {
+            setNotice('');
+            setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
+          }}
+          onReview={(card) => setView({ kind: 'review', card })}
+        />
       ) : null}
     </ScreenFrame>
   );

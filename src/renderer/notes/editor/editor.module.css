@@ -33,7 +33,7 @@
 /* Un renglón: los controles a la izquierda y el texto; los hijos debajo, con sangría. */
 .row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   column-gap: var(--espacio-4);
   align-items: start;
 }
@@ -200,4 +200,34 @@
   padding: var(--espacio-8) var(--espacio-12);
   font: var(--tipo-pequeno);
   color: var(--color-tinta-suave);
+}
+
+/* El hueco de una tarjeta de completar: resaltado, sin cambiar de lugar el texto. */
+.hole {
+  padding: 0 var(--espacio-4);
+  color: var(--color-tinta);
+  background: var(--color-marca-suave);
+  border-bottom: 2px solid var(--color-marca);
+  border-radius: var(--radio-4);
+}
+
+/* El renglón que es tarjeta: una raya a la izquierda y la etiqueta a la derecha. */
+.row[data-card] > .content > p,
+.row[data-card] > .content > div > p {
+  padding-inline-start: var(--espacio-8);
+  border-inline-start: 3px solid var(--color-marca);
+}
+
+.cardTag {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  margin-inline-start: var(--espacio-8);
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-pequeno);
+  color: var(--color-marca-fuerte);
+  white-space: nowrap;
+  background: var(--color-marca-suave);
+  border-radius: var(--radio-pildora);
+  user-select: none;
 }

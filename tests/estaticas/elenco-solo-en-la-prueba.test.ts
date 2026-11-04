@@ -8,7 +8,8 @@ import { ROOT } from '../../tools/lib/proceso.mjs';
 // variante de prueba: solo `src/main/demo` los define y solo `src/main/index.ts`, detrás de
 // `__VARIANTE__ === 'prueba'`, los usa. Así el empaquetador los descarta de la versión real.
 
-const DEMO_ONLY = /seedDemoOrganization|createDemoWorkspace|materias\.json|campana\.png/;
+const DEMO_ONLY =
+  /seedDemoOrganization|seedDemoCardCast|createDemoWorkspace|materias\.json|tarjetas\.json|campana\.png/;
 
 describe('el elenco no se cuela en el código de la versión real', () => {
   it('nada fuera de src/main/demo y de src/main/index.ts nombra la siembra del elenco ni su archivo', async () => {

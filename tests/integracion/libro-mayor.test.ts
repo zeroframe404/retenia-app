@@ -27,7 +27,12 @@ function withHistory() {
   const store = createCardsStore(db, demoClock());
   const card = store.create({ question: '¿Qué mide el desvío estándar?', answer: 'La dispersión' });
   store.review({ cardId: card.id, grade: 'good', attemptId: randomUUID() });
-  store.edit({ cardId: card.id, question: '¿Qué mide el desvío?', answer: 'La dispersión' });
+  store.edit({
+    cardId: card.id,
+    question: '¿Qué mide el desvío?',
+    answer: 'La dispersión',
+    meaningChanged: false,
+  });
   db.close();
   return { file: folder.file, cardId: card.id };
 }

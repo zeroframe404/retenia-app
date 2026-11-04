@@ -34,7 +34,19 @@ const imageNode = z.strictObject({
   height: z.number().int().min(1).max(MAX_IMAGE_SIDE),
   alt: z.string().max(MAX_TITLE_LENGTH),
 });
-export const inlineNodeSchema = z.discriminatedUnion('type', [textNode, mentionNode, imageNode]);
+// Un hueco (Fase 08): el texto que se oculta en la tarjeta de completar. Lleva un identificador propio
+// que no cambia aunque cambie el texto: la tarjeta se liga al hueco, nunca a lo que dice.
+const clozeNode = z.strictObject({
+  type: z.literal('cloze'),
+  id: z.uuid(),
+  text: z.string().min(1).max(MAX_BLOCK_TEXT_LENGTH),
+});
+export const inlineNodeSchema = z.discriminatedUnion('type', [
+  textNode,
+  mentionNode,
+  imageNode,
+  clozeNode,
+]);
 export type InlineNode = z.output<typeof inlineNodeSchema>;
 
 // Un renglón. La lista de renglones va en orden de lectura: un renglón siempre aparece después de
@@ -74,6 +86,14 @@ const blocksSchema = z
     if (issue !== null) {
       context.addIssue({ code: 'custom', message: issue });
     }
+    // Dentro de un renglón, cada hueco tiene su propio identificador.
+    for (const block of blocks) {
+      const holes = block.content.flatMap((node) => (node.type === 'cloze' ? [node.id] : []));
+      if (new Set(holes).size !== holes.length) {
+        context.addIssue({ code: 'custom', message: 'hueco repetido en un renglón' });
+        break;
+      }
+    }
   });
 
 export const noteSummarySchema = z.strictObject({
@@ -112,7 +132,15 @@ export const notesSaveRequest = z.strictObject({
   title: z.string().max(MAX_TITLE_LENGTH),
   blocks: blocksSchema,
 });
-export const notesSaveResponse = z.strictObject({});
+// Lo que el guardado le avisa a la ventana sobre las tarjetas de los renglones (Fase 08): las que
+// quedaron sin renglón y tienen historial (¿conservar o eliminar?) y las que tienen historial y
+// cambiaron de texto (¿cambió lo que hay que recordar?).
+const noteCardNotice = z.strictObject({ cardId: z.uuid(), question: z.string() });
+export const notesSaveResponse = z.strictObject({
+  lostCards: z.array(noteCardNotice).default([]),
+  editedCards: z.array(noteCardNotice).default([]),
+});
+export type NoteSaveResult = z.output<typeof notesSaveResponse>;
 
 // «Mover a…» un tema, o a «Sin tema» con nulo.
 export const notesMoveRequest = z.strictObject({

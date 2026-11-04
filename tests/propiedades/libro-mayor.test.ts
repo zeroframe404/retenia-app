@@ -66,7 +66,12 @@ describe('libro mayor: ninguna operación cambia el historial', () => {
               case 'edit': {
                 const card = at(active, step.pick);
                 if (card)
-                  workspace.cards.edit({ cardId: card.id, question: step.text, answer: 'r' });
+                  workspace.cards.edit({
+                    cardId: card.id,
+                    question: step.text,
+                    answer: 'r',
+                    meaningChanged: false,
+                  });
                 break;
               }
               case 'remove': {

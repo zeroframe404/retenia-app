@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Card } from '../../preload/contract/cards';
+import type { InlineNode } from '../../preload/contract/notes';
 import { formatLongDate, texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Content.module.css';
 import { ScreenFrame } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
+import { CardFace } from './CardFace';
 
 type Grade = 'again' | 'hard' | 'good';
 
@@ -26,6 +28,26 @@ export function ReviewView({
   onClose: () => void;
 }) {
   const [step, setStep] = useState<'question' | 'answer' | 'done'>('question');
+  // La pregunta y la respuesta con sus fórmulas e imágenes (CA-377 y CA-378): mientras se leen o si
+  // no se pueden leer, se ve el texto.
+  const [faces, setFaces] = useState<{ question: InlineNode[]; answer: InlineNode[] }>({
+    question: [{ type: 'text', text: card.question }],
+    answer: [{ type: 'text', text: card.answer }],
+  });
+  useEffect(() => {
+    let current = true;
+    window.retenia['cards.get']({ cardId: card.id }).then(
+      (detail) => {
+        if (current) {
+          setFaces({ question: detail.questionContent, answer: detail.answerContent });
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [card.id]);
   const [result, setResult] = useState<Card | null>(null);
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -60,7 +82,9 @@ export function ReviewView({
   return (
     <ScreenFrame level={3} title={texts.cards.reviewTitle}>
       <div className={styles.stack}>
-        <p className={styles.block}>{card.question}</p>
+        <div className={styles.block}>
+          <CardFace content={faces.question} />
+        </div>
         {step === 'question' ? (
           <div className={styles.actions}>
             <Boton variant="primary" onClick={() => setStep('answer')}>
@@ -68,7 +92,9 @@ export function ReviewView({
             </Boton>
           </div>
         ) : (
-          <p className={styles.block}>{card.answer}</p>
+          <div className={styles.block}>
+            <CardFace content={faces.answer} />
+          </div>
         )}
         {step === 'answer' ? (
           <>

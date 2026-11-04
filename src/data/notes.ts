@@ -18,6 +18,7 @@ import {
   type NoteSummary,
 } from '../preload/contract/notes';
 import { texts } from '../preload/contract/texts';
+import { moveNoteCards, type RowCardsResult, syncRowCards } from './card-rows';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import { appendOperation, type EventSource } from './ledger';
@@ -55,11 +56,12 @@ export interface NotesStore {
     options?: { source?: EventSource },
   ): Note;
   get(input: { noteId: string }): Note;
-  save(input: {
-    noteId: string;
-    title: string;
-    blocks: readonly IncomingBlock[];
-  }): Record<string, never>;
+  // Guarda lo que cambió. Avisa cuáles tarjetas de los renglones quedaron sin renglón o cambiaron
+  // (las que tienen historial).
+  save(
+    input: { noteId: string; title: string; blocks: readonly IncomingBlock[] },
+    options?: { source?: EventSource },
+  ): RowCardsResult;
   move(input: { noteId: string; topicId: string | null }): NoteSummary;
   archive(input: { noteId: string }): NoteSummary;
   unarchive(input: { noteId: string }): NoteSummary;
@@ -339,7 +341,8 @@ export function saveNoteRows(
     title,
     blocks: incoming,
   }: { noteId: string; title: string; blocks: readonly IncomingBlock[] },
-): void {
+  source: EventSource = 'system',
+): RowCardsResult {
   const note = activeNote(tx, noteId);
   const plan = planBlocks(storedBlocksOf(tx, noteId), incoming);
 
@@ -402,10 +405,27 @@ export function saveNoteRows(
     tx.delete(blockLinks).where(eq(blockLinks.blockId, blockId)).run();
   }
 
+  // Las tarjetas de los renglones que cambiaron, o que ya no están.
+  const touched = new Map<string, IncomingBlock['content']>();
+  for (const block of [...plan.created, ...plan.revived, ...plan.edited]) {
+    touched.set(block.id, block.content);
+  }
+  for (const blockId of plan.removed) {
+    touched.set(blockId, []);
+  }
+  const cardsResult = syncRowCards(
+    tx,
+    clock,
+    noteId,
+    [...touched].map(([id, content]) => ({ id, content })),
+    source,
+  );
+
   const clean = title.trim();
   if (clean !== note.title) {
     tx.update(notes).set({ title: clean }).where(eq(notes.id, noteId)).run();
   }
+  return cardsResult;
 }
 
 // Mover a un tema de la misma materia, o a «Sin tema» con nulo. Al lugar donde ya está, no hace nada.
@@ -427,6 +447,7 @@ export function moveNoteRow(
     return;
   }
   tx.update(notes).set({ topicId }).where(eq(notes.id, noteId)).run();
+  moveNoteCards(tx, noteId, topicId);
   appendOperation(tx, clock, {
     kind: 'note.move',
     entityType: 'note',
@@ -583,9 +604,8 @@ export function createNotesStore(db: ReteniaDatabase, clock: Clock): NotesStore 
       return noteOf(orm, noteId);
     },
 
-    save(input) {
-      orm.transaction((tx) => saveNoteRows(tx, clock, input));
-      return {};
+    save(input, { source = 'system' } = {}) {
+      return orm.transaction((tx) => saveNoteRows(tx, clock, input, source));
     },
 
     move({ noteId, topicId }) {

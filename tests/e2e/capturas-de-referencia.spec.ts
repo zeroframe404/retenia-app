@@ -54,7 +54,7 @@ test('capturas de referencia: Apuntes con sus tres secciones, en claro y en oscu
   const { page } = await launchFromStart(undefined, undefined, ARGS);
   await prepare(page);
   await goTo(page, 'Tarjetas');
-  await expect(page.getByRole('listitem')).toHaveCount(3);
+  await expect(page.getByText('180 tarjetas')).toBeVisible();
   await shoot(page, 'apuntes-tarjetas');
   await goTo(page, 'Papelera');
   await expect(page.getByText('La papelera está vacía.')).toBeVisible();

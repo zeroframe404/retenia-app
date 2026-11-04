@@ -97,8 +97,13 @@ function TopicButton({
 export function NotesSection({
   subject,
   onViewSubject,
+  noteRequest = null,
+  onNoteRequestHandled,
 }: {
   subject: Subject;
+  // Una nota que otra pantalla pide abrir en un renglón («Ver en la nota» de una tarjeta).
+  noteRequest?: { noteId: string; blockId: string; nonce: number } | null;
+  onNoteRequestHandled?: (() => void) | undefined;
   // Un enlace puede llevar a una nota de otra materia: la pantalla pasa a mirar esa materia.
   onViewSubject: (subjectId: string) => void;
 }) {
@@ -248,6 +253,17 @@ export function NotesSection({
       nonce: nonce.current,
     });
   }
+
+  // Otra pantalla pide abrir una nota en un renglón: se abre y se avisa que ya se atendió.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
+  useEffect(() => {
+    if (noteRequest === null) {
+      return;
+    }
+    void openLinked(noteRequest.noteId, noteRequest.blockId).finally(() =>
+      onNoteRequestHandled?.(),
+    );
+  }, [noteRequest]);
 
   const moveNote = (note: NoteSummary, topic: Topic | null) =>
     act(async () => {
