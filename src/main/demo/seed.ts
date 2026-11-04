@@ -148,19 +148,30 @@ export function seedDemoOrganization(workspace: Workspace): number {
 
 // --- Las tarjetas del elenco (Fase 08) ---
 
-const castCard = z.strictObject({
-  q: z.string().min(1),
-  a: z.string().min(1).optional(),
-  p: z.enum(['d', 'n', 's', 'desvio', 'consolidada', 'varianza', 'fallos']),
-});
-const cardCastSchema = z.strictObject({
-  subjects: z.array(
-    z.strictObject({
-      name: z.string().min(1),
-      topics: z.array(z.strictObject({ name: z.string().min(1), cards: z.array(castCard).min(1) })),
-    }),
-  ),
-});
+// El esquema se arma al usarlo (no al cargar el módulo): así, en la versión real, el empaquetador
+// descarta toda esta siembra y ninguna de sus palabras queda en el paquete.
+const cardCastSchema = () =>
+  z.strictObject({
+    subjects: z.array(
+      z.strictObject({
+        name: z.string().min(1),
+        topics: z.array(
+          z.strictObject({
+            name: z.string().min(1),
+            cards: z
+              .array(
+                z.strictObject({
+                  q: z.string().min(1),
+                  a: z.string().min(1).optional(),
+                  p: z.enum(['d', 'n', 's', 'desvio', 'consolidada', 'varianza', 'fallos']),
+                }),
+              )
+              .min(1),
+          }),
+        ),
+      }),
+    ),
+  });
 
 // El lunes 15/03/2027 a las 10:00 de Buenos Aires: el «hoy» de la demostración.
 const DEMO_NOW = new Date('2027-03-15T10:00:00-03:00');
@@ -345,7 +356,7 @@ export function seedDemoCardCast(workspace: Workspace): number {
   if (workspace.cards.hasManualCards()) {
     return 0;
   }
-  const elenco = cardCastSchema.parse(cardCast);
+  const elenco = cardCastSchema().parse(cardCast);
   const created = new Date(DEMO_NOW.getTime() - 90 * DAY_MS);
   let dueTurn = 0;
   let scheduledTurn = 0;
