@@ -55,7 +55,10 @@ export function MentionMenu({
     insertMention(view, suggestion, { id: entry.id, label: entry.title });
   }
 
-  useEffect(() => {
+  // Las teclas y la opción señalada se conectan en el mismo momento en que la lista queda en la
+  // pantalla (useLayoutEffect), no un instante después de pintar: si no, una flecha apretada en ese
+  // hueco se perdía (en una máquina cargada se notaba).
+  useLayoutEffect(() => {
     keyHandler.current = (event) => {
       if (event.ctrlKey || event.altKey || event.metaKey) {
         return false;
@@ -84,7 +87,7 @@ export function MentionMenu({
     };
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (entries.length === 0) {
       return;
     }

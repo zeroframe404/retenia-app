@@ -146,22 +146,26 @@ describe('[CA-374] «[[» y las primeras letras ofrecen las notas para enlazar',
     await renderNote(note('Enlaces', [row(1, 'Ver ')]));
     // ↓ se aprieta apenas la lista con opciones queda en la pantalla, antes de que React termine
     // lo que deja para después de pintar (en una máquina cargada ese hueco se nota).
-    let early: KeyboardEvent | null = null;
+    const seen: { early: KeyboardEvent | null } = { early: null };
     const watcher = new MutationObserver(() => {
-      if (early === null && document.querySelector('[role="listbox"] [role="option"]')) {
-        early = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
-        contentEditor().view.dom.dispatchEvent(early);
+      if (seen.early === null && document.querySelector('[role="listbox"] [role="option"]')) {
+        seen.early = new KeyboardEvent('keydown', {
+          key: 'ArrowDown',
+          bubbles: true,
+          cancelable: true,
+        });
+        contentEditor().view.dom.dispatchEvent(seen.early);
       }
     });
     watcher.observe(document.body, { childList: true, subtree: true });
     try {
       writeAfterLinks('[[');
       await screen.findByRole('listbox', { name: 'Notas para enlazar' });
-      await waitFor(() => expect(early).not.toBeNull());
+      await waitFor(() => expect(seen.early).not.toBeNull());
     } finally {
       watcher.disconnect();
     }
-    expect(early?.defaultPrevented).toBe(true);
+    expect(seen.early?.defaultPrevented).toBe(true);
     await waitFor(() =>
       expect(screen.getAllByRole('option')[1]?.getAttribute('aria-selected')).toBe('true'),
     );
