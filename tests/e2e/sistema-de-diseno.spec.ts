@@ -369,11 +369,13 @@ test('el movimiento dura 120 milisegundos y «reducir movimiento» lo quita', as
     .first();
   await button.scrollIntoViewIfNeeded();
 
+  // El movimiento se declara en `:hover`: la duración se lee con una comprobación que espera a que
+  // la ventana marque el botón como «con el puntero encima» (en una máquina cargada ese estado
+  // tarda un instante después de mover el puntero o de cambiar «reducir movimiento»; el CI lo leyó
+  // antes de tiempo y dio «0s», el valor sin puntero). Los valores exigidos son los mismos.
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   await button.hover();
-  expect(await button.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
-    '0.12s, 0.12s',
-  );
+  await expect(button).toHaveCSS('transition-duration', '0.12s, 0.12s');
   expect(
     await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--movimiento-normal').trim(),
@@ -382,7 +384,5 @@ test('el movimiento dura 120 milisegundos y «reducir movimiento» lo quita', as
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await button.hover();
-  expect(await button.evaluate((element) => getComputedStyle(element).transitionDuration)).toBe(
-    '0s, 0s',
-  );
+  await expect(button).toHaveCSS('transition-duration', '0s, 0s');
 });
