@@ -52,7 +52,10 @@ async function shoot(page, screen) {
     ['light', 'claro'],
     ['dark', 'oscuro'],
   ]) {
-    await page.emulateMedia({ colorScheme: /** @type {'light' | 'dark'} */ (theme) });
+    await page.emulateMedia({
+      colorScheme: /** @type {'light' | 'dark'} */ (theme),
+      reducedMotion: 'reduce',
+    });
     await page.screenshot({ path: join(out, `${name}-${screen}-${label}.png`) });
   }
 }
@@ -355,27 +358,43 @@ async function phase08(page) {
   await editor.click();
   await page.keyboard.type('Pendiente >> Cuánto cambia y por cada unidad de x');
   await page.keyboard.press('Enter');
+  await page.keyboard.type('El agua hierve a 100 °C al nivel del mar');
+  // Los huecos se eligen por el editor: el cursor que mueve el teclado llega un instante después.
+  /** @param {number} start @param {number} length */
+  const choose = (start, length) =>
+    page.evaluate(
+      ({ from, size }) => {
+        const dom = /** @type {any} */ (document.querySelector('.ProseMirror'));
+        const origin = dom.editor.state.selection.$from.start();
+        dom.editor.commands.setTextSelection({ from: origin + from, to: origin + from + size });
+      },
+      { from: start, size: length },
+    );
+  await choose('El agua hierve a '.length, '100 °C'.length);
+  await page.keyboard.press('Control+Shift+C');
+  await page.waitForFunction(() => document.querySelectorAll('mark[data-cloze]').length === 1);
+  await page.keyboard.press('End');
+  await page.waitForFunction(
+    () => /** @type {any} */ (document.querySelector('.ProseMirror')).editor.state.selection.empty,
+  );
+  await page.keyboard.press('Enter');
   const line = 'La media de 2, 4 y 6 es 4 y la mediana es 4.';
   await page.keyboard.type(line);
-  for (const back of [1, line.length - (line.indexOf('es 4 y') + 4)]) {
-    await page.keyboard.press('End');
-    for (let index = 0; index < back; index += 1) {
-      await page.keyboard.press('ArrowLeft');
-    }
-    await page.keyboard.press('Shift+ArrowLeft');
-    await page.keyboard.press('Control+Shift+C');
-  }
-  await page.keyboard.press('Enter');
+  await choose(line.indexOf('es 4 y') + 3, 1);
+  await page.keyboard.press('Control+Shift+C');
+  await choose(line.length - 2, 1);
+  await page.keyboard.press('Control+Shift+C');
+  await page.waitForFunction(() => document.querySelectorAll('mark[data-cloze]').length === 3);
   await saved.waitFor();
   await shoot(page, '1-editor-tarjetas');
 
   await page.getByRole('button', { name: 'Volver a las notas' }).click();
   await goTo(page, 'Tarjetas');
-  await page.getByText('182 tarjetas').waitFor();
+  await page.getByText('184 tarjetas').waitFor();
   await shoot(page, '2-lista');
 
   await page.getByLabel('Tema').selectOption({ label: 'Intervalos de confianza' });
-  await page.getByText('61 de 182 tarjetas').waitFor();
+  await page.getByText('61 de 184 tarjetas').waitFor();
   await shoot(page, '3-lista-filtrada');
   await page.getByLabel('Tema').selectOption({ label: 'Todos los temas' });
 
@@ -411,7 +430,9 @@ async function phase08(page) {
   }
   await media.click();
   await page.getByRole('button', { name: 'Editar ficha' }).click();
-  await page.getByRole('textbox', { name: 'Respuesta' }).fill('Otra respuesta, de fondo distinta.');
+  await page
+    .getByRole('textbox', { name: 'Respuesta', exact: true })
+    .fill('Otra respuesta, de fondo distinta.');
   await page.getByRole('button', { name: 'Guardar' }).click();
   await page.getByRole('dialog', { name: '¿Cambió lo que hay que recordar?' }).waitFor();
   await shoot(page, '8-pregunta-cambio');
@@ -432,12 +453,11 @@ async function phase08(page) {
     .first()
     .click();
   await page.getByRole('button', { name: 'Intervalos de confianza', exact: true }).first().click();
-  await page
-    .getByRole('listitem')
-    .filter({ hasText: 'Intervalo de confianza >> Rango de valores plausibles' })
-    .click();
-  await page.keyboard.press('End');
-  await page.keyboard.press('Shift+Home');
+  // Tres clics seguidos eligen el renglón entero; vaciarlo y un Retroceso más lo borran.
+  await editor
+    .locator('p', { hasText: 'Intervalo de confianza >> Rango de valores plausibles' })
+    .first()
+    .click({ clickCount: 3 });
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Backspace');
   await page
