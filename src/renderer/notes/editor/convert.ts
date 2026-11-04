@@ -13,6 +13,8 @@ export interface DocJson {
   attrs?: Record<string, unknown>;
   content?: DocJson[];
   text?: string;
+  // Las marcas del texto: acá, solo la de los huecos de las tarjetas de completar.
+  marks?: { type: string; attrs?: Record<string, unknown> }[];
 }
 
 function inlineToJson(node: InlineNode): DocJson {
@@ -26,6 +28,8 @@ function inlineToJson(node: InlineNode): DocJson {
         type: 'image',
         attrs: { sha: node.sha, width: node.width, height: node.height, alt: node.alt },
       };
+    case 'cloze':
+      return { type: 'text', text: node.text, marks: [{ type: 'cloze', attrs: { id: node.id } }] };
   }
 }
 
@@ -74,7 +78,17 @@ export function blocksToDoc(blocks: readonly Block[]): DocJson {
 function inlineFromJson(content: readonly DocJson[] | undefined): InlineNode[] {
   const nodes: InlineNode[] = [];
   for (const node of content ?? []) {
-    if (node.type === 'text' && node.text) {
+    const hole = node.marks?.find((mark) => mark.type === 'cloze');
+    if (node.type === 'text' && node.text && hole) {
+      const id =
+        typeof hole.attrs?.id === 'string' && hole.attrs.id !== '' ? hole.attrs.id : newBlockId();
+      const last = nodes.at(-1);
+      if (last?.type === 'cloze' && last.id === id) {
+        nodes[nodes.length - 1] = { type: 'cloze', id, text: last.text + node.text };
+      } else {
+        nodes.push({ type: 'cloze', id, text: node.text });
+      }
+    } else if (node.type === 'text' && node.text) {
       const last = nodes.at(-1);
       if (last?.type === 'text') {
         nodes[nodes.length - 1] = { type: 'text', text: last.text + node.text };

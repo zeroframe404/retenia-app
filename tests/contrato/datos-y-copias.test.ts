@@ -36,7 +36,12 @@ describe('contrato: editar, eliminar e historial', () => {
     const card = await api['cards.create']({ question: 'P', answer: 'R' });
     await api['cards.review']({ cardId: card.id, grade: 'good', attemptId: ATTEMPT });
     expect(
-      await api['cards.edit']({ cardId: card.id, question: ' P2 ', answer: 'R' }),
+      await api['cards.edit']({
+        cardId: card.id,
+        question: ' P2 ',
+        answer: 'R',
+        meaningChanged: false,
+      }),
     ).toMatchObject({
       id: card.id,
       question: 'P2',

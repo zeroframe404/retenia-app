@@ -41,7 +41,11 @@ const PAYLOADS = {
     grade: z.enum(['again', 'hard', 'good']),
     helpLevel: z.literal('A0'),
     dueAtThen: z.iso.datetime(),
+    // La versión de la tarjeta que se evaluó (Fase 08). Los repasos de antes no la traen.
+    versionId: z.uuid().optional(),
   }),
+  // Cambió lo que hay que recordar (Fase 08): la tarjeta vuelve a programarse como nueva.
+  'card.meaning_changed': z.strictObject({ cardId: z.uuid(), versionId: z.uuid() }),
   // La agenda que traía una tarjeta de la Fase 03, repasada antes de que existiera el libro.
   'schedule.adopted': z.strictObject({ cardId: z.uuid(), memory: memorySnapshot }),
 };

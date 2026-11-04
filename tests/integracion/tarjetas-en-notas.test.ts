@@ -313,7 +313,7 @@ describe('[CA-054] versiones y «¿Cambió lo que hay que recordar?»', () => {
     const { workspace, card, file } = withHistory();
     expect(() =>
       workspace.cards.edit({ cardId: card.id, question: card.question, answer: 'Otra' }),
-    ).toThrow(/qué hay que recordar/i);
+    ).toThrow(/hay que recordar/i);
     expect(readRows(file, 'SELECT id FROM card_versions WHERE card_id = ?', card.id)).toHaveLength(
       1,
     );

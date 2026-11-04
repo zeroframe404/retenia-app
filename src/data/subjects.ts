@@ -9,6 +9,7 @@ import {
 } from '../core/organization';
 import type { Subject, SubjectStatus } from '../preload/contract/organization';
 import { texts } from '../preload/contract/texts';
+import { adoptUnassignedCards } from './adoption';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import { appendOperation, type EventSource } from './ledger';
@@ -148,6 +149,8 @@ export function createSubjectsStore(db: ReteniaDatabase, clock: Clock): Subjects
         if (activate) {
           makeActive(tx, id);
         }
+        // Las tarjetas de antes de que hubiera materias esperan a la primera.
+        adoptUnassignedCards(tx);
         const created = listSubjects(tx).find((subject) => subject.id === id);
         if (!created) {
           throw new SubjectNotFoundError();

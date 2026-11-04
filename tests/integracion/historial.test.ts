@@ -61,7 +61,7 @@ describe('historial de una tarjeta', () => {
     const store = createCardsStore(db, demoClock());
     const card = store.create({ question: 'Antes', answer: 'R' });
     store.review({ cardId: card.id, grade: 'again', attemptId: randomUUID() });
-    store.edit({ cardId: card.id, question: 'Después', answer: 'R' });
+    store.edit({ cardId: card.id, question: 'Después', answer: 'R', meaningChanged: false });
     const history = store.history({ cardId: card.id });
     db.close();
     expect(history.question).toBe('Después');

@@ -135,6 +135,14 @@ export type MemoryEvent =
       readonly id: string;
       readonly seq: number;
       readonly memory: CardMemory;
+    }
+  // Cambió lo que hay que recordar (Fase 08): la tarjeta se programa como nueva desde ese momento;
+  // el historial anterior queda.
+  | {
+      readonly kind: 'reset';
+      readonly id: string;
+      readonly seq: number;
+      readonly occurredAt: Date;
     };
 
 export interface MemoryConfig {
@@ -161,10 +169,13 @@ export function projectCardMemory(
   }
   let memory = newCardMemory(createdAt);
   for (const event of inCanonicalOrder(events)) {
-    memory =
-      event.kind === 'adopted'
-        ? event.memory
-        : reviewCard(memory, event.grade, event.occurredAt, config.retention);
+    if (event.kind === 'adopted') {
+      memory = event.memory;
+    } else if (event.kind === 'reset') {
+      memory = newCardMemory(event.occurredAt);
+    } else {
+      memory = reviewCard(memory, event.grade, event.occurredAt, config.retention);
+    }
   }
   return memory;
 }

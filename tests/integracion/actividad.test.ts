@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { demoClock } from '../../src/core/clock';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
-import { seedDemoCards } from '../../src/main/demo/seed';
+import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { tempDataFolder } from '../apoyo/base';
 import { eventsById, readRows } from '../apoyo/base-cruda';
 
@@ -196,7 +196,8 @@ describe('deshacer altas y borrados', () => {
 describe('actividad reciente', () => {
   it('muestra tus cambios, el más nuevo arriba, sin las tarjetas del ejemplo', () => {
     const target = workspace();
-    expect(seedDemoCards(target.cards)).toBe(3);
+    seedDemoOrganization(target);
+    expect(seedDemoCardCast(target)).toBe(192);
     expect(target.activity.recent()).toEqual([]);
     const card = target.cards.create({ question: 'Una mía', answer: 'R' });
     target.cards.remove({ cardId: card.id });

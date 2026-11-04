@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { Clock } from '../../core/clock';
 import { openWorkspace, type Workspace } from '../../data/workspace';
-import { seedDemoCards, seedDemoOrganization } from './seed';
+import { seedDemoCardCast, seedDemoOrganization } from './seed';
 
 // Los datos de «Retenia (prueba)» (Ajustes › «Demostración»): el elenco de ejemplo o una base
 // vacía, como la primera vez que se abre Retenia. La primera vez vive en una segunda carpeta de
@@ -56,11 +56,12 @@ export function createDemoWorkspace({
     if (target === 'first-time') {
       return openWorkspace({ dataDir: join(dataDir, 'primera-vez'), clock, appVersion });
     }
-    // El elenco: primero las tarjetas y después las materias; cada siembra se hace una sola vez.
+    // El elenco: primero las materias y sus notas y después las tarjetas; cada siembra se hace una
+    // sola vez.
     const opened = openWorkspace({ dataDir, clock, appVersion });
     try {
-      seedDemoCards(opened.cards);
       seedDemoOrganization(opened);
+      seedDemoCardCast(opened);
     } catch (error) {
       opened.close();
       throw error;

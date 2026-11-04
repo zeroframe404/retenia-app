@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Workspace } from '../../src/data/workspace';
-import { seedDemoCards, seedDemoOrganization } from '../../src/main/demo/seed';
+import { seedDemoOrganization } from '../../src/main/demo/seed';
 import { texts } from '../../src/preload/contract/texts';
 import { ROOT } from '../../tools/lib/proceso.mjs';
 import { readRows } from '../apoyo/base-cruda';
@@ -15,7 +15,6 @@ afterEach(closeSpaces);
 
 function seeded() {
   const space = openSpace();
-  seedDemoCards(space.workspace.cards);
   const count = seedDemoOrganization(space.workspace);
   return { ...space, count };
 }
@@ -102,7 +101,7 @@ describe('siembra del elenco: materias y temas', () => {
     );
   });
 
-  it('la Bandeja empieza vacía y las tres tarjetas de la Fase 03 siguen ahí', () => {
+  it('la Bandeja empieza vacía y las únicas tarjetas son las tres que nacieron en la nota «Intervalos de confianza»', () => {
     const { workspace } = seeded();
     expect(workspace.inbox.list()).toEqual({ items: [], count: 0 });
     expect(workspace.cards.count()).toBe(3);
@@ -129,6 +128,11 @@ describe('siembra del elenco: las notas', () => {
       ],
       [0, ''],
       [0, 'Ver también Media y desvío'],
+      [
+        0,
+        'Intervalo de confianza >> Rango de valores plausibles para un parámetro, calculado a partir de una muestra.',
+      ],
+      [0, 'Con un nivel de confianza del 95 %, el valor crítico z es 1,96.'],
     ]);
     // El renglón hijo cuelga del «Error estándar».
     expect(note.blocks[2]?.parentId).toBe(note.blocks[1]?.id);

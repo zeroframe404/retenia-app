@@ -75,7 +75,7 @@ describe('«>>» dentro de un renglón: pregunta y respuesta', () => {
 describe('«{{…}}»: huecos', () => {
   it('[CA-049] reconoce un hueco con su texto y su lugar', () => {
     const found = findHoles('El agua hierve a {{100 °C}} al nivel del mar');
-    expect(found).toEqual([{ start: 17, end: 28, inner: '100 °C' }]);
+    expect(found).toEqual([{ start: 17, end: 27, inner: '100 °C' }]);
   });
 
   it('un hueco al inicio del renglón se reconoce', () => {

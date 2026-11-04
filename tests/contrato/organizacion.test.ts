@@ -162,7 +162,7 @@ describe('pedidos válidos: cada canal responde con lo que dice su esquema', () 
           { id: childId, parentId: note.blocks[0]?.id ?? '', collapsed: false, content: [] },
         ],
       }),
-    ).toEqual({});
+    ).toEqual({ lostCards: [], editedCards: [] });
     const opened = await api['notes.get']({ noteId: note.id });
     expect(opened.blocks).toHaveLength(2);
     expect((await api['notes.list']({ subjectId: subject.id })).notes).toHaveLength(2);

@@ -180,7 +180,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
     const card = named(workspace, 'Estadística básica', '¿Qué es la media muestral?');
     expect(card.topicName).toBe('Media y dispersión');
     expect(card.nextReviewDay).not.toBeNull();
-    expect(card.nextReviewDay ?? '').toBeGreaterThan(TODAY);
+    expect((card.nextReviewDay ?? '') > TODAY).toBe(true);
     const entries = workspace.cards.history({ cardId: card.id }).entries;
     expect(entries.map((entry) => entry.result)).toEqual(['good', 'good', 'good']);
     expect(new Set(entries.map((entry) => entry.day)).size).toBe(3);
@@ -207,7 +207,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
     const { workspace } = seeded();
     const card = named(workspace, 'Estadística básica', '¿Qué es la varianza?');
     expect(card.answer).toBe('El promedio de los cuadrados de las distancias a la media.');
-    expect(card.nextReviewDay ?? '').toBeGreaterThan(TODAY);
+    expect((card.nextReviewDay ?? '') > TODAY).toBe(true);
   });
 
   it('once programadas llevan entre 27 y 33 días sin verse', () => {
@@ -283,6 +283,21 @@ describe('elenco de tarjetas: el historial es de la demostración', () => {
     expect(again.cards.count()).toBe(192);
     expect(seedDemoCardCast(again)).toBe(0);
     expect(again.cards.count()).toBe(192);
+  });
+
+  it('no siembra encima de lo que escribiste vos, ni lo toca', () => {
+    const space = openSpace();
+    seedDemoOrganization(space.workspace);
+    const subject = subjectNamed(space.workspace, 'Estadística básica');
+    space.workspace.cards.create({
+      question: '¿Capital de Francia?',
+      answer: 'París',
+      subjectId: subject.id,
+    });
+    expect(seedDemoCardCast(space.workspace)).toBe(0);
+    expect(cardsOf(space.workspace, 'Estadística básica').map((c) => c.question)).toContain(
+      '¿Capital de Francia?',
+    );
   });
 
   it('el día de estudio de hoy es el lunes 15/03/2027', () => {

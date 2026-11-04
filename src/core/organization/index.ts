@@ -72,13 +72,15 @@ export type InlineContent = readonly (
       readonly height: number;
       readonly alt: string;
     }
+  // Un hueco de una tarjeta de completar (Fase 08): lleva su propio identificador.
+  | { readonly type: 'cloze'; readonly id: string; readonly text: string }
 )[];
 
 // Los textos juntos; un enlace aporta su nombre y una imagen no aporta nada.
 export function textPlainOf(content: InlineContent): string {
   let text = '';
   for (const node of content) {
-    if (node.type === 'text') {
+    if (node.type === 'text' || node.type === 'cloze') {
       text += node.text;
     } else if (node.type === 'mention') {
       text += node.label;

@@ -1,0 +1,963 @@
+{
+  "subjects": [
+    {
+      "name": "Estadística básica",
+      "topics": [
+        {
+          "name": "Media y dispersión",
+          "cards": [
+            {
+              "q": "¿Qué mide el desvío estándar?",
+              "p": "desvio",
+              "a": "Cuánto se alejan, en promedio, los datos de la media."
+            },
+            {
+              "q": "La mediana deja el {{50 %}} de los datos por debajo.",
+              "p": "d"
+            },
+            {
+              "q": "¿Qué es la media muestral?",
+              "p": "consolidada",
+              "a": "La suma de los valores observados dividida por la cantidad de observaciones de la muestra."
+            },
+            {
+              "q": "¿Qué es la varianza?",
+              "p": "varianza",
+              "a": "El promedio de los cuadrados de las distancias a la media."
+            },
+            {
+              "q": "¿Qué es la mediana?",
+              "p": "s",
+              "a": "El valor central de los datos ordenados; si la cantidad es par, el promedio de los dos centrales."
+            },
+            {
+              "q": "¿Qué es la moda?",
+              "p": "s",
+              "a": "El valor que más se repite en un conjunto de datos."
+            },
+            {
+              "q": "¿Puede haber más de una moda?",
+              "p": "s",
+              "a": "Sí: si dos o más valores empatan en la mayor frecuencia, el conjunto es bimodal o multimodal."
+            },
+            {
+              "q": "¿Qué es el rango de un conjunto de datos?",
+              "p": "s",
+              "a": "La diferencia entre el valor máximo y el mínimo."
+            },
+            {
+              "q": "¿Qué mide el rango intercuartil (RIC)?",
+              "p": "s",
+              "a": "La dispersión del 50 % central de los datos: la diferencia entre el tercer y el primer cuartil."
+            },
+            {
+              "q": "¿Qué es el primer cuartil (Q1)?",
+              "p": "s",
+              "a": "El valor que deja por debajo al 25 % de los datos ordenados."
+            },
+            {
+              "q": "¿Qué es el tercer cuartil (Q3)?",
+              "p": "s",
+              "a": "El valor que deja por debajo al 75 % de los datos ordenados."
+            },
+            {
+              "q": "El segundo cuartil (Q2) coincide con la {{mediana}}.",
+              "p": "s"
+            },
+            {
+              "q": "¿Qué es un percentil?",
+              "p": "s",
+              "a": "El valor por debajo del cual cae un porcentaje dado de los datos; el percentil 90 deja el 90 % por debajo."
+            },
+            {
+              "q": "¿Qué es un valor atípico (outlier)?",
+              "p": "s",
+              "a": "Un dato muy alejado del resto, que puede deberse a un error de medición o a un caso realmente extremo."
+            },
+            {
+              "q": "¿Qué regla usa el diagrama de caja para marcar valores atípicos?",
+              "p": "s",
+              "a": "Los datos que quedan más allá de 1,5 veces el rango intercuartil por debajo de Q1 o por encima de Q3."
+            },
+            {
+              "q": "¿Qué medida de posición resiste mejor a los valores atípicos, la media o la mediana?",
+              "p": "s",
+              "a": "La mediana, porque no depende de los valores extremos sino de su orden."
+            },
+            {
+              "q": "Si se suma una constante a todos los datos, el desvío estándar {{no cambia}}.",
+              "p": "d"
+            },
+            {
+              "q": "Si se multiplican todos los datos por una constante k > 0, el desvío estándar queda multiplicado por {{k}}.",
+              "p": "s"
+            },
+            {
+              "q": "¿Cuánto vale la suma de las desviaciones de los datos respecto de su media?",
+              "p": "d",
+              "a": "Cero."
+            },
+            {
+              "q": "¿Por qué se elevan al cuadrado las desviaciones al calcular la varianza?",
+              "p": "s",
+              "a": "Para que las desviaciones positivas y negativas no se cancelen entre sí."
+            },
+            {
+              "q": "¿Por qué el desvío estándar se expresa en las mismas unidades que los datos y la varianza no?",
+              "p": "d",
+              "a": "Porque la varianza usa los cuadrados de las distancias; la raíz cuadrada devuelve la escala original."
+            },
+            {
+              "q": "¿Con qué denominador se calcula la varianza muestral?",
+              "p": "s",
+              "a": "Con n − 1, donde n es el tamaño de la muestra."
+            },
+            {
+              "q": "¿Por qué se divide por n − 1 en la varianza muestral?",
+              "p": "d",
+              "a": "Para que sea un estimador insesgado de la varianza de la población: dividir por n la subestimaría en promedio."
+            },
+            {
+              "q": "¿Qué es la corrección de Bessel?",
+              "p": "s",
+              "a": "Dividir por n − 1 en lugar de n al estimar la varianza poblacional a partir de una muestra."
+            },
+            {
+              "q": "¿Cuál es el desvío estándar de un conjunto de datos todos iguales?",
+              "p": "d",
+              "a": "Cero, porque no hay dispersión."
+            },
+            {
+              "q": "¿Puede ser negativa la varianza?",
+              "p": "s",
+              "a": "No: es un promedio de cuadrados, así que siempre es mayor o igual que cero."
+            },
+            {
+              "q": "¿Puede ser negativo el desvío estándar?",
+              "p": "d",
+              "a": "No: se define como la raíz cuadrada no negativa de la varianza."
+            },
+            {
+              "q": "¿Qué es el coeficiente de variación?",
+              "p": "s",
+              "a": "El cociente entre el desvío estándar y la media, que suele expresarse en porcentaje."
+            },
+            {
+              "q": "¿Cuándo conviene usar el coeficiente de variación?",
+              "p": "d",
+              "a": "Cuando se quiere comparar la dispersión de variables con unidades o escalas distintas, y la media es positiva."
+            },
+            {
+              "q": "¿Qué es una puntuación z (valor estandarizado)?",
+              "p": "s",
+              "a": "La cantidad de desvíos estándar que un dato está por encima o por debajo de la media: z = (x − media) / desvío."
+            },
+            {
+              "q": "¿Cuál es la media de un conjunto de puntuaciones z?",
+              "p": "d",
+              "a": "Cero (y su desvío estándar es 1)."
+            },
+            {
+              "q": "¿Qué indica una asimetría positiva?",
+              "p": "s",
+              "a": "Una cola más larga hacia la derecha; en general la media queda por encima de la mediana."
+            },
+            {
+              "q": "En una distribución asimétrica a la derecha, la media suele ser {{mayor}} que la mediana.",
+              "p": "d"
+            },
+            {
+              "q": "En una distribución simétrica y unimodal, la media, la mediana y la moda {{coinciden}}.",
+              "p": "s"
+            },
+            {
+              "q": "¿Qué muestra un histograma?",
+              "p": "d",
+              "a": "La distribución de frecuencias de una variable cuantitativa agrupada en intervalos."
+            },
+            {
+              "q": "¿Qué diferencia hay entre un histograma y un gráfico de barras?",
+              "p": "n",
+              "a": "El histograma representa variables cuantitativas con barras pegadas; el de barras representa categorías, con barras separadas."
+            },
+            {
+              "q": "¿Qué es una variable cualitativa nominal?",
+              "p": "s",
+              "a": "Una variable cuyas categorías no tienen orden natural, como el color de ojos."
+            },
+            {
+              "q": "¿Qué es una variable cualitativa ordinal?",
+              "p": "d",
+              "a": "Una variable cuyas categorías tienen un orden, como el nivel educativo, pero sin distancias medibles entre ellas."
+            },
+            {
+              "q": "¿Qué diferencia hay entre una variable discreta y una continua?",
+              "p": "n",
+              "a": "La discreta toma valores aislados, generalmente contables; la continua puede tomar cualquier valor dentro de un intervalo."
+            },
+            {
+              "q": "¿Qué es la frecuencia relativa?",
+              "p": "s",
+              "a": "La frecuencia absoluta de un valor dividida por el total de observaciones."
+            },
+            {
+              "q": "¿Cuánto suman todas las frecuencias relativas de una tabla?",
+              "p": "d",
+              "a": "1 (o 100 % si se expresan en porcentajes)."
+            },
+            {
+              "q": "¿Qué es la frecuencia acumulada?",
+              "p": "n",
+              "a": "La suma de la frecuencia de un valor y las de todos los anteriores en el orden de la variable."
+            },
+            {
+              "q": "¿Qué es una población en estadística?",
+              "p": "s",
+              "a": "El conjunto completo de individuos o elementos sobre el que se quiere concluir algo."
+            },
+            {
+              "q": "¿Qué es una muestra?",
+              "p": "d",
+              "a": "Un subconjunto de la población que se observa para estimar características de toda la población."
+            },
+            {
+              "q": "¿Qué es un parámetro?",
+              "p": "n",
+              "a": "Una característica numérica de la población, como la media poblacional; suele ser desconocida."
+            },
+            {
+              "q": "¿Qué es un estadístico?",
+              "p": "s",
+              "a": "Una cantidad calculada a partir de los datos de una muestra, como la media muestral."
+            },
+            {
+              "q": "¿Qué símbolo se usa habitualmente para la media poblacional?",
+              "p": "d",
+              "a": "La letra griega μ (mu)."
+            },
+            {
+              "q": "¿Qué símbolo se usa habitualmente para la media muestral?",
+              "p": "n",
+              "a": "x̄ (equis con barra)."
+            },
+            {
+              "q": "¿Qué símbolo se usa habitualmente para el desvío estándar poblacional?",
+              "p": "s",
+              "a": "La letra griega σ (sigma)."
+            },
+            {
+              "q": "¿Qué es una media ponderada?",
+              "p": "d",
+              "a": "Una media en la que cada dato tiene un peso distinto: la suma de cada valor por su peso, dividida por la suma de los pesos."
+            },
+            {
+              "q": "Cuando todos los pesos son iguales, la media ponderada coincide con la {{media aritmética}}.",
+              "p": "n"
+            },
+            {
+              "q": "¿Cuál es la media de 2, 4 y 9?",
+              "p": "s",
+              "a": "5, porque (2 + 4 + 9) / 3 = 5."
+            },
+            {
+              "q": "¿Cuál es la mediana de 3, 7, 1, 9 y 5?",
+              "p": "d",
+              "a": "5: ordenados quedan 1, 3, 5, 7, 9 y el valor central es 5."
+            },
+            {
+              "q": "¿Cuál es la mediana de 2, 4, 6 y 10?",
+              "p": "n",
+              "a": "5, el promedio de los dos valores centrales (4 y 6)."
+            },
+            {
+              "q": "¿Cuál es el rango de 12, 5, 9 y 20?",
+              "p": "s",
+              "a": "15, porque 20 − 5 = 15."
+            },
+            {
+              "q": "¿Cuál es la varianza poblacional de 2, 4 y 6?",
+              "p": "d",
+              "a": "Aproximadamente 2,67: la media es 4, los cuadrados de las desviaciones son 4, 0 y 4, y 8 / 3 ≈ 2,67."
+            },
+            {
+              "q": "¿Cuál es la varianza muestral de 2, 4 y 6?",
+              "p": "n",
+              "a": "4: la suma de cuadrados es 8 y se divide por n − 1 = 2."
+            },
+            {
+              "q": "¿Cuál es el desvío estándar muestral de 2, 4 y 6?",
+              "p": "s",
+              "a": "2, la raíz cuadrada de la varianza muestral (4)."
+            },
+            {
+              "q": "¿Qué pasa con la media si se agrega un valor atípico muy grande?",
+              "p": "d",
+              "a": "Aumenta mucho, porque la media usa todos los valores."
+            },
+            {
+              "q": "¿Qué mide la curtosis?",
+              "p": "n",
+              "a": "Qué tan pesadas son las colas de una distribución respecto de una normal, es decir, la propensión a valores extremos."
+            },
+            {
+              "q": "¿Qué es la regla empírica (68-95-99,7)?",
+              "p": "s",
+              "a": "En una distribución normal, cerca del 68 %, 95 % y 99,7 % de los datos caen a menos de 1, 2 y 3 desvíos estándar de la media."
+            },
+            {
+              "q": "En una distribución normal, alrededor del {{95 %}} de los datos cae a menos de 2 desvíos estándar de la media.",
+              "p": "d"
+            },
+            {
+              "q": "¿Qué es un diagrama de caja (boxplot)?",
+              "p": "n",
+              "a": "Un gráfico que resume la mediana, los cuartiles y los valores atípicos de un conjunto de datos."
+            },
+            {
+              "q": "¿Qué indica la línea dentro de la caja de un diagrama de caja?",
+              "p": "s",
+              "a": "La mediana."
+            },
+            {
+              "q": "¿Cuál es la moda de 3, 4, 4, 5, 5, 5, 6?",
+              "p": "d",
+              "a": "5, que aparece tres veces."
+            },
+            {
+              "q": "¿Por qué la media no describe bien el ingreso típico si unos pocos ingresos son altísimos?",
+              "p": "n",
+              "a": "Porque los ingresos extremos la arrastran hacia arriba; la mediana describe mejor lo típico."
+            }
+          ]
+        },
+        {
+          "name": "Intervalos de confianza",
+          "cards": [
+            {
+              "q": "¿Qué significa el 95 % en un intervalo de confianza del 95 %?",
+              "p": "fallos",
+              "a": "Que, si repitiéramos el muestreo muchas veces, cerca del 95 % de los intervalos construidos así contendría el valor verdadero del parámetro."
+            },
+            {
+              "q": "¿Qué es un intervalo de confianza?",
+              "p": "s",
+              "a": "Un rango de valores, calculado a partir de una muestra, que con un nivel de confianza dado se espera que contenga el parámetro poblacional."
+            },
+            {
+              "q": "¿Qué es un estimador puntual?",
+              "p": "s",
+              "a": "Un único valor calculado de la muestra que se usa como estimación de un parámetro, como x̄ para μ."
+            },
+            {
+              "q": "¿Qué es el error estándar de la media?",
+              "p": "s",
+              "a": "El desvío estándar de la distribución de las medias muestrales: σ/√n, o s/√n si σ se estima."
+            },
+            {
+              "q": "¿Cómo cambia el error estándar de la media al cuadruplicar el tamaño de la muestra?",
+              "p": "s",
+              "a": "Se reduce a la mitad, porque depende de 1/√n."
+            },
+            {
+              "q": "¿Qué dice el teorema central del límite?",
+              "p": "s",
+              "a": "Que la distribución de la media muestral se aproxima a una normal cuando la muestra es grande, sea cual sea la distribución original (con varianza finita)."
+            },
+            {
+              "q": "¿Para qué sirve el teorema central del límite al construir intervalos?",
+              "p": "s",
+              "a": "Permite usar la distribución normal (o t) para la media aun cuando los datos no sean normales, si la muestra es suficientemente grande."
+            },
+            {
+              "q": "¿Cuál es la fórmula del intervalo de confianza para la media con σ conocido?",
+              "p": "s",
+              "a": "x̄ ± z · σ/√n, donde z es el valor crítico de la normal para el nivel elegido."
+            },
+            {
+              "q": "¿Cuál es la fórmula del intervalo de confianza para la media con σ desconocido?",
+              "p": "s",
+              "a": "x̄ ± t · s/√n, con t de Student con n − 1 grados de libertad."
+            },
+            {
+              "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 95 %?",
+              "p": "d",
+              "a": "1,96."
+            },
+            {
+              "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 90 %?",
+              "p": "s",
+              "a": "1,645."
+            },
+            {
+              "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 99 %?",
+              "p": "d",
+              "a": "Aproximadamente 2,576."
+            },
+            {
+              "q": "¿Qué es el margen de error de un intervalo de confianza?",
+              "p": "s",
+              "a": "La mitad del ancho del intervalo: el valor crítico por el error estándar."
+            },
+            {
+              "q": "Un intervalo de confianza es x̄ ± margen de error; su centro es la {{media muestral}}.",
+              "p": "d"
+            },
+            {
+              "q": "Si se aumenta el nivel de confianza manteniendo la muestra, el intervalo se vuelve {{más ancho}}.",
+              "p": "s"
+            },
+            {
+              "q": "Si aumenta el tamaño de la muestra manteniendo el nivel de confianza, el intervalo se vuelve {{más angosto}}.",
+              "p": "d"
+            },
+            {
+              "q": "¿Cuándo se usa la distribución t de Student en lugar de la normal?",
+              "p": "s",
+              "a": "Cuando se estima la media con el desvío estándar muestral en lugar del poblacional, sobre todo con muestras chicas."
+            },
+            {
+              "q": "¿Cómo se comporta la distribución t cuando aumentan los grados de libertad?",
+              "p": "d",
+              "a": "Se acerca cada vez más a la normal estándar."
+            },
+            {
+              "q": "¿Cuántos grados de libertad tiene la t para el intervalo de una media?",
+              "p": "s",
+              "a": "n − 1."
+            },
+            {
+              "q": "¿Qué forma tiene la distribución t comparada con la normal estándar?",
+              "p": "d",
+              "a": "Es simétrica y con forma de campana, pero con colas más pesadas."
+            },
+            {
+              "q": "¿Qué supuesto hace falta para usar la t con una muestra chica?",
+              "p": "s",
+              "a": "Que los datos provengan de una población aproximadamente normal."
+            },
+            {
+              "q": "¿Es correcto decir que hay un 95 % de probabilidad de que la media poblacional esté dentro de un intervalo ya calculado?",
+              "p": "d",
+              "a": "No en la interpretación frecuentista: el parámetro es fijo; el 95 % se refiere al procedimiento, no a un intervalo en particular."
+            },
+            {
+              "q": "¿Qué es un intervalo de confianza para una proporción?",
+              "p": "s",
+              "a": "Un rango para la proporción poblacional: p̂ ± z · √(p̂(1 − p̂)/n)."
+            },
+            {
+              "q": "¿Qué es p̂?",
+              "p": "d",
+              "a": "La proporción muestral: la fracción de la muestra que tiene la característica de interés."
+            },
+            {
+              "q": "¿Cuál es el error estándar de una proporción muestral?",
+              "p": "s",
+              "a": "√(p̂(1 − p̂)/n)."
+            },
+            {
+              "q": "¿Qué valor de p̂ maximiza el producto p̂(1 − p̂)?",
+              "p": "d",
+              "a": "0,5, que da el caso más conservador para calcular el tamaño de muestra."
+            },
+            {
+              "q": "¿Cómo se calcula el tamaño de muestra para estimar una media con un margen de error E?",
+              "p": "s",
+              "a": "n = (z · σ / E)², redondeando hacia arriba."
+            },
+            {
+              "q": "¿Cómo se calcula el tamaño de muestra para una proporción con margen de error E y p desconocida?",
+              "p": "d",
+              "a": "n = z² · 0,25 / E², usando p = 0,5, y se redondea hacia arriba."
+            },
+            {
+              "q": "¿Qué pasa con el tamaño de muestra necesario si se quiere reducir a la mitad el margen de error?",
+              "p": "s",
+              "a": "Se cuadruplica, porque n es inversamente proporcional a E²."
+            },
+            {
+              "q": "¿Qué es un estimador insesgado?",
+              "p": "d",
+              "a": "Uno cuyo valor esperado coincide con el parámetro que estima."
+            },
+            {
+              "q": "¿Es x̄ un estimador insesgado de μ?",
+              "p": "n",
+              "a": "Sí: el valor esperado de la media muestral es la media poblacional."
+            },
+            {
+              "q": "¿Es insesgada la varianza calculada dividiendo por n?",
+              "p": "s",
+              "a": "No: subestima en promedio la varianza poblacional; con n − 1 es insesgada."
+            },
+            {
+              "q": "¿Qué es la distribución muestral de un estadístico?",
+              "p": "d",
+              "a": "La distribución de los valores que tomaría el estadístico en todas las muestras posibles del mismo tamaño."
+            },
+            {
+              "q": "¿Cuál es la media de la distribución muestral de x̄?",
+              "p": "n",
+              "a": "μ, la media de la población."
+            },
+            {
+              "q": "¿Qué es un muestreo aleatorio simple?",
+              "p": "s",
+              "a": "Un procedimiento en el que cada individuo de la población tiene la misma probabilidad de ser elegido y cada muestra del mismo tamaño es igualmente probable."
+            },
+            {
+              "q": "¿Qué es el sesgo de selección?",
+              "p": "d",
+              "a": "Un error sistemático que aparece cuando la muestra no representa a la población porque ciertos individuos tienen más chances de ser elegidos."
+            },
+            {
+              "q": "¿Puede un intervalo de confianza corregir una muestra sesgada?",
+              "p": "n",
+              "a": "No: el intervalo mide la variabilidad del muestreo, no el sesgo de cómo se eligió la muestra."
+            },
+            {
+              "q": "Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Cuál es la media muestral?",
+              "p": "s",
+              "a": "5, el punto medio del intervalo."
+            },
+            {
+              "q": "Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Cuál es el margen de error?",
+              "p": "d",
+              "a": "0,8, la mitad del ancho (5,8 − 4,2 = 1,6)."
+            },
+            {
+              "q": "¿Qué cambia si se construye un intervalo del 99 % en lugar del 95 % con los mismos datos?",
+              "p": "n",
+              "a": "Queda más ancho, porque el valor crítico es mayor: se gana confianza a costa de precisión."
+            },
+            {
+              "q": "¿Qué significa que un intervalo de confianza para una diferencia de medias incluya el cero?",
+              "p": "s",
+              "a": "Que los datos son compatibles con que no haya diferencia entre las medias."
+            },
+            {
+              "q": "¿Cómo se interpreta un intervalo de confianza para una diferencia de medias que no incluye el cero?",
+              "p": "d",
+              "a": "Que, al nivel de confianza elegido, los datos no son compatibles con una diferencia nula."
+            },
+            {
+              "q": "¿Qué es la confianza de un intervalo?",
+              "p": "n",
+              "a": "La proporción de intervalos construidos con el mismo procedimiento que contendrían el parámetro, a la larga."
+            },
+            {
+              "q": "¿Qué es el valor crítico?",
+              "p": "s",
+              "a": "El valor de la distribución de referencia que deja una cola de probabilidad dada; define cuántos errores estándar se suman y restan."
+            },
+            {
+              "q": "¿Por qué se usa α/2 en cada cola en un intervalo de dos colas?",
+              "p": "d",
+              "a": "Porque el nivel de significación α se reparte en partes iguales entre las dos colas."
+            },
+            {
+              "q": "Si el nivel de confianza es 95 %, el valor de α es {{0,05}}.",
+              "p": "n"
+            },
+            {
+              "q": "El nivel de confianza se relaciona con α mediante: nivel de confianza = {{1 − α}}.",
+              "p": "s"
+            },
+            {
+              "q": "¿Qué distribución sigue la media muestral cuando la población es normal?",
+              "p": "d",
+              "a": "Una normal con media μ y desvío estándar σ/√n, para cualquier tamaño de muestra."
+            },
+            {
+              "q": "¿Cuál es el error estándar si s = 10 y n = 25?",
+              "p": "n",
+              "a": "2, porque 10 / √25 = 2."
+            },
+            {
+              "q": "Con x̄ = 50, s = 10 y n = 25 (t ≈ 2,064), ¿cuál es el intervalo del 95 %?",
+              "p": "s",
+              "a": "Aproximadamente [45,87; 54,13]: 50 ± 2,064 · 2."
+            },
+            {
+              "q": "¿Qué se puede decir de la media si el intervalo del 95 % es [45,9; 54,1]?",
+              "p": "d",
+              "a": "Que es plausible que esté entre 45,9 y 54,1, y que el método acierta en cerca del 95 % de las muestras."
+            },
+            {
+              "q": "¿Qué es la cobertura de un intervalo?",
+              "p": "n",
+              "a": "La proporción de veces que el procedimiento captura el parámetro verdadero al repetir el muestreo."
+            },
+            {
+              "q": "¿Qué es un intervalo de confianza unilateral?",
+              "p": "s",
+              "a": "Uno que fija solo una cota (inferior o superior) para el parámetro, con toda la probabilidad de error en una cola."
+            },
+            {
+              "q": "¿Por qué una encuesta publica un margen de error de ±3 %?",
+              "p": "d",
+              "a": "Para indicar la precisión de la estimación de una proporción: con n cerca de 1.000 y p = 0,5, el margen del 95 % ronda ese valor."
+            },
+            {
+              "q": "¿Qué es el bootstrap?",
+              "p": "n",
+              "a": "Un método que estima la variabilidad de un estadístico remuestreando con reposición los datos de la muestra."
+            },
+            {
+              "q": "¿Qué es un intervalo de predicción y en qué se diferencia del de confianza?",
+              "p": "s",
+              "a": "El de predicción abarca dónde caería una observación nueva; es más ancho que el de confianza, que apunta al parámetro."
+            },
+            {
+              "q": "¿Qué distribución describe aproximadamente a la media muestral con muestras grandes?",
+              "p": "d",
+              "a": "Una normal con media μ y desvío estándar σ/√n, por el teorema central del límite."
+            },
+            {
+              "q": "¿Qué ocurre con el error estándar si la población tiene más variabilidad?",
+              "p": "n",
+              "a": "Aumenta, porque es proporcional al desvío estándar poblacional."
+            }
+          ]
+        },
+        {
+          "name": "Pruebas de hipótesis",
+          "cards": [
+            {
+              "q": "¿Qué es la hipótesis nula (H0)?",
+              "p": "s",
+              "a": "La afirmación de que no hay efecto ni diferencia, que se mantiene salvo que los datos aporten evidencia suficiente en su contra."
+            },
+            {
+              "q": "¿Qué es la hipótesis alternativa (H1)?",
+              "p": "s",
+              "a": "La afirmación que se acepta como más plausible si los datos rechazan la hipótesis nula."
+            },
+            {
+              "q": "¿Qué es el nivel de significación α?",
+              "p": "s",
+              "a": "La probabilidad máxima de rechazar H0 cuando en realidad es verdadera que se está dispuesto a aceptar (error de tipo I)."
+            },
+            {
+              "q": "¿Qué es un error de tipo I?",
+              "p": "s",
+              "a": "Rechazar la hipótesis nula cuando es verdadera (un falso positivo)."
+            },
+            {
+              "q": "¿Qué es un error de tipo II?",
+              "p": "s",
+              "a": "No rechazar la hipótesis nula cuando es falsa (un falso negativo)."
+            },
+            {
+              "q": "¿Cómo se llama la probabilidad de cometer un error de tipo II?",
+              "p": "s",
+              "a": "β (beta)."
+            },
+            {
+              "q": "¿Qué es la potencia de una prueba?",
+              "p": "s",
+              "a": "La probabilidad de rechazar H0 cuando es falsa: 1 − β."
+            },
+            {
+              "q": "¿Qué es el p-valor?",
+              "p": "s",
+              "a": "La probabilidad de obtener un resultado al menos tan extremo como el observado si la hipótesis nula fuera verdadera."
+            },
+            {
+              "q": "¿Es el p-valor la probabilidad de que la hipótesis nula sea verdadera?",
+              "p": "s",
+              "a": "No: es una probabilidad de los datos suponiendo H0, no de H0 dados los datos."
+            },
+            {
+              "q": "¿Cuándo se rechaza H0 usando el p-valor?",
+              "p": "d",
+              "a": "Cuando el p-valor es menor que el nivel de significación α."
+            },
+            {
+              "q": "Si el p-valor es 0,03 y α = 0,05, la decisión es {{rechazar H0}}.",
+              "p": "s"
+            },
+            {
+              "q": "Si el p-valor es 0,20 y α = 0,05, la decisión es {{no rechazar H0}}.",
+              "p": "d"
+            },
+            {
+              "q": "¿Significa «no rechazar H0» que H0 es verdadera?",
+              "p": "s",
+              "a": "No: significa que los datos no aportan evidencia suficiente en su contra."
+            },
+            {
+              "q": "¿Qué valor de α se usa con más frecuencia?",
+              "p": "d",
+              "a": "0,05."
+            },
+            {
+              "q": "¿Qué es una prueba bilateral?",
+              "p": "s",
+              "a": "Una prueba cuya hipótesis alternativa admite diferencias en ambas direcciones (H1: μ ≠ μ0)."
+            },
+            {
+              "q": "¿Qué es una prueba unilateral?",
+              "p": "d",
+              "a": "Una prueba cuya alternativa apunta a una sola dirección (H1: μ > μ0 o μ < μ0)."
+            },
+            {
+              "q": "¿Cuál es el estadístico de prueba z para una media con σ conocido?",
+              "p": "s",
+              "a": "z = (x̄ − μ0) / (σ/√n)."
+            },
+            {
+              "q": "¿Cuál es el estadístico de prueba t para una media con σ desconocido?",
+              "p": "d",
+              "a": "t = (x̄ − μ0) / (s/√n), con n − 1 grados de libertad."
+            },
+            {
+              "q": "¿Qué es la región crítica (o de rechazo)?",
+              "p": "s",
+              "a": "El conjunto de valores del estadístico de prueba para los que se rechaza H0."
+            },
+            {
+              "q": "¿Qué es el valor crítico en una prueba?",
+              "p": "d",
+              "a": "El valor que separa la región de rechazo de la de no rechazo para un α dado."
+            },
+            {
+              "q": "¿Cuál es el valor crítico z de una prueba bilateral con α = 0,05?",
+              "p": "s",
+              "a": "±1,96."
+            },
+            {
+              "q": "¿Cuál es el valor crítico z de una prueba unilateral derecha con α = 0,05?",
+              "p": "d",
+              "a": "1,645."
+            },
+            {
+              "q": "¿Qué relación hay entre un intervalo de confianza del 95 % y una prueba bilateral con α = 0,05?",
+              "p": "s",
+              "a": "Se rechaza H0: μ = μ0 al 5 % exactamente cuando μ0 queda fuera del intervalo del 95 %."
+            },
+            {
+              "q": "¿Qué pasa con la probabilidad de error de tipo I si se baja α de 0,05 a 0,01?",
+              "p": "d",
+              "a": "Disminuye, pero con la misma muestra aumenta la probabilidad de error de tipo II."
+            },
+            {
+              "q": "¿Cómo se puede aumentar la potencia de una prueba sin cambiar α?",
+              "p": "s",
+              "a": "Aumentando el tamaño de la muestra o reduciendo la variabilidad de las mediciones."
+            },
+            {
+              "q": "¿Qué relación hay entre el tamaño del efecto y la potencia?",
+              "p": "d",
+              "a": "A igual muestra y α, cuanto mayor es el efecto verdadero, mayor es la potencia."
+            },
+            {
+              "q": "¿Qué es la significación estadística?",
+              "p": "s",
+              "a": "Que el resultado observado sería poco probable si H0 fuera verdadera, es decir, p < α."
+            },
+            {
+              "q": "¿Un resultado estadísticamente significativo es siempre importante en la práctica?",
+              "p": "d",
+              "a": "No: con muestras grandes hasta efectos minúsculos pueden ser significativos; hay que mirar el tamaño del efecto."
+            },
+            {
+              "q": "¿Qué prueba compara las medias de dos grupos independientes?",
+              "p": "n",
+              "a": "La prueba t para dos muestras independientes."
+            },
+            {
+              "q": "¿Qué prueba se usa para comparar mediciones antes y después sobre los mismos individuos?",
+              "p": "s",
+              "a": "La prueba t para muestras apareadas."
+            },
+            {
+              "q": "¿Qué compara el ANOVA de un factor?",
+              "p": "d",
+              "a": "Las medias de tres o más grupos, a partir de la relación entre la variabilidad entre grupos y la variabilidad dentro de los grupos."
+            },
+            {
+              "q": "¿Qué distribución tiene el estadístico F del ANOVA bajo H0?",
+              "p": "n",
+              "a": "Una distribución F de Fisher-Snedecor, con grados de libertad entre y dentro de grupos."
+            },
+            {
+              "q": "¿Por qué no conviene hacer muchas pruebas t entre pares de grupos en vez de un ANOVA?",
+              "p": "s",
+              "a": "Porque se acumula la probabilidad de error de tipo I: con cada prueba adicional aumenta la chance de un falso positivo."
+            },
+            {
+              "q": "¿Para qué sirve la prueba chi-cuadrado de independencia?",
+              "p": "d",
+              "a": "Para evaluar si dos variables categóricas están asociadas, comparando las frecuencias observadas con las esperadas bajo independencia."
+            },
+            {
+              "q": "¿Cómo se calcula la frecuencia esperada de una celda en una tabla de contingencia?",
+              "p": "n",
+              "a": "Total de la fila por total de la columna, dividido por el total general."
+            },
+            {
+              "q": "¿Cuál es el estadístico de la prueba chi-cuadrado?",
+              "p": "s",
+              "a": "La suma de (observada − esperada)² / esperada sobre todas las celdas."
+            },
+            {
+              "q": "¿Cuántos grados de libertad tiene la chi-cuadrado en una tabla de r filas y c columnas?",
+              "p": "d",
+              "a": "(r − 1) · (c − 1)."
+            },
+            {
+              "q": "¿Qué es la prueba de bondad de ajuste chi-cuadrado?",
+              "p": "n",
+              "a": "Una prueba que contrasta si las frecuencias observadas de una variable categórica se ajustan a una distribución teórica."
+            },
+            {
+              "q": "¿Qué supuesto básico exige la prueba chi-cuadrado sobre las frecuencias esperadas?",
+              "p": "s",
+              "a": "Que sean suficientemente grandes; la regla habitual pide al menos 5 en la mayoría de las celdas."
+            },
+            {
+              "q": "¿Qué mide el coeficiente de correlación de Pearson?",
+              "p": "d",
+              "a": "La intensidad y la dirección de la relación lineal entre dos variables cuantitativas."
+            },
+            {
+              "q": "¿Entre qué valores varía el coeficiente de correlación de Pearson?",
+              "p": "n",
+              "a": "Entre −1 y 1."
+            },
+            {
+              "q": "¿Correlación implica causalidad?",
+              "p": "s",
+              "a": "No: dos variables pueden estar correlacionadas por una tercera o por casualidad."
+            },
+            {
+              "q": "¿Qué indica una correlación de 0?",
+              "p": "d",
+              "a": "Que no hay relación lineal; puede existir otro tipo de relación, como una curva."
+            },
+            {
+              "q": "¿Qué es la recta de regresión lineal simple?",
+              "p": "n",
+              "a": "La recta que mejor ajusta los datos por mínimos cuadrados, y = a + b·x, para predecir y a partir de x."
+            },
+            {
+              "q": "¿Qué representa la pendiente de la recta de regresión?",
+              "p": "s",
+              "a": "Cuánto cambia y, en promedio, por cada unidad que aumenta x."
+            },
+            {
+              "q": "¿Qué mide el coeficiente de determinación R²?",
+              "p": "d",
+              "a": "La proporción de la variabilidad de y que explica el modelo lineal con x."
+            },
+            {
+              "q": "¿Qué criterio minimiza el método de mínimos cuadrados?",
+              "p": "n",
+              "a": "La suma de los cuadrados de los residuos."
+            },
+            {
+              "q": "¿Qué es un residuo en una regresión?",
+              "p": "s",
+              "a": "La diferencia entre el valor observado de y y el valor que predice la recta."
+            },
+            {
+              "q": "¿Por qué un resultado «no significativo» con una muestra chica no prueba que no haya efecto?",
+              "p": "d",
+              "a": "Porque la potencia puede ser baja: la prueba quizás no tenía capacidad de detectar un efecto real."
+            },
+            {
+              "q": "¿Qué es el problema de las comparaciones múltiples?",
+              "p": "n",
+              "a": "Que al hacer muchas pruebas aumenta la probabilidad de obtener algún falso positivo por azar."
+            },
+            {
+              "q": "¿Qué corrección simple controla las comparaciones múltiples?",
+              "p": "s",
+              "a": "La de Bonferroni: usar α dividido por el número de pruebas."
+            },
+            {
+              "q": "¿Qué es el p-hacking?",
+              "p": "d",
+              "a": "Probar muchos análisis o recortes de los datos hasta obtener un p-valor significativo y presentar solo ese resultado."
+            },
+            {
+              "q": "En una prueba de hipótesis, rechazar H0 cuando es verdadera es un error de tipo {{I}}.",
+              "p": "n"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Historia argentina",
+      "topics": [
+        {
+          "name": "Independencia",
+          "cards": [
+            {
+              "q": "¿En qué año fue la Revolución de Mayo?",
+              "a": "1810",
+              "p": "d"
+            },
+            {
+              "q": "¿En qué año se declaró la Independencia argentina?",
+              "a": "1816",
+              "p": "d"
+            },
+            {
+              "q": "¿En qué ciudad se declaró la Independencia?",
+              "a": "San Miguel de Tucumán.",
+              "p": "s"
+            },
+            {
+              "q": "¿Quién presidió la Primera Junta?",
+              "a": "Cornelio Saavedra.",
+              "p": "s"
+            },
+            {
+              "q": "¿Quién creó la bandera argentina?",
+              "a": "Manuel Belgrano, en 1812, a orillas del río Paraná.",
+              "p": "s"
+            },
+            {
+              "q": "¿Qué hazaña militar realizó el Ejército de los Andes en 1817?",
+              "a": "El cruce de la cordillera de los Andes hacia Chile.",
+              "p": "s"
+            },
+            {
+              "q": "¿Quién comandó el Ejército de los Andes?",
+              "a": "José de San Martín.",
+              "p": "s"
+            },
+            {
+              "q": "¿Qué órgano gobernó tras la Revolución de Mayo en 1810?",
+              "a": "La Primera Junta.",
+              "p": "n"
+            },
+            {
+              "q": "¿Qué fue la Asamblea del Año XIII?",
+              "a": "Una asamblea constituyente de 1813 que, entre otras medidas, estableció la libertad de vientres y suprimió los títulos de nobleza.",
+              "p": "n"
+            },
+            {
+              "q": "¿Cuándo se inauguró el Congreso de Tucumán?",
+              "a": "El 24 de marzo de 1816.",
+              "p": "n"
+            },
+            {
+              "q": "¿Qué cargo ocupó Juan Martín de Pueyrredón desde 1816?",
+              "a": "Director Supremo de las Provincias Unidas del Río de la Plata.",
+              "p": "n"
+            },
+            {
+              "q": "¿Qué fue el Cabildo Abierto del 22 de mayo de 1810?",
+              "a": "Una reunión de vecinos de Buenos Aires que decidió el cese del virrey Cisneros y abrió el camino a la Primera Junta.",
+              "p": "n"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

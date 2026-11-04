@@ -1,8 +1,8 @@
-import { and, gt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, isNull, sql } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
 import { appendObservation } from './ledger';
 import type { Writer } from './orm';
-import { cardSchedule, observations } from './schema';
+import { cardSchedule, cards, observations, subjects } from './schema';
 
 // Las bases de la Fase 03 guardaban solo la agenda y la pisaban en cada repaso, sin historial.
 // Una tarjeta repasada que todavía no tiene ningún evento recibe, una sola vez, una observación
@@ -41,4 +41,25 @@ export function adoptLegacySchedules(db: Writer, clock: Clock): number {
     });
   }
   return legacy.length;
+}
+
+// Las tarjetas de antes de la Fase 08 no tenían materia. Pasan a la materia activa (o, si no hay,
+// a la más antigua) apenas existe una; sin ninguna materia esperan a la primera que se cree.
+// Devuelve cuántas asignó.
+export function adoptUnassignedCards(db: Writer): number {
+  const orphan = db.select({ id: cards.id }).from(cards).where(isNull(cards.subjectId)).get();
+  if (!orphan) {
+    return 0;
+  }
+  const target = db
+    .select({ id: subjects.id })
+    .from(subjects)
+    .where(isNull(subjects.deletedAt))
+    .orderBy(desc(eq(subjects.status, 'active')), asc(subjects.createdAt), asc(subjects.id))
+    .get();
+  if (!target) {
+    return 0;
+  }
+  return db.update(cards).set({ subjectId: target.id }).where(isNull(cards.subjectId)).run()
+    .changes;
 }

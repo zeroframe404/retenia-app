@@ -76,6 +76,34 @@
                   "link": "Media y desvío"
                 }
               ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Intervalo de confianza >> Rango de valores plausibles para un parámetro, calculado a partir de una muestra."
+                }
+              ]
+            },
+            {
+              "depth": 0,
+              "parts": [
+                {
+                  "text": "Con un nivel de confianza del "
+                },
+                {
+                  "cloze": "95 %"
+                },
+                {
+                  "text": ", el valor crítico z es "
+                },
+                {
+                  "cloze": "1,96"
+                },
+                {
+                  "text": "."
+                }
+              ]
             }
           ]
         },
