@@ -59,12 +59,12 @@ const dueDay = (events: MemoryEvent[], retention = ACTIVE_RETENTION) =>
 
 describe('motor de memoria: el primer repaso de una tarjeta nueva', () => {
   it.for([
-    ['La sabía', 'good', '2027-03-17'],
-    ['Con dudas', 'hard', '2027-03-16'],
-    ['No la sabía', 'again', '2027-03-16'],
+    { label: 'La sabía', grade: 'good', expected: '2027-03-17', shown: '17/03/2027' },
+    { label: 'Con dudas', grade: 'hard', expected: '2027-03-16', shown: '16/03/2027' },
+    { label: 'No la sabía', grade: 'again', expected: '2027-03-16', shown: '16/03/2027' },
   ] as const)(
-    '[CA-058] tarjeta nueva de la materia activa repasada el 15/03/2027 con «%s»: vuelve el %s',
-    ([, grade, expected]) => {
+    '[CA-058] tarjeta nueva de la materia activa repasada el 15/03/2027 con «$label»: vuelve el $shown',
+    ({ grade, expected }) => {
       expect(dueDay([review('15/03/2027 10:00', grade)])).toBe(expected);
     },
   );
@@ -241,19 +241,37 @@ describe('motor de memoria: al motor solo le llega el primer intento del día', 
 
 describe('motor de memoria: la ayuda', () => {
   it.for([
-    ['A0', 'good', 'good'],
-    ['A1', 'good', 'good'],
-    ['A2', 'good', 'hard'],
-    ['A3', 'good', 'hard'],
-    ['A4', 'good', 'again'],
-    ['A2', 'hard', 'hard'],
-    ['A3', 'again', 'again'],
-    ['A4', 'hard', 'again'],
-    ['A0', 'hard', 'hard'],
-    ['A0', 'again', 'again'],
+    { helpLevel: 'A0', grade: 'good', expected: 'good', button: 'La sabía', taken: 'La sabía' },
+    { helpLevel: 'A1', grade: 'good', expected: 'good', button: 'La sabía', taken: 'La sabía' },
+    { helpLevel: 'A2', grade: 'good', expected: 'hard', button: 'La sabía', taken: 'Con dudas' },
+    { helpLevel: 'A3', grade: 'good', expected: 'hard', button: 'La sabía', taken: 'Con dudas' },
+    { helpLevel: 'A4', grade: 'good', expected: 'again', button: 'La sabía', taken: 'No la sabía' },
+    { helpLevel: 'A2', grade: 'hard', expected: 'hard', button: 'Con dudas', taken: 'Con dudas' },
+    {
+      helpLevel: 'A3',
+      grade: 'again',
+      expected: 'again',
+      button: 'No la sabía',
+      taken: 'No la sabía',
+    },
+    {
+      helpLevel: 'A4',
+      grade: 'hard',
+      expected: 'again',
+      button: 'Con dudas',
+      taken: 'No la sabía',
+    },
+    { helpLevel: 'A0', grade: 'hard', expected: 'hard', button: 'Con dudas', taken: 'Con dudas' },
+    {
+      helpLevel: 'A0',
+      grade: 'again',
+      expected: 'again',
+      button: 'No la sabía',
+      taken: 'No la sabía',
+    },
   ] as const)(
-    '[CA-064] con ayuda %s y «%s» el motor recibe «%s»',
-    ([helpLevel, grade, expected]) => {
+    '[CA-064] con ayuda $helpLevel y «$button» el motor recibe «$taken»',
+    ({ helpLevel, grade, expected }) => {
       expect(engineGradeOf({ grade, helpLevel })).toBe(expected);
     },
   );
