@@ -22,7 +22,7 @@
 | 06 · Sistema de diseño y armazón | Fusionada (20/10/2026, pull request #7), sin tag `fase-06-ok`: faltan tus pruebas manuales |
 | 07 · Materias, temas, apuntes y bandeja | Fusionada (29/10/2026, pull request #8), sin tag `fase-07-ok`: faltan tus pruebas manuales y las capturas |
 | 08 · Tarjetas y fichas | Fusionada (04/11/2026, pull request #9), sin tag `fase-08-ok`: faltan tus pruebas manuales y las capturas |
-| 09 · Motor de memoria FSRS-6 | En revisión (rama `fase-09`, pull request PENDIENTE_PR): faltan tus pruebas manuales |
+| 09 · Motor de memoria FSRS-6 | En revisión (rama `fase-09`, pull request #10): faltan tus pruebas manuales |
 
 Red de la fase: `npm run verificar:todo` en esta PC termina en «VERDE · 1539 pruebas · 0 fallas · 0 salteadas · 30 de 30 criterios cubiertos» (3 min 07 s, 20/10/2026). CI del pull request #7, en la última versión: «Red completa y compilación» en verde (32 min 35 s) e «Instaladores y humo del instalador» en verde (8 min 59 s, a la segunda: la primera vez se cortó la bajada de una herramienta de compilación del servidor de GitHub), con las capturas de referencia sin diferencias. Antes hubo cuatro corridas rojas por tiempos y por un error mío de configuración, todas resueltas y explicadas en docs/decisiones.md.
 
