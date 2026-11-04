@@ -23,10 +23,11 @@ const helpArbitrary = fc.oneof(
   { weight: 6, arbitrary: fc.constant<HelpLevel>('A0') },
   { weight: 1, arbitrary: fc.constantFrom<HelpLevel>('A1', 'A2', 'A3', 'A4') },
 );
-// Un paso: cuántos días después del anterior (0 = el mismo día), a qué hora y cómo salió.
+// Un paso: cuántos días después del anterior (0 = el mismo día), a qué hora (cualquiera: cruza el
+// corte de las 04:00 y las 21:00, cuando cambia el día en UTC) y cómo salió.
 const stepArbitrary = fc.record({
   gapDays: fc.integer({ min: 0, max: 45 }),
-  minutes: fc.integer({ min: 0, max: 600 }),
+  minutes: fc.integer({ min: 0, max: 24 * 60 - 1 }),
   grade: gradeArbitrary,
   helpLevel: helpArbitrary,
   interrupted: fc.oneof(
@@ -36,6 +37,8 @@ const stepArbitrary = fc.record({
 });
 type Step = typeof stepArbitrary extends fc.Arbitrary<infer T> ? T : never;
 
+// Los pasos empiezan el 15/03/2027 a las 00:00 de Buenos Aires.
+const MIDNIGHT = new Date('2027-03-15T00:00:00-03:00').getTime();
 function eventsOf(steps: readonly Step[], fuzz = false): MemoryEvent[] {
   let day = 0;
   return steps.map((step, index) => {
@@ -44,7 +47,7 @@ function eventsOf(steps: readonly Step[], fuzz = false): MemoryEvent[] {
       kind: 'review',
       id: `r${String(index).padStart(3, '0')}`,
       seq: index + 1,
-      occurredAt: new Date(START + day * DAY_MS + step.minutes * 60_000),
+      occurredAt: new Date(MIDNIGHT + day * DAY_MS + step.minutes * 60_000),
       grade: step.grade,
       helpLevel: step.helpLevel,
       interrupted: step.interrupted,

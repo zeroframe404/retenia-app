@@ -138,7 +138,7 @@ describe('tabla de casos del motor de memoria', () => {
     }
   });
 
-  it('[CA-059] cubre los primeros repasos con cada botón, rachas, fallos tras aciertos, tardíos de 1, 5 y 30 días, mantenimiento, ayuda y anulación', () => {
+  it('[CA-059] cubre los primeros repasos con cada botón, aciertos seguidos, fallos tras aciertos, tardíos de 1, 5 y 30 días, mantenimiento, ayuda y anulación', () => {
     const text = rows.map((row) => row.sequence).join('\n');
     for (const pattern of [
       /^tarjeta nueva, La sabía el 15\/03\/2027$/m,
@@ -190,12 +190,22 @@ describe('tabla de casos del motor de memoria', () => {
   });
 
   it.for(rows)('[CA-059] tabla de casos del motor, $id: $sequence', (row, { task }) => {
-    const obtained = runWithEngine(parseSequence(row.sequence));
-    task.meta.tableCase = {
+    // El renglón del tablero existe aunque el motor falle: así un caso roto nunca desaparece de la
+    // tabla ni del «N casos · N iguales».
+    const shown = {
       table: TABLE,
       input: `${row.id} · ${row.sequence}`,
       expected: row.expected.join(' · '),
-      actual: obtained.due.join(' · '),
+    };
+    task.meta.tableCase = { ...shown, actual: 'el motor no pudo calcularlo' };
+    const obtained = runWithEngine(parseSequence(row.sequence));
+    // Si coinciden las fechas pero no la memoria, «Obtenido» lo dice.
+    task.meta.tableCase = {
+      ...shown,
+      actual:
+        obtained.memory === row.memory
+          ? obtained.due.join(' · ')
+          : `${obtained.due.join(' · ')} (estabilidad · dificultad ${obtained.memory}; se esperaba ${row.memory})`,
     };
     expect(obtained.due).toEqual(row.expected);
     expect(obtained.memory).toBe(row.memory);

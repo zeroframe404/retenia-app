@@ -330,11 +330,24 @@ describe('motor de memoria: un solo repaso por día', () => {
     expect(
       workspace.cards
         .history({ cardId: card.id })
-        .entries.map((entry) => [entry.result, entry.sameDay]),
+        .entries.map((entry) => [entry.result, entry.skipped]),
     ).toEqual([
-      ['again', false],
-      ['good', true],
+      ['again', null],
+      ['good', 'sameDay'],
     ]);
+  });
+
+  it('un repaso con una fecha anterior al último que contó (la fecha volvió atrás) no cambia la fecha, se marca como tal y «¿Por qué hoy?» no dice «hoy»', () => {
+    const { workspace } = openSpace();
+    const { active } = twoSubjects(workspace);
+    const card = withPast(workspace, active.id, [{ at: '22/03/2027 10:00', grade: 'good' }]);
+    expect(workspace.cards.whyToday({ cardId: card.id })).toEqual({ kind: 'ahead', general: true });
+    const before = workspace.cards.get({ cardId: card.id }).nextReviewDay;
+    const after = workspace.cards.review({ cardId: card.id, grade: 'again', attemptId: attempt() });
+    expect(after.nextReviewDay).toBe(before);
+    expect(
+      workspace.cards.history({ cardId: card.id }).entries.map((entry) => entry.skipped),
+    ).toEqual([null, 'earlier']);
   });
 });
 
@@ -360,19 +373,53 @@ describe('motor de memoria: versiones y variación al azar', () => {
     expect(reopened.verifyData()).toEqual([]);
   });
 
-  it('con la variación al azar (uso real) la fecha se corre poco, el intento lo anota y recalcular da lo mismo aunque se abra sin variación', () => {
+  it('con la variación al azar (uso real) la fecha es la que da el motor con la semilla de esa tarjeta, el intento lo anota y recalcular da lo mismo aunque se abra sin variación', () => {
     const space = openSpace({ fuzz: true });
     const { active } = twoSubjects(space.workspace);
-    const card = withPast(space.workspace, active.id, [
-      { at: '01/03/2027 10:00', grade: 'good' },
-      { at: '03/03/2027 10:00', grade: 'good' },
-    ]);
+    const past = [
+      { at: '01/03/2027 10:00', grade: 'good' as const },
+      { at: '03/03/2027 10:00', grade: 'good' as const },
+    ];
+    // Lo que da el motor para esta historia y un «La sabía» el 15/03, con o sin variación: sin
+    // variación son 49 días (el 03/05/2027).
+    const intervalFor = (cardId: string, fuzz: boolean) =>
+      projectCardMemory(
+        {
+          cardId,
+          createdAt: inBuenosAires('01/03/2027 10:00'),
+          events: [
+            ...past.map((review, index) => ({
+              kind: 'review' as const,
+              id: `p${index}`,
+              seq: index + 1,
+              occurredAt: inBuenosAires(review.at),
+              grade: review.grade,
+            })),
+            {
+              kind: 'review',
+              id: 'u',
+              seq: 3,
+              occurredAt: inBuenosAires('15/03/2027 10:00'),
+              grade: 'good',
+              fuzz,
+            },
+          ],
+        },
+        { retention: 0.9 },
+        MEMORY_ENGINE_VERSION,
+      ).scheduledDays;
+    // Una tarjeta cuya semilla la corre de los 49 días: así se ve que la variación se aplica de
+    // verdad (el resultado no depende de cuál salga: se compara con el motor para esa tarjeta).
+    let card = withPast(space.workspace, active.id, past);
+    for (let turn = 0; turn < 30 && intervalFor(card.id, true) === 49; turn += 1) {
+      card = withPast(space.workspace, active.id, past);
+    }
+    expect(intervalFor(card.id, false)).toBe(49);
+    expect(intervalFor(card.id, true)).not.toBe(49);
     space.workspace.cards.review({ cardId: card.id, grade: 'good', attemptId: attempt() });
     expect(reviewPayloads(space.file, card.id).at(-1)).toMatchObject({ fuzz: true });
     const days = Number(schedule(space.file, card.id)?.scheduled_days);
-    // Sin variación serían 49 días (el 03/05/2027); con variación, entre 45 y 53.
-    expect(days).toBeGreaterThanOrEqual(45);
-    expect(days).toBeLessThanOrEqual(53);
+    expect(days).toBe(intervalFor(card.id, true));
     expect(space.workspace.verifyData()).toEqual([]);
     // La variación queda anotada en cada intento: abrir la misma carpeta sin variación no cambia
     // ninguna fecha.

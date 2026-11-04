@@ -182,6 +182,39 @@ describe('«¿Por qué hoy?»', () => {
     expect(screen.queryByText('París')).toBeNull();
   });
 
+  it('con el último repaso en una fecha posterior a hoy (la fecha volvió atrás) lo dice, en vez de «La viste hoy», y el historial marca el repaso de fecha anterior', async () => {
+    const { user, add, workspace, open } = setup();
+    const card = add('¿Capital de Chile?', 'Santiago');
+    workspace.cards.plantHistory([
+      {
+        cardId: card.id,
+        createdAt: inBuenosAires('01/03/2027 10:00'),
+        reviews: [{ at: inBuenosAires('22/03/2027 10:00'), grade: 'good' }],
+      },
+    ]);
+    workspace.cards.review({
+      cardId: card.id,
+      grade: 'again',
+      attemptId: '01969f1e-0000-4000-8000-000000000c02',
+    });
+    open();
+    await openCard(user, '¿Capital de Chile?');
+    await user.click(screen.getByRole('button', { name: '¿Por qué hoy?' }));
+    expect(
+      await screen.findByText(
+        'La última vez que la viste figura con una fecha posterior a hoy: la fecha volvió atrás.',
+      ),
+    ).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Historial' }));
+    const rows = within(
+      await screen.findByRole('list', { name: 'Repasos de la tarjeta' }),
+    ).getAllByRole('listitem');
+    expect(rows.map((row) => row.textContent)).toEqual([
+      '22/03/2027 · La sabía',
+      '15/03/2027 · No la sabía · Con una fecha anterior al último repaso que contó: no cambió la fecha',
+    ]);
+  });
+
   it('[CA-065] una tarjeta nueva dice que es nueva', async () => {
     const { user, add, open } = setup();
     add('¿Capital de Portugal?', 'Lisboa');

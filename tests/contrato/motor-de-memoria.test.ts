@@ -37,7 +37,7 @@ describe('contrato del puente: «cards.undoReview», «cards.whyToday» y el his
         day: '2027-03-15',
         result: 'good',
         annulled: true,
-        sameDay: false,
+        skipped: null,
       }),
     ]);
   });

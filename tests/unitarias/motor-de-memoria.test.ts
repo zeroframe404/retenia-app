@@ -13,10 +13,12 @@ import {
   MEMORY_PARAMETERS,
   MEMORY_PARAMETERS_VERSION,
   type MemoryEvent,
+  newCardMemory,
   outOfTen,
   projectCardMemory,
   recallProbability,
   retentionForSubject,
+  reviewCard,
   traceCardMemory,
   UnknownEngineError,
 } from '../../src/core/memory';
@@ -99,6 +101,17 @@ describe('motor de memoria: la retención objetivo de la materia', () => {
     expect(dueDay(events, MAINTENANCE_RETENTION)).toBe('2027-03-19');
   });
 
+  it('[CA-060] una agenda heredada de la Fase 03 (calculada con 0,90) usa la retención de su materia: en mantenimiento vuelve más tarde', () => {
+    const at = inBuenosAires('01/03/2027 10:00');
+    const adopted = reviewCard(newCardMemory(at), 'good', at);
+    const events: MemoryEvent[] = [{ kind: 'adopted', id: 'h', seq: 1, memory: adopted }];
+    expect(studyDayOf(project(events, ACTIVE_RETENTION).dueAt)).toBe('2027-03-03');
+    expect(project(events, ACTIVE_RETENTION)).toEqual(adopted);
+    const kept = project(events, MAINTENANCE_RETENTION);
+    expect(studyDayOf(kept.dueAt)).toBe('2027-03-05');
+    expect(kept.stability).toBe(adopted.stability);
+  });
+
   it('[CA-060] la retención solo cambia la fecha: la estabilidad y la dificultad son las mismas', () => {
     const events = [review('15/03/2027 10:00', 'good'), review('17/03/2027 10:00', 'hard')];
     const active = project(events, ACTIVE_RETENTION);
@@ -129,13 +142,20 @@ describe('motor de memoria: repasos tardíos, adelantados y omitidos', () => {
     expect(studyDayOf(lateMemory.dueAt)).toBe('2027-04-12');
   });
 
-  it('[CA-061] un repaso omitido no es un fallo: pasar la fecha sin repasar no suma olvidos ni cambia la memoria', () => {
-    const events = [review('15/03/2027 10:00', 'good')];
-    const memory = project(events);
-    expect(memory.lapses).toBe(0);
-    // Hoy, muchos días después de su fecha, la probabilidad baja pero la tarjeta no se toca.
-    expect(recallProbability(memory, '2027-05-01')).toBeLessThan(0.9);
-    expect(project(events)).toEqual(memory);
+  it('[CA-061] un repaso omitido no es un fallo: después de semanas sin repasarla, acertarla no suma un olvido y la estabilidad sube', () => {
+    const first = review('15/03/2027 10:00', 'good');
+    const before = project([first]);
+    // Vencía el 17/03 y no se repasó: la probabilidad de recordarla baja con los días…
+    expect(recallProbability(before, '2027-03-17')).toBeGreaterThan(0.9);
+    expect(recallProbability(before, '2027-05-10')).toBeLessThan(0.7);
+    // …pero el día omitido no es un fallo: acertarla el 10/05 no cuenta un olvido y la estabilidad
+    // crece más que en fecha. Un fallo de verdad sí suma un olvido.
+    const afterOmission = project([first, review('10/05/2027 10:00', 'good')]);
+    expect(afterOmission.lapses).toBe(0);
+    expect(afterOmission.stability).toBeGreaterThan(
+      project([first, review('17/03/2027 10:00', 'good')]).stability,
+    );
+    expect(project([first, review('10/05/2027 10:00', 'again')]).lapses).toBe(1);
   });
 
   it('[CA-061] un repaso adelantado también usa los días reales: un día antes de su fecha crece menos que en fecha', () => {
@@ -179,9 +199,43 @@ describe('motor de memoria: al motor solo le llega el primer intento del día', 
     expect(dueDay(twice)).toBe('2027-03-17');
   });
 
-  it('si el reloj volvió atrás, un repaso de un día anterior al último tampoco mueve nada', () => {
+  it('si el reloj volvió atrás, un repaso de un día anterior al último tampoco mueve nada, y queda marcado como de fecha anterior, no como del mismo día', () => {
     const events = [review('20/03/2027 10:00', 'good'), review('15/03/2027 10:00', 'again')];
     expect(project(events)).toEqual(project(events.slice(0, 1)));
+    const trace = traceCardMemory({ cardId: CARD, createdAt: created, events }, { retention: 0.9 });
+    expect(trace.steps.map((step) => step.reason)).toEqual(['counted', 'earlier']);
+  });
+
+  it('«¿Por qué hoy?» con el último repaso en una fecha posterior a hoy no dice «hoy»: avisa que la fecha volvió atrás', () => {
+    const trace = traceCardMemory(
+      { cardId: CARD, createdAt: created, events: [review('22/03/2027 10:00', 'good')] },
+      { retention: 0.9 },
+    );
+    expect(explainDue(trace, '2027-03-15')).toEqual({ kind: 'ahead', general: true });
+  });
+
+  it('el día de la próxima fecha es el del repaso más el intervalo aunque Buenos Aires cambie de horario (como en 2008)', () => {
+    // El 19/10/2008 Buenos Aires adelantó la hora: sumar 48 horas a las 03:30 del 18/10 (día de
+    // estudio 17/10) cae a las 04:30 del 20/10, que ya es el día de estudio 20/10.
+    const memory = projectCardMemory(
+      {
+        cardId: CARD,
+        createdAt: new Date('2008-10-17T12:00:00-03:00'),
+        events: [
+          {
+            kind: 'review',
+            id: 'r',
+            seq: 1,
+            occurredAt: new Date('2008-10-18T03:30:00-03:00'),
+            grade: 'good',
+          },
+        ],
+      },
+      { retention: 0.9 },
+      MEMORY_ENGINE_VERSION,
+    );
+    expect(memory.scheduledDays).toBe(2);
+    expect(studyDayOf(memory.dueAt)).toBe('2008-10-19');
   });
 });
 
@@ -324,7 +378,12 @@ describe('motor de memoria: probabilidad de recordar y «¿Por qué hoy?»', () 
       );
     expect(explain(four)).toMatchObject({ general: true });
     expect(explain(five)).toMatchObject({ general: false, daysSince: 0, outOfTen: 10 });
-    // Un repaso anulado no es un intento tuyo.
+    // Un repaso anulado no es un intento tuyo, y cinco el mismo día cuentan como uno solo: el
+    // motor usó uno.
+    const sameDay = ['09:00', '09:10', '09:20', '09:30', '09:40'].map((time) =>
+      review(`01/03/2027 ${time}`, 'good'),
+    );
+    expect(explain(sameDay)).toMatchObject({ general: true, daysSince: 14 });
     const lastFive = five.at(-1) as MemoryEvent;
     expect(explain([...five, annul(lastFive)])).toMatchObject({ general: true });
   });
