@@ -2,6 +2,9 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
 export interface AutosaverOptions {
   delay: number;
+  // Si se sigue escribiendo sin pausas, se guarda igual cada tanto (el borrador de la sesión: cada
+  // 2 segundos). Sin esto, se guarda recién `delay` después del último cambio (los apuntes).
+  maxWait?: number;
   // Guarda lo que hay en pantalla en el momento de llamarla (lee los datos al empezar).
   // Lo que devuelve (la respuesta del guardado) llega a `onSaved`.
   save: () => Promise<unknown>;
@@ -16,6 +19,7 @@ export interface AutosaverOptions {
 export class Autosaver {
   private readonly options: AutosaverOptions;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private maxTimer: ReturnType<typeof setTimeout> | null = null;
   private inFlight: Promise<boolean> | null = null;
   private dirty = false;
   private lastResult: unknown = undefined;
@@ -32,6 +36,15 @@ export class Autosaver {
       this.timer = null;
       void this.onTimer();
     }, this.options.delay);
+    const { maxWait } = this.options;
+    if (maxWait !== undefined && this.maxTimer === null) {
+      this.maxTimer = setTimeout(() => {
+        this.maxTimer = null;
+        if (this.dirty && this.inFlight === null) {
+          void this.run();
+        }
+      }, maxWait);
+    }
   }
 
   // Se cumplieron los dos segundos: se guarda lo pendiente, después de un guardado en curso si lo
@@ -67,6 +80,8 @@ export class Autosaver {
 
   private run(): Promise<boolean> {
     this.dirty = false;
+    // Lo que se guarda ahora ya cuenta para el tope: el próximo empieza con el próximo cambio.
+    this.clearMaxTimer();
     const attempt = (async () => {
       try {
         this.lastResult = await this.options.save();
@@ -96,6 +111,13 @@ export class Autosaver {
     if (this.timer !== null) {
       clearTimeout(this.timer);
       this.timer = null;
+    }
+  }
+
+  private clearMaxTimer() {
+    if (this.maxTimer !== null) {
+      clearTimeout(this.maxTimer);
+      this.maxTimer = null;
     }
   }
 }

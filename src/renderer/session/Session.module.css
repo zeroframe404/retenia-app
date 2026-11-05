@@ -1,0 +1,230 @@
+/* La sesión de estudio: ocupa la ventana entera (sin el riel), con la tarjeta en el centro. */
+.session {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  height: 100%;
+  overflow: auto;
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-12) var(--espacio-16);
+  padding: var(--espacio-12) var(--espacio-24);
+  background: var(--color-papel);
+  border-bottom: var(--trazo-lleno) var(--color-linea);
+}
+
+.progress {
+  font: var(--tipo-cuerpo-fuerte);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-tinta-suave);
+}
+
+.barActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+  margin-inline-start: auto;
+}
+
+.previous {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-4);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.main {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-16);
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: var(--espacio-32) var(--espacio-24);
+}
+
+.shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-8);
+  padding: var(--espacio-8) var(--espacio-16);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie-hundida);
+  border-radius: var(--radio-8);
+}
+
+.shortcuts p {
+  margin: 0;
+}
+
+.question {
+  display: grid;
+  gap: var(--espacio-12);
+  padding: var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.prompt {
+  font: var(--tipo-consigna);
+  overflow-wrap: anywhere;
+}
+
+.attempt {
+  display: grid;
+  gap: var(--espacio-12);
+}
+
+.field {
+  display: grid;
+}
+
+.textarea {
+  min-height: 88px;
+  padding: var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+
+.attemptFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-12);
+}
+
+.answer {
+  display: grid;
+  gap: var(--espacio-16);
+}
+
+.compare {
+  display: grid;
+  gap: var(--espacio-16);
+}
+
+.compare[data-compare="two"] {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.side {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-8);
+  padding: var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+  overflow-wrap: anywhere;
+}
+
+.sideTitle {
+  margin: 0;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.written {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.grades {
+  display: grid;
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  padding: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.gradeButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+.select {
+  min-height: var(--alto-control);
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  /* Ocupa el ancho del cuadro: una pregunta larga no lo ensancha. */
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.wide {
+  width: 100%;
+  min-width: 0;
+}
+
+.options {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+/* Estudiar y Progreso. */
+.start {
+  display: grid;
+  justify-items: start;
+  gap: var(--espacio-12);
+  margin-block-start: var(--espacio-16);
+}
+
+.startActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+.note {
+  margin: 0;
+  color: var(--color-tinta-suave);
+}
+
+.reviews {
+  display: grid;
+  gap: var(--espacio-24);
+}
+
+.reviews h3 {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}

@@ -263,6 +263,15 @@ Cómo quedó en la Fase 09:
 | CA-076 | E | — | «Guardar una duda» con el texto aparece en Progreso › «Dudas y revisiones» con la tarjeta como contexto. |
 | CA-077 | E | I | «La tarjeta está mal» la pasa a «En revisión», sale de la cola y el intento no mueve el vencimiento. |
 
+Cómo quedó en la Fase 10:
+
+- Unitarias del armado de la cola y del cierre (`tests/unitarias/sesion-cola.test.ts`): las 10 de menor probabilidad, desempate por la que venció antes, una sola hermana por familia (y ninguna si ya se estudió una hoy), la vuelta de la fallada después de 3 (o al final) y una sola vez, deshacer, saltar, marcar, pausar, los minutos y el cierre (resultados, dificultades por tema, tema de «Ajustar el plan»). También las teclas (`teclas-sesion.test.ts`) y el cronómetro del principal (`cronometro-sesion.test.ts`).
+- Propiedades con semilla fija (`tests/propiedades/sesion.test.ts`): la vuelta siempre queda después de al menos otras 3 o al final, nunca hay dos vueltas de una tarjeta, el progreso nunca pasa del total, deshacer deja la sesión idéntica a antes de calificar y, al completarse, cada tarjeta original está hecha una sola vez.
+- Integración contra una base real con el elenco (`tests/integracion/sesion.test.ts`), contrato del puente (`tests/contrato/sesion.test.ts`) y el corte a la fuerza en cada sentencia de cada escritura de la sesión (`tests/corte/corte-sesion.test.ts`: calificar, calificar «No la sabía», calificar la última, empezar otra, deshacer, marcar, saltar, pausar, el borrador, la valoración y la duda), que comprueba además que la sesión que se ve al volver es la de antes o la de después.
+- Pantallas (`tests/componentes/sesion.test.tsx`) y punta a punta (`tests/e2e/sesion.spec.ts`), con el teclado, el doble clic, cerrar y abrir Retenia, las hermanas (una materia nueva con una tarjeta y su inversa) y la tarjeta defectuosa; accesibilidad (`accesibilidad-fase-10.spec.ts`) y capturas de referencia de la sesión y el cierre (`capturas-de-referencia-fase-10.spec.ts`). El barrido de textos de siempre (`textos-prohibidos.test.ts`) cubre el catálogo nuevo, y la prueba del cierre comprueba que en pantalla no aparece «dominado».
+- El elenco: `siembra-tarjetas.test.ts` comprueba que «¿Qué mide el desvío estándar?» es la vencida con menos probabilidad de recordarla (0,77) y la primera de la sesión.
+- Dobles nuevos: ninguno.
+
 ### Fase 11 · Carga en minutos y pantalla Estudiar (H-19, H-20, H-21, H-22)
 
 | Criterio | Capa | También | Cómo se comprueba |

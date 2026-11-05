@@ -1,26 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CardDetail } from '../../preload/contract/cards';
 import { formatLongDate, texts } from '../../preload/contract/texts';
+import { DoubtDialog } from '../session/DoubtDialog';
 import { Boton } from '../ui/Boton';
 import contentStyles from '../ui/Content.module.css';
 import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
 import { CardFace } from './CardFace';
+import { CardPath } from './CardPath';
 import styles from './Cards.module.css';
 import { WhyToday } from './WhyToday';
 
 // Una pista por lugar (hasta tres): la clave es el lugar, no el texto (dos pistas pueden coincidir).
 const HINT_SLOTS = ['primera', 'segunda', 'tercera'] as const;
-
-// El camino de contexto de la tarjeta: «Estadística básica › Regresión › Regresión lineal». Una
-// nota sin tema pasa por «Sin tema»; una nota sin título, por «Sin título».
-function pathText(card: CardDetail): string {
-  const { subjectName, topicName, noteTitle } = card.path;
-  const topic = topicName ?? (noteTitle === null ? null : texts.cards.noTopic);
-  const note = noteTitle === null ? null : noteTitle === '' ? texts.notes.list.untitled : noteTitle;
-  const parts = [subjectName, topic, note].filter((part): part is string => part !== null);
-  return parts.length === 0 ? texts.cards.noPath : parts.join(texts.cards.pathSeparator);
-}
 
 // El detalle de una tarjeta: dónde nació, su pregunta y respuesta, su ficha y sus acciones («Editar
 // ficha», «Crear inversa», «Pausar esta tarjeta» o «Reanudar», «Historial», «Ver en la nota»,
@@ -53,6 +45,7 @@ export function CardDetailView({
   const [card, setCard] = useState<CardDetail | null>(null);
   const [failed, setFailed] = useState(false);
   const [problem, setProblem] = useState('');
+  const [doubting, setDoubting] = useState(false);
   const working = useRef(false);
 
   const load = useCallback(async () => {
@@ -132,9 +125,7 @@ export function CardDetailView({
 
   return (
     <div className={contentStyles.stack}>
-      <nav aria-label={texts.cards.pathLabel}>
-        <p className={styles.path}>{pathText(card)}</p>
-      </nav>
+      <CardPath card={card} />
       <div className={styles.facePanel}>
         <h4>{texts.cards.questionHeading}</h4>
         <CardFace content={card.questionContent} />
@@ -175,7 +166,9 @@ export function CardDetailView({
         <Boton variant="primary" onClick={() => onEdit(card)}>
           {texts.cards.editSheet}
         </Boton>
-        {card.paused ? null : <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>}
+        {card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired' ? null : (
+          <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>
+        )}
         {card.kind === 'qa' && !card.hasInverse && card.inverseOfCardId === null ? (
           <Boton onClick={() => void createInverse()}>{texts.cards.createInverse}</Boton>
         ) : null}
@@ -186,11 +179,24 @@ export function CardDetailView({
         {path.canOpenNote && noteId !== null && blockId !== null && onOpenNote ? (
           <Boton onClick={() => onOpenNote(noteId, blockId)}>{texts.cards.viewInNote}</Boton>
         ) : null}
+        <Boton onClick={() => setDoubting(true)}>{texts.cards.saveDoubt}</Boton>
         <Boton onClick={() => void remove()}>{texts.cards.remove}</Boton>
         <Boton variant="quiet" onClick={onBack}>
           {texts.cards.backToCards}
         </Boton>
       </div>
+      {doubting ? (
+        <DoubtDialog
+          cards={[{ cardId: card.id, question: card.question }]}
+          defaultCardId={card.id}
+          sessionId={null}
+          onClose={() => setDoubting(false)}
+          onSaved={() => {
+            setDoubting(false);
+            onNotice(texts.study.doubt.saved);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

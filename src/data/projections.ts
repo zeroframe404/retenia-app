@@ -57,6 +57,8 @@ export interface HistoryEvent {
   // Por qué un repaso quedó anotado sin cambiar la fecha: ya había otro ese día de estudio, o tiene
   // un día anterior al último que contó (la fecha volvió atrás).
   readonly skipped: 'sameDay' | 'earlier' | null;
+  // Si llegó al motor (Fase 10: la regla de los 4 fallos seguidos cuenta solo estos).
+  readonly counted: boolean;
 }
 
 // Los eventos que mueven la agenda, con la calificación de la evaluación vigente de cada repaso.
@@ -99,6 +101,7 @@ function memoryEventsOf(
         grade,
         helpLevel,
         fuzz: 'fuzz' in payload ? payload.fuzz : false,
+        retry: 'retry' in payload ? payload.retry === true : false,
       },
     };
   });
@@ -207,6 +210,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
             result: event.kind === 'adopted' ? 'adopted' : 'reset',
             annulled: false,
             skipped: null,
+            counted: false,
           },
         ];
       }
@@ -219,6 +223,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
           result: event.grade,
           annulled: step?.reason === 'annulled',
           skipped: step?.reason === 'sameDay' || step?.reason === 'earlier' ? step.reason : null,
+          counted: step?.counted === true,
         },
       ];
     })

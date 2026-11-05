@@ -19,6 +19,7 @@ import type {
   SheetStateValue,
 } from '../preload/contract/cards';
 import {
+  CardOutOfReviewsError,
   CardPausedError,
   InverseNotAllowedError,
   LinkedCardTextError,
@@ -254,6 +255,130 @@ function detailOf(db: Writer, row: CardRow): CardDetail {
 // Las listas de la ficha, como se comparan para saber si algo cambió.
 const sheetKey = (sheet: Sheet) => canonicalJson(sheet);
 
+// Lo que agrega un repaso hecho en una sesión de estudio (Fase 10).
+export interface SessionReviewFacts {
+  sessionId: string;
+  activityId: string;
+  retry: boolean;
+  retryActivityId: string | null;
+  answer: string | null;
+  shownAt: string | null;
+  firstInteractionMs: number | null;
+  answerRequestedMs: number | null;
+  gradedMs: number | null;
+  activeMs: number;
+}
+
+// Un repaso dentro de la transacción de quien llama: la observación (con la clave del intento),
+// su evaluación y la agenda recalculada. Si el intento ya estaba guardado no agrega nada; si estaba
+// guardado con otra tarjeta, es un pedido equivocado. Lo usan el repaso de «Tarjetas» y la sesión.
+export function recordReview(
+  tx: Writer,
+  clock: Clock,
+  fuzz: boolean,
+  input: {
+    cardId: string;
+    grade: Grade;
+    attemptId: string;
+    helpLevel?: HelpLevel | undefined;
+    session?: SessionReviewFacts | undefined;
+  },
+): { id: string; inserted: boolean } {
+  const { cardId, grade, attemptId, helpLevel = 'A0' } = input;
+  const current = activeCard(tx, cardId);
+  if (current.pausedAt !== null) {
+    throw new CardPausedError();
+  }
+  if (current.sheetState === 'in_review' || current.sheetState === 'retired') {
+    throw new CardOutOfReviewsError();
+  }
+  const observation = appendObservation(tx, clock, {
+    kind: 'review.graded',
+    payload: {
+      cardId,
+      grade,
+      helpLevel,
+      dueAtThen: current.dueAt,
+      versionId: current.versionId,
+      ...reviewFacts(tx, cardId, clock.now(), fuzz),
+      ...(input.session ?? {}),
+    },
+    idempotencyKey: `review:${attemptId}`,
+    source: 'user',
+  });
+  if (observation.inserted) {
+    appendEvaluation(tx, clock, {
+      attemptId: observation.id,
+      verdict: verdictOfGrade(grade),
+      source: 'user',
+    });
+    recomputeCardSchedule(tx, cardId);
+  } else {
+    // Un repaso repetido vale solo si es de la misma tarjeta.
+    const saved = tx
+      .select({ cardId: observations.cardId })
+      .from(observations)
+      .where(eq(observations.id, observation.id))
+      .get();
+    if (saved?.cardId !== cardId) {
+      throw new AttemptConflictError();
+    }
+  }
+  return observation;
+}
+
+// «Deshacer» un repaso dentro de la transacción de quien llama: lo anula (deshacerlo dos veces no
+// agrega nada) y recalcula la agenda.
+export function annulReview(
+  tx: Writer,
+  clock: Clock,
+  input: { cardId: string; reviewId: string; sessionId?: string; activeMs?: number },
+): void {
+  appendObservation(tx, clock, {
+    kind: 'review.annulled',
+    payload: input,
+    idempotencyKey: `annul:${input.reviewId}`,
+    source: 'user',
+  });
+  recomputeCardSchedule(tx, input.cardId);
+}
+
+// «La tarjeta está mal» (CA-077): una versión nueva de la tarjeta con la ficha «En revisión»
+// (causa «flagged»), con su operación en «Actividad reciente». Devuelve la versión.
+export function flagCardVersion(tx: Writer, clock: Clock, cardId: string): string {
+  const current = activeCard(tx, cardId);
+  const previous = tx
+    .select()
+    .from(cardVersions)
+    .where(eq(cardVersions.id, current.versionId))
+    .get();
+  if (!previous) {
+    throw new CardNotFoundError();
+  }
+  if (previous.sheetState === 'in_review') {
+    return previous.id;
+  }
+  const versionId = newId();
+  tx.insert(cardVersions)
+    .values({
+      ...previous,
+      id: versionId,
+      sheetState: 'in_review',
+      createdAt: clock.now().toISOString(),
+      cause: 'flagged',
+    })
+    .run();
+  tx.update(cards).set({ currentVersionId: versionId }).where(eq(cards.id, cardId)).run();
+  appendOperation(tx, clock, {
+    kind: 'card.edit',
+    entityId: cardId,
+    versionBeforeId: current.versionId,
+    versionAfterId: versionId,
+    source: 'user',
+  });
+  return versionId;
+}
+
 // Cada cambio pasa por el libro mayor: el alta, la edición, el borrado y el repaso agregan
 // eventos, y la agenda se recalcula desde el historial en la misma transacción (un corte deja
 // todo o nada). Los repasos usan el reloj inyectado: en la variante de prueba, el de la
@@ -325,41 +450,7 @@ export function createCardsStore(
 
     review({ cardId, grade, attemptId, helpLevel = 'A0' }) {
       return orm.transaction((tx) => {
-        const current = activeCard(tx, cardId);
-        if (current.pausedAt !== null) {
-          throw new CardPausedError();
-        }
-        const observation = appendObservation(tx, clock, {
-          kind: 'review.graded',
-          payload: {
-            cardId,
-            grade,
-            helpLevel,
-            dueAtThen: current.dueAt,
-            versionId: current.versionId,
-            ...reviewFacts(tx, cardId, clock.now(), fuzz),
-          },
-          idempotencyKey: `review:${attemptId}`,
-          source: 'user',
-        });
-        if (observation.inserted) {
-          appendEvaluation(tx, clock, {
-            attemptId: observation.id,
-            verdict: verdictOfGrade(grade),
-            source: 'user',
-          });
-          recomputeCardSchedule(tx, cardId);
-        } else {
-          // Un repaso repetido vale solo si es de la misma tarjeta.
-          const saved = tx
-            .select({ cardId: observations.cardId })
-            .from(observations)
-            .where(eq(observations.id, observation.id))
-            .get();
-          if (saved?.cardId !== cardId) {
-            throw new AttemptConflictError();
-          }
-        }
+        recordReview(tx, clock, fuzz, { cardId, grade, attemptId, helpLevel });
         return cardOf(tx, cardId);
       });
     },
@@ -375,13 +466,7 @@ export function createCardsStore(
         if (review?.kind !== 'review.graded' || review.cardId !== cardId) {
           throw new ReviewNotFoundError();
         }
-        appendObservation(tx, clock, {
-          kind: 'review.annulled',
-          payload: { cardId, reviewId: review.id },
-          idempotencyKey: `annul:${review.id}`,
-          source: 'user',
-        });
-        recomputeCardSchedule(tx, cardId);
+        annulReview(tx, clock, { cardId, reviewId: review.id });
         return cardOf(tx, cardId);
       });
     },

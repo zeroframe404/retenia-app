@@ -27,15 +27,14 @@ const row = (dialog: HTMLElement, name: string) => {
 };
 
 describe('Estudiar con la materia activa', () => {
-  it('muestra arriba la materia activa con su nombre y «Cambiar», y sigue con «Todavía no disponible» y «Ir a Apuntes»', async () => {
+  it('muestra arriba la materia activa con su nombre y «Cambiar», y sigue con «Empezar»', async () => {
     const { api } = openWindow();
     await seedSubjects(api);
     render(<App />);
     expect(await main().findByText('Materia activa')).toBeTruthy();
     expect(main().getByText('Estadística básica')).toBeTruthy();
     expect(main().getByRole('button', { name: 'Cambiar' })).toBeTruthy();
-    expect(main().getByText(/^Todavía no disponible\./)).toBeTruthy();
-    expect(main().getByRole('button', { name: 'Ir a Apuntes' })).toBeTruthy();
+    expect(main().getByRole('button', { name: 'Empezar' })).toBeTruthy();
     expect(main().queryByText('Historia argentina')).toBeNull();
   });
 
@@ -254,7 +253,7 @@ describe('abrir una materia para consultarla', () => {
     const { api, user } = openWindow();
     await seedSubjects(api);
     render(<App />);
-    await user.click(await screen.findByRole('button', { name: 'Ir a Apuntes' }));
+    await user.click(within(rail()).getByRole('button', { name: 'Apuntes' }));
     expect(
       await main().findByText('Estás mirando tu materia activa: Estadística básica'),
     ).toBeTruthy();
