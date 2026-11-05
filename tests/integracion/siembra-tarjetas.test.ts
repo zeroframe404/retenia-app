@@ -1,5 +1,7 @@
+import { forgetting_curve } from 'ts-fsrs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { newCardMemory, reviewCard } from '../../src/core/memory';
+import { MEMORY_PARAMETERS } from '../../src/core/memory/engine';
 import { studyDayOf } from '../../src/core/study-day';
 import type { Workspace } from '../../src/data/workspace';
 import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
@@ -151,6 +153,38 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
     expect(card.nextReviewDay).toBe('2027-02-25');
     const history = workspace.cards.history({ cardId: card.id }).entries;
     expect(history.at(-1)).toMatchObject({ day: '2027-02-20', result: 'hard' });
+  });
+
+  it('«¿Qué mide el desvío estándar?» es la vencida de Estadística básica con menos probabilidad de recordarla (0,77) y ninguna otra se le acerca a menos de una centésima', () => {
+    const { workspace, file } = seeded();
+    const statistics = subjectNamed(workspace, 'Estadística básica');
+    const rows = readRows(
+      file,
+      `SELECT c.id AS id, s.stability AS stability, s.last_review_at AS last
+         FROM cards c JOIN card_schedule s ON s.card_id = c.id
+        WHERE c.subject_id = ? AND s.reps > 0`,
+      statistics.id,
+    );
+    const byId = new Map(rows.map((row) => [String(row.id), row]));
+    const due = cardsOf(workspace, 'Estadística básica').filter(
+      (card) =>
+        card.nextReviewDay !== null &&
+        card.nextReviewDay <= TODAY &&
+        !inImproveList(workspace, card.id),
+    );
+    expect(due).toHaveLength(60);
+    const recall = (cardId: string) => {
+      const row = byId.get(cardId);
+      const elapsed =
+        (Date.parse(TODAY) - Date.parse(studyDayOf(new Date(String(row?.last))))) / 86_400_000;
+      return forgetting_curve([...MEMORY_PARAMETERS], elapsed, Number(row?.stability));
+    };
+    const sorted = due
+      .map((card) => ({ question: card.question, recall: recall(card.id) }))
+      .sort((a, b) => a.recall - b.recall);
+    expect(sorted[0]?.question).toBe('¿Qué mide el desvío estándar?');
+    expect(sorted[0]?.recall).toBeCloseTo(0.7713, 4);
+    expect((sorted[1]?.recall ?? 0) - (sorted[0]?.recall ?? 0)).toBeGreaterThan(0.01);
   });
 
   it('la tarjeta de hueco «La mediana deja el {{50 %}} de los datos por debajo.»', () => {
