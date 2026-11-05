@@ -73,6 +73,7 @@ export function DoubtDialog({
           <label htmlFor={`${ids}-texto`}>{texts.study.doubt.label}</label>
           <textarea
             id={`${ids}-texto`}
+            className={styles.wide}
             rows={3}
             maxLength={MAX_DOUBT_LENGTH}
             value={text}

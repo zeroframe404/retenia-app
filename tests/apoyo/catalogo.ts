@@ -28,6 +28,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.study.progress': [3, 10],
   'texts.study.progressLabel': [3, 10],
   'texts.study.previous': ['Con dudas'],
+  'texts.study.adjust.topic': ['Media y dispersión'],
   'texts.study.closing.difficultyOne': ['Media y dispersión', '¿Qué mide el desvío estándar?'],
   'texts.study.closing.difficultyMany': ['Media y dispersión', 2],
   'texts.study.closing.nextMore': [50],

@@ -178,7 +178,15 @@
   background: var(--color-papel);
   border: var(--trazo-lleno) var(--color-linea-fuerte);
   border-radius: var(--radio-8);
+  /* Ocupa el ancho del cuadro: una pregunta larga no lo ensancha. */
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
+}
+
+.wide {
+  width: 100%;
+  min-width: 0;
 }
 
 .options {

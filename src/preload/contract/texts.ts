@@ -568,6 +568,7 @@ export const texts = {
     },
     adjust: {
       title: 'Ajustar el plan',
+      topic: (name: string) => 'El tema de esta sesión: ' + name + '.',
       shorter: 'Más corto la próxima vez',
       morePractice: 'Más práctica de este tema',
       pauseTopic: 'Pausar este tema',

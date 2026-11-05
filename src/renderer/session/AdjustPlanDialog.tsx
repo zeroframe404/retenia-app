@@ -43,6 +43,7 @@ export function AdjustPlanDialog({
 
   return (
     <Dialog title={texts.study.adjust.title} onClose={onClose}>
+      {topic === null ? null : <p className={styles.note}>{texts.study.adjust.topic(topic)}</p>}
       <div className={styles.options}>
         <Boton disabled={saving} onClick={() => void choose('shorter')}>
           {texts.study.adjust.shorter}
