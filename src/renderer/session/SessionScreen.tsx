@@ -294,19 +294,19 @@ export function SessionScreen({
 
   if (closing) {
     return (
-      <div className={styles.session}>
+      <main className={styles.session} aria-label={texts.study.title}>
         <h1 className="visually-hidden">{texts.study.title}</h1>
-        <main className={styles.main} aria-label={texts.study.title}>
+        <div className={styles.main}>
           <SessionClosing sessionId={sessionId} onExit={onExit} onToast={onToast} />
-        </main>
-      </div>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className={styles.session}>
+    <main className={styles.session} aria-label={texts.study.title}>
       <h1 className="visually-hidden">{texts.study.title}</h1>
-      <header className={styles.bar}>
+      <div className={styles.bar}>
         <RotuloModo mode="autonomous" />
         <span
           className={styles.progress}
@@ -341,8 +341,8 @@ export function SessionScreen({
             {texts.study.pause}
           </Boton>
         </div>
-      </header>
-      <main className={styles.main} aria-label={texts.study.title}>
+      </div>
+      <div className={styles.main}>
         {shortcuts ? (
           <div className={styles.shortcuts}>
             <p>{texts.study.shortcuts}</p>
@@ -431,12 +431,12 @@ export function SessionScreen({
           </>
         ) : null}
         {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
-      </main>
+      </div>
       {editing ? (
         <Dialog title={texts.study.editTitle} placement="side" onClose={closeEditor}>
           <SheetForm card={editing} onSaved={closeEditor} onCancel={closeEditor} />
         </Dialog>
       ) : null}
-    </div>
+    </main>
   );
 }
