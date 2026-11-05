@@ -108,14 +108,12 @@ export function createHandlers({
         marks: timer.take(request.activityId),
         activeMs: timer.step(request.sessionId),
       }),
-    'study.undo': async ({ sessionId }) =>
-      workspace.study.undo({ sessionId, activeMs: timer.step(sessionId) }),
+    'study.undo': async (request) =>
+      workspace.study.undo({ ...request, activeMs: timer.step(request.sessionId) }),
     'study.skip': async (request) =>
       workspace.study.skip({ ...request, activeMs: timer.step(request.sessionId) }),
     'study.flag': async (request) =>
       workspace.study.flag({ ...request, activeMs: timer.step(request.sessionId) }),
-    'study.drop': async (request) =>
-      workspace.study.drop({ ...request, activeMs: timer.step(request.sessionId) }),
     'study.pause': async ({ sessionId }) => {
       workspace.study.pause({ sessionId, activeMs: timer.stop(sessionId) });
       return ok;

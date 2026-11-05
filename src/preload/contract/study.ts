@@ -41,7 +41,7 @@ export const sessionViewSchema = z.strictObject({
     })
     .nullable(),
   // La última calificación, si se puede deshacer.
-  undoable: z.strictObject({ grade }).nullable(),
+  undoable: z.strictObject({ activityId: z.uuid(), grade }).nullable(),
   // La ayuda de teclas, hasta que se la cierra la primera vez.
   showShortcuts: z.boolean(),
 });

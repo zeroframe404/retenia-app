@@ -108,16 +108,24 @@ describe('sesión de estudio: lo que encontró el revisor', () => {
     }
     expect(space.workspace.study.view({ sessionId: today.sessionId }).current?.cardId).toBe(first);
     gradeCurrent(space.workspace, today.sessionId, 'again');
-    // Día 16: lo mismo (es la única vencida: la vuelta va enseguida).
+    // Día 16: lo mismo, la primera y su vuelta con «No la sabía» (las demás, «La sabía»).
     set(inBuenosAires('16/03/2027 10:00'));
     const next = space.workspace.study.start({ sessionId: id() });
-    expect(next.current?.cardId).toBe(first);
-    gradeCurrent(space.workspace, next.sessionId, 'again');
-    gradeCurrent(space.workspace, next.sessionId, 'again');
-    // Día 17: tiene 2 fallos que contaron, no 4: sigue entrando.
+    let failsOfFirst = 0;
+    for (let view = next; view.current; ) {
+      const isFirst = view.current.cardId === first;
+      failsOfFirst += isFirst ? 1 : 0;
+      view = gradeCurrent(space.workspace, next.sessionId, isFirst ? 'again' : 'good');
+    }
+    expect(failsOfFirst).toBe(2);
+    // Día 17: tiene 2 fallos que contaron, no 4: sigue entrando en la sesión.
     set(inBuenosAires('17/03/2027 10:00'));
-    expect(space.workspace.study.overview().dueCount).toBeGreaterThan(0);
-    expect(space.workspace.study.start({ sessionId: id() }).current?.cardId).toBe(first);
+    space.workspace.study.start({ sessionId: id() });
+    const started = observationsOf(space.file, 'session.started').at(-1);
+    const chosen = JSON.parse(String(started?.payload)).activities.map(
+      (activity: { cardId: string }) => activity.cardId,
+    );
+    expect(chosen).toContain(first);
   });
 
   it('[CA-077] una tarjeta «En revisión» no se puede repasar desde «Tarjetas»: su próximo repaso no cambia', () => {

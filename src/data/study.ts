@@ -95,7 +95,8 @@ export interface StudyStore {
     marks?: AttemptMarks;
     activeMs?: number;
   }): SessionView;
-  undo(input: { sessionId: string; activeMs?: number }): SessionView;
+  // Deshace la calificación de esa actividad si es la última: el mismo pedido dos veces deshace una.
+  undo(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   skip(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   flag(input: {
     sessionId: string;
@@ -103,7 +104,6 @@ export interface StudyStore {
     attemptId: string;
     activeMs?: number;
   }): SessionView;
-  drop(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   pause(input: { sessionId: string; activeMs?: number }): void;
   // Al cerrar la ventana: pausa la sesión de hoy que esté en curso, si hay.
   pauseOpen(activeMs?: number): void;
@@ -292,13 +292,14 @@ function eligibleCards(db: Writer, subjectId: string, today: string): Eligible[]
   });
 }
 
-// Las calificaciones que valen de una tarjeta desde que se programó como nueva por última vez.
+// Las calificaciones que llegaron al motor desde que la tarjeta se programó como nueva por última
+// vez: sin anuladas, sin otros repasos del mismo día y sin las vueltas de una fallada.
 function gradesOf(db: Writer, cardId: string): Grade[] {
   const grades: Grade[] = [];
   for (const entry of cardHistory(db, cardId)) {
     if (entry.result === 'reset' || entry.result === 'adopted') {
       grades.length = 0;
-    } else if (!entry.annulled) {
+    } else if (entry.counted) {
       grades.push(entry.result);
     }
   }
@@ -405,7 +406,8 @@ export function createStudyStore(
   function finishIfComplete(tx: Writer, sessionId: string): void {
     const state = stateOf(tx, sessionId);
     if (state.complete && (state.status === 'active' || state.status === 'paused')) {
-      append(tx, 'session.finished', { sessionId, activeMs: 0 }, `finish:${sessionId}`);
+      // Puede terminar más de una vez: deshacer la última la vuelve a abrir.
+      append(tx, 'session.finished', { sessionId, activeMs: 0 }, `finish:${newId()}`);
     }
   }
 
@@ -476,7 +478,10 @@ export function createStudyStore(
       progress: state.progress,
       complete: state.complete,
       current,
-      undoable: state.undoable && isOpen(state) ? { grade: state.undoable.grade } : null,
+      undoable:
+        state.undoable && (isOpen(state) || state.status === 'finished')
+          ? { activityId: state.undoable.activityId, grade: state.undoable.grade }
+          : null,
       showShortcuts: !readSetting(tx, SHORTCUTS_SEEN, z.boolean(), false),
     };
   }
@@ -655,6 +660,10 @@ export function createStudyStore(
 
     resume({ sessionId, activeMs = 0 }) {
       return change(sessionId, (tx, state) => {
+        // Una sesión pausada vale hasta el cambio de día de estudio (04:00).
+        if (state.studyDay !== today()) {
+          throw new SessionClosedError();
+        }
         if (state.status === 'paused' && !state.complete) {
           append(tx, 'session.resumed', { sessionId, activeMs }, `resume:${newId()}`);
         }
@@ -690,14 +699,14 @@ export function createStudyStore(
       });
     },
 
-    undo({ sessionId, activeMs = 0 }) {
+    undo({ sessionId, activityId, activeMs = 0 }) {
       return orm.transaction((tx) => {
         const state = stateOf(tx, sessionId);
-        if (state.status === 'finished' || state.status === 'abandoned') {
+        if (state.status === 'abandoned') {
           throw new SessionClosedError();
         }
         const last = state.undoable;
-        if (last) {
+        if (last?.activityId === activityId) {
           annulReview(tx, clock, {
             cardId: last.cardId,
             reviewId: last.reviewId,
@@ -750,20 +759,6 @@ export function createStudyStore(
           source: 'user',
         });
         finishIfComplete(tx, sessionId);
-      });
-    },
-
-    drop({ sessionId, activityId, activeMs = 0 }) {
-      return change(sessionId, (tx, state) => {
-        if (isOpen(state) && state.pending[0]?.activityId === activityId) {
-          append(
-            tx,
-            'session.dropped',
-            { sessionId, activityId, activeMs },
-            `drop:${sessionId}:${activityId}`,
-          );
-          finishIfComplete(tx, sessionId);
-        }
       });
     },
 

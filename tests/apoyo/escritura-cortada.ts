@@ -70,7 +70,8 @@ const operations: Record<string, () => unknown> = {
       answer: field('answer') || null,
       activeMs: 1000,
     }),
-  studyUndo: () => workspace.study.undo({ sessionId: field('sessionId') }),
+  studyUndo: () =>
+    workspace.study.undo({ sessionId: field('sessionId'), activityId: field('undoActivity') }),
   studyFlag: () =>
     workspace.study.flag({
       sessionId: field('sessionId'),

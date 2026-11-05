@@ -71,6 +71,7 @@ export function SessionScreen({
     () =>
       new Autosaver({
         delay: DRAFT_SAVE_MS,
+        maxWait: DRAFT_SAVE_MS,
         save: () => {
           const { activityId, ...rest } = latest.current;
           if (activityId === '') {
@@ -199,10 +200,11 @@ export function SessionScreen({
   );
 
   const undo = useCallback(() => {
-    if (!view.undoable) {
+    const last = view.undoable;
+    if (!last) {
       return;
     }
-    void run(() => window.retenia['study.undo']({ sessionId }), true);
+    void run(() => window.retenia['study.undo']({ sessionId, activityId: last.activityId }), true);
   }, [run, sessionId, view.undoable]);
 
   const pause = useCallback(async () => {
@@ -266,15 +268,12 @@ export function SessionScreen({
   keys.current = { showAnswer, grade, undo, pause, closing };
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      // En el cierre las teclas de la sesión ya no hacen nada.
-      if (keys.current.closing) {
-        return;
-      }
       const action = sessionKeyAction(event, {
         modalOpen: document.querySelector('[aria-modal="true"]') !== null,
         target: event.target instanceof HTMLElement ? event.target : null,
       });
-      if (action === null) {
+      // En el cierre solo queda Ctrl+Z (deshacer la última calificación).
+      if (action === null || (keys.current.closing && action.kind !== 'undo')) {
         return;
       }
       event.preventDefault();
@@ -296,8 +295,23 @@ export function SessionScreen({
     return (
       <main className={styles.session} aria-label={texts.study.title}>
         <h1 className="visually-hidden">{texts.study.title}</h1>
+        {view.undoable ? (
+          <div className={styles.bar}>
+            <span className={styles.previous}>
+              {texts.study.previous(GRADE_LABEL[view.undoable.grade])}
+              <Boton variant="quiet" disabled={busy} onClick={undo}>
+                {texts.study.undo}
+              </Boton>
+            </span>
+          </div>
+        ) : null}
         <div className={styles.main}>
-          <SessionClosing sessionId={sessionId} onExit={onExit} onToast={onToast} />
+          <SessionClosing
+            key={view.progress.done}
+            sessionId={sessionId}
+            onExit={onExit}
+            onToast={onToast}
+          />
         </div>
       </main>
     );

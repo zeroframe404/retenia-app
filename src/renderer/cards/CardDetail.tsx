@@ -166,7 +166,9 @@ export function CardDetailView({
         <Boton variant="primary" onClick={() => onEdit(card)}>
           {texts.cards.editSheet}
         </Boton>
-        {card.paused ? null : <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>}
+        {card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired' ? null : (
+          <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>
+        )}
         {card.kind === 'qa' && !card.hasInverse && card.inverseOfCardId === null ? (
           <Boton onClick={() => void createInverse()}>{texts.cards.createInverse}</Boton>
         ) : null}

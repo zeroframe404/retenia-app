@@ -513,6 +513,7 @@ export const texts = {
       `Continuar: sesión de hoy (${numberFormat.format(done)} de ${numberFormat.format(total)})`,
     nothingDue: (subject: string) => `Hoy no tenés repasos vencidos en ${subject}.`,
     startFailed: 'No pude armar la sesión. Probá de nuevo.',
+    resumeFailed: 'No pude continuar esa sesión (puede ser de otro día). Empezá una nueva.',
     title: 'Sesión de estudio',
     progress: (done: number, total: number) =>
       `${numberFormat.format(done)}/${numberFormat.format(total)}`,

@@ -51,7 +51,9 @@ export function StudyScreen({
     };
   }, [activeSubjectId, attempt]);
 
-  async function open(action: () => Promise<SessionView>) {
+  // Si no se pudo (por ejemplo, la sesión pausada era de ayer y ya pasaron las 04:00), se dice y se
+  // vuelve a leer lo de hoy.
+  async function open(action: () => Promise<SessionView>, problem = texts.study.startFailed) {
     if (inFlight.current) {
       return;
     }
@@ -61,9 +63,10 @@ export function StudyScreen({
     try {
       onStudy(await action());
     } catch {
-      setFailed(texts.study.startFailed);
+      setFailed(problem);
       inFlight.current = false;
       setBusy(false);
+      setAttempt((n) => n + 1);
     }
   }
 
@@ -94,7 +97,9 @@ export function StudyScreen({
         <Boton
           variant="primary"
           disabled={busy}
-          onClick={() => void open(() => window.retenia['study.resume']({ sessionId }))}
+          onClick={() =>
+            void open(() => window.retenia['study.resume']({ sessionId }), texts.study.resumeFailed)
+          }
         >
           {texts.study.resume(done, total)}
         </Boton>

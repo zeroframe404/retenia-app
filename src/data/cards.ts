@@ -19,6 +19,7 @@ import type {
   SheetStateValue,
 } from '../preload/contract/cards';
 import {
+  CardOutOfReviewsError,
   CardPausedError,
   InverseNotAllowedError,
   LinkedCardTextError,
@@ -287,6 +288,9 @@ export function recordReview(
   const current = activeCard(tx, cardId);
   if (current.pausedAt !== null) {
     throw new CardPausedError();
+  }
+  if (current.sheetState === 'in_review' || current.sheetState === 'retired') {
+    throw new CardOutOfReviewsError();
   }
   const observation = appendObservation(tx, clock, {
     kind: 'review.graded',

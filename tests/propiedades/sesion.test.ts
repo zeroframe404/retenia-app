@@ -122,7 +122,9 @@ describe('sesión de estudio: invariantes', () => {
               expect(after).toEqual(previous);
             }
           } else {
-            // Saltar o marcar cortan la pila de deshacer: lo anterior ya no se deshace.
+            // Saltar o marcar cortan la pila de deshacer: lo anterior ya no se deshace (y no hay
+            // nada para deshacer hasta la próxima calificación).
+            expect(after.undoable).toBeNull();
             history.length = 0;
           }
         });

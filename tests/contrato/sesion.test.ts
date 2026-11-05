@@ -98,7 +98,7 @@ describe('contrato: sesión de estudio', () => {
       grade: 'hard',
       answer: null,
     });
-    const undone = await api['study.undo']({ sessionId: SESSION });
+    const undone = await api['study.undo']({ sessionId: SESSION, activityId: first });
     expect(undone.current?.activityId).toBe(first);
     expect(
       await api['study.saveDraft']({

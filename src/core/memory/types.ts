@@ -34,6 +34,9 @@ export type MemoryEvent =
       readonly helpLevel?: HelpLevel | undefined;
       readonly interrupted?: boolean | undefined;
       readonly defective?: boolean | undefined;
+      // La vuelta de una fallada dentro de una sesión (Fase 10): queda en el historial y nunca
+      // llega al motor, sea el día que sea.
+      readonly retry?: boolean | undefined;
       // Si la fecha de este repaso lleva la variación al azar del uso real (Fase 09).
       readonly fuzz?: boolean | undefined;
     }

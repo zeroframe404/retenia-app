@@ -18,7 +18,14 @@ import { inBuenosAires } from '../apoyo/fechas';
 let child: CutChild | undefined;
 let folder: ReturnType<typeof tempDataFolder>;
 const bases = { open: '', last: '' };
-const ids = { session: '', current: '', lastSession: '', lastActivity: '', card: '' };
+const ids = {
+  session: '',
+  current: '',
+  undoActivity: '',
+  lastSession: '',
+  lastActivity: '',
+  card: '',
+};
 
 const open = (dataDir: string) =>
   openWorkspace({ dataDir, clock: demoClock(), appVersion: '0.0.0-prueba' });
@@ -53,6 +60,7 @@ beforeAll(async () => {
   withDueCards(workspace, 12);
   ids.session = randomUUID();
   const view = workspace.study.start({ sessionId: ids.session });
+  ids.undoActivity = view.current?.activityId ?? '';
   workspace.study.grade({
     sessionId: ids.session,
     activityId: view.current?.activityId ?? '',
@@ -242,6 +250,7 @@ describe('corte del proceso en cada punto de una escritura de la sesión', () =>
         sessionId: ids.session,
         activityId: ids.current,
         cardId: ids.card,
+        undoActivity: ids.undoActivity,
         text: 'No entiendo por qué se divide por n−1',
       };
       for (const [key, value] of Object.entries(extra)) {

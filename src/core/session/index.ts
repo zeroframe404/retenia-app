@@ -38,7 +38,7 @@ export interface SessionState {
   readonly status: SessionStatus;
   readonly pending: readonly SessionActivity[];
   readonly done: readonly DoneActivity[];
-  readonly undoable: { reviewId: string; cardId: string; grade: Grade } | null;
+  readonly undoable: { reviewId: string; activityId: string; cardId: string; grade: Grade } | null;
   readonly progress: { done: number; total: number };
   readonly complete: boolean;
   readonly activeMs: number;
@@ -132,6 +132,10 @@ interface Draft {
   done: DoneActivity[];
   activeMs: number;
   deferredSiblingIds: readonly string[];
+  // «Saltar» corta la pila de deshacer: la última calificación ya no es lo último que pasó. Cada
+  // calificación recuerda cómo estaba antes, así deshacerla deja todo como estaba.
+  undoBlocked: boolean;
+  blockedBefore: boolean[];
 }
 
 function applyEvent(draft: Draft, event: SessionEvent): void {
@@ -145,6 +149,8 @@ function applyEvent(draft: Draft, event: SessionEvent): void {
         return;
       }
       draft.pending.shift();
+      draft.blockedBefore.push(draft.undoBlocked);
+      draft.undoBlocked = false;
       const retryActivityId = current.retry ? null : event.retryActivityId;
       draft.done.push({
         ...current,
@@ -168,6 +174,11 @@ function applyEvent(draft: Draft, event: SessionEvent): void {
         return;
       }
       draft.done.pop();
+      draft.undoBlocked = draft.blockedBefore.pop() ?? false;
+      // Deshacer la calificación que terminó la sesión la vuelve a abrir.
+      if (draft.status === 'finished') {
+        draft.status = 'active';
+      }
       if (last.retryActivityId !== null) {
         draft.pending = draft.pending.filter(
           (activity) => activity.activityId !== last.retryActivityId,
@@ -186,6 +197,7 @@ function applyEvent(draft: Draft, event: SessionEvent): void {
       }
       draft.pending.shift();
       draft.pending.push(current);
+      draft.undoBlocked = true;
       return;
     }
     case 'flagged':
@@ -234,14 +246,25 @@ export function projectSession(events: readonly SessionEvent[]): SessionState {
     done: [],
     activeMs: 0,
     deferredSiblingIds: first.deferredSiblingIds,
+    undoBlocked: false,
+    blockedBefore: [],
   };
   for (const event of events) {
     applyEvent(draft, event);
   }
   const last = draft.done.at(-1);
   const undoable =
-    last && last.reviewId !== null && last.outcome !== 'flagged' && last.outcome !== 'dropped'
-      ? { reviewId: last.reviewId, cardId: last.cardId, grade: last.outcome }
+    !draft.undoBlocked &&
+    last &&
+    last.reviewId !== null &&
+    last.outcome !== 'flagged' &&
+    last.outcome !== 'dropped'
+      ? {
+          reviewId: last.reviewId,
+          activityId: last.activityId,
+          cardId: last.cardId,
+          grade: last.outcome,
+        }
       : null;
   return {
     sessionId: draft.sessionId,

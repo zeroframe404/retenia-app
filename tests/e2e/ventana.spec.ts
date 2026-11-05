@@ -65,7 +65,6 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'study.undo',
       'study.skip',
       'study.flag',
-      'study.drop',
       'study.pause',
       'study.saveDraft',
       'study.summary',

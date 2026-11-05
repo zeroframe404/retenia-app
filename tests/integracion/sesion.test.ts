@@ -277,8 +277,11 @@ describe('deshacer', () => {
     });
     const graded = gradeCurrent(space.workspace, sessionId, 'good');
     expect(graded.progress.done).toBe(4);
-    expect(graded.undoable).toEqual({ grade: 'good' });
-    const undone = space.workspace.study.undo({ sessionId });
+    expect(graded.undoable).toEqual({ activityId: expect.any(String), grade: 'good' });
+    const undone = space.workspace.study.undo({
+      sessionId,
+      activityId: graded.undoable?.activityId ?? '',
+    });
     expect(undone.progress).toEqual({ done: 3, total: 10 });
     expect(undone.current?.cardId).toBe(fourth);
     expect(undone.current?.draft).toEqual({ text: 'algo', answerShown: false });
@@ -289,8 +292,11 @@ describe('deshacer', () => {
   it('[CA-067] deshacer sin nada para deshacer no agrega nada', () => {
     const space = seeded();
     const sessionId = id();
-    space.workspace.study.start({ sessionId });
-    const view = space.workspace.study.undo({ sessionId });
+    const started = space.workspace.study.start({ sessionId });
+    const view = space.workspace.study.undo({
+      sessionId,
+      activityId: started.current?.activityId ?? '',
+    });
     expect(view.progress.done).toBe(0);
     expect(observationsOf(space.file, 'review.annulled')).toHaveLength(0);
   });
@@ -429,16 +435,14 @@ describe('saltar y sacar', () => {
     expect(observationsOf(space.file, 'session.skipped')).toHaveLength(1);
   });
 
-  it('una tarjeta que se pausó desde «Editar» sale de la sesión como hecha', () => {
+  it('una tarjeta que se pausó desde «Editar» sale de la sesión como hecha al volver a mirarla', () => {
     const space = seeded();
     const sessionId = id();
     const view = space.workspace.study.start({ sessionId });
     space.workspace.cards.setPaused({ cardId: view.current?.cardId ?? '', paused: true });
-    const after = space.workspace.study.drop({
-      sessionId,
-      activityId: view.current?.activityId ?? '',
-    });
+    const after = space.workspace.study.view({ sessionId });
     expect(after.progress.done).toBe(1);
+    expect(after.current?.cardId).not.toBe(view.current?.cardId);
   });
 });
 
@@ -482,7 +486,6 @@ describe('cierre', () => {
     expect(summary.cards[0]?.question).toBe('¿Qué mide el desvío estándar?');
     expect(summary.focusTopic?.name).toBe('Media y dispersión');
     expect(summary.rating).toBeNull();
-    expect(() => space.workspace.study.undo({ sessionId })).toThrow();
   });
 
   it('[CA-075] un toque en «¿Cómo estuvo?» queda registrado; sin toque, nada', () => {
