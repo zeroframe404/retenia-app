@@ -1,4 +1,4 @@
-import type { Clock } from '../core/clock';
+import { type Clock, type Stopwatch, systemStopwatch } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
 import type { ThemeChoice } from '../core/theme';
 import type { ZoomDirection } from '../core/zoom';
@@ -13,6 +13,7 @@ import {
 } from '../preload/contract';
 import type { Backup } from '../preload/contract/backups';
 import { createAppearanceStore } from './appearance';
+import { createStudyTimer } from './study-timer';
 
 export type Variant = 'prueba' | 'real';
 
@@ -46,6 +47,7 @@ export function createHandlers({
   onAppearanceChange,
   zoom,
   onFlushed,
+  stopwatch = systemStopwatch(),
 }: {
   clock: Clock;
   variant: Variant;
@@ -58,9 +60,13 @@ export function createHandlers({
   zoom?: (direction: ZoomDirection) => number;
   // La pantalla avisa que ya guardó lo pendiente: el cierre de la ventana espera este aviso.
   onFlushed?: () => void;
+  // Mide los tiempos de la sesión de estudio (en las pruebas, uno fijo).
+  stopwatch?: Stopwatch;
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
+  const timer = createStudyTimer(clock, stopwatch);
+  const ok = { ok: true } as const;
   return {
     ping: async () => ({ message: 'pong', variant, today: studyDayOf(clock.now()) }),
     'app.info': async () => ({ version, variant, dataDir: workspace.dataDir }),
@@ -82,6 +88,60 @@ export function createHandlers({
     'cards.edit': async (request) => workspace.cards.edit(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
+    'study.overview': async () => workspace.study.overview(),
+    'study.start': async ({ sessionId }) => {
+      timer.begin(sessionId);
+      return workspace.study.start({ sessionId });
+    },
+    'study.view': async (request) => workspace.study.view(request),
+    'study.resume': async ({ sessionId }) => {
+      timer.begin(sessionId);
+      return workspace.study.resume({ sessionId });
+    },
+    'study.mark': async ({ activityId, mark }) => {
+      timer.mark(activityId, mark);
+      return ok;
+    },
+    'study.grade': async (request) =>
+      workspace.study.grade({
+        ...request,
+        marks: timer.take(request.activityId),
+        activeMs: timer.step(request.sessionId),
+      }),
+    'study.undo': async ({ sessionId }) =>
+      workspace.study.undo({ sessionId, activeMs: timer.step(sessionId) }),
+    'study.skip': async (request) =>
+      workspace.study.skip({ ...request, activeMs: timer.step(request.sessionId) }),
+    'study.flag': async (request) =>
+      workspace.study.flag({ ...request, activeMs: timer.step(request.sessionId) }),
+    'study.drop': async (request) =>
+      workspace.study.drop({ ...request, activeMs: timer.step(request.sessionId) }),
+    'study.pause': async ({ sessionId }) => {
+      workspace.study.pause({ sessionId, activeMs: timer.stop(sessionId) });
+      return ok;
+    },
+    'study.saveDraft': async (request) => {
+      workspace.study.saveDraft(request);
+      return ok;
+    },
+    'study.summary': async (request) => workspace.study.summary(request),
+    'study.rate': async (request) => {
+      workspace.study.rate(request);
+      return ok;
+    },
+    'study.adjustPlan': async (request) => {
+      workspace.study.adjustPlan(request);
+      return ok;
+    },
+    'study.dismissShortcuts': async () => {
+      workspace.study.dismissShortcuts();
+      return ok;
+    },
+    'doubts.create': async (request) => {
+      workspace.doubts.create(request);
+      return ok;
+    },
+    'doubts.reviews': async () => workspace.doubts.reviews(),
     'subjects.list': async () => workspace.subjects.list(),
     'subjects.create': async (request) => workspace.subjects.create(request),
     'subjects.activate': async (request) => workspace.subjects.activate(request),
@@ -127,7 +187,12 @@ export function createHandlers({
     'backups.repairData': async () => ({ differences: workspace.repairData() }),
     'window.zoom': async ({ direction }) => ({ factor: zoom ? zoom(direction) : 1 }),
     'window.flushed': async () => {
-      onFlushed?.();
+      // Cerrar la ventana equivale a pausar la sesión de estudio que esté en curso.
+      try {
+        workspace.study.pauseOpen(timer.stopAny());
+      } finally {
+        onFlushed?.();
+      }
       return {};
     },
     'backups.openFolder': async () => {
