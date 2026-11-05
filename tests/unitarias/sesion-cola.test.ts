@@ -359,5 +359,8 @@ describe('cierre', () => {
     expect(failed.focusTopicName).toBe('Media y dispersión');
     const clean = summarizeSession(play(['c2', 'c0', 'c1'], ['good', 'good', 'good']).state, cards);
     expect(clean.focusTopicName).toBe('Media y dispersión');
+    // Antes de calificar nada cuentan todas las tarjetas de la sesión.
+    const early = summarizeSession(play(['c2', 'c0', 'c1'], []).state, cards);
+    expect(early.focusTopicName).toBe('Media y dispersión');
   });
 });
