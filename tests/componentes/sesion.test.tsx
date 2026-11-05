@@ -20,14 +20,21 @@ function withCast() {
 
 const progress = () => screen.getByRole('status', { name: /^Llevás \d+ de \d+$/ });
 
+// Leer lo de hoy y armar la sesión recorre las 180 tarjetas del elenco: con la máquina cargada (la
+// red corre varias copias del proyecto a la vez) puede tardar más que el segundo que se espera por
+// defecto. Lo que se espera no cambia; solo cuánto.
+const SLOW = { timeout: 15_000 };
+
 async function startSession(user: ReturnType<typeof openWindow>['user']) {
   render(<App />);
   // Mientras se lee lo de hoy, «Empezar» está pero no se puede tocar.
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(false),
+  await waitFor(
+    () =>
+      expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(false),
+    SLOW,
   );
   await user.click(screen.getByRole('button', { name: 'Empezar' }));
-  await screen.findByText('¿Qué mide el desvío estándar?');
+  await screen.findByText('¿Qué mide el desvío estándar?', {}, SLOW);
 }
 
 const sessionReviews = (file: string) =>

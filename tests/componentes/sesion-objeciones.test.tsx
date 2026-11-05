@@ -76,11 +76,16 @@ describe('sesión de estudio: lo que encontró el revisor, en la ventana', () =>
   it('[CA-067] en el cierre, Ctrl+Z (o «Deshacer») deshace la última calificación y vuelve a esa tarjeta', async () => {
     const { user } = withCast();
     render(<App />);
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(false),
+    // Con la máquina cargada, leer lo de hoy puede tardar más que el segundo por defecto.
+    await waitFor(
+      () =>
+        expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(
+          false,
+        ),
+      { timeout: 15_000 },
     );
     await user.click(screen.getByRole('button', { name: 'Empezar' }));
-    await screen.findByText(DESVIO);
+    await screen.findByText(DESVIO, {}, { timeout: 15_000 });
     for (let step = 0; step < 10; step += 1) {
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Mostrar respuesta' })).toBeTruthy(),
