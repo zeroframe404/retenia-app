@@ -27,10 +27,8 @@ export const texts = {
   },
   // Lo que todavía no existe dice «Todavía no disponible» y lleva a lo que sí se puede hacer.
   screens: {
-    study: 'Todavía no disponible. Acá vas a ver qué estudiar hoy.',
     materials: 'Todavía no disponible. Acá vas a guardar tus PDF, textos y páginas web.',
     languages: 'Todavía no disponible. Acá vas a seguir el curso de inglés, de cero a C2.',
-    progress: 'Todavía no disponible. Acá vas a ver cuánto conservás y qué podés hacer.',
     goToNotes: 'Ir a Apuntes',
   },
   // Apuntes: las notas con sus temas, la Bandeja y, por ahora, la lista provisoria de tarjetas, la
@@ -505,6 +503,96 @@ export const texts = {
     lostKeep: 'Conservar la tarjeta',
     lostRemove: 'Eliminar la tarjeta',
     lostKept: 'La tarjeta quedó en Tarjetas, sin nota.',
+    // «Guardar una duda» desde la pantalla de una tarjeta (CA-076).
+    saveDoubt: 'Guardar una duda',
+  },
+  // La sesión de estudio (Fase 10, H-16 a H-18).
+  study: {
+    start: 'Empezar',
+    resume: (done: number, total: number) =>
+      `Continuar: sesión de hoy (${numberFormat.format(done)} de ${numberFormat.format(total)})`,
+    nothingDue: (subject: string) => `Hoy no tenés repasos vencidos en ${subject}.`,
+    startFailed: 'No pude armar la sesión. Probá de nuevo.',
+    title: 'Sesión de estudio',
+    progress: (done: number, total: number) =>
+      `${numberFormat.format(done)}/${numberFormat.format(total)}`,
+    progressLabel: (done: number, total: number) =>
+      `Llevás ${numberFormat.format(done)} de ${numberFormat.format(total)}`,
+    pause: 'Pausar',
+    more: 'Más',
+    flag: 'La tarjeta está mal',
+    edit: 'Editar',
+    skip: 'Saltar',
+    questionLabel: 'Pregunta',
+    answerPlaceholder: 'Tu respuesta…',
+    answerLabel: 'Tu respuesta (opcional)',
+    yourAnswer: 'Tu respuesta',
+    referenceAnswer: 'Respuesta de referencia',
+    previous: (grade: string) => `Calificaste la anterior: ${grade}`,
+    undo: 'Deshacer',
+    shortcuts:
+      'Teclas: Espacio muestra la respuesta · 1, 2 y 3 califican · Ctrl+Z deshace · Esc pausa',
+    shortcutsOk: 'Entendido',
+    flagged: 'La tarjeta pasó a «En revisión». No cuenta como olvido.',
+    actionFailed: 'No pude guardar. Probá de nuevo.',
+    editTitle: 'Editar la tarjeta',
+    loadFailed: 'No pude abrir la sesión. Probá de nuevo.',
+    loading: 'Cargando la sesión…',
+    retry: 'Reintentar',
+    closing: {
+      flagged: 'En revisión',
+      difficultyOne: (topic: string, question: string) => `${topic}: ${question}`,
+      difficultyMany: (topic: string, count: number) =>
+        `${topic}: ${numberFormat.format(count)} tarjetas que no sabías`,
+      nextMore: (count: number) =>
+        count === 1
+          ? 'Queda 1 repaso para hoy: podés hacer otra sesión cuando quieras.'
+          : `Quedan ${numberFormat.format(count)} repasos para hoy: podés hacer otra sesión cuando quieras.`,
+      nextTomorrow: (count: number) =>
+        count === 0
+          ? 'Por hoy no quedan repasos.'
+          : `Por hoy no quedan repasos. Mañana vencen ${numberFormat.format(count)}.`,
+      loadFailed: 'No pude leer el cierre de la sesión. Probá de nuevo.',
+    },
+    doubt: {
+      title: 'Guardar una duda',
+      label: 'Tu duda',
+      card: 'Sobre qué tarjeta',
+      noCard: 'Sobre la sesión en general',
+      save: 'Guardar',
+      cancel: 'Cancelar',
+      empty: 'Escribí tu duda para guardarla.',
+      saved: 'Guardé tu duda. La ves en Progreso › «Dudas y revisiones».',
+      failed: 'No pude guardar la duda. Probá de nuevo.',
+    },
+    adjust: {
+      title: 'Ajustar el plan',
+      shorter: 'Más corto la próxima vez',
+      morePractice: 'Más práctica de este tema',
+      pauseTopic: 'Pausar este tema',
+      cancel: 'Cancelar',
+      saved: 'Anotado. Lo voy a usar cuando Estudiar arme la propuesta por minutos.',
+      failed: 'No pude anotarlo. Probá de nuevo.',
+    },
+  },
+  // Progreso (Fase 10: por ahora, solo «Dudas y revisiones»).
+  progress: {
+    sectionsLabel: 'Secciones de Progreso',
+    reviews: 'Dudas y revisiones',
+    later:
+      'Por ahora, acá están tus dudas y las tarjetas en revisión. Lo demás de Progreso llega más adelante.',
+    doubtsHeading: 'Dudas guardadas',
+    noDoubts: 'Todavía no guardaste dudas.',
+    fromCard: (question: string) => `De la tarjeta: ${question}`,
+    general: 'De una sesión, sin tarjeta',
+    savedOn: (date: string) => `Guardada el ${date}`,
+    inReviewHeading: 'Tarjetas en revisión',
+    noInReview: 'No hay tarjetas en revisión.',
+    openCard: 'Abrir la tarjeta',
+    goToStudy: 'Ir a Estudiar',
+    loadFailed: 'No pude leer tus dudas. Probá de nuevo.',
+    loading: 'Cargando tus dudas…',
+    retry: 'Reintentar',
   },
   history: {
     title: 'Historial',

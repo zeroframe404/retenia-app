@@ -405,3 +405,15 @@
   border-radius: var(--radio-14);
   box-shadow: var(--sombra-flotante);
 }
+
+/* El diálogo apoyado contra el borde derecho, a todo lo alto (la ficha durante una sesión). */
+.scrim[data-placement="side"] {
+  place-items: stretch end;
+  padding: var(--espacio-8);
+}
+
+.dialog[data-placement="side"] {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - var(--espacio-16));
+  align-content: start;
+}

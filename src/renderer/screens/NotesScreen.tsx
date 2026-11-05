@@ -18,6 +18,12 @@ export interface NoteRequest {
   nonce: number;
 }
 
+// Abrir una tarjeta en Apuntes › «Tarjetas» desde otra pantalla.
+export interface CardRequest {
+  cardId: string;
+  nonce: number;
+}
+
 // Apuntes: arriba, la materia que se mira y la activa; después las secciones. «Notas» es la de
 // entrada; «Tarjetas» es la pantalla provisoria de la Fase 03.
 export function NotesScreen({
@@ -34,6 +40,7 @@ export function NotesScreen({
   noteRequest = null,
   onOpenNoteFromCard,
   onNoteRequestHandled,
+  cardRequest = null,
 }: {
   focusTitle?: boolean;
   subject: Subject;
@@ -47,6 +54,8 @@ export function NotesScreen({
   // Algo que cambia lo que muestra el resto de la ventana (la materia activa, la Bandeja).
   onDataChanged: () => void;
   noteRequest?: NoteRequest | null;
+  // Abrir una tarjeta desde otra pantalla («Abrir la tarjeta» en Progreso).
+  cardRequest?: CardRequest | null;
   onOpenNoteFromCard?: (noteId: string, blockId: string) => void;
   onNoteRequestHandled?: () => void;
 }) {
@@ -83,7 +92,7 @@ export function NotesScreen({
         <InboxSection subjectId={subject.id} count={inboxCount} onCount={onInboxCount} />
       ) : null}
       {section === 'cards' ? (
-        <CardsScreen subject={subject} onOpenNote={onOpenNoteFromCard} />
+        <CardsScreen subject={subject} onOpenNote={onOpenNoteFromCard} cardRequest={cardRequest} />
       ) : null}
       {section === 'trash' ? (
         <TrashScreen onBackToCards={toCards} onChanged={onDataChanged} />

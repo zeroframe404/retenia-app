@@ -45,21 +45,21 @@ import { readSetting, writeSetting } from './settings';
 // transacción: un corte deja el paso entero o ausente, y un pedido repetido no agrega nada. Lo que
 // no es historia (el borrador de «Tu respuesta…», las preferencias) vive en tablas aparte.
 
-export class NothingToStudyError extends Error {
+class NothingToStudyError extends Error {
   constructor() {
     super('Hoy no hay repasos vencidos para armar una sesión');
     this.name = 'NothingToStudyError';
   }
 }
 
-export class SessionNotFoundError extends Error {
+class SessionNotFoundError extends Error {
   constructor() {
     super('No encontré esa sesión');
     this.name = 'SessionNotFoundError';
   }
 }
 
-export class SessionClosedError extends Error {
+class SessionClosedError extends Error {
   constructor() {
     super('La sesión ya terminó');
     this.name = 'SessionClosedError';
@@ -75,7 +75,7 @@ export interface AttemptMarks {
   gradedMs: number | null;
 }
 
-export interface PlanPreferences {
+interface PlanPreferences {
   shorter: boolean;
   morePracticeTopicIds: string[];
   pausedTopicIds: string[];

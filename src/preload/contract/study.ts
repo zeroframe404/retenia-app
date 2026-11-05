@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { cardDetailSchema } from './cards';
+import { day } from './common';
 
 // La sesión de estudio (Fase 10): lo que pide la ventana y lo que devuelve el principal. Los
 // identificadores de la sesión, del intento, de la valoración y de la duda los genera la ventana
@@ -14,10 +15,10 @@ export const DRAFT_SAVE_MS = 2000;
 
 const grade = z.enum(['again', 'hard', 'good']);
 const status = z.enum(['active', 'paused', 'finished', 'abandoned']);
-export const ratingSchema = z.enum(['easy', 'fair', 'hard']);
+const ratingSchema = z.enum(['easy', 'fair', 'hard']);
 export type SessionRating = z.output<typeof ratingSchema>;
 
-export const draftSchema = z.strictObject({
+const draftSchema = z.strictObject({
   text: z.string().max(MAX_ANSWER_LENGTH),
   answerShown: z.boolean(),
 });
@@ -96,7 +97,7 @@ export const studyRateRequest = z.strictObject({
   ratingId: z.uuid(),
 });
 
-export const planOptionSchema = z.enum(['shorter', 'morePractice', 'pauseTopic']);
+const planOptionSchema = z.enum(['shorter', 'morePractice', 'pauseTopic']);
 export type PlanOption = z.output<typeof planOptionSchema>;
 export const studyAdjustRequest = z.strictObject({
   sessionId: z.uuid(),
@@ -142,13 +143,18 @@ export const reviewsResponse = z.strictObject({
       id: z.uuid(),
       text: z.string(),
       createdAt: z.iso.datetime(),
-      card: z.strictObject({ id: z.uuid(), question: z.string() }).nullable(),
+      // El día (dd/mm/aaaa en pantalla) en Buenos Aires.
+      day,
+      card: z
+        .strictObject({ id: z.uuid(), question: z.string(), subjectId: z.uuid().nullable() })
+        .nullable(),
     }),
   ),
   inReview: z.array(
     z.strictObject({
       cardId: z.uuid(),
       question: z.string(),
+      subjectId: z.uuid().nullable(),
       subjectName: z.string().nullable(),
     }),
   ),

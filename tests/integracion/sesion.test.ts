@@ -539,7 +539,12 @@ describe('dudas y revisiones', () => {
         id: doubt.doubtId,
         text: 'No entiendo por qué se divide por n−1',
         createdAt: expect.any(String),
-        card: { id: cardId, question: '¿Qué mide el desvío estándar?' },
+        day: '2027-03-15',
+        card: {
+          id: cardId,
+          question: '¿Qué mide el desvío estándar?',
+          subjectId: expect.any(String),
+        },
       },
     ]);
   });
@@ -557,6 +562,7 @@ describe('dudas y revisiones', () => {
       {
         cardId: view.current?.cardId,
         question: '¿Qué mide el desvío estándar?',
+        subjectId: expect.any(String),
         subjectName: 'Estadística básica',
       },
     ]);

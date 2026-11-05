@@ -15,21 +15,21 @@ export interface QueueCandidate {
   readonly dueDay: string;
 }
 
-export interface SessionActivity {
+interface SessionActivity {
   readonly activityId: string;
   readonly cardId: string;
   readonly retry: boolean;
 }
 
-export type SessionOutcome = Grade | 'flagged' | 'dropped';
+type SessionOutcome = Grade | 'flagged' | 'dropped';
 
-export interface DoneActivity extends SessionActivity {
+interface DoneActivity extends SessionActivity {
   readonly outcome: SessionOutcome;
   readonly reviewId: string | null;
   readonly retryActivityId: string | null;
 }
 
-export type SessionStatus = 'active' | 'paused' | 'finished' | 'abandoned';
+type SessionStatus = 'active' | 'paused' | 'finished' | 'abandoned';
 
 export interface SessionState {
   readonly sessionId: string;
@@ -114,7 +114,7 @@ export function chooseSessionCards(
 
 // Una tarjeta cuyas últimas 4 calificaciones fueron «No la sabía» sale de la cola (va a «Mejorar la
 // tarjeta», que llega en la Fase 17).
-export const OUT_OF_QUEUE_FAILS = 4;
+const OUT_OF_QUEUE_FAILS = 4;
 export function leftOutOfQueue(results: readonly Grade[]): boolean {
   return (
     results.length >= OUT_OF_QUEUE_FAILS &&
@@ -274,7 +274,7 @@ export interface SessionSummary {
 }
 
 // Como máximo 2 dificultades en el cierre.
-export const MAX_DIFFICULTIES = 2;
+const MAX_DIFFICULTIES = 2;
 
 // El cierre: cada tarjeta cuenta por su primera calificación (las vueltas no suman), las falladas
 // agrupadas por tema (primero el tema con más; a igual cantidad, el que apareció antes), y el tema

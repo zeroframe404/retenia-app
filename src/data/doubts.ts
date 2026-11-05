@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
+import { localDateTime } from '../core/study-day';
 import type { ReviewsList } from '../preload/contract/study';
 import type { ReteniaDatabase } from './database';
 import { cards, cardVersions, doubts, subjects } from './schema';
@@ -47,17 +48,18 @@ export function createDoubtsStore(db: ReteniaDatabase, clock: Clock): DoubtsStor
         cardIds.length === 0
           ? []
           : orm
-              .select({ id: cards.id, question: cardVersions.question })
+              .select({ id: cards.id, question: cardVersions.question, subjectId: cards.subjectId })
               .from(cards)
               .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
               .where(and(inArray(cards.id, cardIds), isNull(cards.deletedAt)))
               .all()
-              .map((row) => [row.id, row.question]),
+              .map((row) => [row.id, row]),
       );
       const inReview = orm
         .select({
           cardId: cards.id,
           question: cardVersions.question,
+          subjectId: cards.subjectId,
           subjectName: subjects.name,
         })
         .from(cards)
@@ -68,15 +70,16 @@ export function createDoubtsStore(db: ReteniaDatabase, clock: Clock): DoubtsStor
         .all();
       return {
         doubts: saved.map((doubt) => {
-          const question = doubt.cardId === null ? undefined : questions.get(doubt.cardId);
+          const card = doubt.cardId === null ? undefined : questions.get(doubt.cardId);
           return {
             id: doubt.id,
             text: doubt.text,
             createdAt: doubt.createdAt,
+            day: localDateTime(new Date(doubt.createdAt)).day,
             card:
-              doubt.cardId === null || question === undefined
+              card === undefined
                 ? null
-                : { id: doubt.cardId, question },
+                : { id: card.id, question: card.question, subjectId: card.subjectId },
           };
         }),
         inReview,

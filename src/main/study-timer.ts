@@ -9,7 +9,7 @@ import type { AttemptMarks } from '../data/study';
 
 export const IDLE_CAP_MS = 10 * 60_000;
 
-export type StudyMark = 'shown' | 'firstInteraction' | 'answerRequested';
+type StudyMark = 'shown' | 'firstInteraction' | 'answerRequested';
 
 export interface StudyTimer {
   // Empieza (o retoma) a medir una sesión.
