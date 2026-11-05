@@ -293,7 +293,6 @@ export function summarizeSession(
     }
     results[entry.outcome] += 1;
     const topic = cards.get(entry.cardId)?.topicName ?? null;
-    cardsByTopic.set(topic, (cardsByTopic.get(topic) ?? 0) + 1);
     if (entry.outcome === 'again') {
       failedByTopic.set(topic, [...(failedByTopic.get(topic) ?? []), entry.cardId]);
     }
@@ -309,6 +308,13 @@ export function summarizeSession(
     }));
   let focusTopicName: string | null = difficulties[0]?.topicName ?? null;
   if (difficulties.length === 0) {
+    // Todas las tarjetas de la sesión (hechas o no), sin contar las vueltas.
+    for (const activity of [...state.done, ...state.pending]) {
+      if (!activity.retry) {
+        const topic = cards.get(activity.cardId)?.topicName ?? null;
+        cardsByTopic.set(topic, (cardsByTopic.get(topic) ?? 0) + 1);
+      }
+    }
     let most = 0;
     for (const [topic, count] of cardsByTopic) {
       if (count > most) {

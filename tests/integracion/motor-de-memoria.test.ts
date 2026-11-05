@@ -235,9 +235,11 @@ describe('motor de memoria: lo que se guarda con cada intento', () => {
 
     const fresh = newCard(workspace, active.id);
     workspace.cards.review({ cardId: fresh.id, grade: 'good', attemptId: attempt() });
+    // Desde la Fase 10 se escribe la versión 3 del esquema (lo de la 2 más lo de la sesión, que
+    // fuera de una sesión no va).
     expect(reviewPayloads(file, fresh.id)).toEqual([
       expect.objectContaining({
-        schemaVersion: 2,
+        schemaVersion: 3,
         grade: 'good',
         helpLevel: 'A0',
         predictedRecall: null,
@@ -272,7 +274,7 @@ describe('motor de memoria: lo que se guarda con cada intento', () => {
     );
     workspace.cards.review({ cardId: overdue.id, grade: 'hard', attemptId: attempt() });
     const last = reviewPayloads(file, overdue.id).at(-1);
-    expect(last).toMatchObject({ elapsedDays: 5, rule: 'due', schemaVersion: 2 });
+    expect(last).toMatchObject({ elapsedDays: 5, rule: 'due', schemaVersion: 3 });
     expect(last?.predictedRecall).toBeCloseTo(expected ?? -1, 8);
     expect(last?.predictedRecall).toBeGreaterThan(0.8);
     expect(last?.predictedRecall).toBeLessThan(0.9);

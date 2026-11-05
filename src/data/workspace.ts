@@ -24,6 +24,7 @@ import {
 } from './backups';
 import { type CardsStore, createCardsStore } from './cards';
 import { openDatabase } from './database';
+import { createDoubtsStore, type DoubtsStore } from './doubts';
 import { newId } from './ids';
 import { createImagesStore, type ImagesStore } from './images';
 import { createInboxStore, type InboxStore } from './inbox';
@@ -31,6 +32,7 @@ import { continueSequence, readLedgerState } from './ledger';
 import { migrationIds } from './migrations';
 import { createNotesStore, type NotesStore } from './notes';
 import { type DataDifference, repairData, verifyData } from './projections';
+import { createStudyStore, type StudyStore } from './study';
 import { createSubjectsStore, type SubjectsStore } from './subjects';
 import { createTopicsStore, type TopicsStore } from './topics';
 import { createTrashStore, type TrashStore } from './trash';
@@ -51,6 +53,8 @@ export interface Workspace {
   readonly notes: NotesStore;
   readonly inbox: InboxStore;
   readonly images: ImagesStore;
+  readonly study: StudyStore;
+  readonly doubts: DoubtsStore;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
@@ -165,9 +169,10 @@ export function openWorkspace({
   // La base abierta y sus almacenes.
   const connect = () => {
     const db = openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
+    const cards = createCardsStore(db, clock, { fuzz });
     return {
       db,
-      cards: createCardsStore(db, clock, { fuzz }),
+      cards,
       trash: createTrashStore(db, clock),
       activity: createActivityStore(db, clock),
       subjects: createSubjectsStore(db, clock),
@@ -175,6 +180,8 @@ export function openWorkspace({
       notes: createNotesStore(db, clock),
       inbox: createInboxStore(db, clock),
       images: createImagesStore(db, dataDir, clock),
+      study: createStudyStore(db, clock, () => cards, { fuzz }),
+      doubts: createDoubtsStore(db, clock),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -249,6 +256,12 @@ export function openWorkspace({
     },
     get images() {
       return current().images;
+    },
+    get study() {
+      return current().study;
+    },
+    get doubts() {
+      return current().doubts;
     },
     verifyData: () => verifyData(current().db),
     repairData: () => repairData(current().db),
