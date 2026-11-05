@@ -59,6 +59,47 @@ const operations: Record<string, () => unknown> = {
   undo: () => workspace.activity.undo({ operationId: field('operationId') }),
   backup: () => workspace.createBackup('manual'),
   restore: () => workspace.restoreBackup(field('backupId')),
+  // La sesión de estudio (Fase 10). La actividad actual se lee antes de armar el corte.
+  studyStart: () => workspace.study.start({ sessionId: field('sessionId') }),
+  studyGrade: () =>
+    workspace.study.grade({
+      sessionId: field('sessionId'),
+      activityId: field('activityId'),
+      attemptId: field('attemptId'),
+      grade: field('grade') === 'again' ? 'again' : 'good',
+      answer: field('answer') || null,
+      activeMs: 1000,
+    }),
+  studyUndo: () => workspace.study.undo({ sessionId: field('sessionId') }),
+  studyFlag: () =>
+    workspace.study.flag({
+      sessionId: field('sessionId'),
+      activityId: field('activityId'),
+      attemptId: field('attemptId'),
+    }),
+  studySkip: () =>
+    workspace.study.skip({ sessionId: field('sessionId'), activityId: field('activityId') }),
+  studyPause: () => workspace.study.pause({ sessionId: field('sessionId'), activeMs: 1000 }),
+  studyDraft: () =>
+    workspace.study.saveDraft({
+      sessionId: field('sessionId'),
+      activityId: field('activityId'),
+      text: field('text'),
+      answerShown: true,
+    }),
+  studyRate: () =>
+    workspace.study.rate({
+      sessionId: field('sessionId'),
+      rating: 'fair',
+      ratingId: field('ratingId'),
+    }),
+  doubt: () =>
+    workspace.doubts.create({
+      doubtId: field('doubtId'),
+      text: field('text'),
+      cardId: field('cardId'),
+      sessionId: field('sessionId'),
+    }),
 };
 
 const run = operations[operation];
