@@ -50,6 +50,13 @@
       "when": 1793814501328,
       "tag": "0006_motor_de_memoria",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793893364637,
+      "tag": "0007_sesion_de_estudio",
+      "breakpoints": true
     }
   ]
 }

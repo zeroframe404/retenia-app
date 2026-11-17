@@ -43,6 +43,12 @@ for (const destination of ['Estudiar', 'Materiales', 'Idiomas', 'Progreso'] as c
     const { page } = await launchFromStart(undefined, undefined, ARGS);
     await prepare(page);
     await goToDestination(page, destination);
+    // Desde la Fase 10, Estudiar y Progreso leen lo suyo: la captura espera a que esté.
+    if (destination === 'Estudiar') {
+      await expect(page.getByRole('button', { name: 'Empezar', exact: true })).toBeEnabled();
+    } else if (destination === 'Progreso') {
+      await expect(page.getByText('Todavía no guardaste dudas.')).toBeVisible();
+    }
     await page.mouse.move(480, 4);
     await shoot(page, destination.toLowerCase());
   });

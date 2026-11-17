@@ -185,25 +185,34 @@ const again: Grade = 'again';
 // Historiales de ejemplo. Cada uno se eligió mirando cuándo vence la tarjeta con el motor de
 // repasos (el 15/03/2027): los «vencidas» vencen hoy o antes, los «programadas» vencen después, y los
 // «sin verse» llevan entre 27 y 33 días sin verse y siguen programados.
+// Desde la Fase 10 las vencidas de Estadística básica tienen todas una probabilidad de recordarlas
+// de 0,78 o más, así «¿Qué mide el desvío estándar?» (0,77) es la primera de la sesión, que toma las
+// de menor probabilidad; y vencen después que ella (25/02/2027), así sigue siendo la más atrasada.
 const DUE: readonly Template[] = [
   [[2, good]],
-  [[5, good]],
-  [[9, hard]],
-  [[6, again]],
+  [[9, good]],
+  [[5, hard]],
   [
-    [12, hard],
-    [11, again],
+    [12, good],
+    [3, again],
   ],
-  [[4, hard]],
+  [
+    [20, hard],
+    [18, hard],
+  ],
+  [[3, hard]],
   [[8, good]],
   [
-    [15, hard],
-    [14, again],
-  ],
-  [[3, again]],
-  [
     [22, good],
-    [16, again],
+    [21, hard],
+  ],
+  [
+    [3, good],
+    [2, again],
+  ],
+  [
+    [7, good],
+    [2, again],
   ],
 ];
 // Las vencidas de una materia en mantenimiento (Historia argentina): con su retención de 0,85 los

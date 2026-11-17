@@ -1,0 +1,35 @@
+/* El menú de acciones: se abre debajo de su botón, alineado a la derecha. La sombra marcada es solo
+   del diálogo: el menú lleva la de las tarjetas y un borde fuerte. */
+.menu {
+  position: relative;
+}
+
+.list {
+  position: absolute;
+  inset-block-start: calc(100% + var(--espacio-4));
+  inset-inline-end: 0;
+  z-index: 5;
+  display: grid;
+  min-width: 220px;
+  padding: var(--espacio-4);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.item {
+  padding: var(--espacio-8) var(--espacio-12);
+  color: var(--color-tinta);
+  font: var(--tipo-cuerpo);
+  text-align: start;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radio-4);
+  cursor: pointer;
+}
+
+.item:hover,
+.item:focus-visible {
+  background: var(--color-marca-suave);
+}

@@ -153,6 +153,12 @@ export function createDemoWorkspace({
     get images() {
       return active.images;
     },
+    get study() {
+      return active.study;
+    },
+    get doubts() {
+      return active.doubts;
+    },
     verifyData: () => active.verifyData(),
     repairData: () => active.repairData(),
     integrityCheck: () => active.integrityCheck(),

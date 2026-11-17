@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08 y fase-09.
+// fase-06, fase-08, fase-09 y fase-10.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -534,9 +534,65 @@ async function phase09(page) {
   await shoot(page, '6-mantenimiento');
 }
 
-let { app, page } = await launch({}, name !== 'fase-06' && name !== 'fase-08');
+// Las pantallas nuevas de la Fase 10: Estudiar con «Empezar», la sesión (la pregunta con la ayuda
+// de teclas y el borrador, la respuesta al lado de lo escrito, el menú «Más», la ficha en el panel),
+// Estudiar con «Continuar», el cierre con sus dos cuadros y Progreso › «Dudas y revisiones».
+async function phase10(page) {
+  await goToDestination(page, 'Estudiar');
+  const start = page.getByRole('button', { name: 'Empezar', exact: true });
+  await start.and(page.locator(':enabled')).waitFor();
+  await shoot(page, '1-estudiar');
+  await start.click();
+  await page.getByPlaceholder('Tu respuesta…').fill('cuánto se alejan');
+  await page.getByText('Borrador guardado').waitFor();
+  await shoot(page, '2-sesion-pregunta');
+  await page.getByRole('button', { name: 'Más' }).click();
+  await shoot(page, '3-sesion-menu-mas');
+  await page.getByRole('menuitem', { name: 'Editar' }).click();
+  await page.getByRole('dialog', { name: 'Editar la tarjeta' }).waitFor();
+  await shoot(page, '4-sesion-editar');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await shoot(page, '5-sesion-respuesta');
+  await page.getByRole('button', { name: 'No la sabía', exact: true }).click();
+  await page.getByText('Calificaste la anterior: No la sabía').waitFor();
+  await shoot(page, '6-sesion-calificada');
+  await page.getByRole('button', { name: 'Pausar' }).click();
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).waitFor();
+  await shoot(page, '7-estudiar-continuar');
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).click();
+  for (let step = 0; step < 10; step += 1) {
+    await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+    await page
+      .getByRole('button', { name: step === 1 ? 'Con dudas' : 'La sabía', exact: true })
+      .click();
+  }
+  await page.getByRole('heading', { name: /^Sesión terminada/ }).waitFor();
+  await page.getByRole('radio', { name: 'Justo' }).check();
+  await shoot(page, '8-cierre');
+  await page.getByRole('button', { name: 'Guardar una duda' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Guardar una duda' });
+  await dialog.getByLabel('Tu duda').fill('No entiendo por qué se divide por n−1');
+  await shoot(page, '9-cierre-duda');
+  await dialog.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByRole('button', { name: 'Ajustar el plan' }).click();
+  await page.getByRole('dialog', { name: 'Ajustar el plan' }).waitFor();
+  await shoot(page, '10-cierre-ajustar');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Terminar' }).click();
+  await goToDestination(page, 'Progreso');
+  await page.getByText('No entiendo por qué se divide por n−1').waitFor();
+  await shoot(page, '11-progreso-dudas');
+}
+
+let { app, page } = await launch(
+  {},
+  name !== 'fase-06' && name !== 'fase-08' && name !== 'fase-10',
+);
 try {
-  if (name === 'fase-09') {
+  if (name === 'fase-10') {
+    await phase10(page);
+  } else if (name === 'fase-09') {
     await phase09(page);
   } else if (name === 'fase-08') {
     await phase08(page);

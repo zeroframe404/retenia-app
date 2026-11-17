@@ -125,12 +125,17 @@ export const observations = sqliteTable(
     cardId: text('card_id').generatedAlwaysAs(sql`json_extract(payload, '$.cardId')`, {
       mode: 'virtual',
     }),
+    // Fase 10: la sesión de estudio de la observación (nula fuera de una sesión).
+    sessionId: text('session_id').generatedAlwaysAs(sql`json_extract(payload, '$.sessionId')`, {
+      mode: 'virtual',
+    }),
   },
   (table) => [
     uniqueIndex('observations_idempotency_key_unique').on(table.idempotencyKey),
     uniqueIndex('observations_device_seq_unique').on(table.deviceId, table.seq),
     index('observations_kind_occurred_idx').on(table.kind, table.occurredAt),
     index('observations_card_idx').on(table.cardId, table.seq),
+    index('observations_session_idx').on(table.sessionId, table.seq),
   ],
 );
 
@@ -354,4 +359,43 @@ export const inboxItems = sqliteTable('inbox_items', {
   movedToNoteId: text('moved_to_note_id'),
   movedAt: text('moved_at'),
   deletedAt: text('deleted_at'),
+});
+
+// --- La sesión de estudio (Fase 10) ---
+
+// Lo escrito en «Tu respuesta…» de cada actividad de una sesión y si ya se pidió la respuesta. No
+// es historia: se pisa cada 2 segundos, al perder el foco, al pausar y al cerrar.
+export const sessionDrafts = sqliteTable(
+  'session_drafts',
+  {
+    sessionId: text('session_id').notNull(),
+    activityId: text('activity_id').notNull(),
+    text: text('text').notNull().default(''),
+    answerShown: integer('answer_shown').notNull().default(0),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.sessionId, table.activityId] })],
+);
+
+// «Guardar una duda»: el texto y de qué tarjeta y qué sesión salió (sin claves foráneas: la
+// tarjeta puede purgarse y la duda queda).
+export const doubts = sqliteTable(
+  'doubts',
+  {
+    id: text('id').primaryKey(),
+    text: text('text').notNull(),
+    cardId: text('card_id'),
+    sessionId: text('session_id'),
+    createdAt: text('created_at').notNull(),
+    resolvedAt: text('resolved_at'),
+  },
+  (table) => [index('doubts_created_idx').on(table.createdAt)],
+);
+
+// Ajustes y preferencias que viven en la base (JSON por clave): «ya viste la ayuda de teclas» y lo
+// que se anotó con «Ajustar el plan».
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull(),
 });

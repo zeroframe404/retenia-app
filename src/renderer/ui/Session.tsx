@@ -175,15 +175,15 @@ export function CierreSesion({
   difficulties: readonly string[];
   nextStep: string;
   rating: Rating | null;
-  headingLevel?: 3 | 4;
+  headingLevel?: 2 | 3 | 4;
   onRate: (value: Rating) => void;
   onFinish?: () => void;
   onSaveDoubt?: () => void;
   onAdjustPlan?: () => void;
 }) {
   const titleId = useId();
-  const Heading = headingLevel === 3 ? 'h3' : 'h4';
-  const Subheading = headingLevel === 3 ? 'h4' : 'h5';
+  const Heading = (['h2', 'h3', 'h4'] as const)[headingLevel - 2] ?? 'h3';
+  const Subheading = (['h3', 'h4', 'h5'] as const)[headingLevel - 2] ?? 'h4';
   return (
     <section
       className={styles.card}

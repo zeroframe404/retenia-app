@@ -30,9 +30,12 @@ type Topic = { id: string; name: string };
 export function CardsScreen({
   subject,
   onOpenNote,
+  cardRequest = null,
 }: {
   subject?: Subject | undefined;
   onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
+  // Una tarjeta para abrir de entrada («Abrir la tarjeta» en Progreso); cada pedido es distinto.
+  cardRequest?: { cardId: string; nonce: number } | null;
 }) {
   const subjectId = subject?.id;
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -83,6 +86,14 @@ export function CardsScreen({
     setNotice('');
     setTopics([]);
   }, [subjectId]);
+
+  // «Abrir la tarjeta» desde otra pantalla: después de lo de arriba (si también cambió la materia).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
+  useEffect(() => {
+    if (cardRequest) {
+      setView({ kind: 'detail', cardId: cardRequest.cardId, version: nextVersion() });
+    }
+  }, [cardRequest]);
 
   useEffect(() => {
     void load();

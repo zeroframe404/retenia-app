@@ -40,3 +40,9 @@
     padding: var(--espacio-16);
   }
 }
+
+/* La sesión de estudio: la ventana entera, sin el riel. */
+.sessionBody {
+  grid-row: 2;
+  min-height: 0;
+}

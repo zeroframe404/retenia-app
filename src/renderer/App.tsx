@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Subject } from '../preload/contract/organization';
+import type { SessionView } from '../preload/contract/study';
 import { texts } from '../preload/contract/texts';
 import styles from './App.module.css';
 import { applyTheme } from './appearance';
@@ -11,8 +12,16 @@ import { FirstTimeScreen } from './firstTime/FirstTimeScreen';
 import { CaptureDialog } from './inbox/CaptureDialog';
 import { trackInputMode } from './inputMode';
 import { EmptyDestination } from './screens/EmptyDestination';
-import { type NoteRequest, NotesScreen, type NotesSectionName } from './screens/NotesScreen';
+import {
+  type CardRequest,
+  type NoteRequest,
+  NotesScreen,
+  type NotesSectionName,
+} from './screens/NotesScreen';
 import { SearchDialog } from './screens/SearchDialog';
+import { ProgressScreen } from './session/ProgressScreen';
+import { SessionScreen } from './session/SessionScreen';
+import { StudyScreen } from './session/StudyScreen';
 import { SettingsScreen } from './settings/SettingsScreen';
 import { isQuickCapture, zoomDirection } from './shortcuts';
 import { ActiveSubject } from './subjects/SubjectBar';
@@ -55,6 +64,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const [inboxCount, setInboxCount] = useState(0);
   // «Ver en la nota» de una tarjeta: la nota que hay que abrir, en su renglón.
   const [noteRequest, setNoteRequest] = useState<NoteRequest | null>(null);
+  // «Abrir la tarjeta» desde Progreso: la tarjeta que hay que abrir en Apuntes › «Tarjetas».
+  const [cardRequest, setCardRequest] = useState<CardRequest | null>(null);
+  // La sesión de estudio abierta (Fase 10): ocupa la ventana entera, sin el riel.
+  const [studying, setStudying] = useState<SessionView | null>(null);
+  const studyingRef = useRef(false);
+  studyingRef.current = studying !== null;
   const requests = useRef(0);
   const [toast, setToast] = useState('');
   const content = useRef<HTMLElement>(null);
@@ -170,7 +185,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
         return;
       }
       // Con un cuadro abierto (el de «Buscar» o cualquier otro) los atajos de las pantallas esperan.
-      if (event.shiftKey || modalOpen) {
+      // Durante la sesión de estudio no se va a otro destino: primero se pausa.
+      if (event.shiftKey || modalOpen || studyingRef.current) {
         return;
       }
       if (event.key.toLowerCase() === 'k') {
@@ -215,6 +231,19 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // «Abrir la tarjeta» desde Progreso: Apuntes › «Tarjetas» de su materia, con la tarjeta abierta.
+  const openCard = (subjectId: string | null, cardId: string) => {
+    if (subjectId !== null) {
+      setViewedId(subjectId);
+    }
+    requests.current += 1;
+    setCardRequest({ cardId, nonce: requests.current });
+    setDestination('notes');
+    setSettingsView('settings');
+    setNotesSection('cards');
+    setNavigated(true);
+  };
+
   const toasts = (
     <div className={styles.toasts}>
       <Toast onClose={() => setToast('')}>{toast}</Toast>
@@ -233,6 +262,36 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           }}
           onDataChanged={onDataReset}
         />
+        {toasts}
+      </div>
+    );
+  }
+
+  if (studying) {
+    return (
+      <div className={styles.app}>
+        {__VARIANTE__ === 'prueba' ? <DemoRibbon /> : null}
+        <div className={styles.sessionBody}>
+          <SessionScreen
+            initial={studying}
+            onExit={() => {
+              setStudying(null);
+              setDestination('study');
+              setNavigated(true);
+            }}
+            onToast={setToast}
+          />
+        </div>
+        {capturing ? (
+          <CaptureDialog
+            onClose={() => setCapturing(false)}
+            onCaptured={(count) => {
+              setInboxCount(count);
+              setCapturing(false);
+              setToast(texts.inbox.captured);
+            }}
+          />
+        ) : null}
         {toasts}
       </div>
     );
@@ -263,11 +322,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
             />
           ) : null}
           {destination === 'study' && subjects !== null ? (
-            <EmptyDestination
-              title={texts.nav.study}
-              phrase={texts.screens.study}
+            <StudyScreen
               focusTitle={navigated}
-              onGoToNotes={goToNotes}
+              activeSubjectId={active?.id ?? null}
+              onStudy={setStudying}
               before={<ActiveSubject active={active} onChange={() => setChangingSubject(true)} />}
             />
           ) : null}
@@ -286,6 +344,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               noteRequest={noteRequest}
               onOpenNoteFromCard={openNoteFromCard}
               onNoteRequestHandled={() => setNoteRequest(null)}
+              cardRequest={cardRequest}
             />
           ) : null}
           {destination === 'materials' ? (
@@ -305,11 +364,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
             />
           ) : null}
           {destination === 'progress' ? (
-            <EmptyDestination
-              title={texts.nav.progress}
-              phrase={texts.screens.progress}
+            <ProgressScreen
               focusTitle={navigated}
-              onGoToNotes={goToNotes}
+              onOpenCard={openCard}
+              onGoToStudy={() => go('study')}
             />
           ) : null}
           {destination === 'settings' && settingsView === 'settings' ? (

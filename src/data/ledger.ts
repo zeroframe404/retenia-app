@@ -62,24 +62,109 @@ const reviewGradedV2 = z.strictObject({
   fuzz: z.boolean(),
 });
 
+// Los milisegundos activos que suma cada paso de una sesión (con un tope por tramo quieto).
+const activeMs = z.number().int().nonnegative();
+const milliseconds = z.number().int().nonnegative().nullable();
+
+// Fase 10: además de lo de la versión 2, si el repaso fue en una sesión, la sesión, la actividad, si
+// era la vuelta de una fallada (y la vuelta que creó un «No la sabía»), lo escrito en «Tu
+// respuesta…» y los tiempos: cuándo se mostró, y a los cuántos milisegundos de mostrarse hubo la
+// primera interacción, se pidió la respuesta y se calificó. Fuera de una sesión no van.
+const reviewGradedV3 = z.strictObject({
+  ...reviewGradedV2.shape,
+  sessionId: z.uuid().optional(),
+  activityId: z.uuid().optional(),
+  retry: z.boolean().optional(),
+  retryActivityId: z.uuid().nullable().optional(),
+  answer: z.string().nullable().optional(),
+  shownAt: z.iso.datetime().nullable().optional(),
+  firstInteractionMs: milliseconds.optional(),
+  answerRequestedMs: milliseconds.optional(),
+  gradedMs: milliseconds.optional(),
+  activeMs: activeMs.optional(),
+});
+
+const sessionStep = z.strictObject({ sessionId: z.uuid(), activeMs });
+const sessionActivityStep = z.strictObject({
+  sessionId: z.uuid(),
+  activityId: z.uuid(),
+  activeMs,
+});
+
 // Lo esencial de cada tipo de observación, por versión del esquema. Los esquemas viejos se
 // conservan para leer historial viejo; uno nuevo sube la versión y se escribe siempre con la
 // última.
 const PAYLOADS = {
   // Un repaso de una tarjeta: el botón que se tocó, la ayuda y la fecha en que vencía.
-  'review.graded': { 1: reviewGradedV1, 2: reviewGradedV2 },
-  // «Deshacer» un repaso (Fase 09): el repaso queda en el historial y deja de contar.
-  'review.annulled': { 1: z.strictObject({ cardId: z.uuid(), reviewId: z.uuid() }) },
+  'review.graded': { 1: reviewGradedV1, 2: reviewGradedV2, 3: reviewGradedV3 },
+  // «Deshacer» un repaso (Fase 09): el repaso queda en el historial y deja de contar. Desde la Fase
+  // 10, si fue en una sesión, la sesión y los milisegundos activos.
+  'review.annulled': {
+    1: z.strictObject({ cardId: z.uuid(), reviewId: z.uuid() }),
+    2: z.strictObject({
+      cardId: z.uuid(),
+      reviewId: z.uuid(),
+      sessionId: z.uuid().optional(),
+      activeMs: activeMs.optional(),
+    }),
+  },
   // Cambió lo que hay que recordar (Fase 08): la tarjeta vuelve a programarse como nueva.
   'card.meaning_changed': { 1: z.strictObject({ cardId: z.uuid(), versionId: z.uuid() }) },
   // La agenda que traía una tarjeta de la Fase 03, repasada antes de que existiera el libro.
   'schedule.adopted': { 1: z.strictObject({ cardId: z.uuid(), memory: memorySnapshot }) },
+  // La sesión de estudio (Fase 10): la lista ordenada de actividades con que empezó y las hermanas
+  // que pasaron a mañana.
+  'session.started': {
+    1: z.strictObject({
+      sessionId: z.uuid(),
+      subjectId: z.uuid(),
+      studyDay: z.iso.date(),
+      activities: z.array(z.strictObject({ activityId: z.uuid(), cardId: z.uuid() })).min(1),
+      deferredSiblingIds: z.array(z.uuid()),
+      activeMs,
+    }),
+  },
+  // «Saltar»: la actividad pasa al final.
+  'session.skipped': { 1: sessionActivityStep },
+  // La tarjeta dejó de poder estudiarse mientras estaba en la sesión (se pausó o cambió su estado
+  // desde «Editar»): sale de la sesión como hecha.
+  'session.dropped': { 1: sessionActivityStep },
+  'session.paused': { 1: sessionStep },
+  'session.resumed': { 1: sessionStep },
+  'session.finished': { 1: sessionStep },
+  // Se empezó otra sesión con esta sin terminar: sus repasos quedan.
+  'session.abandoned': { 1: sessionStep },
+  // «¿Cómo estuvo?»: vale el último toque.
+  'session.rated': {
+    1: z.strictObject({ sessionId: z.uuid(), rating: z.enum(['easy', 'fair', 'hard']) }),
+  },
+  // «La tarjeta está mal» (CA-077): la ficha pasa a «En revisión» (esa versión) y el intento no
+  // mueve la agenda (no es de los tipos que la mueven).
+  'card.flagged': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      sessionId: z.uuid(),
+      activityId: z.uuid(),
+      attemptId: z.uuid(),
+      versionId: z.uuid(),
+      activeMs,
+    }),
+  },
 };
 const CURRENT_VERSION = {
-  'review.graded': 2,
-  'review.annulled': 1,
+  'review.graded': 3,
+  'review.annulled': 2,
   'card.meaning_changed': 1,
   'schedule.adopted': 1,
+  'session.started': 1,
+  'session.skipped': 1,
+  'session.dropped': 1,
+  'session.paused': 1,
+  'session.resumed': 1,
+  'session.finished': 1,
+  'session.abandoned': 1,
+  'session.rated': 1,
+  'card.flagged': 1,
 } as const;
 
 type Payloads = typeof PAYLOADS;

@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { type Clock, demoClock } from '../../src/core/clock';
+import { type Clock, demoClock, type Stopwatch } from '../../src/core/clock';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
 import { createHandlers, handleMessage, type Variant } from '../../src/main/bridge';
 import { buildApi, type Invoke } from '../../src/preload/api';
@@ -27,10 +27,13 @@ export function openBridge({
   clock = demoClock(),
   variant = 'prueba',
   openFolder,
+  stopwatch,
 }: {
   clock?: Clock;
   variant?: Variant;
   openFolder?: (path: string) => Promise<string>;
+  // El cronómetro de la sesión de estudio (Fase 10): uno fijo para que los tiempos den siempre igual.
+  stopwatch?: Stopwatch;
 } = {}): TestBridge {
   const data = tempDataFolder();
   const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
@@ -40,6 +43,7 @@ export function openBridge({
     variant,
     workspace,
     version: '0.0.0-prueba',
+    ...(stopwatch ? { stopwatch } : {}),
     openFolder:
       openFolder ??
       (async (path) => {

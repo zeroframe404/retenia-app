@@ -28,6 +28,15 @@ export class CardPausedError extends Error {
   }
 }
 
+// Una tarjeta «En revisión» o «Retirada» salió de los repasos (Fase 10, CA-077): no se repasa hasta
+// que su ficha vuelva a «Revisada» o «Verificada».
+export class CardOutOfReviewsError extends Error {
+  constructor() {
+    super('La tarjeta está fuera de los repasos: cambiá el estado de su ficha para repasarla');
+    this.name = 'CardOutOfReviewsError';
+  }
+}
+
 // «Deshacer» un repaso que no existe o que es de otra tarjeta (Fase 09).
 export class ReviewNotFoundError extends Error {
   constructor() {

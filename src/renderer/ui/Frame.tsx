@@ -306,14 +306,18 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // El diálogo: tapa lo demás, mantiene el foco adentro (Tab da la vuelta), se cierra con Esc o con
-// su botón y, al cerrarse, devuelve el foco a lo que lo abrió. Es lo único que flota.
+// su botón y, al cerrarse, devuelve el foco a lo que lo abrió. Es lo único que flota. Con
+// `placement="side"` se apoya contra el borde derecho, como un panel lateral (la ficha de una
+// tarjeta durante la sesión): igual bloquea lo de atrás, así no hay dos cosas para tocar a la vez.
 export function Dialog({
   title,
   onClose,
+  placement = 'center',
   children,
 }: {
   title: string;
   onClose: () => void;
+  placement?: 'center' | 'side';
   children: ReactNode;
 }) {
   const id = useId();
@@ -369,10 +373,11 @@ export function Dialog({
   }, [previous]);
 
   return createPortal(
-    <div className={styles.scrim}>
+    <div className={styles.scrim} data-placement={placement}>
       <div
         ref={dialog}
         className={styles.dialog}
+        data-placement={placement}
         role="dialog"
         aria-modal="true"
         aria-labelledby={id}

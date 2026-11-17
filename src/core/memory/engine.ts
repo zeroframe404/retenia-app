@@ -59,17 +59,19 @@ class UnknownGradeError extends Error {
 
 // Lo que le llega al motor de un intento (CA-064): con pista de concepto o de paso, un acierto
 // cuenta como «Con dudas»; con la solución vista, cualquier intento como «No la sabía»; con la
-// pregunta orientadora, igual que sin ayuda. Interrumpido o defectuoso: nada (null).
+// pregunta orientadora, igual que sin ayuda. Interrumpido, defectuoso o la vuelta de una fallada en
+// la sesión (Fase 10): nada (null).
 export function engineGradeOf(attempt: {
   readonly grade: Grade;
   readonly helpLevel?: HelpLevel | undefined;
   readonly interrupted?: boolean | undefined;
   readonly defective?: boolean | undefined;
+  readonly retry?: boolean | undefined;
 }): Grade | null {
   if (!GRADES.includes(attempt.grade)) {
     throw new UnknownGradeError(attempt.grade);
   }
-  if (attempt.interrupted === true || attempt.defective === true) {
+  if (attempt.interrupted === true || attempt.defective === true || attempt.retry === true) {
     return null;
   }
   const help = attempt.helpLevel ?? 'A0';
