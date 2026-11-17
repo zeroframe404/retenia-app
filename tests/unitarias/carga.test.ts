@@ -244,7 +244,8 @@ describe('freno por atraso', () => {
   });
 
   it('[CA-086] el freno vuelve a 1 cuando el atraso estuvo bajo 0,5 durante 3 días seguidos, no antes', () => {
-    expect(brakeWithRecovery([3, 0.4, 0.3, 0.2]).band).toBe('half');
+    expect(brakeWithRecovery([3, 0.4, 0.3]).band).toBe('half');
+    expect(brakeWithRecovery([3, 0.4, 0.3, 0.2]).band).toBe('full');
     expect(brakeWithRecovery([3, 0.4, 0.3, 0.2, 0.1]).band).toBe('full');
     expect(brakeWithRecovery([0.4, 0.3, 0.2]).band).toBe('full');
     expect(brakeWithRecovery([1, 0.4, 0.3, 0.6, 0.2, 0.2]).band).toBe('half');
