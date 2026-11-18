@@ -10,7 +10,6 @@ import {
   type RankedHit,
   relevanceOf,
   type SearchKind,
-  segmentsOf,
   titleMatch,
 } from '../core/search';
 import type { DataDifference } from '../preload/contract/backups';
@@ -37,6 +36,7 @@ const MAX_RESULTS = 50;
 const MAX_RECENT = 20;
 const KEEP_RECENT = 30;
 const FRAGMENT_LENGTH = 140;
+const TITLE_LENGTH = 200;
 
 interface Row {
   doc_id: string;
@@ -58,11 +58,15 @@ interface Row {
   rank: number;
 }
 
+// Los nombres de temas son pocos: siempre se piden aparte, para que la coincidencia exacta con un
+// nombre viejo no se pierda entre miles de tarjetas.
+const TOPIC_EXTRA = 50;
+
 const SELECT = sql`d.doc_id, d.kind, d.entity_id, d.parent_id, d.subject_id, d.topic_id, d.label,
   d.title, d.body, d.aliases, d.archived, d.touched_at, s.name AS subject_name,
   s.status AS subject_status, t.name AS topic_name, r.seq AS seq`;
 const JOINS = sql`LEFT JOIN subjects s ON s.id = d.subject_id
-  LEFT JOIN topics t ON t.id = d.topic_id
+  LEFT JOIN topics t ON t.id = d.topic_id AND t.deleted_at IS NULL
   LEFT JOIN search_recent r ON r.doc_id = d.doc_id`;
 
 const list = (values: readonly string[]): SQL =>
@@ -90,7 +94,7 @@ function hitOf(row: Row, terms: readonly string[]): SearchHit {
     subjectName: row.subject_name,
     topicId: row.topic_id,
     topicName: row.topic_name,
-    title: segmentsOf(row.label, terms),
+    title: fragmentOf(collapse(row.label), terms, TITLE_LENGTH),
     fragment: fragmentOf(collapse(source), terms, FRAGMENT_LENGTH),
     archived: row.archived === 1 || row.subject_status === 'archived',
   };
@@ -142,7 +146,7 @@ export function createSearchStore(db: ReteniaDatabase): SearchStore {
     const rows = orm.all<Row>(sql`SELECT ${SELECT}, 0 AS rank
       FROM search_recent r JOIN search_documents d ON d.doc_id = r.doc_id
       LEFT JOIN subjects s ON s.id = d.subject_id
-      LEFT JOIN topics t ON t.id = d.topic_id
+      LEFT JOIN topics t ON t.id = d.topic_id AND t.deleted_at IS NULL
       WHERE (s.id IS NULL OR s.deleted_at IS NULL)
       ORDER BY r.seq DESC LIMIT ${MAX_RECENT}`);
     return { results: rows.map((row) => hitOf(row, [])), recent: true };
@@ -184,26 +188,36 @@ export function createSearchStore(db: ReteniaDatabase): SearchStore {
       }
       const where = sql.join(conditions, sql` AND `);
 
-      let rows: Row[];
-      if (plan.pieces !== null) {
-        const extra = plan.words
-          ? sql` AND d.id IN (SELECT rowid FROM search_words WHERE search_words MATCH ${plan.words})`
-          : sql``;
-        rows = orm.all<Row>(sql`SELECT ${SELECT}, m.rank AS rank
-          FROM (SELECT rowid AS rid, bm25(search_pieces, 10.0, 1.0, 1.0) AS rank
-                FROM search_pieces WHERE search_pieces MATCH ${plan.pieces}) m
-          JOIN search_documents d ON d.id = m.rid ${JOINS}
-          WHERE ${where}${extra} ORDER BY m.rank LIMIT ${CANDIDATES}`);
-      } else if (plan.words !== null) {
-        rows = orm.all<Row>(sql`SELECT ${SELECT}, m.rank AS rank
-          FROM (SELECT rowid AS rid, bm25(search_words, 10.0, 1.0) AS rank
-                FROM search_words WHERE search_words MATCH ${plan.words}) m
-          JOIN search_documents d ON d.id = m.rid ${JOINS}
-          WHERE ${where} ORDER BY m.rank LIMIT ${CANDIDATES}`);
-      } else {
-        rows = orm.all<Row>(sql`SELECT ${SELECT}, 0 AS rank
+      const fetch = (condition: SQL, limit: number): Row[] => {
+        if (plan.pieces !== null) {
+          const extra = plan.words
+            ? sql` AND d.id IN (SELECT rowid FROM search_words WHERE search_words MATCH ${plan.words})`
+            : sql``;
+          return orm.all<Row>(sql`SELECT ${SELECT}, m.rank AS rank
+            FROM (SELECT rowid AS rid, bm25(search_pieces, 10.0, 1.0, 1.0) AS rank
+                  FROM search_pieces WHERE search_pieces MATCH ${plan.pieces}) m
+            JOIN search_documents d ON d.id = m.rid ${JOINS}
+            WHERE ${condition}${extra} ORDER BY m.rank LIMIT ${limit}`);
+        }
+        if (plan.words !== null) {
+          return orm.all<Row>(sql`SELECT ${SELECT}, m.rank AS rank
+            FROM (SELECT rowid AS rid, bm25(search_words, 10.0, 1.0) AS rank
+                  FROM search_words WHERE search_words MATCH ${plan.words}) m
+            JOIN search_documents d ON d.id = m.rid ${JOINS}
+            WHERE ${condition} ORDER BY m.rank LIMIT ${limit}`);
+        }
+        return orm.all<Row>(sql`SELECT ${SELECT}, 0 AS rank
           FROM search_documents d ${JOINS}
-          WHERE ${where} ORDER BY d.touched_at DESC LIMIT ${CANDIDATES}`);
+          WHERE ${condition} ORDER BY d.touched_at DESC LIMIT ${limit}`);
+      };
+      const rows = fetch(where, CANDIDATES);
+      if (plan.pieces !== null || plan.words !== null) {
+        const seen = new Set(rows.map((row) => row.doc_id));
+        for (const row of fetch(sql`${where} AND d.kind = 'topic'`, TOPIC_EXTRA)) {
+          if (!seen.has(row.doc_id)) {
+            rows.push(row);
+          }
+        }
       }
 
       const wanted = plainTitle(parsed.terms.join(' '));
@@ -254,6 +268,7 @@ export function createSearchStore(db: ReteniaDatabase): SearchStore {
     },
 
     verify() {
+      catchUp();
       return differencesOf(orm);
     },
   };

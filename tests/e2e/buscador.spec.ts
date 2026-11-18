@@ -194,6 +194,11 @@ test('[CA-103] con 10.000 tarjetas, buscar es inmediato y la materia «Volumen»
     .click();
   await goTo(page, 'Tarjetas');
   await expect(page.getByText('10.000 tarjetas')).toBeVisible();
+  // Se baja de golpe hasta el final de la lista: la última de la lista aparece enseguida.
+  await page.locator('section[tabindex="0"]').evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(page.getByText(/^Relleno 00001:/).first()).toBeVisible({ timeout: 2_000 });
 });
 
 test('Ajustes › «Datos y copias»: «Reconstruir índice de búsqueda» y «Verificar datos» dan «Todo en orden · 0 diferencias»', async ({

@@ -289,7 +289,6 @@ export const texts = {
       loadFailed: 'No pude abrir esto. Probá de nuevo.',
       question: 'Pregunta',
       answer: 'Respuesta',
-      missing: 'Esto ya no está.',
     },
   },
   // Ajustes › «Apariencia».

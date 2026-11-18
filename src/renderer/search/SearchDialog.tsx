@@ -31,7 +31,8 @@ function groupsOf(results: readonly SearchHit[]): Group[] {
 
 function shown(text: string): string {
   const clean = text.replace(/\s+/gu, ' ').trim();
-  return clean.length > SHOWN_LENGTH ? `${clean.slice(0, SHOWN_LENGTH)}…` : clean;
+  const letters = [...clean];
+  return letters.length > SHOWN_LENGTH ? `${letters.slice(0, SHOWN_LENGTH).join('')}…` : clean;
 }
 
 function contextOf(hit: SearchHit): string {

@@ -328,6 +328,18 @@ export function flushSearchIndex(tx: Writer): number {
     }
     byKind.set('block', set);
   }
+  // Una tarjeta que cambia (de materia o de tema) cambia a las dudas que se guardaron sobre ella.
+  const cardIds = [...(byKind.get('card') ?? [])];
+  for (const batch of chunks(cardIds, LOAD_CHUNK)) {
+    const rows = tx.all<{ id: string }>(
+      sql`SELECT id FROM doubts WHERE card_id IN (${list(batch)})`,
+    );
+    const set = byKind.get('doubt') ?? new Set<string>();
+    for (const row of rows) {
+      set.add(row.id);
+    }
+    byKind.set('doubt', set);
+  }
   const docs: DocRow[] = [];
   const removed: string[] = [];
   let checked = 0;
@@ -405,6 +417,9 @@ export function verifySearchIndex(tx: Writer): IndexDifference[] {
     tx
       .all<{
         doc_id: string;
+        kind: string;
+        entity_id: string;
+        touched_at: string;
         label: string;
         title: string;
         body: string;
@@ -415,7 +430,7 @@ export function verifySearchIndex(tx: Writer): IndexDifference[] {
         parent_id: string | null;
         archived: number;
       }>(
-        sql`SELECT doc_id, label, title, body, raw, aliases, subject_id, topic_id, parent_id, archived FROM search_documents`,
+        sql`SELECT doc_id, kind, entity_id, touched_at, label, title, body, raw, aliases, subject_id, topic_id, parent_id, archived FROM search_documents`,
       )
       .map((row) => [row.doc_id, row]),
   );
@@ -423,6 +438,9 @@ export function verifySearchIndex(tx: Writer): IndexDifference[] {
     const row = stored.get(docId);
     if (
       !row ||
+      row.kind !== doc.kind ||
+      row.entity_id !== doc.entityId ||
+      row.touched_at !== doc.touchedAt ||
       row.label !== doc.label ||
       row.title !== doc.title ||
       row.body !== doc.body ||
