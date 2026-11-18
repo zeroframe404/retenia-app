@@ -31,9 +31,13 @@ export function seriousFindings(report, today, accepted = ACCEPTED_ADVISORIES) {
       return true;
     }
     const next = new Set(seen).add(name);
-    const ok = (entry.via ?? []).every((via) =>
-      typeof via === 'string' ? explained(via, next) : valid.has(via.url),
-    );
+    // Solo cuentan los avisos altos o críticos; los moderados no frenan la red.
+    const ok = (entry.via ?? []).every((via) => {
+      if (typeof via === 'string') {
+        return !SERIOUS.has(vulnerabilities[via]?.severity) || explained(via, next);
+      }
+      return !SERIOUS.has(via.severity ?? 'high') || valid.has(via.url);
+    });
     memo.set(name, ok);
     return ok;
   };
