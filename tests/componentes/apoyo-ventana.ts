@@ -1,6 +1,7 @@
 import { cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
+import type { Clock } from '../../src/core/clock';
 import { handleMessage } from '../../src/main/bridge';
 import { createDemoHandlers } from '../../src/main/demo';
 import { createDemoDate } from '../../src/main/demo/clock';
@@ -13,9 +14,9 @@ import { openBridge, type TestBridge } from '../apoyo/puente';
 
 const bridges: TestBridge[] = [];
 
-export function openWindow(variant: 'prueba' | 'real' = 'real') {
+export function openWindow(variant: 'prueba' | 'real' = 'real', clock?: Clock) {
   vi.stubGlobal('__VARIANTE__', variant);
-  const bridge = openBridge();
+  const bridge = openBridge(clock === undefined ? {} : { clock });
   bridges.push(bridge);
   let api: unknown = bridge.api;
   if (variant === 'prueba') {

@@ -81,6 +81,13 @@ const operations: Record<string, () => unknown> = {
   studySkip: () =>
     workspace.study.skip({ sessionId: field('sessionId'), activityId: field('activityId') }),
   studyPause: () => workspace.study.pause({ sessionId: field('sessionId'), activeMs: 1000 }),
+  // La carga en minutos (Fase 11): empezar con 5 minutos (lo que no entra queda para mañana),
+  // «Posponer» para mañana y «Sumar a mis repasos».
+  studyStartShort: () => workspace.study.start({ sessionId: field('sessionId'), minutes: 5 }),
+  studyPostpone: () =>
+    workspace.study.postpone({ requestId: field('requestId'), minutes: 5, when: 'tomorrow' }),
+  cardsActivate: () =>
+    workspace.cards.activate({ batchId: field('batchId'), cardIds: [field('cardId')] }),
   studyDraft: () =>
     workspace.study.saveDraft({
       sessionId: field('sessionId'),

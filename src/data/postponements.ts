@@ -1,5 +1,6 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
+import { studyDayOf } from '../core/study-day';
 import { appendObservation, readPayload } from './ledger';
 import type { Writer } from './orm';
 import { observations } from './schema';
@@ -32,6 +33,7 @@ export function postponementStates(
       id: observations.id,
       kind: observations.kind,
       cardId: observations.cardId,
+      at: observations.occurredAt,
       payload: observations.payload,
       version: observations.schemaVersion,
     })
@@ -63,7 +65,13 @@ export function postponementStates(
     }
     const payload = readPayload('review.postponed', row.version, row.payload);
     const before = states.get(row.cardId) ?? NONE;
-    states.set(row.cardId, { count: before.count + 1, plannedDay: payload.plannedDay });
+    // «Más tarde hoy» (la fecha planificada es el mismo día) se registra pero no cuenta para el
+    // tope de 3: posponer es mandarla a otro día.
+    const toAnotherDay = payload.plannedDay > studyDayOf(new Date(row.at));
+    states.set(row.cardId, {
+      count: before.count + (toAnotherDay ? 1 : 0),
+      plannedDay: payload.plannedDay,
+    });
   }
   return states;
 }
@@ -118,4 +126,25 @@ export function postponementsOf(
       occurredAt: new Date(row.at),
       plannedDay: readPayload('review.postponed', row.version, row.payload).plannedDay,
     }));
+}
+
+// Los aplazamientos que ya se registraron con este pedido (nada si es la primera vez): el mismo
+// pedido dos veces no agrega nada.
+export function recordedPostponements(
+  db: Writer,
+  requestId: string,
+): { count: number; plannedDay: string } | null {
+  const rows = db
+    .select({ payload: observations.payload, version: observations.schemaVersion })
+    .from(observations)
+    .where(like(observations.idempotencyKey, `postpone:${requestId}:%`))
+    .all();
+  const first = rows[0];
+  if (first === undefined) {
+    return null;
+  }
+  return {
+    count: rows.length,
+    plannedDay: readPayload('review.postponed', first.version, first.payload).plannedDay,
+  };
 }

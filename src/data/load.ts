@@ -181,6 +181,26 @@ function dailyMinutesOf(db: Writer, clock: Clock, fallback: number): number {
   return Math.max(average, 1);
 }
 
+// El atraso de cada día de calendario hasta ayer: el de los días en que no se miró Estudiar es el
+// último que se anotó (nada cambió que se sepa), así tres aperturas sueltas no cuentan como tres
+// días seguidos.
+function dailySeries(past: readonly { day: string; days: number }[], today: string): number[] {
+  const series: number[] = [];
+  const first = past[0];
+  if (first === undefined) {
+    return series;
+  }
+  const byDay = new Map(past.map((entry) => [entry.day, entry.days]));
+  let last = first.days;
+  const length = Math.min(daysBetween(first.day, today), 400);
+  for (let offset = 0; offset < length; offset += 1) {
+    const day = studyDayOf(new Date(Date.parse(`${first.day}T12:00:00-03:00`) + offset * DAY_MS));
+    last = byDay.get(day) ?? last;
+    series.push(last);
+  }
+  return series;
+}
+
 const daysBetween = (from: string, to: string) =>
   Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
 
@@ -285,7 +305,7 @@ export function gather(
     newCards: held ? [] : newCardsOf(db, subject.id),
     estimates,
     backlogDays: backlog,
-    brake: brakeWithRecovery([...past.slice(-13).map((entry) => entry.days), backlog]),
+    brake: brakeWithRecovery([...dailySeries(past, today).slice(-13), backlog]),
     studiedGroups: studiedGroupsOf(db, today),
   };
 }
@@ -383,15 +403,11 @@ function alternativesOf(
 }
 
 // La propuesta de hoy para `minutes` (los de siempre si no se elige otro).
-export function proposalOf(
+export function proposalFrom(
   db: Writer,
-  clock: Clock,
+  gathered: Gathered,
   minutes: SessionMinutes | undefined,
-): StudyProposal | null {
-  const gathered = gather(db, clock, { recordBacklog: true });
-  if (gathered === null) {
-    return null;
-  }
+): StudyProposal {
   const chosen = minutes ?? gathered.defaultMinutes;
   const plan = composeFor(gathered, chosen);
   return {

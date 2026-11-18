@@ -31,21 +31,15 @@ import {
   gather,
   holdNewCardsToday,
   inactivityCapMs,
-  proposalOf,
+  proposalFrom,
   reviewsToOffer,
   writeDefaultMinutes,
 } from './load';
 import type { Writer } from './orm';
-import { appendPostponement } from './postponements';
+import { appendPostponement, postponementStates, recordedPostponements } from './postponements';
 import { cards, cardVersions, observations, sessionDrafts, subjects, topics } from './schema';
 import { readSetting, writeSetting } from './settings';
-import {
-  activeSubject,
-  eligibleCards,
-  nextDay,
-  OUT_OF_REVIEWS,
-  studiedGroupsOf,
-} from './study-queue';
+import { eligibleCards, nextDay, OUT_OF_REVIEWS, studiedGroupsOf } from './study-queue';
 
 // La sesión de estudio (Fase 10, H-16 a H-18). La sesión no se guarda como una fila que se pisa:
 // es la proyección de sus eventos en el libro mayor (empezó, cada repaso, deshacer, saltar, marcar,
@@ -389,7 +383,8 @@ export function createStudyStore(
   }
 
   function overviewOf(tx: Writer, minutes: SessionMinutes | undefined): StudyOverview {
-    const subject = activeSubject(tx);
+    const gathered = gather(tx, clock, { recordBacklog: true });
+    const subject = gathered?.subject;
     const day = today();
     const sessionId = latestSessionOf(tx, day);
     let resumable: StudyOverview['resumable'] = null;
@@ -400,17 +395,17 @@ export function createStudyStore(
       }
     }
     const dueCount =
-      subject === undefined
+      gathered === null
         ? 0
-        : chooseSessionCards(reviewsToOffer(tx, subject.id, day).offered, {
+        : chooseSessionCards(gathered.reviews, {
             size: Number.POSITIVE_INFINITY,
-            studiedGroups: studiedGroupsOf(tx, day),
+            studiedGroups: gathered.studiedGroups,
           }).chosen.length;
     return {
       subjectId: subject?.id ?? null,
       subjectName: subject?.name ?? null,
       dueCount,
-      proposal: proposalOf(tx, clock, minutes),
+      proposal: gathered === null ? null : proposalFrom(tx, gathered, minutes),
       resumable,
     };
   }
@@ -466,7 +461,15 @@ export function createStudyStore(
       studiedGroups: studiedGroupsOf(tx, day),
     }).chosen.length;
     const tomorrow = nextDay(day);
-    const dueTomorrow = candidates.filter((card) => card.dueDay === tomorrow).length;
+    // Mañana vuelve lo que vence mañana y lo que se aplazó para mañana por no caber.
+    const planned = postponementStates(
+      tx,
+      candidates.map((card) => card.cardId),
+    );
+    const dueTomorrow = candidates.filter((card) => {
+      const day = planned.get(card.cardId)?.plannedDay;
+      return (day != null && day > card.dueDay ? day : card.dueDay) === tomorrow;
+    }).length;
     const rated = [...rows].reverse().find((row) => row.kind === 'session.rated');
     const focus = [...info.values()].find(
       (row) => row.topicId !== null && row.topicName === summary.focusTopicName,
@@ -510,6 +513,10 @@ export function createStudyStore(
 
     postpone({ requestId, minutes, when, day: chosenDay }) {
       return orm.transaction((tx) => {
+        const recorded = recordedPostponements(tx, requestId);
+        if (recorded !== null) {
+          return { postponed: recorded.count, forced: 0, plannedDay: recorded.plannedDay };
+        }
         const gathered = gather(tx, clock, { recordBacklog: false });
         if (gathered === null) {
           throw new NothingToStudyError();

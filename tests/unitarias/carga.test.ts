@@ -87,7 +87,7 @@ describe('valores iniciales y preparación', () => {
     expect([5, 10, 25, 45].map(prepMinutes)).toEqual([1, 1, 2, 2]);
   });
 
-  it('[CA-094] la política de carga tiene una versión, que se registra en cada sesión', () => {
+  it('la política de carga tiene una versión, que se registra en cada sesión', () => {
     expect(LOAD_POLICY_VERSION).toBe(1);
   });
 });
@@ -164,7 +164,7 @@ describe('composición de la sesión por minutos', () => {
     expect(plan(10, FULL, 0, 30).newCards).toHaveLength(4);
   });
 
-  it('[CA-092] las hermanas de una familia: entra una sola y las otras pasan a mañana sin contarse como aplazamiento', () => {
+  it('las hermanas de una familia: entra una sola y las otras pasan a mañana sin contarse como aplazamiento', () => {
     const family = reviews(3, { siblingGroupId: 'familia' });
     const result = composeSession({
       minutes: 25,

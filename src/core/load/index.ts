@@ -135,8 +135,10 @@ export function learnedEstimate(
       excluded: 0,
     };
   }
-  const cap = inactivityCapSeconds(median(recent));
-  const active = recent.filter((seconds) => seconds <= cap);
+  const center = median(recent);
+  const active = recent.filter(
+    (seconds) => !measureAttempt({ rawSeconds: seconds, medianSeconds: center }).excluded,
+  );
   const { kept, excluded } = splitOutliers(active);
   const medianSeconds = kept.length === 0 ? initialSeconds : median(kept);
   return {

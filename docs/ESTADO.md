@@ -33,6 +33,17 @@ Cuando apruebes la Fase 06: fusionar el pull request y pedirme el tag (y el de l
 
 ## Qué hay hoy
 
+Fase 11 (en la rama `fase-11`, que sale de la 10):
+
+- Estudiar ahora propone una sola sesión: «Sesión recomendada · 25 min», lo que entra («60 repasos y 10 tarjetas nuevas · unos 25 min»), una línea «Por qué:» (lo que vence es un dato; el tiempo, una estimación) y «Empezar» como único botón cobalto. Alrededor: «Versión corta (10 min)» (empieza directo), «Elegir otra actividad» (hasta 3 alternativas: un tema, solo repasos, solo tarjetas nuevas; mirarlas no cambia la propuesta), el selector «Tengo: 5 · 10 · 25 · 45 min» (vale solo esa vez: al volver a abrir, 25) y «Posponer» («Más tarde hoy», «Mañana», «Elegir día»). Con una sesión a medias, «Continuar» sigue siendo el primario.
+- Con el elenco: 5 min → «20 repasos, los más urgentes»; 10 → «45 repasos, sin tarjetas nuevas» (los otros 15 quedan para mañana, sin calificarse, al empezar); 25 → «60 repasos y 10 tarjetas nuevas»; 45 → «60 repasos y 18 tarjetas nuevas · unos 30 min» (no rellena hasta 45). «Empezar» ya no arma 10 tarjetas sino la propuesta (con 25 minutos, 70 actividades).
+- El freno por atraso (en días de lo que estudiás por día): menos de 0,5 → lo nuevo completo; 0,5 a 2 → la mitad; 2 a 5 → hasta 3 tarjetas; más de 5 → ninguna, con el aviso «Hoy no agrego tarjetas nuevas: tenés cerca de 6 días de repasos atrasados. Vuelven de a poco cuando baje de 5 días.» (neutro, nunca en rojo). Vuelve a 1 con 3 días bajo 0,5.
+- El tiempo de cada repaso y de cada tarjeta nueva se aprende de cómo estudiás (contracción hacia 12 y 60 segundos, últimos 60 días o 200 intentos, sin los intentos con inactividad ni los que se salen de la mediana más 3 desvíos); con menos de 20 intentos propios la duración lleva «estimación inicial». Las duraciones se muestran redondeadas a 5 minutos.
+- «Posponer» es un evento propio (fecha sugerida, planificada y motivo): no califica ni mueve la memoria; a la cuarta vez una tarjeta entra sí o sí. Cada repaso guarda sugerida, planificada y real. El historial de la tarjeta muestra «Aplazada hasta el …». Cada sesión guarda con qué versión de la política de carga se armó.
+- En Apuntes › «Tarjetas»: tildar tarjetas nuevas y «Sumar a mis repasos» (antes de confirmar: «Agregar 10 tarjetas hoy suma entre 5 y 10 minutos de repaso repartidos en las próximas 4 semanas»).
+- `npm run tablero` suma la «Tabla de casos de carga» (los cuatro tiempos, el freno, la contracción, el corte de inactividad y la prioridad 0,675 contra 0,3). `node tools/capturas.mjs fase-11` saca las capturas de las pantallas nuevas.
+- Cosas que todavía no hay: la línea «Mantenimiento: …» (la regla del cupo está en el núcleo; la propuesta no mezcla repasos de otras materias hasta el curso de inglés, Fase 28); que «Ajustar el plan» cambie la propuesta; «Mi meta» y el compromiso semanal (Fases 24 y 25); el requisito entre tarjetas que sube la prioridad (Fase 17).
+
 Fase 10 (en la rama `fase-10`, que sale de la 09):
 
 - Estudiar: la materia activa, «Empezar» y, con una sesión de hoy a medias, «Continuar: sesión de hoy (4 de 10)» como botón principal. Sin vencidas: «Hoy no tenés repasos vencidos en …». La sesión pausada vale hasta las 04:00.

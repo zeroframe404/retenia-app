@@ -191,7 +191,8 @@ describe('sesión de estudio en la ventana', () => {
       await user.keyboard(' 3');
     }
     expect(await screen.findByRole('heading', { name: /^Sesión terminada/ })).toBeTruthy();
-    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 15.')).toBeTruthy();
+    // Mañana vuelven los 15 que ya vencían el 16/03 y los 15 que no entraron en los 10 minutos.
+    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 30.')).toBeTruthy();
     expect(screen.queryByText(/^Quedan \d+ repasos para hoy/)).toBeNull();
   });
 
@@ -230,9 +231,7 @@ describe('sesión de estudio en la ventana', () => {
     const adjust = await screen.findByRole('dialog', { name: 'Ajustar el plan' });
     await user.click(within(adjust).getByRole('button', { name: 'Más corto la próxima vez' }));
     expect(
-      await screen.findByText(
-        'Anotado. Lo voy a usar cuando Estudiar arme la propuesta por minutos.',
-      ),
+      await screen.findByText('Anotado. Todavía no cambia la propuesta de Estudiar.'),
     ).toBeTruthy();
 
     await user.click(screen.getByRole('button', { name: 'Guardar una duda' }));

@@ -36,6 +36,7 @@ export interface Eligible extends QueueCandidate {
   // Para medir el atraso: cuántos días de intervalo tenía y qué retención se buscaba.
   readonly scheduledDays: number;
   readonly retentionTarget: number;
+  readonly reps: number;
 }
 
 // Las tarjetas ya repasadas de una materia que pueden entrar en una sesión: sin pausar, sin
@@ -88,6 +89,7 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
         topicId: row.topicId,
         scheduledDays: row.scheduledDays,
         retentionTarget: row.retentionTarget,
+        reps: row.reps,
         dueDay: studyDayOf(memory.dueAt),
         recall: recallProbability(memory, today) ?? 0,
       },
@@ -112,7 +114,8 @@ function gradesOf(db: Writer, cardId: string): Grade[] {
 // Las vencidas hoy que pueden entrar (sin las de 4 fallos seguidos).
 export function dueCandidates(db: Writer, subjectId: string, today: string): Eligible[] {
   return eligibleCards(db, subjectId, today).filter(
-    (card) => card.dueDay <= today && !leftOutOfQueue(gradesOf(db, card.cardId)),
+    (card) =>
+      card.dueDay <= today && !(card.reps >= 4 && leftOutOfQueue(gradesOf(db, card.cardId))),
   );
 }
 

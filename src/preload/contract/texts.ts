@@ -615,7 +615,7 @@ export const texts = {
       morePractice: 'Más práctica de este tema',
       pauseTopic: 'Pausar este tema',
       cancel: 'Cancelar',
-      saved: 'Anotado. Lo voy a usar cuando Estudiar arme la propuesta por minutos.',
+      saved: 'Anotado. Todavía no cambia la propuesta de Estudiar.',
       failed: 'No pude anotarlo. Probá de nuevo.',
     },
     // La propuesta de hoy (Fase 11, H-19 a H-21): lo que entra en los minutos que tenés y por qué.

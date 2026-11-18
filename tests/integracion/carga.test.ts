@@ -119,7 +119,7 @@ describe('la propuesta con el elenco', () => {
     expect(view.progress.total).toBe(70);
   });
 
-  it('[CA-094] la sesión registra con qué versión de la política de carga y de cuántos minutos se armó', () => {
+  it('la sesión registra con qué versión de la política de carga y de cuántos minutos se armó', () => {
     const { workspace, file } = seeded();
     workspace.study.start({ sessionId: id(), minutes: 45 });
     const started = JSON.parse(String(observationsOf(file, 'session.started')[0]?.payload));
@@ -321,7 +321,8 @@ describe('posponer', () => {
       advance(1);
     }
     const fourth = workspace.study.postpone({ requestId: id(), when: 'tomorrow' });
-    expect(fourth).toMatchObject({ postponed: 0, forced: 60 });
+    // Las 60 de siempre (ya pospuestas 3 veces) no se posponen; las que vencieron después sí.
+    expect(fourth.forced).toBe(60);
     expect(observationsOf(file, 'review.postponed').length).toBeGreaterThanOrEqual(180);
     const view = workspace.study.start({ sessionId: id(), minutes: 5 });
     expect(view.progress.total).toBe(60);

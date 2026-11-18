@@ -190,7 +190,7 @@ test('[CA-074] [CA-075] [CA-076] el cierre: «Sesión terminada» con los minuto
   await expect(appWindow.getByText('Con dudas: 1')).toBeVisible();
   await expect(appWindow.getByText('No la sabía: 1')).toBeVisible();
   await expect(appWindow.getByText(`Media y dispersión: ${DESVIO}`)).toBeVisible();
-  await expect(appWindow.getByText(/^Por hoy no quedan repasos./)).toBeVisible();
+  await expect(appWindow.getByText('Por hoy no quedan repasos. Mañana vencen 16.')).toBeVisible();
   await expect(
     appWindow.getByText('Completar la sesión no equivale a dominar el tema'),
   ).toBeVisible();

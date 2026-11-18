@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { demoClock } from '../../src/core/clock';
 import { newId } from '../../src/data/ids';
 import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import type { StudyOverview } from '../../src/preload/contract/study';
@@ -499,11 +500,15 @@ describe('Estudiar: «Posponer»', () => {
   });
 
   it('[CA-091] las tarjetas que ya se pospusieron 3 veces entran igual y el cartel lo dice', async () => {
-    const opened = withCast();
+    // Tres días seguidos posponiendo «Mañana» por el camino real: cada repaso suma un aplazamiento.
+    let offset = 0;
+    const opened = openWindow('real', { now: () => demoClock(offset).now() });
+    seedDemoOrganization(opened.bridge.workspace);
+    seedDemoCardCast(opened.bridge.workspace);
     const { user, bridge } = opened;
-    // Tres veces «Más tarde hoy» por el camino real: cada repaso suma un aplazamiento.
     for (let time = 0; time < 3; time += 1) {
-      bridge.workspace.study.postpone({ requestId: newId(), when: 'later' });
+      bridge.workspace.study.postpone({ requestId: newId(), when: 'tomorrow' });
+      offset += 1;
     }
     render(<App />);
     await proposalCard(25);
