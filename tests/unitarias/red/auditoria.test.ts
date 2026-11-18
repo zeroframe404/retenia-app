@@ -17,7 +17,7 @@ const today = new Date('2026-11-18T12:00:00Z');
 describe('auditoría de dependencias con avisos aceptados', () => {
   it('un aviso alto que no está en la lista da rojo', () => {
     const report = informe({ lib: { severity: 'high', via: [{ url: OTRO }] } });
-    expect(seriousFindings(report, accepted, today)).toEqual(['lib']);
+    expect(seriousFindings(report, today, accepted)).toEqual(['lib']);
   });
 
   it('un aviso aceptado y los paquetes que dependen de él no dan rojo', () => {
@@ -26,7 +26,7 @@ describe('auditoría de dependencias con avisos aceptados', () => {
       medio: { severity: 'high', via: ['raiz'] },
       punta: { severity: 'high', via: ['medio', 'raiz'] },
     });
-    expect(seriousFindings(report, accepted, today)).toEqual([]);
+    expect(seriousFindings(report, today, accepted)).toEqual([]);
   });
 
   it('un paquete que además tiene otro aviso alto sin aceptar da rojo', () => {
@@ -34,21 +34,21 @@ describe('auditoría de dependencias con avisos aceptados', () => {
       raiz: { severity: 'high', via: [{ url: AVISO }] },
       mixto: { severity: 'high', via: ['raiz', { url: OTRO }] },
     });
-    expect(seriousFindings(report, accepted, today)).toEqual(['mixto']);
+    expect(seriousFindings(report, today, accepted)).toEqual(['mixto']);
   });
 
   it('pasada la fecha de revisión, el aviso vuelve a dar rojo', () => {
     const report = informe({ raiz: { severity: 'high', via: [{ url: AVISO }] } });
-    expect(seriousFindings(report, accepted, new Date('2027-02-01T12:00:00Z'))).toEqual(['raiz']);
+    expect(seriousFindings(report, new Date('2027-02-01T12:00:00Z'), accepted)).toEqual(['raiz']);
   });
 
   it('los avisos moderados no cuentan', () => {
     const report = informe({ lib: { severity: 'moderate', via: [{ url: OTRO }] } });
-    expect(seriousFindings(report, [], today)).toEqual([]);
+    expect(seriousFindings(report, today, [])).toEqual([]);
   });
 
   it('un aviso crítico aceptado por su dirección tampoco da rojo', () => {
     const report = informe({ raiz: { severity: 'critical', via: [{ url: AVISO }] } });
-    expect(seriousFindings(report, accepted, today)).toEqual([]);
+    expect(seriousFindings(report, today, accepted)).toEqual([]);
   });
 });
