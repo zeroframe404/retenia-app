@@ -6,6 +6,7 @@ import {
   _electron as electron,
   type Page,
 } from '@playwright/test';
+import { retryLaunch } from '../../tools/lib/reintentar.mjs';
 
 // «Retenia (prueba)» tal como se instala, pero sin instalar: la carpeta win-unpacked que arma
 // «npm run construir» (o la red, en verificar:todo). Así la punta a punta ve el mismo archivo
@@ -81,11 +82,9 @@ export const test = base.extend<Fixtures>({
     let count = 0;
     await use(async (folder = dataDir, env = {}, args = []) => {
       count += 1;
-      const app = await electron.launch({
-        executablePath: EXECUTABLE,
-        args,
-        env: reteniaEnv(folder, env),
-      });
+      const app = await retryLaunch(() =>
+        electron.launch({ executablePath: EXECUTABLE, args, env: reteniaEnv(folder, env) }),
+      );
       await app.context().tracing.start({ screenshots: true, snapshots: true });
       const page = await app.firstWindow();
       await page.waitForLoadState('domcontentloaded');
