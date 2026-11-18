@@ -16,7 +16,7 @@ const today = new Date('2026-11-18T12:00:00Z');
 
 describe('auditoría de dependencias con avisos aceptados', () => {
   it('un aviso alto que no está en la lista da rojo', () => {
-    const report = informe({ lib: { severity: 'high', via: [{ url: OTRO }] } });
+    const report = informe({ lib: { severity: 'high', via: [{ url: OTRO, severity: 'high' }] } });
     expect(seriousFindings(report, today, accepted)).toEqual(['lib']);
   });
 
@@ -32,7 +32,7 @@ describe('auditoría de dependencias con avisos aceptados', () => {
   it('un paquete que además tiene otro aviso alto sin aceptar da rojo', () => {
     const report = informe({
       raiz: { severity: 'high', via: [{ url: AVISO }] },
-      mixto: { severity: 'high', via: ['raiz', { url: OTRO }] },
+      mixto: { severity: 'high', via: ['raiz', { url: OTRO, severity: 'high' }] },
     });
     expect(seriousFindings(report, today, accepted)).toEqual(['mixto']);
   });
@@ -43,8 +43,19 @@ describe('auditoría de dependencias con avisos aceptados', () => {
   });
 
   it('los avisos moderados no cuentan', () => {
-    const report = informe({ lib: { severity: 'moderate', via: [{ url: OTRO }] } });
+    const report = informe({
+      lib: { severity: 'moderate', via: [{ url: OTRO, severity: 'high' }] },
+    });
     expect(seriousFindings(report, today, [])).toEqual([]);
+  });
+
+  it('los avisos moderados de un paquete no lo hacen rojo si lo alto está aceptado', () => {
+    const report = informe({
+      raiz: { severity: 'high', via: [{ url: AVISO, severity: 'high' }] },
+      menor: { severity: 'moderate', via: [{ url: OTRO, severity: 'moderate' }] },
+      punta: { severity: 'high', via: ['raiz', 'menor'] },
+    });
+    expect(seriousFindings(report, today, accepted)).toEqual([]);
   });
 
   it('un aviso crítico aceptado por su dirección tampoco da rojo', () => {
