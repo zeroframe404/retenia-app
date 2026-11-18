@@ -1,14 +1,12 @@
-import { and, desc, eq, gt, inArray, isNull, notInArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Clock } from '../core/clock';
-import type { CardMemory, Grade } from '../core/memory';
-import { recallProbability } from '../core/memory';
+import { LOAD_POLICY_VERSION, postponeOutcome } from '../core/load';
+import type { Grade } from '../core/memory';
 import {
   activeMinutes,
   chooseSessionCards,
-  leftOutOfQueue,
   projectSession,
-  type QueueCandidate,
   type SessionEvent,
   type SessionState,
   summarizeSession,
@@ -16,6 +14,9 @@ import {
 import { studyDayOf } from '../core/study-day';
 import type {
   PlanOption,
+  PostponeResult,
+  SessionFocus,
+  SessionMinutes,
   SessionRating,
   SessionSummary,
   SessionView,
@@ -25,18 +26,26 @@ import { annulReview, type CardsStore, flagCardVersion, recordReview } from './c
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import { appendObservation, readPayload } from './ledger';
-import type { Writer } from './orm';
-import { cardHistory } from './projections';
 import {
-  cardSchedule,
-  cards,
-  cardVersions,
-  observations,
-  sessionDrafts,
-  subjects,
-  topics,
-} from './schema';
+  composeFor,
+  gather,
+  holdNewCardsToday,
+  inactivityCapMs,
+  proposalOf,
+  reviewsToOffer,
+  writeDefaultMinutes,
+} from './load';
+import type { Writer } from './orm';
+import { appendPostponement } from './postponements';
+import { cards, cardVersions, observations, sessionDrafts, subjects, topics } from './schema';
 import { readSetting, writeSetting } from './settings';
+import {
+  activeSubject,
+  eligibleCards,
+  nextDay,
+  OUT_OF_REVIEWS,
+  studiedGroupsOf,
+} from './study-queue';
 
 // La sesión de estudio (Fase 10, H-16 a H-18). La sesión no se guarda como una fila que se pisa:
 // es la proyección de sus eventos en el libro mayor (empezó, cada repaso, deshacer, saltar, marcar,
@@ -82,8 +91,26 @@ interface PlanPreferences {
 }
 
 export interface StudyStore {
-  overview(): StudyOverview;
-  start(input: { sessionId: string; activeMs?: number }): SessionView;
+  // La propuesta de hoy para esos minutos (los de siempre si no se dice): no guarda nada de lo elegido.
+  overview(input?: { minutes?: SessionMinutes | undefined }): StudyOverview;
+  start(input: {
+    sessionId: string;
+    minutes?: SessionMinutes | undefined;
+    only?: SessionFocus | undefined;
+    activeMs?: number;
+  }): SessionView;
+  // «Posponer»: cada repaso de la propuesta queda aplazado (sin calificarse). A la cuarta vez que se
+  // pospone una tarjeta no se pospone: pasa a prioridad máxima y entra sí o sí.
+  postpone(input: {
+    requestId: string;
+    minutes?: SessionMinutes | undefined;
+    when: 'later' | 'tomorrow' | 'day';
+    day?: string | undefined;
+  }): PostponeResult;
+  // El tiempo de siempre (25 minutos hasta que «Mi meta» lo cambie): lo usa la propuesta.
+  setDefaultMinutes(minutes: SessionMinutes): void;
+  // El corte de inactividad de cada paso de una sesión, en milisegundos.
+  inactivityCapMs(): number;
   view(input: { sessionId: string }): SessionView;
   resume(input: { sessionId: string; activeMs?: number }): SessionView;
   grade(input: {
@@ -132,16 +159,6 @@ const NO_PREFERENCES: PlanPreferences = {
   morePracticeTopicIds: [],
   pausedTopicIds: [],
 };
-
-// Los estados de la ficha que sacan a una tarjeta de los repasos.
-const OUT_OF_REVIEWS = ['in_review', 'retired'];
-
-const DAY_MS = 86_400_000;
-// El día de estudio que sigue (Buenos Aires no cambia de horario).
-const nextDay = (day: string) =>
-  studyDayOf(new Date(new Date(`${day}T12:00:00-03:00`).getTime() + DAY_MS));
-// Desde cuándo y hasta cuándo va un día de estudio (de 04:00 a 04:00).
-const dayStart = (day: string) => new Date(`${day}T04:00:00-03:00`).toISOString();
 
 type ObservationRow = typeof observations.$inferSelect;
 
@@ -224,131 +241,6 @@ function stateOf(db: Writer, sessionId: string): SessionState {
 
 const isOpen = (state: SessionState) =>
   (state.status === 'active' || state.status === 'paused') && !state.complete;
-
-// La materia activa (la sesión es siempre de ella).
-function activeSubject(db: Writer): { id: string; name: string } | undefined {
-  return db
-    .select({ id: subjects.id, name: subjects.name })
-    .from(subjects)
-    .where(and(eq(subjects.status, 'active'), isNull(subjects.deletedAt)))
-    .get();
-}
-
-interface Eligible extends QueueCandidate {
-  readonly topicId: string | null;
-}
-
-// Las tarjetas ya repasadas de una materia que pueden entrar en una sesión: sin pausar, sin
-// borrar, con la ficha fuera de «En revisión» y «Retirada», y sin 4 fallos seguidos. Con su
-// probabilidad de recordarlas el día `today` y el día en que vencen.
-function eligibleCards(db: Writer, subjectId: string, today: string): Eligible[] {
-  const rows = db
-    .select({
-      cardId: cards.id,
-      siblingGroupId: cards.siblingGroupId,
-      topicId: cards.topicId,
-      state: cardSchedule.state,
-      stability: cardSchedule.stability,
-      difficulty: cardSchedule.difficulty,
-      dueAt: cardSchedule.dueAt,
-      lastReviewAt: cardSchedule.lastReviewAt,
-      reps: cardSchedule.reps,
-      lapses: cardSchedule.lapses,
-      scheduledDays: cardSchedule.scheduledDays,
-    })
-    .from(cards)
-    .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
-    .innerJoin(cardSchedule, eq(cardSchedule.cardId, cards.id))
-    .where(
-      and(
-        eq(cards.subjectId, subjectId),
-        isNull(cards.deletedAt),
-        isNull(cards.pausedAt),
-        gt(cardSchedule.reps, 0),
-        notInArray(cardVersions.sheetState, OUT_OF_REVIEWS),
-      ),
-    )
-    .all();
-  return rows.flatMap((row) => {
-    const memory: CardMemory = {
-      state: row.state,
-      stability: row.stability,
-      difficulty: row.difficulty,
-      dueAt: new Date(row.dueAt),
-      lastReviewAt: row.lastReviewAt === null ? null : new Date(row.lastReviewAt),
-      reps: row.reps,
-      lapses: row.lapses,
-      scheduledDays: row.scheduledDays,
-    };
-    return [
-      {
-        cardId: row.cardId,
-        siblingGroupId: row.siblingGroupId,
-        topicId: row.topicId,
-        dueDay: studyDayOf(memory.dueAt),
-        recall: recallProbability(memory, today) ?? 0,
-      },
-    ];
-  });
-}
-
-// Las calificaciones que llegaron al motor desde que la tarjeta se programó como nueva por última
-// vez: sin anuladas, sin otros repasos del mismo día y sin las vueltas de una fallada.
-function gradesOf(db: Writer, cardId: string): Grade[] {
-  const grades: Grade[] = [];
-  for (const entry of cardHistory(db, cardId)) {
-    if (entry.result === 'reset' || entry.result === 'adopted') {
-      grades.length = 0;
-    } else if (entry.counted) {
-      grades.push(entry.result);
-    }
-  }
-  return grades;
-}
-
-// Las vencidas hoy que pueden entrar (sin las de 4 fallos seguidos).
-function dueCandidates(db: Writer, subjectId: string, today: string): Eligible[] {
-  return eligibleCards(db, subjectId, today).filter(
-    (card) => card.dueDay <= today && !leftOutOfQueue(gradesOf(db, card.cardId)),
-  );
-}
-
-// Las familias de hermanas de las que ya se repasó una tarjeta este día de estudio.
-function studiedGroupsOf(db: Writer, today: string): Set<string> {
-  const reviews = db
-    .select({ id: observations.id, cardId: observations.cardId, at: observations.occurredAt })
-    .from(observations)
-    .where(
-      and(eq(observations.kind, 'review.graded'), gt(observations.occurredAt, dayStart(today))),
-    )
-    .all()
-    .filter((row) => studyDayOf(new Date(row.at)) === today);
-  if (reviews.length === 0) {
-    return new Set();
-  }
-  const annulled = new Set(
-    db
-      .select({ payload: observations.payload, version: observations.schemaVersion })
-      .from(observations)
-      .where(eq(observations.kind, 'review.annulled'))
-      .all()
-      .map((row) => readPayload('review.annulled', row.version, row.payload).reviewId),
-  );
-  const cardIds = reviews.flatMap((row) =>
-    annulled.has(row.id) || row.cardId === null ? [] : [row.cardId],
-  );
-  if (cardIds.length === 0) {
-    return new Set();
-  }
-  return new Set(
-    db
-      .select({ group: cards.siblingGroupId })
-      .from(cards)
-      .where(inArray(cards.id, cardIds))
-      .all()
-      .flatMap((row) => (row.group === null ? [] : [row.group])),
-  );
-}
 
 // La última sesión empezada este día de estudio.
 function latestSessionOf(db: Writer, today: string): string | null {
@@ -496,7 +388,7 @@ export function createStudyStore(
     });
   }
 
-  function overviewOf(tx: Writer): StudyOverview {
+  function overviewOf(tx: Writer, minutes: SessionMinutes | undefined): StudyOverview {
     const subject = activeSubject(tx);
     const day = today();
     const sessionId = latestSessionOf(tx, day);
@@ -510,7 +402,7 @@ export function createStudyStore(
     const dueCount =
       subject === undefined
         ? 0
-        : chooseSessionCards(dueCandidates(tx, subject.id, day), {
+        : chooseSessionCards(reviewsToOffer(tx, subject.id, day).offered, {
             size: Number.POSITIVE_INFINITY,
             studiedGroups: studiedGroupsOf(tx, day),
           }).chosen.length;
@@ -518,6 +410,7 @@ export function createStudyStore(
       subjectId: subject?.id ?? null,
       subjectName: subject?.name ?? null,
       dueCount,
+      proposal: proposalOf(tx, clock, minutes),
       resumable,
     };
   }
@@ -568,7 +461,7 @@ export function createStudyStore(
       .get();
     const day = today();
     const candidates = eligibleCards(tx, state.subjectId, day);
-    const remainingDueToday = chooseSessionCards(dueCandidates(tx, state.subjectId, day), {
+    const remainingDueToday = chooseSessionCards(reviewsToOffer(tx, state.subjectId, day).offered, {
       size: Number.POSITIVE_INFINITY,
       studiedGroups: studiedGroupsOf(tx, day),
     }).chosen.length;
@@ -603,11 +496,64 @@ export function createStudyStore(
   }
 
   return {
-    overview() {
-      return orm.transaction((tx) => overviewOf(tx));
+    overview(input = {}) {
+      return orm.transaction((tx) => overviewOf(tx, input.minutes));
     },
 
-    start({ sessionId, activeMs = 0 }) {
+    setDefaultMinutes(minutes) {
+      writeDefaultMinutes(orm, clock, minutes);
+    },
+
+    inactivityCapMs() {
+      return inactivityCapMs(orm, clock);
+    },
+
+    postpone({ requestId, minutes, when, day: chosenDay }) {
+      return orm.transaction((tx) => {
+        const gathered = gather(tx, clock, { recordBacklog: false });
+        if (gathered === null) {
+          throw new NothingToStudyError();
+        }
+        const tomorrow = nextDay(gathered.today);
+        const plannedDay =
+          when === 'later'
+            ? gathered.today
+            : when === 'tomorrow' || chosenDay === undefined || chosenDay < tomorrow
+              ? tomorrow
+              : chosenDay;
+        const plan = composeFor(gathered, minutes ?? gathered.defaultMinutes);
+        const offered = new Map(gathered.reviews.map((card) => [card.cardId, card]));
+        let postponed = 0;
+        let forced = 0;
+        for (const cardId of plan.reviews) {
+          const card = offered.get(cardId);
+          if (postponeOutcome(card?.postponements ?? 0) === 'maxPriority') {
+            forced += 1;
+            continue;
+          }
+          appendPostponement(tx, clock, {
+            cardId,
+            suggestedDay: card?.dueDay ?? gathered.today,
+            plannedDay,
+            reason: 'manual',
+            idempotencyKey: `postpone:${requestId}:${cardId}`,
+          });
+          postponed += 1;
+        }
+        if (when !== 'later') {
+          // Pospuso la sesión de hoy para otro día: hoy no se agregan tarjetas nuevas y la sesión
+          // a medias, que tenía esos repasos, se deja.
+          holdNewCardsToday(tx, clock, gathered.today);
+          const open = latestSessionOf(tx, gathered.today);
+          if (open !== null && isOpen(stateOf(tx, open))) {
+            append(tx, 'session.abandoned', { sessionId: open, activeMs: 0 }, `abandon:${open}`);
+          }
+        }
+        return { postponed, forced, plannedDay };
+      });
+    },
+
+    start({ sessionId, minutes, only, activeMs = 0 }) {
       return orm.transaction((tx) => {
         const exists = tx
           .select({ id: observations.id })
@@ -617,14 +563,15 @@ export function createStudyStore(
         if (exists) {
           return viewOf(tx, sessionId);
         }
-        const subject = activeSubject(tx);
-        if (!subject) {
+        const gathered = gather(tx, clock, { recordBacklog: false });
+        if (gathered === null) {
           throw new NothingToStudyError();
         }
-        const day = today();
-        const { chosen, deferred } = chooseSessionCards(dueCandidates(tx, subject.id, day), {
-          studiedGroups: studiedGroupsOf(tx, day),
-        });
+        const subject = gathered.subject;
+        const day = gathered.today;
+        const chosenMinutes = minutes ?? gathered.defaultMinutes;
+        const plan = composeFor(gathered, chosenMinutes, only);
+        const chosen = [...plan.reviews, ...plan.newCards];
         if (chosen.length === 0) {
           throw new NothingToStudyError();
         }
@@ -644,12 +591,27 @@ export function createStudyStore(
             subjectId: subject.id,
             studyDay: day,
             activities: chosen.map((cardId) => ({ activityId: newId(), cardId })),
-            deferredSiblingIds: deferred,
+            deferredSiblingIds: [...plan.deferredSiblings],
             activeMs,
+            minutes: chosenMinutes,
+            loadPolicyVersion: LOAD_POLICY_VERSION,
           },
           idempotencyKey: `session:${sessionId}`,
           source: 'user',
         });
+        // Lo que no entró queda para mañana, sin calificarse.
+        const tomorrow = nextDay(day);
+        const offered = new Map(gathered.reviews.map((card) => [card.cardId, card]));
+        for (const { cardId } of plan.postponed) {
+          appendPostponement(tx, clock, {
+            cardId,
+            suggestedDay: offered.get(cardId)?.dueDay ?? day,
+            plannedDay: tomorrow,
+            reason: 'noFit',
+            sessionId,
+            idempotencyKey: `postpone:${sessionId}:${cardId}`,
+          });
+        }
         return viewOf(tx, sessionId);
       });
     },

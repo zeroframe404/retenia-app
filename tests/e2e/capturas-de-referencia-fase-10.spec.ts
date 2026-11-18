@@ -36,7 +36,7 @@ test('capturas de referencia: la sesión de estudio y su cierre, en claro y en o
   await expect(page.getByRole('button', { name: 'La sabía', exact: true })).toBeVisible();
   await shoot(page, 'sesion-respuesta');
   await page.getByRole('button', { name: 'No la sabía', exact: true }).click();
-  for (let step = 0; step < 10; step += 1) {
+  for (let step = 0; step < 70; step += 1) {
     await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await page.getByRole('button', { name: 'La sabía', exact: true }).click();
   }

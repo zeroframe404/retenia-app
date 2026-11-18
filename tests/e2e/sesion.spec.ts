@@ -46,7 +46,7 @@ test('[CA-066] la primera tarjeta muestra solo la pregunta «¿Qué mide el desv
 }) => {
   await start(appWindow);
   await expect(rail(appWindow)).toHaveCount(0);
-  await expect(progress(appWindow)).toHaveText('0/10');
+  await expect(progress(appWindow)).toHaveText('0/70');
   await expect(appWindow.getByRole('button', { name: 'Pausar' })).toBeVisible();
   await expect(appWindow.getByText(DESVIO)).toBeVisible();
   await expect(appWindow.getByText('Estadística básica › Media y dispersión')).toBeVisible();
@@ -58,11 +58,11 @@ test('[CA-066] la primera tarjeta muestra solo la pregunta «¿Qué mide el desv
   await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await expect(appWindow.getByText(DESVIO_ANSWER)).toBeVisible();
   await appWindow.getByRole('button', { name: 'La sabía', exact: true }).click();
-  await expect(progress(appWindow)).toHaveText('1/10');
+  await expect(progress(appWindow)).toHaveText('1/70');
   await expect(appWindow.getByText(DESVIO)).toHaveCount(0);
 });
 
-test('[CA-072] [CA-067] Espacio muestra, 2 califica «Con dudas», Ctrl+Z deshace la cuarta (de 4/10 a 3/10) y Esc pausa', async ({
+test('[CA-072] [CA-067] Espacio muestra, 2 califica «Con dudas», Ctrl+Z deshace la cuarta (de 4/70 a 3/70) y Esc pausa', async ({
   appWindow,
 }) => {
   await start(appWindow);
@@ -70,9 +70,9 @@ test('[CA-072] [CA-067] Espacio muestra, 2 califica «Con dudas», Ctrl+Z deshac
   await appWindow.keyboard.press('Space');
   await expect(appWindow.getByText(DESVIO_ANSWER)).toBeVisible();
   await appWindow.keyboard.press('2');
-  await expect(progress(appWindow)).toHaveText('1/10');
+  await expect(progress(appWindow)).toHaveText('1/70');
   await expect(appWindow.getByText('Calificaste la anterior: Con dudas')).toBeVisible();
-  for (const done of ['2/10', '3/10']) {
+  for (const done of ['2/70', '3/70']) {
     await appWindow.keyboard.press('Space');
     await appWindow.keyboard.press('3');
     await expect(progress(appWindow)).toHaveText(done);
@@ -80,31 +80,31 @@ test('[CA-072] [CA-067] Espacio muestra, 2 califica «Con dudas», Ctrl+Z deshac
   const fourth = await currentQuestion(appWindow);
   await appWindow.keyboard.press('Space');
   await appWindow.keyboard.press('1');
-  await expect(progress(appWindow)).toHaveText('4/10');
+  await expect(progress(appWindow)).toHaveText('4/70');
   await appWindow.keyboard.press('Control+z');
-  await expect(progress(appWindow)).toHaveText('3/10');
+  await expect(progress(appWindow)).toHaveText('3/70');
   expect(await currentQuestion(appWindow)).toBe(fourth);
   await expect(appWindow.getByRole('button', { name: 'Mostrar respuesta' })).toBeVisible();
   await expect(appWindow.getByRole('button', { name: 'No la sabía', exact: true })).toHaveCount(0);
   await answer(appWindow, 'La sabía');
-  await expect(progress(appWindow)).toHaveText('4/10');
+  await expect(progress(appWindow)).toHaveText('4/70');
   await appWindow.getByRole('button', { name: 'Deshacer' }).click();
-  await expect(progress(appWindow)).toHaveText('3/10');
+  await expect(progress(appWindow)).toHaveText('3/70');
   await appWindow.keyboard.press('Escape');
   await expect(
-    appWindow.getByRole('button', { name: 'Continuar: sesión de hoy (3 de 10)' }),
+    appWindow.getByRole('button', { name: 'Continuar: sesión de hoy (3 de 70)' }),
   ).toBeVisible();
   await expect(appWindow.getByRole('button', { name: 'Empezar', exact: true })).toBeVisible();
 });
 
-test('[CA-068] [CA-073] con 4 de 10, lo escrito en «Tu respuesta…» y Retenia cerrado, al abrirlo Estudiar ofrece «Continuar: sesión de hoy (4 de 10)» y retoma en la quinta con «cuánto se alejan» todavía escrito', async ({
+test('[CA-068] [CA-073] con 4 de 70, lo escrito en «Tu respuesta…» y Retenia cerrado, al abrirlo Estudiar ofrece «Continuar: sesión de hoy (4 de 70)» y retoma en la quinta con «cuánto se alejan» todavía escrito', async ({
   launchFromStart,
 }) => {
   const first = await launchFromStart();
   await start(first.page);
   for (let done = 1; done <= 4; done += 1) {
     await answer(first.page, 'La sabía');
-    await expect(progress(first.page)).toHaveText(`${done}/10`);
+    await expect(progress(first.page)).toHaveText(`${done}/70`);
   }
   const fifth = await currentQuestion(first.page);
   await first.page.getByPlaceholder('Tu respuesta…').fill('cuánto se alejan');
@@ -112,10 +112,10 @@ test('[CA-068] [CA-073] con 4 de 10, lo escrito en «Tu respuesta…» y Retenia
   await first.close();
 
   const second = await launchFromStart();
-  const resume = second.page.getByRole('button', { name: 'Continuar: sesión de hoy (4 de 10)' });
+  const resume = second.page.getByRole('button', { name: 'Continuar: sesión de hoy (4 de 70)' });
   await expect(resume).toBeVisible();
   await resume.click();
-  await expect(progress(second.page)).toHaveText('4/10');
+  await expect(progress(second.page)).toHaveText('4/70');
   expect(await currentQuestion(second.page)).toBe(fifth);
   await expect(second.page.getByPlaceholder('Tu respuesta…')).toHaveValue('cuánto se alejan');
   await expect(second.page.getByText('Borrador guardado')).toBeVisible();
@@ -128,13 +128,13 @@ test('[CA-069] un doble clic rápido en «La sabía» cuenta un solo repaso y av
   await start(appWindow);
   await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await appWindow.getByRole('button', { name: 'La sabía', exact: true }).dblclick();
-  await expect(progress(appWindow)).toHaveText('1/10');
+  await expect(progress(appWindow)).toHaveText('1/70');
   // Un rato después sigue en 1: el segundo clic no contó.
   await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).waitFor();
-  await expect(progress(appWindow)).toHaveText('1/10');
+  await expect(progress(appWindow)).toHaveText('1/70');
   await appWindow.keyboard.press('Escape');
   await expect(
-    appWindow.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }),
+    appWindow.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }),
   ).toBeVisible();
 });
 
@@ -150,7 +150,7 @@ test('[CA-070] la tarjeta marcada «No la sabía» vuelve antes de terminar, des
   }
   expect(seen.slice(0, 3)).not.toContain(DESVIO);
   expect(seen[3]).toBe(DESVIO);
-  await expect(progress(appWindow)).toHaveText('4/10');
+  await expect(progress(appWindow)).toHaveText('4/70');
 });
 
 test('[CA-077] «Más» → «La tarjeta está mal» sigue con la próxima y, en Apuntes › «Tarjetas», la tarjeta figura «En revisión»', async ({
@@ -162,7 +162,7 @@ test('[CA-077] «Más» → «La tarjeta está mal» sigue con la próxima y, en
   await expect(
     appWindow.getByText('La tarjeta pasó a «En revisión». No cuenta como olvido.'),
   ).toBeVisible();
-  await expect(progress(appWindow)).toHaveText('1/10');
+  await expect(progress(appWindow)).toHaveText('1/70');
   await expect(appWindow.getByText(DESVIO)).toHaveCount(0);
   await appWindow.getByRole('button', { name: 'Pausar' }).click();
   await goTo(appWindow, 'Tarjetas');
@@ -179,19 +179,18 @@ test('[CA-074] [CA-075] [CA-076] el cierre: «Sesión terminada» con los minuto
 }) => {
   await start(appWindow);
   await answer(appWindow, 'No la sabía');
-  for (let step = 0; step < 10; step += 1) {
+  // Con 25 minutos la sesión trae 70 tarjetas (desde la Fase 11): las 69 que quedan y la vuelta.
+  for (let step = 0; step < 70; step += 1) {
     await answer(appWindow, step === 1 ? 'Con dudas' : 'La sabía');
   }
   await expect(
     appWindow.getByRole('heading', { name: /^Sesión terminada · \d+ min$/ }),
   ).toBeVisible();
-  await expect(appWindow.getByText('La sabía: 8')).toBeVisible();
+  await expect(appWindow.getByText('La sabía: 68')).toBeVisible();
   await expect(appWindow.getByText('Con dudas: 1')).toBeVisible();
   await expect(appWindow.getByText('No la sabía: 1')).toBeVisible();
   await expect(appWindow.getByText(`Media y dispersión: ${DESVIO}`)).toBeVisible();
-  await expect(
-    appWindow.getByText('Quedan 50 repasos para hoy: podés hacer otra sesión cuando quieras.'),
-  ).toBeVisible();
+  await expect(appWindow.getByText(/^Por hoy no quedan repasos./)).toBeVisible();
   await expect(
     appWindow.getByText('Completar la sesión no equivale a dominar el tema'),
   ).toBeVisible();

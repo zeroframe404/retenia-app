@@ -53,7 +53,7 @@ test('accesibilidad: la sesión de estudio, el cierre, sus cuadros y Progreso �
   expect(await violationsNow(page), 'la respuesta').toEqual([]);
   await page.getByRole('button', { name: 'La sabía', exact: true }).click();
   expect(await violationsNow(page), 'después de calificar').toEqual([]);
-  for (let step = 1; step < 10; step += 1) {
+  for (let step = 1; step < 70; step += 1) {
     await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await page
       .getByRole('button', { name: step === 1 ? 'No la sabía' : 'La sabía', exact: true })

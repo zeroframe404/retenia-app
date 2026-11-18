@@ -44,12 +44,12 @@ describe('contrato: sesión de estudio', () => {
     expect((await api['study.overview']({})).resumable).toEqual({
       sessionId: SESSION,
       done: 0,
-      total: 10,
+      total: 70,
     });
     expect((await api['study.resume']({ sessionId: SESSION })).status).toBe('active');
     expect((await api['study.view']({ sessionId: SESSION })).progress).toEqual({
       done: 0,
-      total: 10,
+      total: 70,
     });
   });
 

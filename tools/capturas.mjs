@@ -558,10 +558,10 @@ async function phase10(page) {
   await page.getByText('Calificaste la anterior: No la sabía').waitFor();
   await shoot(page, '6-sesion-calificada');
   await page.getByRole('button', { name: 'Pausar' }).click();
-  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).waitFor();
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }).waitFor();
   await shoot(page, '7-estudiar-continuar');
-  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).click();
-  for (let step = 0; step < 10; step += 1) {
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }).click();
+  for (let step = 0; step < 70; step += 1) {
     await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await page
       .getByRole('button', { name: step === 1 ? 'Con dudas' : 'La sabía', exact: true })

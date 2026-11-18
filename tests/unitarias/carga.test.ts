@@ -32,11 +32,14 @@ declare module 'vitest' {
 // Las reglas puras de la carga en minutos (Fase 11): cuánto tarda cada cosa, qué entra en una
 // sesión de T minutos, cuánto freno pone el atraso y cuándo vuelve lo que se pospone.
 
-const TABLE_SESSION = 'Carga de la sesión (60 repasos de 12 s y 30 tarjetas nuevas)';
-const TABLE_BRAKE = 'Freno por atraso (en días de capacidad)';
-const TABLE_SHRINK = 'Tiempo de un repaso: lo tuyo contra el valor inicial de 12 s';
-const TABLE_PRIORITY = 'Prioridad de un repaso';
-const TABLE_CAP = 'Corte de inactividad de un intento';
+// Una sola tabla en el tablero («Tabla de casos de carga»): los cuatro tiempos, el freno, la
+// contracción del tiempo de un repaso, el corte de inactividad y la prioridad.
+const TABLE = 'Tabla de casos de carga';
+const TABLE_SESSION = TABLE;
+const TABLE_BRAKE = TABLE;
+const TABLE_SHRINK = TABLE;
+const TABLE_PRIORITY = TABLE;
+const TABLE_CAP = TABLE;
 
 const numbers = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 3 });
 const fmt = (value: number) => numbers.format(value);
@@ -137,6 +140,13 @@ describe('composición de la sesión por minutos', () => {
     );
   });
 
+  it('[CA-081] con 5 minutos entran los 20 repasos más urgentes, sin tarjetas nuevas, y los otros 40 quedan para mañana', () => {
+    const result = plan(5);
+    expect(result.reviews).toEqual(reviews(20).map((card) => card.cardId));
+    expect(result.newCards).toEqual([]);
+    expect(result.postponed).toHaveLength(40);
+  });
+
   it('[CA-079] los repasos van del que más conviene repasar al que menos, y las nuevas llevan el orden en que llegan', () => {
     const result = plan(25);
     expect(result.reviews[0]).toBe('r000');
@@ -171,7 +181,13 @@ describe('composición de la sesión por minutos', () => {
   it('[CA-093] una tarjeta aplazada 3 veces entra sí o sí, primera, aunque no entre en el tiempo', () => {
     const due = [
       ...reviews(60),
-      { ...reviews(1)[0], cardId: 'vieja', recall: 0.99, postponements: 3 },
+      {
+        cardId: 'vieja',
+        recall: 0.99,
+        dueDay: '2027-03-15',
+        siblingGroupId: null,
+        postponements: 3,
+      },
     ];
     const result = composeSession({
       minutes: 5,
@@ -453,5 +469,48 @@ describe('la sesión nunca pasa del tiempo elegido', () => {
         );
       }
     }
+  });
+});
+
+describe('hermanas nuevas', () => {
+  it('[CA-079] de una familia de tarjetas nuevas hermanas entra una sola por día, y ninguna si ya se estudió una de su familia', () => {
+    const base = {
+      minutes: 25,
+      reviews: [],
+      newCards: ['a1', 'a2', 'b1', 'b2', 'c'],
+      newSiblingGroups: new Map([
+        ['a1', 'a'],
+        ['a2', 'a'],
+        ['b1', 'b'],
+        ['b2', 'b'],
+      ]),
+      brake: FULL,
+      ...ELENCO,
+    };
+    expect(composeSession(base).newCards).toEqual(['a1', 'b1', 'c']);
+    expect(composeSession({ ...base, studiedGroups: new Set(['a']) }).newCards).toEqual([
+      'b1',
+      'c',
+    ]);
+  });
+
+  it('[CA-079] una nueva hermana de un repaso que entra hoy no entra', () => {
+    const result = composeSession({
+      minutes: 25,
+      reviews: [
+        {
+          cardId: 'r',
+          recall: 0.7,
+          dueDay: '2027-03-15',
+          siblingGroupId: 'g',
+          postponements: 0,
+        },
+      ],
+      newCards: ['n1', 'n2'],
+      newSiblingGroups: new Map([['n1', 'g']]),
+      brake: FULL,
+      ...ELENCO,
+    });
+    expect(result.newCards).toEqual(['n2']);
   });
 });

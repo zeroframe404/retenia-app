@@ -28,6 +28,7 @@ import { SUBJECT_STATUSES } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
 import { readPayload } from './ledger';
 import type { Writer } from './orm';
+import { postponementsOf } from './postponements';
 import { cardSchedule, cards, cardVersions, evaluations, observations, subjects } from './schema';
 
 // La agenda de cada tarjeta es una proyección (docs/modelo-de-datos.md, sección 1.3): se
@@ -51,7 +52,10 @@ export interface HistoryEvent {
   readonly occurredAt: Date;
   // La calificación que vale (la de la evaluación vigente) o «adopted» para la agenda heredada.
   // «reset»: cambió lo que hay que recordar y la tarjeta volvió a programarse como nueva.
-  readonly result: 'again' | 'hard' | 'good' | 'adopted' | 'reset';
+  // «postponed» (Fase 11): un aplazamiento, sin resultado ni calificación.
+  readonly result: 'again' | 'hard' | 'good' | 'adopted' | 'reset' | 'postponed';
+  // Para un aplazamiento, el día para el que quedó.
+  readonly plannedDay: string | null;
   // El repaso se deshizo (CA-063): figura como «Anulado».
   readonly annulled: boolean;
   // Por qué un repaso quedó anotado sin cambiar la fecha: ya había otro ese día de estudio, o tiene
@@ -208,6 +212,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
             seq: event.seq,
             occurredAt: at,
             result: event.kind === 'adopted' ? 'adopted' : 'reset',
+            plannedDay: null,
             annulled: false,
             skipped: null,
             counted: false,
@@ -221,12 +226,25 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
           seq: event.seq,
           occurredAt: at,
           result: event.grade,
+          plannedDay: null,
           annulled: step?.reason === 'annulled',
           skipped: step?.reason === 'sameDay' || step?.reason === 'earlier' ? step.reason : null,
           counted: step?.counted === true,
         },
       ];
     })
+    .concat(
+      postponementsOf(db, cardId).map((postponement) => ({
+        id: postponement.id,
+        seq: postponement.seq,
+        occurredAt: postponement.occurredAt,
+        result: 'postponed' as const,
+        plannedDay: postponement.plannedDay,
+        annulled: false,
+        skipped: null,
+        counted: false,
+      })),
+    )
     .sort((a, b) => a.seq - b.seq);
 }
 

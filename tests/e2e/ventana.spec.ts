@@ -55,9 +55,14 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'cards.createInverse',
       'cards.history',
       'cards.delete',
+      // «Sumar a mis repasos» (Fase 11).
+      'cards.activationCost',
+      'cards.activate',
       // La sesión de estudio, las dudas y Progreso › «Dudas y revisiones» (Fase 10).
       'study.overview',
       'study.start',
+      // «Posponer» (Fase 11).
+      'study.postpone',
       'study.view',
       'study.resume',
       'study.mark',

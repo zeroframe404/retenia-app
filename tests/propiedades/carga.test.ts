@@ -124,8 +124,8 @@ describe('composición de la sesión', () => {
             reviewSeconds: 12,
             newCardSeconds: 60,
           });
-          expect(plan.forced.sort()).toEqual(forced.map((card) => card.cardId).sort());
-          expect(plan.reviews.slice(0, forcedCount).sort()).toEqual(plan.forced.sort());
+          expect([...plan.forced].sort()).toEqual(forced.map((card) => card.cardId).sort());
+          expect(plan.reviews.slice(0, forcedCount).sort()).toEqual([...plan.forced].sort());
         },
       ),
       RUNS,

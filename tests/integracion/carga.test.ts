@@ -165,20 +165,27 @@ describe('freno por atraso', () => {
     const { clock, advance } = movableClock();
     const { workspace } = seeded(clock);
     workspace.study.setDefaultMinutes(5);
-    advance(35);
+    advance(120);
     const proposal = proposalOf(workspace);
     expect(proposal.brake.band).toBe('none');
     expect(proposal.brake.days).toBeGreaterThan(5);
     expect(proposal.newCards).toBe(0);
   });
 
-  it('[CA-086] el freno vuelve a 1 recién cuando el atraso estuvo bajo 0,5 durante 3 días seguidos', () => {
-    const { clock, advance, reset } = movableClock();
-    const { workspace } = seeded(clock);
+  it('[CA-086] el atraso de cada día se anota y el freno lo tiene en cuenta (sin tocar la memoria)', () => {
+    const { clock, advance } = movableClock();
+    const { workspace, file } = seeded(clock);
+    const before = scheduleRows(file);
+    proposalOf(workspace);
     advance(35);
     expect(proposalOf(workspace).brake.band).not.toBe('full');
-    reset();
-    expect(proposalOf(workspace).brake.band).toBe('half');
+    advance(1);
+    expect(proposalOf(workspace).brake.band).not.toBe('full');
+    const saved = readRows(file, "SELECT value FROM settings WHERE key = 'load.backlog'");
+    const days = JSON.parse(String(saved[0]?.value)) as { day: string; days: number }[];
+    expect(days.map((entry) => entry.day)).toEqual(['2027-03-15', '2027-04-19', '2027-04-20']);
+    expect(days[0]?.days).toBeLessThan(0.5);
+    expect(scheduleRows(file)).toEqual(before);
   });
 });
 

@@ -8,10 +8,12 @@ import {
   USER_SHEET_STATES,
 } from '../core/cards';
 import type { Clock } from '../core/clock';
+import { newCardsCost } from '../core/load';
 import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
 import type {
+  ActivationCost,
   Card,
   CardDetail,
   CardHistory,
@@ -44,11 +46,14 @@ import type { ReteniaDatabase } from './database';
 import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './demo-cards';
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
+import { estimatesOf } from './load';
 import { SubjectNotFoundError, TopicNotFoundError } from './organization-errors';
 import type { Writer } from './orm';
+import { plannedDayOf } from './postponements';
 import { cardHistory, recomputeCardSchedule, reviewFacts, whyToday } from './projections';
 import {
   blocks,
+  cardSchedule,
   cards,
   cardVersions,
   notes,
@@ -118,6 +123,10 @@ export interface CardsStore {
   // «Eliminar»: a la Papelera por 30 días.
   remove(input: { cardId: string }): { trashEntryId: string };
   history(input: { cardId: string }): CardHistory;
+  // «Sumar a mis repasos» (Fase 11): cuánto suman al repaso esas tarjetas, antes de confirmar, y
+  // pasarlas al principio de las nuevas. Una tarjeta que ya se repasó no cuenta.
+  activationCost(input: { count: number }): ActivationCost;
+  activate(input: { batchId: string; cardIds: readonly string[] }): { activated: number };
   count(): number;
   // Solo para la demostración: tarjetas sueltas con su historial, y el historial de una que nació
   // en una nota. Devuelven cuántas tarjetas hay después.
@@ -300,6 +309,10 @@ export function recordReview(
       helpLevel,
       dueAtThen: current.dueAt,
       versionId: current.versionId,
+      // Las tres fechas del repaso: la sugerida, la planificada (si se pospuso) y la real, que es
+      // cuando se hizo. Solo la real alimenta al motor.
+      suggestedDay: studyDayOf(new Date(current.dueAt)),
+      plannedDay: plannedDayOf(tx, cardId) ?? studyDayOf(new Date(current.dueAt)),
       ...reviewFacts(tx, cardId, clock.now(), fuzz),
       ...(input.session ?? {}),
     },
@@ -639,10 +652,40 @@ export function createCardsStore(
           id: event.id,
           day: studyDayOf(event.occurredAt),
           result: event.result,
+          plannedDay: event.plannedDay,
           annulled: event.annulled,
           skipped: event.skipped,
         })),
       };
+    },
+
+    activationCost({ count: cardsToAdd }) {
+      return newCardsCost(cardsToAdd, estimatesOf(orm, clock).reviewSeconds);
+    },
+
+    activate({ batchId, cardIds }) {
+      return orm.transaction((tx) => {
+        let activated = 0;
+        for (const cardId of cardIds) {
+          const row = tx
+            .select({ reps: cardSchedule.reps })
+            .from(cards)
+            .innerJoin(cardSchedule, eq(cardSchedule.cardId, cards.id))
+            .where(and(eq(cards.id, cardId), isNull(cards.deletedAt)))
+            .get();
+          if (row === undefined || row.reps > 0) {
+            continue;
+          }
+          const saved = appendObservation(tx, clock, {
+            kind: 'card.activated',
+            payload: { cardId, batchId },
+            idempotencyKey: `activate:${batchId}:${cardId}`,
+            source: 'user',
+          });
+          activated += saved.inserted ? 1 : 0;
+        }
+        return { activated };
+      });
     },
 
     count() {

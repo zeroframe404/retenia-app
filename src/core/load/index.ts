@@ -35,7 +35,7 @@ const MAINTENANCE_SHARE = 0.1;
 // Cada tarjeta nueva se repasa entre 2,5 y 5 veces en las 4 semanas que siguen.
 const REVIEWS_PER_NEW_CARD = { low: 2.5, high: 5 } as const;
 // Una tarjeta se pospone hasta 3 veces; a la cuarta pasa al primer nivel.
-export const MAX_POSTPONEMENTS = 3;
+const MAX_POSTPONEMENTS = 3;
 
 // El tiempo fijo de preparar la sesión, en minutos: 1 con 10 minutos o menos y 2 con más.
 export function prepMinutes(chosenMinutes: number): number {
@@ -122,12 +122,12 @@ export function learnedEstimate(
   attempts: readonly Attempt[],
   initialSeconds: number,
 ): { count: number; medianSeconds: number; estimateSeconds: number; excluded: number } {
-  const window = attempts
+  const recent = attempts
     .filter((attempt) => attempt.daysAgo <= WINDOW_DAYS)
     .sort((a, b) => a.daysAgo - b.daysAgo)
     .slice(0, WINDOW_ATTEMPTS)
     .map((attempt) => attempt.seconds);
-  if (window.length === 0) {
+  if (recent.length === 0) {
     return {
       count: 0,
       medianSeconds: initialSeconds,
@@ -135,15 +135,15 @@ export function learnedEstimate(
       excluded: 0,
     };
   }
-  const cap = inactivityCapSeconds(median(window));
-  const active = window.filter((seconds) => seconds <= cap);
+  const cap = inactivityCapSeconds(median(recent));
+  const active = recent.filter((seconds) => seconds <= cap);
   const { kept, excluded } = splitOutliers(active);
   const medianSeconds = kept.length === 0 ? initialSeconds : median(kept);
   return {
     count: kept.length,
     medianSeconds,
     estimateSeconds: estimateSeconds({ count: kept.length, medianSeconds }, initialSeconds),
-    excluded: window.length - active.length + excluded.length,
+    excluded: recent.length - active.length + excluded.length,
   };
 }
 
@@ -239,7 +239,7 @@ export function cardPriority(card: {
   recall: number;
   isRequisite: boolean;
   postponements: number;
-  importance?: number;
+  importance?: number | undefined;
 }): number {
   return (
     (1 - card.recall) *
@@ -289,6 +289,9 @@ export interface ComposeInput {
   readonly reviews: readonly ReviewCandidate[];
   // Las tarjetas nuevas disponibles, en el orden en que entran.
   readonly newCards: readonly string[];
+  // De cada tarjeta nueva, su familia de hermanas (si tiene): entra una sola por día, y ninguna si
+  // ya entró o se estudió una de su familia.
+  readonly newSiblingGroups?: ReadonlyMap<string, string>;
   readonly brake: Brake;
   readonly reviewSeconds: number;
   readonly newCardSeconds: number;
@@ -385,11 +388,22 @@ export function composeSession(input: ComposeInput): SessionPlan {
   const newBudgetSeconds =
     Math.min(leftSeconds, NEW_SHARE * input.minutes * 60) * input.brake.factor;
   const fit = Math.floor(newBudgetSeconds / input.newCardSeconds + 1e-9);
+  const candidates = input.newCards.filter((cardId) => {
+    const group = input.newSiblingGroups?.get(cardId);
+    if (group === undefined) {
+      return true;
+    }
+    if (studied.has(group) || taken.has(group)) {
+      return false;
+    }
+    taken.add(group);
+    return true;
+  });
   const count = Math.min(
-    input.newCards.length,
+    candidates.length,
     input.brake.maxCards === null ? fit : Math.min(fit, input.brake.maxCards),
   );
-  const newCards = input.newCards.slice(0, count);
+  const newCards = candidates.slice(0, count);
   const nothing = reviews.length === 0 && newCards.length === 0;
   return {
     minutes: input.minutes,
