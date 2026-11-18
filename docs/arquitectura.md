@@ -136,6 +136,8 @@ Cómo quedó en la Fase 04 (sin materias ni temas todavía): `cards.list` (`{}` 
 |---|---|---|---|
 | `search.query` | `{ text, filters?: { kind?, subject? } }` (acepta `tipo:` y `materia:` dentro del texto) | resultados con tipo, título, fragmento resaltado, destino; «No encontré nada con “…”» y sugerencia si está vacío | H-23, H-24 |
 
+Cómo quedó en la Fase 12: `search.query` (`{ text }`, hasta 300 caracteres; los filtros `tipo:`, `materia:` y `tema:` van dentro del texto) devuelve `{ results, recent }` con hasta 50 resultados (`docId`, `kind`, `group`, `entityId`, `parentId`, materia y tema, `title` y `fragment` en tramos con la coincidencia marcada, `archived`); sin texto devuelve lo abierto hace poco con `recent: true`. `search.opened` (`{ docId }`) anota lo que abriste. `search.rebuild` (`{}` → `{ documents }`) vuelve a armar el índice. La ventana muestra cada tramo como texto, nunca como código. `backups.verifyData` suma las diferencias del índice (`kind: 'search'`, sin tarjeta). La demostración suma `demo.load10k` (`{}` → `{ subjectId, cards }`).
+
 ### `materials`
 
 | Canal | Petición | Respuesta | Historias |

@@ -3,6 +3,7 @@ import type { CardDetail } from '../../preload/contract/cards';
 import type { Note, NoteSummary } from '../../preload/contract/notes';
 import type { SearchHit } from '../../preload/contract/search';
 import { texts } from '../../preload/contract/texts';
+import { CardFace } from '../cards/CardFace';
 import { Dialog } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
@@ -17,16 +18,6 @@ type Content =
 type State = { status: 'loading' } | { status: 'failed' } | { status: 'ready'; content: Content };
 
 const INDENT = 20;
-
-const plainOf = (nodes: Note['blocks'][number]['content']) =>
-  nodes
-    .map((node) => {
-      if (node.type === 'text' || node.type === 'cloze') {
-        return node.text;
-      }
-      return node.type === 'mention' ? node.label : node.alt;
-    })
-    .join('');
 
 // Lo que se pide para mostrar un resultado.
 async function load(hit: SearchHit): Promise<Content> {
@@ -95,16 +86,15 @@ function Body({ content, hit }: { content: Content; hit: SearchHit }) {
         {content.note.blocks.map((block) => {
           const level = block.parentId === null ? 0 : (depth.get(block.parentId) ?? 0) + 1;
           depth.set(block.id, level);
-          const text = plainOf(block.content);
           return (
-            <p
+            <div
               key={block.id}
               className={styles.row}
               data-focus={block.id === content.focusId}
               style={{ marginLeft: level * INDENT }}
             >
-              {text === '' ? ' ' : text}
-            </p>
+              <CardFace content={block.content} />
+            </div>
           );
         })}
       </div>
@@ -114,9 +104,9 @@ function Body({ content, hit }: { content: Content; hit: SearchHit }) {
     return (
       <div className={styles.body}>
         <p className={styles.label}>{texts.search.panel.question}</p>
-        <p className={styles.text}>{content.card.question}</p>
+        <CardFace content={content.card.questionContent} />
         <p className={styles.label}>{texts.search.panel.answer}</p>
-        <p className={styles.text}>{content.card.answer}</p>
+        <CardFace content={content.card.answerContent} />
       </div>
     );
   }

@@ -12,6 +12,7 @@ import { LabScreen } from './demo/lab/LabScreen';
 import { FirstTimeScreen } from './firstTime/FirstTimeScreen';
 import { CaptureDialog } from './inbox/CaptureDialog';
 import { trackInputMode } from './inputMode';
+import { FLUSH_NOTES } from './notes/flush';
 import { EmptyDestination } from './screens/EmptyDestination';
 import {
   type CardRequest,
@@ -96,6 +97,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setSettingsView('settings');
     setNotesSection('inbox');
     setNavigated(true);
+  }, []);
+
+  // «Buscar»: antes de abrirlo se guarda lo que se esté escribiendo en una nota.
+  const openSearch = useCallback(() => {
+    window.dispatchEvent(new Event(FLUSH_NOTES));
+    setSearching(true);
   }, []);
 
   const loadSubjects = useCallback(async () => {
@@ -198,7 +205,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
       // «Buscar» también se abre durante la sesión: el resultado va a un panel, sin salir.
       if (event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        setSearching(true);
+        openSearch();
         return;
       }
       // Durante la sesión de estudio no se va a otro destino: primero se pausa.
@@ -217,7 +224,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [go]);
+  }, [go, openSearch]);
 
   const goToNotes = () => go('notes');
 
@@ -366,7 +373,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
         <SideRail
           current={destination}
           onChange={go}
-          onSearch={() => setSearching(true)}
+          onSearch={openSearch}
           inboxCount={inboxCount}
           onOpenInbox={openInbox}
         />

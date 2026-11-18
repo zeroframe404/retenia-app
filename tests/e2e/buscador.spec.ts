@@ -94,10 +94,11 @@ test('[CA-100] una nota recién creada, «Teorema de Bayes», aparece al buscar 
   const { page } = await launchFromStart();
   await goTo(page, 'Notas');
   await page.getByRole('button', { name: 'Nueva nota' }).click();
-  await page.getByRole('textbox', { name: 'Título de la nota' }).fill('Teorema de Bayes');
+  await page.getByRole('textbox', { name: 'Título' }).fill('Teorema de Bayes');
   await page.getByRole('textbox', { name: 'Contenido de la nota' }).click();
   await page.keyboard.type('Actualiza una probabilidad');
 
+  // Enseguida, sin esperar los dos segundos del guardado automático.
   await openSearch(page);
   await typeQuery(page, 'bayes');
   await expect(options(page).first()).toContainText('Teorema de Bayes');
@@ -137,7 +138,8 @@ test('las flechas y Enter abren el resultado elegido', async ({ launchFromStart 
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page.getByRole('heading', { name: DESVIO })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tarjeta' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Repasar' })).toBeVisible();
 });
 
 test('[CA-102] durante una sesión, Ctrl+K abre un resultado en un panel lateral y al cerrarlo la tarjeta y el borrador siguen intactos', async ({

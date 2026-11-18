@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10 y fase-11.
+// fase-06, fase-08, fase-09, fase-10, fase-11 y fase-12.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -644,12 +644,86 @@ async function phase11(page) {
   await shoot(page, '10-sumar-costo');
 }
 
+/** @param {import('@playwright/test').Page} page */
+async function phase12(page) {
+  const dialog = page.getByRole('dialog', { name: 'Buscar' });
+  const field = dialog.getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' });
+  const ask = async (/** @type {string} */ text) => {
+    await field.fill(text);
+    await page.waitForTimeout(250);
+  };
+  await page.keyboard.press('Control+k');
+  await dialog.waitFor();
+  await shoot(page, '1-buscar-vacio');
+  await ask('desvio');
+  await dialog.getByRole('option').first().waitFor();
+  await shoot(page, '2-desvio');
+  await ask('sqrt(n');
+  await dialog.getByRole('option').first().waitFor();
+  await shoot(page, '3-formula');
+  await ask('tipo:tarjeta mediana');
+  await dialog.getByRole('option').first().waitFor();
+  await shoot(page, '4-filtro');
+  await ask('zzzz');
+  await dialog.getByText('No encontré nada con “zzzz”').waitFor();
+  await shoot(page, '5-sin-resultados');
+  await page.keyboard.press('Escape');
+  // Un tema renombrado se sigue encontrando por su nombre viejo.
+  await goTo(page, 'Notas');
+  await page.getByRole('button', { name: /^Media y dispersión/ }).click();
+  await page.getByRole('button', { name: 'Renombrar' }).click();
+  await page.getByRole('dialog').getByRole('textbox').fill('Medidas de resumen');
+  await page.getByRole('dialog').getByRole('button', { name: 'Guardar' }).click();
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
+  await page.keyboard.press('Control+k');
+  await dialog.waitFor();
+  await ask('Media y dispersión');
+  await dialog.getByRole('option').first().waitFor();
+  await shoot(page, '6-nombre-viejo');
+  await page.keyboard.press('Escape');
+  // Durante una sesión: el resultado se abre en un panel a la derecha, sin salir.
+  await goToDestination(page, 'Estudiar');
+  const start = page.getByRole('button', { name: 'Empezar', exact: true });
+  await start.and(page.locator(':enabled')).waitFor();
+  await start.click();
+  await page.getByPlaceholder('Tu respuesta…').fill('Creo que mide la dispersión');
+  await page.keyboard.press('Control+k');
+  await dialog.waitFor();
+  await ask('tipo:nota intervalos');
+  await dialog.getByRole('option').first().waitFor();
+  await page.keyboard.press('Enter');
+  await page.getByRole('dialog', { name: 'Intervalos de confianza' }).waitFor();
+  await page.getByText(/Un intervalo de confianza da un rango/).waitFor();
+  await shoot(page, '7-sesion-panel');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: 'Pausar' }).click();
+  // Ajustes.
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('button', { name: 'Reconstruir índice de búsqueda' }).click();
+  await page.getByText(/^Índice reconstruido/).waitFor();
+  await shoot(page, '8-ajustes-reconstruir');
+  await page.getByRole('button', { name: 'Cargar 10.000 tarjetas' }).click();
+  await page.getByText(/^Listo: 10.000 tarjetas/).waitFor({ timeout: 120000 });
+  await shoot(page, '9-ajustes-volumen');
+  await page.keyboard.press('Control+k');
+  await dialog.waitFor();
+  await ask('desvio');
+  await dialog.getByRole('option').first().waitFor();
+  await shoot(page, '10-desvio-con-10000');
+}
+
 let { app, page } = await launch(
   {},
-  name !== 'fase-06' && name !== 'fase-08' && name !== 'fase-10' && name !== 'fase-11',
+  name !== 'fase-06' &&
+    name !== 'fase-08' &&
+    name !== 'fase-10' &&
+    name !== 'fase-11' &&
+    name !== 'fase-12',
 );
 try {
-  if (name === 'fase-11') {
+  if (name === 'fase-12') {
+    await phase12(page);
+  } else if (name === 'fase-11') {
     await phase11(page);
   } else if (name === 'fase-10') {
     await phase10(page);

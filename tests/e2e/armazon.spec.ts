@@ -336,10 +336,14 @@ test('[CA-034] sin mouse: Enter sobre un botón lo acciona y Esc cierra lo que s
   const dialog = page.getByRole('dialog', { name: 'Buscar' });
   await expect(dialog).toBeVisible();
   expectVisibleFocus(await focusInfo(page), 'el cuadro «Buscar»');
-  // Tab no se escapa del cuadro: da la vuelta adentro.
+  // Tab no se escapa del cuadro: da la vuelta adentro, entre el campo y «Cerrar».
+  const field = dialog.getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' });
+  await expect(field).toBeFocused();
   for (let presses = 0; presses < 3; presses += 1) {
     await page.keyboard.press('Tab');
-    await expect(dialog.getByRole('button', { name: 'Cerrar' })).toBeFocused();
+    await expect(
+      presses % 2 === 0 ? dialog.getByRole('button', { name: 'Cerrar' }) : field,
+    ).toBeFocused();
   }
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
