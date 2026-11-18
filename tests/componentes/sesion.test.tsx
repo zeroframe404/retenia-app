@@ -44,12 +44,12 @@ const sessionReviews = (file: string) =>
   );
 
 describe('sesión de estudio en la ventana', () => {
-  it('[CA-066] la tarjeta aparece sin el riel, con «PRÁCTICA AUTÓNOMA», «0/10», «Pausar», su camino y solo «Mostrar respuesta»: no hay botones para calificar', async () => {
+  it('[CA-066] la tarjeta aparece sin el riel, con «PRÁCTICA AUTÓNOMA», «0/70», «Pausar», su camino y solo «Mostrar respuesta»: no hay botones para calificar', async () => {
     const { user } = withCast();
     await startSession(user);
     expect(screen.queryByRole('navigation', { name: 'Riel lateral' })).toBeNull();
     expect(screen.getByText('PRÁCTICA AUTÓNOMA')).toBeTruthy();
-    expect(progress().textContent).toBe('0/10');
+    expect(progress().textContent).toBe('0/70');
     expect(screen.getByRole('button', { name: 'Pausar' })).toBeTruthy();
     expect(screen.getByText('Estadística básica › Media y dispersión')).toBeTruthy();
     expect(screen.getByPlaceholderText('Tu respuesta…')).toBeTruthy();
@@ -71,7 +71,7 @@ describe('sesión de estudio en la ventana', () => {
     expect(screen.getByRole('heading', { name: 'Tu respuesta' })).toBeTruthy();
     expect(screen.getByText('cuánto se alejan')).toBeTruthy();
     await user.dblClick(screen.getByRole('button', { name: 'La sabía' }));
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     expect(sessionReviews(bridge.file)).toHaveLength(1);
     expect(screen.queryByText('¿Qué mide el desvío estándar?')).toBeNull();
   });
@@ -83,28 +83,28 @@ describe('sesión de estudio en la ventana', () => {
     await user.keyboard(' ');
     expect(screen.getByText('Cuánto se alejan, en promedio, los datos de la media.')).toBeTruthy();
     await user.keyboard('2');
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     expect(screen.getByText('Calificaste la anterior: Con dudas')).toBeTruthy();
     await user.keyboard('{Control>}z{/Control}');
-    await waitFor(() => expect(progress().textContent).toBe('0/10'));
+    await waitFor(() => expect(progress().textContent).toBe('0/70'));
     expect(screen.getByText('¿Qué mide el desvío estándar?')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'La sabía' })).toBeNull();
     await user.keyboard(' 3');
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     await user.keyboard('{Escape}');
     expect(
-      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }),
+      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }),
     ).toBeTruthy();
     expect(screen.getByRole('navigation', { name: 'Riel lateral' })).toBeTruthy();
     // La ayuda de teclas no vuelve a aparecer.
-    await user.click(screen.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }));
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await user.click(screen.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     await user.click(screen.getByRole('button', { name: 'Entendido' }));
     await user.keyboard('{Escape}');
     await user.click(
-      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }),
+      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }),
     );
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     expect(screen.queryByText(/^Teclas: Espacio muestra la respuesta/)).toBeNull();
   });
 
@@ -119,7 +119,7 @@ describe('sesión de estudio en la ventana', () => {
     expect(await screen.findByText('Borrador guardado')).toBeTruthy();
     await user.keyboard('{Escape}');
     await user.click(
-      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (0 de 10)' }),
+      await screen.findByRole('button', { name: 'Continuar: sesión de hoy (0 de 70)' }),
     );
     await waitFor(() =>
       expect((screen.getByPlaceholderText('Tu respuesta…') as HTMLTextAreaElement).value).toBe(
@@ -144,7 +144,7 @@ describe('sesión de estudio en la ventana', () => {
     expect(screen.getByText('PRÁCTICA AUTÓNOMA')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Más' }));
     await user.click(screen.getByRole('menuitem', { name: 'La tarjeta está mal' }));
-    await waitFor(() => expect(progress().textContent).toBe('1/10'));
+    await waitFor(() => expect(progress().textContent).toBe('1/70'));
     expect(screen.queryByText('¿Qué mide el desvío estándar?')).toBeNull();
     expect(
       await screen.findByText('La tarjeta pasó a «En revisión». No cuenta como olvido.'),
@@ -168,28 +168,52 @@ describe('sesión de estudio en la ventana', () => {
     await user.click(screen.getByRole('button', { name: 'Más' }));
     await user.click(screen.getByRole('menuitem', { name: 'Saltar' }));
     await waitFor(() => expect(screen.queryByText('¿Qué mide el desvío estándar?')).toBeNull());
-    expect(progress().textContent).toBe('0/10');
+    expect(progress().textContent).toBe('0/70');
+  });
+
+  it('[CA-075] [CA-083] con la versión corta (45 actividades) los 15 repasos que no entraron quedan para mañana: el cierre no los cuenta como de hoy', async () => {
+    const { user } = withCast();
+    render(<App />);
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('button', { name: 'Versión corta (10 min)' }).hasAttribute('disabled'),
+        ).toBe(false),
+      SLOW,
+    );
+    await user.click(screen.getByRole('button', { name: 'Versión corta (10 min)' }));
+    await screen.findByText('¿Qué mide el desvío estándar?', {}, SLOW);
+    expect(progress().textContent).toBe('0/45');
+    for (let step = 0; step < 45; step += 1) {
+      await waitFor(() =>
+        expect(screen.queryByRole('button', { name: 'Mostrar respuesta' })).toBeTruthy(),
+      );
+      await user.keyboard(' 3');
+    }
+    expect(await screen.findByRole('heading', { name: /^Sesión terminada/ })).toBeTruthy();
+    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 15.')).toBeTruthy();
+    expect(screen.queryByText(/^Quedan \d+ repasos para hoy/)).toBeNull();
   });
 
   it('[CA-074] [CA-075] [CA-076] el cierre: minutos, resultados, dificultades, próximo paso, la frase, «¿Cómo estuvo?», la duda en Progreso y «Ajustar el plan»', async () => {
     const { user, bridge } = withCast();
     await startSession(user);
-    // La primera «No la sabía» (vuelve después de otras 3) y el resto «La sabía».
+    // La primera «No la sabía» (vuelve después de otras 3) y el resto «La sabía»: la sesión de 25
+    // minutos tiene 70 actividades (60 repasos y 10 tarjetas nuevas).
     await user.keyboard(' 1');
-    for (let step = 0; step < 10; step += 1) {
+    for (let step = 0; step < 70; step += 1) {
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Mostrar respuesta' })).toBeTruthy(),
       );
       await user.keyboard(' 3');
     }
     expect(await screen.findByRole('heading', { name: 'Sesión terminada · 1 min' })).toBeTruthy();
-    expect(screen.getByText('La sabía: 9')).toBeTruthy();
+    expect(screen.getByText('La sabía: 69')).toBeTruthy();
     expect(screen.getByText('Con dudas: 0')).toBeTruthy();
     expect(screen.getByText('No la sabía: 1')).toBeTruthy();
     expect(screen.getByText('Media y dispersión: ¿Qué mide el desvío estándar?')).toBeTruthy();
-    expect(
-      screen.getByText('Quedan 50 repasos para hoy: podés hacer otra sesión cuando quieras.'),
-    ).toBeTruthy();
+    // La sesión de 25 minutos toma los 60 repasos de hoy: no queda ninguno y se dice cuántos vencen mañana.
+    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 16.')).toBeTruthy();
     expect(screen.getByText('Completar la sesión no equivale a dominar el tema')).toBeTruthy();
     expect(document.body.textContent ?? '').not.toMatch(/dominad[oa]s?/i);
     expect(

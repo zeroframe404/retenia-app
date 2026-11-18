@@ -10,6 +10,29 @@ const numberFormat = new Intl.NumberFormat('es-AR');
 const UNTITLED = 'Sin título';
 const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
 
+// Las cantidades de la propuesta de Estudiar, con su singular: «1 repaso», «18 tarjetas nuevas».
+const reviewsPhrase = (count: number) =>
+  count === 1 ? '1 repaso' : `${numberFormat.format(count)} repasos`;
+const newCardsPhrase = (count: number) =>
+  count === 1 ? '1 tarjeta nueva' : `${numberFormat.format(count)} tarjetas nuevas`;
+const minutesPhrase = (count: number) =>
+  count === 1 ? '1 minuto' : `${numberFormat.format(count)} minutos`;
+
+// Lo que se estudia, dicho en una frase: «60 repasos y 10 tarjetas nuevas».
+function contentPhrase(reviews: number, newCards: number): string {
+  return [
+    ...(reviews > 0 ? [reviewsPhrase(reviews)] : []),
+    ...(newCards > 0 ? [newCardsPhrase(newCards)] : []),
+  ].join(' y ');
+}
+
+// Los días de repasos atrasados: con menos de 2 días, una decimal con coma («1,2 días»); desde 2,
+// entero («6 días»).
+function lateDays(days: number): string {
+  const shown = days < 2 ? Math.round(days * 10) / 10 : Math.round(days);
+  return `${decimalFormat.format(shown)} ${shown === 1 ? 'día' : 'días'}`;
+}
+
 export const texts = {
   appName: 'Retenia',
   appNameTest: 'Retenia (prueba)',
@@ -505,6 +528,25 @@ export const texts = {
     lostKept: 'La tarjeta quedó en Tarjetas, sin nota.',
     // «Guardar una duda» desde la pantalla de una tarjeta (CA-076).
     saveDoubt: 'Guardar una duda',
+    // «Sumar a mis repasos» (Fase 11): se eligen tarjetas nuevas y, antes de confirmar, se dice
+    // cuánto suman al repaso de las próximas 4 semanas.
+    activate: 'Sumar a mis repasos',
+    activateChosen: (count: number) =>
+      count === 1 ? '1 elegida' : `${numberFormat.format(count)} elegidas`,
+    activateCost: (count: number, lowMinutes: number, highMinutes: number) => {
+      const added = count === 1 ? '1 tarjeta' : `${numberFormat.format(count)} tarjetas`;
+      const spread = 'de repaso repartidos en las próximas 4 semanas';
+      return lowMinutes === highMinutes
+        ? `Agregar ${added} hoy suma cerca de ${minutesPhrase(lowMinutes)} ${spread}`
+        : `Agregar ${added} hoy suma entre ${numberFormat.format(lowMinutes)} y ${minutesPhrase(highMinutes)} ${spread}`;
+    },
+    activateConfirm: 'Confirmar',
+    activated: (count: number) =>
+      count === 1
+        ? 'Listo: 1 tarjeta nueva sumada a tus repasos'
+        : `Listo: ${numberFormat.format(count)} tarjetas nuevas sumadas a tus repasos`,
+    activateCostFailed: 'No pude calcular cuánto suman. Probá de nuevo.',
+    activateFailed: 'No pude sumar las tarjetas. Probá de nuevo.',
   },
   // La sesión de estudio (Fase 10, H-16 a H-18).
   study: {
@@ -568,13 +610,92 @@ export const texts = {
     },
     adjust: {
       title: 'Ajustar el plan',
-      topic: (name: string) => 'El tema de esta sesión: ' + name + '.',
+      topic: (name: string) => `El tema de esta sesión: ${name}.`,
       shorter: 'Más corto la próxima vez',
       morePractice: 'Más práctica de este tema',
       pauseTopic: 'Pausar este tema',
       cancel: 'Cancelar',
       saved: 'Anotado. Lo voy a usar cuando Estudiar arme la propuesta por minutos.',
       failed: 'No pude anotarlo. Probá de nuevo.',
+    },
+    // La propuesta de hoy (Fase 11, H-19 a H-21): lo que entra en los minutos que tenés y por qué.
+    proposal: {
+      title: (minutes: number) => `Sesión recomendada · ${numberFormat.format(minutes)} min`,
+      // «60 repasos y 10 tarjetas nuevas · unos 25 min». Con 5 minutos y repasos que quedan para
+      // mañana, los que entran son «los más urgentes».
+      headline: (reviews: number, newCards: number, minutes: number, urgentOnly: boolean) => {
+        const about = `unos ${numberFormat.format(minutes)} min`;
+        if (reviews > 0 && newCards === 0) {
+          const kind = urgentOnly
+            ? `${reviews === 1 ? 'el más urgente' : 'los más urgentes'}`
+            : 'sin tarjetas nuevas';
+          return `${reviewsPhrase(reviews)}, ${kind} · ${about}`;
+        }
+        return `${contentPhrase(reviews, newCards)} · ${about}`;
+      },
+      initialEstimate: 'estimación inicial',
+      // Lo observado (los repasos que vencen hoy) aparte de lo estimado (el tiempo).
+      why: (due: number, initialEstimate: boolean) => {
+        if (due === 0) {
+          return 'Por qué: hoy no vence ningún repaso; sigue lo nuevo (tiempo estimado).';
+        }
+        const observed =
+          due === 1
+            ? 'hoy vence 1 repaso (dato)'
+            : `hoy vencen ${numberFormat.format(due)} repasos (dato)`;
+        return initialEstimate
+          ? `Por qué: ${observed} y el tiempo es una estimación inicial.`
+          : `Por qué: ${observed} y el tiempo es una estimación.`;
+      },
+      // El freno a las tarjetas nuevas cuando hay repasos atrasados: dice cuánto y cuándo vuelven.
+      brake: (band: 'half' | 'few' | 'none', days: number, newCards: number) => {
+        const late = `tenés cerca de ${lateDays(days)} de repasos atrasados`;
+        if (band === 'none') {
+          return `Hoy no agrego tarjetas nuevas: ${late}. Vuelven de a poco cuando baje de 5 días.`;
+        }
+        if (band === 'few') {
+          return newCards > 0
+            ? `Hoy agrego pocas tarjetas nuevas: ${late}. Vuelven más cuando baje de 2 días.`
+            : `Hoy no agrego tarjetas nuevas: ${late}. Vuelven de a poco cuando baje de 2 días.`;
+        }
+        return newCards > 0
+          ? `Hoy agrego la mitad de las tarjetas nuevas: ${late}. Vuelven completas cuando baje de medio día.`
+          : `Hoy no agrego tarjetas nuevas: ${late}. Vuelven completas cuando baje de medio día.`;
+      },
+      postponedNote: (count: number) =>
+        count === 1
+          ? 'Hay 1 repaso pospuesto para otro día.'
+          : `Hay ${numberFormat.format(count)} repasos pospuestos para otro día.`,
+      shortVersion: 'Versión corta (10 min)',
+      // «Tengo: 5 10 25 45 min»: los minutos que elegís valen solo esta vez.
+      have: 'Tengo:',
+      haveUnit: 'min',
+      postpone: 'Posponer',
+      otherActivity: 'Elegir otra actividad',
+      otherActivities: 'Otras actividades',
+      close: 'Cerrar',
+      reviewsOnly: (reviews: number, minutes: number) =>
+        `Solo repasos · ${reviewsPhrase(reviews)} · unos ${numberFormat.format(minutes)} min`,
+      newOnly: (newCards: number, minutes: number) =>
+        `Solo tarjetas nuevas · ${newCards === 1 ? '1 tarjeta' : `${numberFormat.format(newCards)} tarjetas`} · unos ${numberFormat.format(minutes)} min`,
+      topic: (name: string, reviews: number, newCards: number, minutes: number) =>
+        `${name} · ${contentPhrase(reviews, newCards)} · unos ${numberFormat.format(minutes)} min`,
+      // «Posponer».
+      postponeTitle: '¿Para cuándo los posponés?',
+      postponeLater: 'Más tarde hoy',
+      postponeTomorrow: 'Mañana',
+      postponePickDay: 'Elegir día',
+      postponeDayLabel: 'Día',
+      postponeConfirm: 'Confirmar',
+      postponedLater: 'Listo: vuelve más tarde hoy',
+      postponedTomorrow: 'Listo: vuelve mañana',
+      postponedDay: (date: string) => `Listo: vuelve el ${date}`,
+      // Las que ya se pospusieron 3 veces entran igual.
+      postponedForced: (count: number) =>
+        count === 1
+          ? '1 tarjeta entra igual porque ya la pospusiste 3 veces.'
+          : `${numberFormat.format(count)} tarjetas entran igual porque ya las pospusiste 3 veces.`,
+      postponeFailed: 'No pude posponer los repasos. Probá de nuevo.',
     },
   },
   // Progreso (Fase 10: por ahora, solo «Dudas y revisiones»).
@@ -609,6 +730,9 @@ export const texts = {
     marked: (row: string, mark: string) => `${row} · ${mark}`,
     adopted: 'Repasos anteriores, sin detalle',
     reset: 'Cambió lo que hay que recordar: volvió a programarse como nueva',
+    // Fase 11: «Posponer» deja un renglón más, sin resultado ni «Anulado».
+    postponed: (plannedDay: string) => `Aplazada hasta el ${formatShortDate(plannedDay)}`,
+    postponedNoDay: 'Aplazada',
     loadFailed: 'No pude cargar el historial. Probá de nuevo.',
   },
   trash: {

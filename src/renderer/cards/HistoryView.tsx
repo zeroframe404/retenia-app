@@ -6,7 +6,10 @@ import styles from '../ui/Content.module.css';
 import { ItemList, ListItem, ScreenFrame } from '../ui/Frame';
 import { ViewState } from '../ui/ViewStates';
 
-const RESULTS: Record<CardHistory['entries'][number]['result'], string> = {
+type Entry = CardHistory['entries'][number];
+
+// Un aplazamiento (Fase 11) no tiene resultado de calificación: dice hasta cuándo se aplazó.
+const RESULTS: Record<Exclude<Entry['result'], 'postponed'>, string> = {
   good: texts.cards.gradeGood,
   hard: texts.cards.gradeHard,
   again: texts.cards.gradeAgain,
@@ -16,7 +19,16 @@ const RESULTS: Record<CardHistory['entries'][number]['result'], string> = {
 
 // El renglón de un repaso: la fecha, el resultado y, desde la Fase 09, «Anulado» si se deshizo o por
 // qué no cambió la fecha (otro repaso del mismo día, o uno con fecha anterior al último que contó).
-function rowText(entry: CardHistory['entries'][number]): string {
+// El de un aplazamiento es un renglón más: la fecha y «Aplazada hasta el…», sin marcas.
+function rowText(entry: Entry): string {
+  if (entry.result === 'postponed') {
+    return texts.history.row(
+      formatShortDate(entry.day),
+      entry.plannedDay === null
+        ? texts.history.postponedNoDay
+        : texts.history.postponed(entry.plannedDay),
+    );
+  }
   const row = texts.history.row(formatShortDate(entry.day), RESULTS[entry.result]);
   if (entry.annulled) {
     return texts.history.marked(row, texts.history.annulled);

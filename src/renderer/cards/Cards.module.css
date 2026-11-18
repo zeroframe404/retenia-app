@@ -236,3 +236,31 @@
   flex-wrap: wrap;
   gap: var(--espacio-12);
 }
+
+/* «Sumar a mis repasos» (Fase 11): la barra con el botón y cuántas tarjetas nuevas elegiste, y la
+   casilla de cada tarjeta nueva. */
+.selectionBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-12) var(--espacio-16);
+}
+
+.chosen {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.choose {
+  flex: none;
+  width: var(--espacio-24);
+  height: var(--espacio-24);
+  margin: 0;
+  accent-color: var(--color-marca);
+  cursor: pointer;
+}
+
+.chooseSpace {
+  flex: none;
+  width: var(--espacio-24);
+}

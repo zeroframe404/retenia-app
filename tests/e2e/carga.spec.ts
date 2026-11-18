@@ -133,8 +133,16 @@ test('[CA-087] «Sumar a mis repasos» muestra el costo antes de confirmar y dej
   appWindow,
 }) => {
   await goTo(appWindow, 'Tarjetas');
-  await appWindow.getByRole('button', { name: 'Sumar a mis repasos' }).click();
+  await expect(appWindow.getByText(/^[\d.]+ tarjetas?$/)).toBeVisible();
+  // Las tarjetas nuevas llevan una casilla; se baja por la lista hasta ver alguna.
   const boxes = appWindow.getByRole('checkbox');
+  const scroller = appWindow.locator('section[tabindex="0"]');
+  for (let turn = 0; turn < 60 && (await boxes.count()) === 0; turn += 1) {
+    await scroller.evaluate((element) => {
+      element.scrollTop += element.clientHeight / 2;
+    });
+    await appWindow.evaluate(() => new Promise((next) => requestAnimationFrame(next)));
+  }
   await expect(boxes.first()).toBeVisible();
   const count = Math.min(10, await boxes.count());
   for (let index = 0; index < count; index += 1) {
@@ -143,11 +151,11 @@ test('[CA-087] «Sumar a mis repasos» muestra el costo antes de confirmar y dej
   await appWindow.getByRole('button', { name: 'Sumar a mis repasos' }).click();
   await expect(
     appWindow.getByText(
-      /^Agregar \d+ tarjetas hoy suma entre \d+ y \d+ minutos de repaso repartidos en las próximas 4 semanas$/,
+      /^Agregar \d+ tarjetas? hoy suma (entre \d+ y \d+|cerca de \d+) minutos? de repaso repartidos? en las próximas 4 semanas$/,
     ),
   ).toBeVisible();
   await appWindow.getByRole('button', { name: 'Confirmar' }).click();
   await expect(
-    appWindow.getByText(/^Listo: \d+ tarjetas nuevas sumadas a tus repasos$/),
+    appWindow.getByText(/^Listo: \d+ tarjetas? nuevas? sumadas? a tus repasos$/),
   ).toBeVisible();
 });
