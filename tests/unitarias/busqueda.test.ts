@@ -253,8 +253,10 @@ describe('la relevancia', () => {
     }
   });
 
-  it('sin palabras (solo filtros) todo vale lo mismo', () => {
-    expect(relevanceOf('card', match(0, 0), 0)).toBe(relevanceOf('card', match(0, 0), 0));
+  it('sin palabras (solo filtros) no hay coincidencia que premiar: vale lo del cuerpo, con el peso de cada tipo', () => {
+    expect(relevanceOf('card', match(0, 0), 0)).toBe(40);
+    expect(relevanceOf('doubt', match(0, 0), 0)).toBeCloseTo(36, 5);
+    expect(relevanceOf('card', match(0, 0), 0)).toBe(relevanceOf('card', match(1, 1), 0));
   });
 });
 

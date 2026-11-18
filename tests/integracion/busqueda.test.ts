@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Workspace } from '../../src/data/workspace';
 import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
-import type { SearchHit } from '../../src/preload/contract/search';
+import { type SearchHit, searchQueryResponse } from '../../src/preload/contract/search';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, line, openSpace } from '../apoyo/espacio';
 
@@ -507,5 +507,136 @@ describe('una búsqueda rara no rompe nada', () => {
     });
     expect(titles(search(workspace, '"a*b"'))).toEqual(['Qué hace f(x) = "a*b" [1]']);
     expect(titles(search(workspace, 'f(x) = "a*b" [1]'))).toEqual(['Qué hace f(x) = "a*b" [1]']);
+  });
+});
+
+describe('lo que objetó la revisión independiente', () => {
+  it('una tarjeta con una pregunta larguísima se encuentra y la respuesta cumple el contrato', () => {
+    const space = openSpace();
+    const subject = space.workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    space.workspace.cards.create({
+      question: `zorro ${'palabra '.repeat(200)}`,
+      answer: 'x',
+      subjectId: subject.id,
+    });
+    const response = space.workspace.search.query({ text: 'zorro' });
+    expect(response.results).toHaveLength(1);
+    expect(searchQueryResponse.safeParse(response).success).toBe(true);
+  });
+
+  it('una duda larga también', () => {
+    const space = openSpace();
+    const subject = space.workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    const card = space.workspace.cards.create({
+      question: 'Uno',
+      answer: 'x',
+      subjectId: subject.id,
+    });
+    space.workspace.doubts.create({
+      doubtId: '0190a000-0000-7000-8000-000000000002',
+      text: `lobo ${'duda '.repeat(300)}`,
+      cardId: card.id,
+      sessionId: null,
+    });
+    const response = space.workspace.search.query({ text: 'tipo:duda lobo' });
+    expect(response.results).toHaveLength(1);
+    expect(searchQueryResponse.safeParse(response).success).toBe(true);
+  });
+
+  it('una duda guardada deja el índice al día: nada pendiente y «Verificar datos» en 0 diferencias', () => {
+    const space = openSpace();
+    const subject = space.workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    const card = space.workspace.cards.create({
+      question: 'Uno',
+      answer: 'x',
+      subjectId: subject.id,
+    });
+    space.workspace.doubts.create({
+      doubtId: '0190a000-0000-7000-8000-000000000003',
+      text: 'Una duda',
+      cardId: card.id,
+      sessionId: null,
+    });
+    expect(readRows(space.file, 'SELECT COUNT(*) AS n FROM search_dirty')).toEqual([{ n: 0 }]);
+    expect(space.workspace.verifyData()).toEqual([]);
+  });
+
+  it('si la tarjeta de una duda cambia de tema, la duda se encuentra en el tema nuevo y no en el viejo', () => {
+    const space = openSpace();
+    const { workspace } = space;
+    const subject = workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    const one = workspace.topics.create({ subjectId: subject.id, name: 'Uno' });
+    const two = workspace.topics.create({ subjectId: subject.id, name: 'Dos' });
+    const note = workspace.notes.create({ subjectId: subject.id, topicId: one.id });
+    workspace.notes.save({
+      noteId: note.id,
+      title: 'Una nota',
+      blocks: [line('Pregunta >> Respuesta', { id: note.blocks[0]?.id })],
+    });
+    const card = workspace.cards.list({ subjectId: subject.id })[0];
+    workspace.doubts.create({
+      doubtId: '0190a000-0000-7000-8000-000000000004',
+      text: 'No entiendo la pregunta',
+      cardId: card?.id ?? null,
+      sessionId: null,
+    });
+    expect(search(workspace, 'tipo:duda tema:Uno')).toHaveLength(1);
+    workspace.notes.move({ noteId: note.id, topicId: two.id });
+    expect(search(workspace, 'tipo:duda tema:Dos')).toHaveLength(1);
+    expect(search(workspace, 'tipo:duda tema:Uno')).toHaveLength(0);
+    expect(workspace.verifyData()).toEqual([]);
+  });
+
+  it('el nombre viejo de un tema va primero aunque más de mil tarjetas digan lo mismo en su título', () => {
+    const space = openSpace();
+    const { workspace } = space;
+    const subject = workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    const topic = workspace.topics.create({ subjectId: subject.id, name: 'Cálculo uno' });
+    workspace.topics.rename({ topicId: topic.id, name: 'Análisis matemático' });
+    workspace.cards.plantCast(
+      Array.from({ length: 1200 }, (_, index) => ({
+        question: `Calculo uno ejercicio ${index}`,
+        answer: 'x',
+        kind: 'qa' as const,
+        subjectId: subject.id,
+        topicId: topic.id,
+        createdAt: new Date('2027-01-01T00:00:00Z'),
+        reviews: [],
+      })),
+    );
+    expect(search(workspace, 'Cálculo uno')[0]?.entityId).toBe(topic.id);
+  });
+
+  it('«Verificar datos» detecta que a una fila del índice le cambiaron el tipo o a qué apunta', () => {
+    const space = seeded();
+    const { workspace, file } = space;
+    runRaw(
+      file,
+      "UPDATE search_documents SET kind = 'note' WHERE doc_id LIKE 'card:%' AND rowid % 11 = 0",
+    );
+    expect(workspace.verifyData().length).toBeGreaterThan(0);
+    workspace.repairData();
+    runRaw(
+      file,
+      "UPDATE search_documents SET entity_id = 'x' WHERE doc_id LIKE 'card:%' AND rowid % 11 = 0",
+    );
+    expect(workspace.verifyData().length).toBeGreaterThan(0);
+    workspace.repairData();
+    expect(workspace.verifyData()).toEqual([]);
+  });
+
+  it('una nota cuyo tema está en la Papelera no muestra el nombre del tema borrado', () => {
+    const space = openSpace();
+    const { workspace } = space;
+    const subject = workspace.subjects.create({ name: 'Alfa', makeActive: true });
+    const topic = workspace.topics.create({ subjectId: subject.id, name: 'Tema borrado' });
+    const note = workspace.notes.create({ subjectId: subject.id, topicId: topic.id });
+    workspace.notes.save({
+      noteId: note.id,
+      title: 'Apunte suelto',
+      blocks: [line('', { id: note.blocks[0]?.id })],
+    });
+    workspace.topics.remove({ topicId: topic.id });
+    expect(search(workspace, 'suelto')[0]?.topicName).toBeNull();
   });
 });
