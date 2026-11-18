@@ -25,7 +25,13 @@ export interface StudyTimer {
   take(activityId: string): AttemptMarks;
 }
 
-export function createStudyTimer(clock: Clock, stopwatch: Stopwatch): StudyTimer {
+// `capMs` dice cuánto cuenta como máximo un paso quieto (desde la Fase 11, el menor entre 3 veces la
+// estimación de un repaso y 120 segundos); sin él, el tope de siempre.
+export function createStudyTimer(
+  clock: Clock,
+  stopwatch: Stopwatch,
+  capMs: () => number = () => IDLE_CAP_MS,
+): StudyTimer {
   let running: { sessionId: string; elapsed: () => number } | null = null;
   const marks = new Map<
     string,
@@ -36,7 +42,7 @@ export function createStudyTimer(clock: Clock, stopwatch: Stopwatch): StudyTimer
       answerRequestedMs: number | null;
     }
   >();
-  const capped = (ms: number) => Math.min(IDLE_CAP_MS, Math.round(ms));
+  const capped = (ms: number) => Math.min(capMs(), Math.round(ms));
 
   const take = (sessionId: string, restart: boolean): number => {
     if (running?.sessionId !== sessionId) {

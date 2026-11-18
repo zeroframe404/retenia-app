@@ -17,7 +17,7 @@ import { inBuenosAires } from '../apoyo/fechas';
 
 let child: CutChild | undefined;
 let folder: ReturnType<typeof tempDataFolder>;
-const bases = { open: '', last: '' };
+const bases = { open: '', last: '', many: '' };
 const ids = {
   session: '',
   current: '',
@@ -25,6 +25,8 @@ const ids = {
   lastSession: '',
   lastActivity: '',
   card: '',
+  fresh: '',
+  manySession: '',
 };
 
 const open = (dataDir: string) =>
@@ -86,6 +88,17 @@ beforeAll(async () => {
   ids.lastSession = randomUUID();
   ids.lastActivity = other.study.start({ sessionId: ids.lastSession }).current?.activityId ?? '';
   other.close();
+
+  // Veinticinco vencidas y una tarjeta nueva: con 5 minutos entran 20 y 5 quedan para mañana.
+  bases.many = join(folder.folder, 'muchas');
+  const many = open(bases.many);
+  withDueCards(many, 25);
+  const subject = many.subjects.list().subjects.find((item) => item.status === 'active');
+  ids.fresh = many.cards.create({ question: '¿Nueva?', answer: 'Sí', subjectId: subject?.id }).id;
+  ids.manySession = randomUUID();
+  many.study.start({ sessionId: ids.manySession, minutes: 25 });
+  many.study.pause({ sessionId: ids.manySession });
+  many.close();
 }, 60_000);
 
 afterAll(() => {
@@ -257,6 +270,28 @@ describe('corte del proceso en cada punto de una escritura de la sesión', () =>
         data[key] = value === 'nuevo' || value === 'nueva' ? randomUUID() : value;
       }
       await cutEverywhere(bases.open, operation, data, ids.session);
+    },
+  );
+});
+
+describe('corte del proceso en cada punto de la carga en minutos (Fase 11)', () => {
+  it.for([
+    {
+      title: 'empezar con 5 minutos (lo que no entra queda aplazado para mañana)',
+      operation: 'studyStartShort',
+      extra: { sessionId: 'nueva' },
+    },
+    { title: '«Posponer»', operation: 'studyPostpone', extra: { requestId: 'nuevo' } },
+    { title: '«Sumar a mis repasos»', operation: 'cardsActivate', extra: { batchId: 'nuevo' } },
+  ] as const)(
+    '[CA-091] cortar el proceso en cada punto de $title deja el cambio entero o ausente',
+    { timeout: 180_000 },
+    async ({ operation, extra }) => {
+      const data: Record<string, string> = { cardId: ids.fresh, sessionId: ids.session };
+      for (const [key, value] of Object.entries(extra)) {
+        data[key] = value === 'nuevo' || value === 'nueva' ? randomUUID() : value;
+      }
+      await cutEverywhere(bases.many, operation, data, ids.manySession);
     },
   );
 });

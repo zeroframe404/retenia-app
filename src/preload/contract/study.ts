@@ -47,10 +47,89 @@ export const sessionViewSchema = z.strictObject({
 });
 export type SessionView = z.output<typeof sessionViewSchema>;
 
+// Cuánto tiempo hay para estudiar (Fase 11): los cuatro tiempos de «Tengo:».
+export const SESSION_MINUTES = [5, 10, 25, 45] as const;
+const minutesSchema = z.union([z.literal(5), z.literal(10), z.literal(25), z.literal(45)]);
+export type SessionMinutes = z.output<typeof minutesSchema>;
+
+// Qué parte de lo vencido y de lo nuevo se estudia en una alternativa de «Elegir otra actividad».
+const focusSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('reviewsOnly') }),
+  z.strictObject({ kind: z.literal('newOnly') }),
+  z.strictObject({ kind: z.literal('topic'), topicId: z.uuid() }),
+]);
+export type SessionFocus = z.output<typeof focusSchema>;
+
+const alternativeSchema = z.strictObject({
+  kind: z.enum(['reviewsOnly', 'newOnly', 'topic']),
+  topicId: z.uuid().nullable(),
+  topicName: z.string().nullable(),
+  reviews: z.number().int().nonnegative(),
+  newCards: z.number().int().nonnegative(),
+  shownMinutes: z.number().int().positive(),
+});
+export type StudyAlternative = z.output<typeof alternativeSchema>;
+
+// La propuesta de hoy (H-19): lo que entra en los minutos elegidos y por qué. Las duraciones ya
+// vienen redondeadas a 5 minutos; el atraso se mide en días de lo que estudiás por día.
+const proposalSchema = z.strictObject({
+  // Los minutos de esta propuesta y los de siempre (los que se eligieron solo esta vez no se guardan).
+  minutes: minutesSchema,
+  defaultMinutes: minutesSchema,
+  reviews: z.number().int().nonnegative(),
+  newCards: z.number().int().nonnegative(),
+  // Los repasos que no entran y quedan para mañana, sin calificarse.
+  forTomorrow: z.number().int().nonnegative(),
+  // Los que entran sí o sí porque ya se pospusieron 3 veces.
+  forced: z.number().int().nonnegative(),
+  shownMinutes: z.number().int().nonnegative(),
+  // Con pocos intentos propios la duración es una estimación inicial.
+  initialEstimate: z.boolean(),
+  why: z.strictObject({
+    // Los repasos que vencen hoy (lo observado) y lo que se estima por cada uno (lo estimado).
+    due: z.number().int().nonnegative(),
+    reviewSeconds: z.number().int().positive(),
+    ownAttempts: z.number().int().nonnegative(),
+  }),
+  brake: z.strictObject({
+    band: z.enum(['full', 'half', 'few', 'none']),
+    days: z.number().nonnegative(),
+  }),
+  // Los repasos que se pospusieron para otro día y hoy no se ofrecen.
+  postponedCount: z.number().int().nonnegative(),
+  maintenance: z
+    .strictObject({ subjectName: z.string(), minutes: z.number().int().positive() })
+    .nullable(),
+  alternatives: z.array(alternativeSchema).max(3),
+});
+export type StudyProposal = z.output<typeof proposalSchema>;
+
+export const studyOverviewRequest = z.strictObject({ minutes: minutesSchema.optional() });
+
+export const studyStartRequest = z.strictObject({
+  sessionId: z.uuid(),
+  minutes: minutesSchema.optional(),
+  only: focusSchema.optional(),
+});
+
+export const studyPostponeRequest = z.strictObject({
+  requestId: z.uuid(),
+  minutes: minutesSchema.optional(),
+  when: z.enum(['later', 'tomorrow', 'day']),
+  day: day.optional(),
+});
+export const postponeResponse = z.strictObject({
+  postponed: z.number().int().nonnegative(),
+  forced: z.number().int().nonnegative(),
+  plannedDay: day,
+});
+export type PostponeResult = z.output<typeof postponeResponse>;
+
 export const studyOverviewSchema = z.strictObject({
   subjectId: z.uuid().nullable(),
   subjectName: z.string().nullable(),
   dueCount: z.number().int().nonnegative(),
+  proposal: proposalSchema.nullable(),
   resumable: z
     .strictObject({
       sessionId: z.uuid(),

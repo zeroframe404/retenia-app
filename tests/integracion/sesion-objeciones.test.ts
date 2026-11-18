@@ -150,7 +150,8 @@ describe('sesión de estudio: lo que encontró el revisor', () => {
     const sessionId = id();
     space.workspace.study.start({ sessionId });
     let view = space.workspace.study.view({ sessionId });
-    for (let step = 0; step < 10; step += 1) {
+    // La sesión de 25 minutos trae 70 tarjetas desde la Fase 11.
+    for (let step = 0; step < 70; step += 1) {
       view = gradeCurrent(space.workspace, sessionId, 'good');
     }
     expect(view.status).toBe('finished');
@@ -159,13 +160,13 @@ describe('sesión de estudio: lo que encontró el revisor', () => {
       activityId: view.undoable?.activityId ?? '',
     });
     expect(undone.status).toBe('active');
-    expect(undone.progress).toEqual({ done: 9, total: 10 });
+    expect(undone.progress).toEqual({ done: 69, total: 70 });
     expect(undone.current).not.toBeNull();
     const again = gradeCurrent(space.workspace, sessionId, 'hard');
     expect(again.status).toBe('finished');
     expect(observationsOf(space.file, 'session.finished')).toHaveLength(2);
     expect(space.workspace.study.summary({ sessionId }).results).toEqual({
-      good: 9,
+      good: 69,
       hard: 1,
       again: 0,
       flagged: 0,

@@ -183,10 +183,29 @@ export const cardHistorySchema = z.strictObject({
     z.strictObject({
       id: z.uuid(),
       day,
-      result: z.enum(['again', 'hard', 'good', 'adopted', 'reset']),
+      result: z.enum(['again', 'hard', 'good', 'adopted', 'reset', 'postponed']),
+      // Si es un aplazamiento (Fase 11), el día para el que quedó; sin resultado ni calificación.
+      plannedDay: day.nullable(),
       annulled: z.boolean(),
       skipped: z.enum(['sameDay', 'earlier']).nullable(),
     }),
   ),
 });
 export type CardHistory = z.output<typeof cardHistorySchema>;
+
+// «Sumar a mis repasos» (Fase 11): cuánto suman al repaso las tarjetas que se agregan, antes de
+// confirmar, y qué tarjetas se agregan.
+const MAX_ACTIVATION = 500;
+export const cardsActivationCostRequest = z.strictObject({
+  count: z.number().int().min(1).max(MAX_ACTIVATION),
+});
+export const cardsActivationCostResponse = z.strictObject({
+  lowMinutes: z.number().int().positive(),
+  highMinutes: z.number().int().positive(),
+});
+export type ActivationCost = z.output<typeof cardsActivationCostResponse>;
+export const cardsActivateRequest = z.strictObject({
+  batchId: z.uuid(),
+  cardIds: z.array(z.uuid()).min(1).max(MAX_ACTIVATION),
+});
+export const cardsActivateResponse = z.strictObject({ activated: z.number().int().nonnegative() });

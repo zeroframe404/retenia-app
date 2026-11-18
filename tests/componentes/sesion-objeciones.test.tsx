@@ -86,7 +86,8 @@ describe('sesión de estudio: lo que encontró el revisor, en la ventana', () =>
     );
     await user.click(screen.getByRole('button', { name: 'Empezar' }));
     await screen.findByText(DESVIO, {}, { timeout: 15_000 });
-    for (let step = 0; step < 10; step += 1) {
+    // Las 70 actividades de la sesión de 25 minutos (60 repasos y 10 tarjetas nuevas).
+    for (let step = 0; step < 70; step += 1) {
       await waitFor(() =>
         expect(screen.queryByRole('button', { name: 'Mostrar respuesta' })).toBeTruthy(),
       );
@@ -95,7 +96,7 @@ describe('sesión de estudio: lo que encontró el revisor, en la ventana', () =>
     expect(await screen.findByRole('heading', { name: /^Sesión terminada/ })).toBeTruthy();
     expect(screen.getByText('Calificaste la anterior: La sabía')).toBeTruthy();
     await user.keyboard('{Control>}z{/Control}');
-    await waitFor(() => expect(progress().textContent).toBe('9/10'));
+    await waitFor(() => expect(progress().textContent).toBe('69/70'));
     expect(screen.getByRole('button', { name: 'Mostrar respuesta' })).toBeTruthy();
     await user.keyboard(' 2');
     expect(await screen.findByRole('heading', { name: /^Sesión terminada/ })).toBeTruthy();

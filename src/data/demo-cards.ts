@@ -26,6 +26,10 @@ export interface SeedCard {
   readonly reviews: readonly SeedReview[];
 }
 
+// Cuánto tardaron los repasos sembrados (el primero de cada tarjeta, no): la mediana es 12 segundos,
+// como dice el elenco, así la estimación por repaso empieza en 12 y no lleva «estimación inicial».
+const SEED_DURATIONS_MS = [12_000, 9_000, 15_000] as const;
+
 // Los repasos de una tarjeta, en orden: cada uno con la versión que evaluó, y la agenda recalculada
 // desde el historial al terminar.
 function plantReviews(
@@ -58,6 +62,9 @@ function plantReviews(
         versionId: card.versionId,
         // Lo que decía el motor en ese momento; la demostración nunca lleva variación al azar.
         ...reviewFacts(tx, cardId, review.at, false),
+        ...(index > 0
+          ? { gradedMs: SEED_DURATIONS_MS[(index - 1) % SEED_DURATIONS_MS.length] ?? 12_000 }
+          : {}),
       },
       idempotencyKey: `demo:${cardId}:${index}`,
       source: 'demo',

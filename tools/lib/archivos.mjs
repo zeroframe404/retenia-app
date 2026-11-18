@@ -8,6 +8,7 @@ const IGNORED_FOLDERS = new Set([
   'node_modules',
   'out',
   '.cache',
+  '.claude',
   'datos-locales',
   'coverage',
   'playwright-report',
@@ -41,7 +42,9 @@ export async function projectFiles(root) {
   });
   if (git.code === 0) {
     const seen = new Set(git.stdout.split('\0').filter(Boolean));
-    return [...seen].filter((path) => existsSync(join(root, path))).sort();
+    return [...seen]
+      .filter((path) => !path.startsWith('.claude/') && existsSync(join(root, path)))
+      .sort();
   }
   /** @type {string[]} */
   const list = [];

@@ -66,7 +66,7 @@ function gradeCurrent(
 }
 
 describe('armado de la sesión', () => {
-  it('[CA-068] «Empezar» arma 10 vencidas de la materia activa y la primera es «¿Qué mide el desvío estándar?»', () => {
+  it('[CA-068] «Empezar» arma la sesión de 25 minutos de la materia activa (60 vencidas y 10 nuevas, desde la Fase 11) y la primera es «¿Qué mide el desvío estándar?»', () => {
     const { workspace } = seeded();
     expect(workspace.study.overview()).toMatchObject({
       subjectName: 'Estadística básica',
@@ -74,7 +74,7 @@ describe('armado de la sesión', () => {
       resumable: null,
     });
     const view = workspace.study.start({ sessionId: id() });
-    expect(view.progress).toEqual({ done: 0, total: 10 });
+    expect(view.progress).toEqual({ done: 0, total: 70 });
     expect(view.current?.card.question).toBe('¿Qué mide el desvío estándar?');
     expect(view.current?.card.path).toMatchObject({
       subjectName: 'Estadística básica',
@@ -83,7 +83,7 @@ describe('armado de la sesión', () => {
     expect(view.current?.draft).toEqual({ text: '', answerShown: false });
   });
 
-  it('no entran las pausadas, las nuevas ni la de 4 fallos seguidos', () => {
+  it('no entran las pausadas ni la de 4 fallos seguidos, y las nuevas entran al final, después de todos los repasos', () => {
     const { workspace, file } = seeded();
     const statistics = workspace.subjects
       .list()
@@ -106,7 +106,9 @@ describe('armado de la sesión', () => {
     expect(chosen[0]).not.toContain(desvio?.id);
     expect(chosen[0]).not.toContain(fails?.id);
     const newOnes = all.filter((card) => card.nextReviewDay === null).map((card) => card.id);
-    expect(chosen[0].some((cardId: string) => newOnes.includes(cardId))).toBe(false);
+    expect(chosen[0]).toHaveLength(69);
+    expect(chosen[0].slice(0, 59).some((cardId: string) => newOnes.includes(cardId))).toBe(false);
+    expect(chosen[0].slice(59).every((cardId: string) => newOnes.includes(cardId))).toBe(true);
     expect(workspace.study.overview().dueCount).toBe(59);
   });
 
@@ -119,7 +121,7 @@ describe('armado de la sesión', () => {
 });
 
 describe('cerrar y retomar', () => {
-  it('[CA-068] con 4 de 10 hechas, al cerrar y abrir Retenia se ofrece continuar y retoma en la quinta', () => {
+  it('[CA-068] con 4 de 70 hechas, al cerrar y abrir Retenia se ofrece continuar y retoma en la quinta', () => {
     const space = seeded();
     const sessionId = id();
     space.workspace.study.start({ sessionId });
@@ -129,10 +131,10 @@ describe('cerrar y retomar', () => {
     const fifth = space.workspace.study.view({ sessionId }).current?.cardId;
     space.workspace.study.pause({ sessionId, activeMs: 1000 });
     const reopened = space.reopen();
-    expect(reopened.study.overview().resumable).toEqual({ sessionId, done: 4, total: 10 });
+    expect(reopened.study.overview().resumable).toEqual({ sessionId, done: 4, total: 70 });
     const view = reopened.study.resume({ sessionId });
     expect(view.status).toBe('active');
-    expect(view.progress).toEqual({ done: 4, total: 10 });
+    expect(view.progress).toEqual({ done: 4, total: 70 });
     expect(view.current?.cardId).toBe(fifth);
   });
 
@@ -142,7 +144,7 @@ describe('cerrar y retomar', () => {
     space.workspace.study.start({ sessionId });
     gradeCurrent(space.workspace, sessionId, 'good');
     const reopened = space.reopen();
-    expect(reopened.study.overview().resumable).toEqual({ sessionId, done: 1, total: 10 });
+    expect(reopened.study.overview().resumable).toEqual({ sessionId, done: 1, total: 70 });
   });
 
   it('[CA-068] la sesión pausada vale hasta el cambio de día de estudio (04:00): al otro día no se ofrece', () => {
@@ -189,7 +191,7 @@ describe('calificar sin duplicar', () => {
     const input = { sessionId, activityId, attemptId, grade: 'good' as const, answer: null };
     space.workspace.study.grade(input);
     const again = space.workspace.study.grade(input);
-    expect(again.progress).toEqual({ done: 1, total: 10 });
+    expect(again.progress).toEqual({ done: 1, total: 70 });
     expect(observationsOf(space.file, 'review.graded').filter(isSession(sessionId))).toHaveLength(
       1,
     );
@@ -260,7 +262,7 @@ const isSession = (sessionId: string) => (row: Record<string, unknown>) =>
   JSON.parse(String(row.payload)).sessionId === sessionId;
 
 describe('deshacer', () => {
-  it('[CA-067] deshacer la cuarta vuelve a esa tarjeta sin calificar, el progreso pasa a 3/10 y su próximo repaso es el de antes', () => {
+  it('[CA-067] deshacer la cuarta vuelve a esa tarjeta sin calificar, el progreso pasa a 3/70 y su próximo repaso es el de antes', () => {
     const space = seeded();
     const sessionId = id();
     space.workspace.study.start({ sessionId });
@@ -282,7 +284,7 @@ describe('deshacer', () => {
       sessionId,
       activityId: graded.undoable?.activityId ?? '',
     });
-    expect(undone.progress).toEqual({ done: 3, total: 10 });
+    expect(undone.progress).toEqual({ done: 3, total: 70 });
     expect(undone.current?.cardId).toBe(fourth);
     expect(undone.current?.draft).toEqual({ text: 'algo', answerShown: false });
     expect(scheduleOf(space.file, fourth)).toEqual(before);
@@ -370,7 +372,7 @@ describe('la tarjeta está mal', () => {
     const input = { sessionId, activityId: view.current?.activityId ?? '', attemptId };
     const after = space.workspace.study.flag(input);
     space.workspace.study.flag(input);
-    expect(after.progress).toEqual({ done: 1, total: 10 });
+    expect(after.progress).toEqual({ done: 1, total: 70 });
     expect(after.current?.cardId).not.toBe(flaggedId);
     expect(after.undoable).toBeNull();
     expect(space.workspace.cards.get({ cardId: flaggedId }).sheetState).toBe('in_review');
@@ -382,7 +384,7 @@ describe('la tarjeta está mal', () => {
     expect(
       JSON.parse(String(started?.payload)).activities.map((a: { cardId: string }) => a.cardId),
     ).not.toContain(flaggedId);
-    expect(next.progress.total).toBe(10);
+    expect(next.progress.total).toBe(69);
   });
 });
 
@@ -468,12 +470,16 @@ describe('cierre', () => {
     for (const grade of grades) {
       view = gradeCurrent(space.workspace, sessionId, grade);
     }
+    // Desde la Fase 11 la sesión de 25 minutos trae 70 tarjetas: el resto sale «La sabía».
+    while (!view.complete) {
+      view = gradeCurrent(space.workspace, sessionId, 'good');
+    }
     expect(view.complete).toBe(true);
     expect(view.status).toBe('finished');
     expect(observationsOf(space.file, 'session.finished')).toHaveLength(1);
     const summary = space.workspace.study.summary({ sessionId });
-    expect(summary.results).toEqual({ good: 8, hard: 1, again: 1, flagged: 0 });
-    expect(summary.minutes).toBe(1);
+    expect(summary.results).toEqual({ good: 68, hard: 1, again: 1, flagged: 0 });
+    expect(summary.minutes).toBe(6);
     expect(summary.difficulties).toEqual([
       {
         topicName: 'Media y dispersión',
@@ -481,8 +487,8 @@ describe('cierre', () => {
         questions: ['¿Qué mide el desvío estándar?'],
       },
     ]);
-    expect(summary.remainingDueToday).toBe(50);
-    expect(summary.cards).toHaveLength(10);
+    expect(summary.remainingDueToday).toBe(0);
+    expect(summary.cards).toHaveLength(70);
     expect(summary.cards[0]?.question).toBe('¿Qué mide el desvío estándar?');
     expect(summary.focusTopic?.name).toBe('Media y dispersión');
     expect(summary.rating).toBeNull();

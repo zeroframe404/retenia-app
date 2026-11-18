@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Card, CardDetail } from '../../preload/contract/cards';
+import type { ActivationCost, Card, CardDetail } from '../../preload/contract/cards';
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
-import { ScreenFrame, Toast } from '../ui/Frame';
+import { Dialog, ScreenFrame, Toast } from '../ui/Frame';
+import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
 import { CardDetailView } from './CardDetail';
 import { CardForm } from './CardForm';
-import { CardFilters, CardList, type Filters, NO_FILTERS } from './CardList';
+import { CardFilters, CardList, type Filters, isNewCard, NO_FILTERS } from './CardList';
 import styles from './Cards.module.css';
 import { HistoryView } from './HistoryView';
 import { ReviewView } from './ReviewView';
@@ -23,10 +24,22 @@ type View =
 
 type Topic = { id: string; name: string };
 
+// Cuántas tarjetas nuevas se suman de una vez: el tope del contrato de «Sumar a mis repasos».
+const MAX_CHOSEN = 500;
+
+// Lo que se confirma en «Sumar a mis repasos»: las tarjetas elegidas, cuánto suman y el
+// identificador del lote (el mismo si se reintenta: no se suma dos veces).
+interface Activation {
+  batchId: string;
+  cardIds: string[];
+  cost: ActivationCost;
+}
+
 // Apuntes › «Tarjetas»: todas las tarjetas de la materia que se mira, con su contador y sus filtros
 // por tema, estado y tipo; el detalle de cada una (camino de contexto, ficha, «Editar ficha»,
 // «Crear inversa», «Pausar esta tarjeta», «Historial», «Ver en la nota» y «Eliminar») y «Nueva
-// tarjeta» suelta. Sin materia (las pruebas de la Fase 03) muestra todas.
+// tarjeta» suelta. Sin materia (las pruebas de la Fase 03) muestra todas. Las tarjetas nuevas se pueden
+// elegir y sumar a los repasos («Sumar a mis repasos»), con el costo a la vista antes de confirmar.
 export function CardsScreen({
   subject,
   onOpenNote,
@@ -45,6 +58,10 @@ export function CardsScreen({
   const [loadFailed, setLoadFailed] = useState(false);
   const [view, setView] = useState<View>({ kind: 'list' });
   const [notice, setNotice] = useState('');
+  const [problem, setProblem] = useState('');
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const [activation, setActivation] = useState<Activation | null>(null);
+  const activating = useRef(false);
   // Una lectura vieja que llega tarde no pisa a una más nueva.
   const requests = useRef(0);
   // Cada vez que se abre el detalle se lo vuelve a leer: este número lo avisa.
@@ -84,8 +101,22 @@ export function CardsScreen({
     setFilters(NO_FILTERS);
     setView({ kind: 'list' });
     setNotice('');
+    setProblem('');
+    setChosen(new Set());
     setTopics([]);
   }, [subjectId]);
+
+  // Si una tarjeta elegida ya no se ve en la lista (otro filtro) o dejó de ser nueva, se la suelta.
+  useEffect(() => {
+    if (cards === null) {
+      return;
+    }
+    const available = new Set(cards.filter(isNewCard).map((card) => card.id));
+    setChosen((current) => {
+      const kept = new Set([...current].filter((id) => available.has(id)));
+      return kept.size === current.size ? current : kept;
+    });
+  }, [cards]);
 
   // «Abrir la tarjeta» desde otra pantalla: después de lo de arriba (si también cambió la materia).
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
@@ -116,6 +147,50 @@ export function CardsScreen({
       current = false;
     };
   }, [subjectId]);
+
+  const toggle = (card: Card) =>
+    setChosen((current) => {
+      const next = new Set(current);
+      if (!next.delete(card.id) && next.size < MAX_CHOSEN) {
+        next.add(card.id);
+      }
+      return next;
+    });
+
+  // «Sumar a mis repasos»: primero se dice cuánto suman las elegidas; recién se suman al confirmar.
+  async function askActivationCost() {
+    setNotice('');
+    setProblem('');
+    const cardIds = [...chosen];
+    try {
+      const cost = await window.retenia['cards.activationCost']({ count: cardIds.length });
+      setActivation({ batchId: crypto.randomUUID(), cardIds, cost });
+    } catch {
+      setProblem(texts.cards.activateCostFailed);
+    }
+  }
+
+  async function confirmActivation(current: Activation) {
+    if (activating.current) {
+      return;
+    }
+    activating.current = true;
+    try {
+      const { activated } = await window.retenia['cards.activate']({
+        batchId: current.batchId,
+        cardIds: current.cardIds,
+      });
+      setActivation(null);
+      setChosen(new Set());
+      setNotice(texts.cards.activated(activated));
+      void load();
+    } catch {
+      setActivation(null);
+      setProblem(texts.cards.activateFailed);
+    } finally {
+      activating.current = false;
+    }
+  }
 
   const backToList = () => {
     setView({ kind: 'list' });
@@ -195,6 +270,7 @@ export function CardsScreen({
       }
     >
       <Toast>{notice}</Toast>
+      {problem === '' ? null : <BannerEstado tone="attention">{problem}</BannerEstado>}
       {view.kind === 'form' ? (
         <CardForm
           subjectId={subjectId}
@@ -220,6 +296,16 @@ export function CardsScreen({
             {texts.cards.counter(cards.length, total)}
           </p>
           <CardFilters filters={filters} topics={topics} onChange={setFilters} />
+          {cards.some(isNewCard) ? (
+            <div className={styles.selectionBar}>
+              <Boton disabled={chosen.size === 0} onClick={() => void askActivationCost()}>
+                {texts.cards.activate}
+              </Boton>
+              <p className={styles.chosen} aria-live="polite">
+                {texts.cards.activateChosen(chosen.size)}
+              </p>
+            </div>
+          ) : null}
         </>
       ) : null}
       {showEmpty && total === 0 ? <ViewState kind="empty" phrase={texts.cards.empty} /> : null}
@@ -229,6 +315,7 @@ export function CardsScreen({
       {cards !== null && cards.length > 0 ? (
         <CardList
           cards={cards}
+          choice={{ chosen, full: chosen.size >= MAX_CHOSEN, onToggle: toggle }}
           onOpen={(card) => {
             setNotice('');
             setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
@@ -236,6 +323,23 @@ export function CardsScreen({
           onReview={(card) => setView({ kind: 'review', card })}
         />
       ) : null}
+      {activation === null ? null : (
+        <Dialog title={texts.cards.activate} onClose={() => setActivation(null)}>
+          <p>
+            {texts.cards.activateCost(
+              activation.cardIds.length,
+              activation.cost.lowMinutes,
+              activation.cost.highMinutes,
+            )}
+          </p>
+          <div className={styles.dialogActions}>
+            <Boton variant="primary" onClick={() => void confirmActivation(activation)}>
+              {texts.cards.activateConfirm}
+            </Boton>
+            <Boton onClick={() => setActivation(null)}>{texts.cards.cancel}</Boton>
+          </div>
+        </Dialog>
+      )}
     </ScreenFrame>
   );
 }

@@ -57,7 +57,7 @@ Nombres exactos. Hasta la Fase 02 responden «todavía no disponible: llega en l
 5. Punta a punta como usuario: selectores por rol y texto visible.
 6. Bug, prueba roja, arreglo: siempre en ese orden.
 7. Cobertura con sentido: 100 % de los criterios de aceptación con prueba; umbral de ramas solo sobre `src/core`.
-8. Presupuesto: `verificar` en menos de 2 minutos, `verificar:todo` en menos de 15.
+8. Presupuesto: `verificar` en menos de 2 minutos en la PC y menos de 10 en el CI. `verificar:todo` (que arma los instaladores, corre la punta a punta y los cortes a la fuerza) tarda unos 45 minutos en el CI: por eso corre una sola vez por fase (ver «Gastar poco») y no en cada empuje.
 
 ## f) Reglas de seguridad
 
@@ -84,11 +84,11 @@ Nombres exactos. Hasta la Fase 02 responden «todavía no disponible: llega en l
 Una fase está terminada cuando se cumple todo esto:
 
 - Todos los criterios de la fase tienen su prueba automática.
-- `verificar:todo` está en verde, con la salida real pegada.
+- `verificar:todo` está en verde, con la salida real pegada: se corre una vez, sobre la rama ya terminada, con `gh workflow run red.yml --ref <rama>` (o en la PC), y se pega su última línea.
 - Ninguna prueba salteada, ningún pendiente escondido, ningún dato falso en caminos reales.
 - Un revisor independiente no deja objeciones abiertas.
 - `docs/ESTADO.md` y la guía de pruebas manuales están al día.
-- Pull request con el CI en verde.
+- Pull request con el CI en verde (en cada pull request el CI corre la red rápida; la completa se corrió en el paso anterior).
 - El usuario aprobó las pruebas manuales.
 
 ## i) Cómo trabajar
@@ -97,3 +97,14 @@ Una fase está terminada cuando se cumple todo esto:
 - No fusionar ni poner el tag `fase-NN-ok` hasta que el usuario confirme las pruebas manuales.
 - Cerrar cada tarea con tres títulos: «Qué podés hacer ahora», «Qué decidí por vos», «Qué quedó pendiente».
 - El plan de fases está en `docs/PLAN.md`; el estado actual, en `docs/ESTADO.md`.
+
+## j) Gastar poco (tiempo y tokens)
+
+Se aplica en todas las fases:
+
+- Mientras se programa, correr solo las pruebas de lo que se toca (`npx vitest run <archivo>`). `npm run verificar` una vez antes de cada empuje (el gancho ya lo corre: no repetirlo a mano si acaba de dar verde).
+- `verificar:todo` una sola vez por fase, al cerrar, con la rama terminada y el revisor ya atendido. Nunca para «probar si anda» a mitad de camino.
+- Ante un rojo, primero mirar `docs/entorno.md`: si es un rojo conocido del entorno, no se investiga ni se toca código. Se lee solo el resumen de fallas (no el registro entero).
+- Un rojo del CI que no es de las pruebas (arranque del programa cortado, tope de tiempo) se vuelve a lanzar una sola vez. Si repite, se investiga; nunca se aflojan pruebas.
+- No consultar el CI en bucle: esperar el aviso de la app. No abrir sesiones ni agentes aparte para cosas de pocas llamadas; el revisor independiente corre una sola vez, al cerrar.
+- Los informes de cierre van cortos: las cifras reales, lo que falló y lo que se decidió; sin repetir lo ya dicho.

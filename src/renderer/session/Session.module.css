@@ -228,3 +228,158 @@
   margin: 0;
   font: var(--tipo-subtitulo);
 }
+
+/* La propuesta de Estudiar (Fase 11): una tarjeta con trazo punteado, porque todavía no la
+   aceptaste. */
+.proposal {
+  display: grid;
+  gap: var(--espacio-16);
+  justify-items: start;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--ancho-lectura);
+  min-width: 0;
+  padding: var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.proposal[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.proposalTitle {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+.headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8) var(--espacio-12);
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow-wrap: anywhere;
+}
+
+/* «estimación inicial»: lo que se calcula sin datos tuyos va con trazo punteado. */
+.tag {
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-pequeno);
+  font-weight: 600;
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie);
+  border: var(--trazo-punteado) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+  white-space: nowrap;
+}
+
+.why {
+  margin: 0;
+  max-width: var(--ancho-lectura);
+  color: var(--color-tinta-suave);
+  overflow-wrap: anywhere;
+}
+
+/* El freno a las tarjetas nuevas: un dato en tono neutro, sin color de alarma. */
+.brake {
+  margin: 0;
+  max-width: var(--ancho-lectura);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+  overflow-wrap: anywhere;
+}
+
+.alternatives {
+  display: grid;
+  gap: var(--espacio-8);
+  justify-items: start;
+  width: 100%;
+}
+
+.alternativeList {
+  display: grid;
+  gap: var(--espacio-8);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* «Tengo: 5 10 25 45 min» y «Posponer», en una fila que se parte en pantallas angostas. */
+.haveRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8) var(--espacio-16);
+}
+
+.have {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.haveLabel {
+  float: inline-start;
+  display: flex;
+  align-items: center;
+  min-height: var(--alto-control);
+  margin-inline-end: var(--espacio-12);
+  padding: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.haveOptions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+}
+
+.haveUnit {
+  color: var(--color-tinta-suave);
+}
+
+/* Cada tiempo es un botón que dice si está elegido (`aria-pressed`): el elegido lleva el tinte y el
+   borde más grueso, así se distingue también sin ver el color. */
+.minuteOption {
+  min-width: var(--alto-control);
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-12);
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+  cursor: pointer;
+}
+
+.minuteOption:hover {
+  background: var(--color-superficie-hundida);
+  transition:
+    background-color var(--movimiento-rapido) var(--curva),
+    border-color var(--movimiento-rapido) var(--curva);
+}
+
+.minuteOption[aria-pressed="true"] {
+  color: var(--color-marca-fuerte);
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+  box-shadow: inset 0 0 0 1px var(--color-marca);
+}
+
+.postponeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}

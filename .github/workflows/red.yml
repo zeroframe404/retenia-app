@@ -1,6 +1,10 @@
 # La red de pruebas en la nube, sobre Windows como tu PC.
-# - En cada pull request, trabajo «red»: "npm run verificar:todo" (que compila y empaqueta las
-#   dos variantes), con el informe y las trazas de punta a punta como adjuntos.
+# - En cada pull request, trabajo «red»: la red rápida ("npm run verificar", unos minutos). La
+#   red completa ("npm run verificar:todo", que compila, empaqueta las dos variantes y corre la
+#   punta a punta, unos 45 minutos) corre al fusionar en main, al poner un tag fase-NN-ok, una vez
+#   por semana y a pedido sobre la rama de la fase ("gh workflow run red.yml --ref <rama>"),
+#   que es lo que se hace una sola vez al cerrar cada fase (ver CLAUDE.md). Con el informe y las
+#   trazas de punta a punta como adjuntos.
 # - En cada pull request, trabajo «instalador»: arma los dos instaladores (NSIS), mide su tamaño,
 #   instala "Retenia (prueba)" en silencio en una Windows limpia, la abre, crea una tarjeta, la
 #   cierra, la abre de nuevo, recorre el Laboratorio (baja los modelos de un servidor local, habla,
@@ -15,6 +19,9 @@ name: Red de pruebas
 
 on:
   pull_request:
+  push:
+    branches: [main]
+    tags: ["fase-*-ok"]
   schedule:
     # Lunes a las 09:00 UTC (06:00 de Buenos Aires).
     - cron: "0 9 * * 1"
@@ -65,11 +72,16 @@ jobs:
       - name: Preparar Opengrep y los modelos de voz (se aceptan solo si su huella coincide)
         run: node tools/preparar.mjs
 
-      - name: Red completa (verificar:todo)
+      - name: Red rápida (verificar), en cada pull request
+        if: github.event_name == 'pull_request'
+        run: npm run verificar
+
+      - name: Red completa (verificar:todo), al fusionar, en un tag, por semana o a pedido
+        if: github.event_name != 'pull_request'
         run: npm run verificar:todo
 
       - name: Repetir los cuatro sabotajes
-        if: github.event_name != 'pull_request'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           for n in 1 2 3 4; do

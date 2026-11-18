@@ -65,7 +65,7 @@ export function createHandlers({
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
-  const timer = createStudyTimer(clock, stopwatch);
+  const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
   const ok = { ok: true } as const;
   return {
     ping: async () => ({ message: 'pong', variant, today: studyDayOf(clock.now()) }),
@@ -88,11 +88,14 @@ export function createHandlers({
     'cards.edit': async (request) => workspace.cards.edit(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
-    'study.overview': async () => workspace.study.overview(),
-    'study.start': async ({ sessionId }) => {
+    'cards.activationCost': async (request) => workspace.cards.activationCost(request),
+    'cards.activate': async (request) => workspace.cards.activate(request),
+    'study.overview': async (request) => workspace.study.overview(request),
+    'study.start': async ({ sessionId, minutes, only }) => {
       timer.begin(sessionId);
-      return workspace.study.start({ sessionId });
+      return workspace.study.start({ sessionId, minutes, only });
     },
+    'study.postpone': async (request) => workspace.study.postpone(request),
     'study.view': async (request) => workspace.study.view(request),
     'study.resume': async ({ sessionId }) => {
       timer.begin(sessionId);

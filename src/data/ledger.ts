@@ -82,6 +82,27 @@ const reviewGradedV3 = z.strictObject({
   answerRequestedMs: milliseconds.optional(),
   gradedMs: milliseconds.optional(),
   activeMs: activeMs.optional(),
+  // Fase 11: las tres fechas del repaso. La sugerida es la que decía el motor (la de `dueAtThen`) y
+  // la planificada la que quedó después de posponerlo; la real es el día en que se hizo. Solo la
+  // real alimenta al motor. Se agregan a la versión 3 porque son opcionales: los repasos de antes
+  // no las traen.
+  suggestedDay: z.iso.date().optional(),
+  plannedDay: z.iso.date().optional(),
+});
+
+const sessionStartedV1 = z.strictObject({
+  sessionId: z.uuid(),
+  subjectId: z.uuid(),
+  studyDay: z.iso.date(),
+  activities: z.array(z.strictObject({ activityId: z.uuid(), cardId: z.uuid() })).min(1),
+  deferredSiblingIds: z.array(z.uuid()),
+  activeMs,
+});
+// Fase 11: además, de cuántos minutos se armó y con qué versión de la política de carga.
+const sessionStartedV2 = z.strictObject({
+  ...sessionStartedV1.shape,
+  minutes: z.number().int().positive(),
+  loadPolicyVersion: z.number().int().positive(),
 });
 
 const sessionStep = z.strictObject({ sessionId: z.uuid(), activeMs });
@@ -114,16 +135,7 @@ const PAYLOADS = {
   'schedule.adopted': { 1: z.strictObject({ cardId: z.uuid(), memory: memorySnapshot }) },
   // La sesión de estudio (Fase 10): la lista ordenada de actividades con que empezó y las hermanas
   // que pasaron a mañana.
-  'session.started': {
-    1: z.strictObject({
-      sessionId: z.uuid(),
-      subjectId: z.uuid(),
-      studyDay: z.iso.date(),
-      activities: z.array(z.strictObject({ activityId: z.uuid(), cardId: z.uuid() })).min(1),
-      deferredSiblingIds: z.array(z.uuid()),
-      activeMs,
-    }),
-  },
+  'session.started': { 1: sessionStartedV1, 2: sessionStartedV2 },
   // «Saltar»: la actividad pasa al final.
   'session.skipped': { 1: sessionActivityStep },
   // La tarjeta dejó de poder estudiarse mientras estaba en la sesión (se pausó o cambió su estado
@@ -138,6 +150,19 @@ const PAYLOADS = {
   'session.rated': {
     1: z.strictObject({ sessionId: z.uuid(), rating: z.enum(['easy', 'fair', 'hard']) }),
   },
+  // Un aplazamiento (Fase 11): la fecha que sugería el motor, la nueva fecha planificada y el motivo
+  // (día corto, no cabe o a mano). No califica ni mueve la agenda: no es de los tipos que la mueven.
+  'review.postponed': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      suggestedDay: z.iso.date(),
+      plannedDay: z.iso.date(),
+      reason: z.enum(['shortDay', 'noFit', 'manual']),
+      sessionId: z.uuid().optional(),
+    }),
+  },
+  // «Sumar a mis repasos» (Fase 11): la tarjeta nueva pasa al principio de las nuevas.
+  'card.activated': { 1: z.strictObject({ cardId: z.uuid(), batchId: z.uuid() }) },
   // «La tarjeta está mal» (CA-077): la ficha pasa a «En revisión» (esa versión) y el intento no
   // mueve la agenda (no es de los tipos que la mueven).
   'card.flagged': {
@@ -156,7 +181,7 @@ const CURRENT_VERSION = {
   'review.annulled': 2,
   'card.meaning_changed': 1,
   'schedule.adopted': 1,
-  'session.started': 1,
+  'session.started': 2,
   'session.skipped': 1,
   'session.dropped': 1,
   'session.paused': 1,
@@ -165,6 +190,8 @@ const CURRENT_VERSION = {
   'session.abandoned': 1,
   'session.rated': 1,
   'card.flagged': 1,
+  'review.postponed': 1,
+  'card.activated': 1,
 } as const;
 
 type Payloads = typeof PAYLOADS;

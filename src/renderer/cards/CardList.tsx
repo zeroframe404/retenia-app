@@ -10,6 +10,17 @@ const ROW_HEIGHT = 84;
 const OVERSCAN = 6;
 const DEFAULT_VIEWPORT = 640;
 
+// Las tarjetas que se pueden sumar a los repasos (Fase 11): las nuevas, que todavía no se repasaron.
+export const isNewCard = (card: Card): boolean => card.nextReviewDay === null && !card.paused;
+
+// Qué tarjetas nuevas están elegidas para «Sumar a mis repasos» y cómo se elige una.
+interface Choice {
+  chosen: ReadonlySet<string>;
+  // Con el tope de elegidas alcanzado, las demás ya no se pueden elegir.
+  full: boolean;
+  onToggle: (card: Card) => void;
+}
+
 export interface Filters {
   topicId: string;
   sheetState: string;
@@ -80,12 +91,14 @@ function Row({
   card,
   index,
   count,
+  choice,
   onOpen,
   onReview,
 }: {
   card: Card;
   index: number;
   count: number;
+  choice: Choice | undefined;
   onOpen: (card: Card) => void;
   onReview: (card: Card) => void;
 }) {
@@ -112,6 +125,18 @@ function Row({
       aria-setsize={count}
     >
       <div className={styles.rowLine}>
+        {choice === undefined ? null : isNewCard(card) ? (
+          <input
+            type="checkbox"
+            className={styles.choose}
+            aria-label={card.question}
+            checked={choice.chosen.has(card.id)}
+            disabled={choice.full && !choice.chosen.has(card.id)}
+            onChange={() => choice.onToggle(card)}
+          />
+        ) : (
+          <span className={styles.chooseSpace} aria-hidden="true" />
+        )}
         <p className={styles.rowTitle}>
           <button
             type="button"
@@ -140,10 +165,12 @@ function Row({
 // trabarse. Cada fila anuncia su lugar en el total para el lector de pantalla.
 export function CardList({
   cards,
+  choice,
   onOpen,
   onReview,
 }: {
   cards: readonly Card[];
+  choice?: Choice | undefined;
   onOpen: (card: Card) => void;
   onReview: (card: Card) => void;
 }) {
@@ -201,6 +228,7 @@ export function CardList({
             card={card}
             index={slice.start + offset}
             count={cards.length}
+            choice={choice}
             onOpen={onOpen}
             onReview={onReview}
           />

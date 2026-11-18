@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09 y fase-10.
+// fase-06, fase-08, fase-09, fase-10 y fase-11.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -558,10 +558,10 @@ async function phase10(page) {
   await page.getByText('Calificaste la anterior: No la sabía').waitFor();
   await shoot(page, '6-sesion-calificada');
   await page.getByRole('button', { name: 'Pausar' }).click();
-  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).waitFor();
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }).waitFor();
   await shoot(page, '7-estudiar-continuar');
-  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 10)' }).click();
-  for (let step = 0; step < 10; step += 1) {
+  await page.getByRole('button', { name: 'Continuar: sesión de hoy (1 de 70)' }).click();
+  for (let step = 0; step < 70; step += 1) {
     await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await page
       .getByRole('button', { name: step === 1 ? 'Con dudas' : 'La sabía', exact: true })
@@ -585,12 +585,73 @@ async function phase10(page) {
   await shoot(page, '11-progreso-dudas');
 }
 
+/** @param {import('@playwright/test').Page} page */
+async function phase11(page) {
+  await goToDestination(page, 'Estudiar');
+  const start = page.getByRole('button', { name: 'Empezar', exact: true });
+  await start.and(page.locator(':enabled')).waitFor();
+  const have = (/** @type {number} */ minutes) =>
+    page
+      .getByRole('group', { name: 'Tengo:' })
+      .getByRole('button', { name: String(minutes), exact: true });
+  await shoot(page, '1-estudiar-25');
+  for (const [minutes, screen, text] of [
+    [10, '2-estudiar-10', '45 repasos, sin tarjetas nuevas'],
+    [5, '3-estudiar-5', '20 repasos, los más urgentes'],
+    [45, '4-estudiar-45', '60 repasos y 18 tarjetas nuevas'],
+  ]) {
+    await have(Number(minutes)).click();
+    await page.getByText(String(text)).waitFor();
+    await shoot(page, String(screen));
+  }
+  await have(25).click();
+  await page.getByText('60 repasos y 10 tarjetas nuevas').waitFor();
+  await page.getByRole('button', { name: 'Elegir otra actividad' }).click();
+  await page.getByRole('button', { name: 'Cerrar' }).waitFor();
+  await shoot(page, '5-elegir-otra');
+  await page.getByRole('button', { name: 'Cerrar' }).click();
+  await page.getByRole('button', { name: 'Posponer' }).click();
+  await page.getByRole('button', { name: 'Elegir día' }).waitFor();
+  await shoot(page, '6-posponer');
+  await page.getByRole('button', { name: 'Mañana' }).click();
+  await page.getByText('Listo: vuelve mañana').waitFor();
+  await shoot(page, '7-posponer-listo');
+  // Después de un tiempo largo sin estudiar: el aviso de atraso, sin números en rojo.
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('button', { name: '+35 días' }).click();
+  await goToDestination(page, 'Estudiar');
+  await page.getByText(/^Hoy no agrego tarjetas nuevas/).waitFor();
+  await shoot(page, '8-estudiar-atraso');
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('button', { name: 'Restablecer fecha' }).click();
+  // Sumar tarjetas nuevas a mano.
+  await goTo(page, 'Tarjetas');
+  const boxes = page.getByRole('checkbox');
+  const scroller = page.locator('section[tabindex="0"]');
+  for (let turn = 0; turn < 60 && (await boxes.count()) === 0; turn += 1) {
+    await scroller.evaluate((element) => {
+      element.scrollTop += element.clientHeight / 2;
+    });
+    await page.evaluate(() => new Promise((next) => requestAnimationFrame(next)));
+  }
+  const count = Math.min(10, await boxes.count());
+  for (let index = 0; index < count; index += 1) {
+    await boxes.nth(index).check();
+  }
+  await shoot(page, '9-tarjetas-elegidas');
+  await page.getByRole('button', { name: 'Sumar a mis repasos' }).click();
+  await page.getByRole('button', { name: 'Confirmar' }).waitFor();
+  await shoot(page, '10-sumar-costo');
+}
+
 let { app, page } = await launch(
   {},
-  name !== 'fase-06' && name !== 'fase-08' && name !== 'fase-10',
+  name !== 'fase-06' && name !== 'fase-08' && name !== 'fase-10' && name !== 'fase-11',
 );
 try {
-  if (name === 'fase-10') {
+  if (name === 'fase-11') {
+    await phase11(page);
+  } else if (name === 'fase-10') {
     await phase10(page);
   } else if (name === 'fase-09') {
     await phase09(page);
