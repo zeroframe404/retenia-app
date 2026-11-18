@@ -450,3 +450,172 @@ export function seedDemoCardCast(workspace: Workspace): number {
   }
   return workspace.cards.count();
 }
+
+// «Cargar 10.000 tarjetas» (Ajustes › «Demostración», CA-103): tarjetas de relleno, nuevas, en una
+// materia aparte llamada «Volumen» para no mezclarse con el elenco. El texto sale de una cuenta, no
+// del azar: dos cargas dan exactamente las mismas tarjetas. Las palabras no repiten las que buscan
+// las pruebas, así el relleno no compite con el elenco. Cargarlas otra vez no agrega nada.
+const FILLER_WORDS = [
+  'puente',
+  'río',
+  'montaña',
+  'ciudad',
+  'camino',
+  'bosque',
+  'isla',
+  'valle',
+  'desierto',
+  'costa',
+  'molino',
+  'faro',
+  'jardín',
+  'mercado',
+  'estación',
+  'plaza',
+  'torre',
+  'castillo',
+  'taller',
+  'granja',
+  'barco',
+  'tren',
+  'avión',
+  'bicicleta',
+  'carreta',
+  'tractor',
+  'motor',
+  'rueda',
+  'engranaje',
+  'palanca',
+  'cobre',
+  'hierro',
+  'madera',
+  'vidrio',
+  'piedra',
+  'arcilla',
+  'lana',
+  'algodón',
+  'papel',
+  'tinta',
+  'otoño',
+  'invierno',
+  'verano',
+  'primavera',
+  'tormenta',
+  'brisa',
+  'niebla',
+  'nieve',
+  'lluvia',
+  'sol',
+  'melodía',
+  'ritmo',
+  'acorde',
+  'cuerda',
+  'tambor',
+  'flauta',
+  'coro',
+  'verso',
+  'cuento',
+  'novela',
+  'pintura',
+  'escultura',
+  'dibujo',
+  'mosaico',
+  'vitral',
+  'tapiz',
+  'cerámica',
+  'grabado',
+  'fresco',
+  'boceto',
+  'receta',
+  'harina',
+  'levadura',
+  'aceite',
+  'vinagre',
+  'miel',
+  'sal',
+  'pimienta',
+  'canela',
+  'azafrán',
+  'ballena',
+  'delfín',
+  'águila',
+  'zorro',
+  'lobo',
+  'ciervo',
+  'abeja',
+  'hormiga',
+  'mariposa',
+  'tortuga',
+  'telescopio',
+  'microscopio',
+  'brújula',
+  'reloj',
+  'balanza',
+  'espejo',
+  'lente',
+  'prisma',
+  'imán',
+  'péndulo',
+  'volcán',
+  'glaciar',
+  'arrecife',
+  'meseta',
+  'cañón',
+  'pantano',
+  'estuario',
+  'archipiélago',
+  'península',
+  'cráter',
+  'idioma',
+  'alfabeto',
+  'sílaba',
+  'palabra',
+  'frase',
+  'párrafo',
+  'capítulo',
+  'prólogo',
+  'epílogo',
+  'índice',
+];
+
+const VOLUME_SUBJECT = 'Volumen';
+const VOLUME_TOPIC = 'Relleno';
+
+export function seedDemoVolume(
+  workspace: Workspace,
+  count = 10_000,
+): { subjectId: string; cards: number } {
+  const existing = workspace.subjects.list().subjects.find((item) => item.name === VOLUME_SUBJECT);
+  if (existing) {
+    const present = workspace.cards.list({ subjectId: existing.id }).length;
+    if (present > 0) {
+      return { subjectId: existing.id, cards: present };
+    }
+  }
+  const subject =
+    existing ?? workspace.subjects.create({ name: VOLUME_SUBJECT, makeActive: false });
+  const topic = workspace.topics.create(
+    { subjectId: subject.id, name: VOLUME_TOPIC },
+    { source: 'demo' },
+  );
+  const word = (index: number, slot: number) =>
+    FILLER_WORDS[
+      (index * 7919 + slot * 104_729 + Math.floor(index / 7) * 31) % FILLER_WORDS.length
+    ] ?? FILLER_WORDS[0];
+  const created = new Date(DEMO_NOW.getTime() - 30 * DAY_MS);
+  const entries: SeedCard[] = [];
+  for (let index = 0; index < count; index += 1) {
+    const number = String(index + 1).padStart(5, '0');
+    entries.push({
+      question: `Relleno ${number}: ¿qué relación hay entre ${word(index, 1)} y ${word(index, 2)}?`,
+      answer: `El ${word(index, 3)} ${word(index, 4)} se vincula con ${word(index, 5)} y con ${word(index, 6)}.`,
+      kind: 'qa',
+      subjectId: subject.id,
+      topicId: topic.id,
+      createdAt: created,
+      reviews: [],
+    });
+  }
+  workspace.cards.plantCast(entries);
+  return { subjectId: subject.id, cards: count };
+}

@@ -15,17 +15,22 @@ export function DemoSection({
   onOpenLab,
   onOpenGallery,
   onDataChanged,
+  onSubjectsChanged,
 }: {
   onOpenLab?: () => void;
   onOpenGallery?: () => void;
   // Después de cambiar con qué datos está abierta la demostración, toda la ventana los pide de nuevo.
   onDataChanged?: () => void;
+  // Después de cargar las tarjetas de relleno hay una materia nueva: el riel y las listas la piden.
+  onSubjectsChanged?: () => void;
 }) {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [offline, setOffline] = useState<boolean | null>(null);
   const [dataMode, setDataMode] = useState<'cast' | 'first-time' | null>(null);
   const [dataFailed, setDataFailed] = useState(false);
+  const [volume, setVolume] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle');
+  const [volumeCards, setVolumeCards] = useState(0);
   const working = useRef(false);
 
   useEffect(() => {
@@ -103,6 +108,25 @@ export function DemoSection({
     }
   }
 
+  async function loadVolume() {
+    if (working.current) {
+      return;
+    }
+    working.current = true;
+    setBusy(true);
+    setVolume('loading');
+    try {
+      setVolumeCards((await window.retenia['demo.load10k']({})).cards);
+      setVolume('done');
+      onSubjectsChanged?.();
+    } catch {
+      setVolume('failed');
+    } finally {
+      working.current = false;
+      setBusy(false);
+    }
+  }
+
   async function toggleConnection(next: boolean) {
     setOffline(next);
     try {
@@ -157,6 +181,22 @@ export function DemoSection({
           )}
         </div>
       )}
+      {dataMode === 'cast' ? (
+        <div className={styles.actions}>
+          <Boton disabled={busy} onClick={() => void loadVolume()}>
+            {demoTexts.volume.load}
+          </Boton>
+        </div>
+      ) : null}
+      {volume === 'loading' ? (
+        <BannerEstado tone="pending">{demoTexts.volume.loading}</BannerEstado>
+      ) : null}
+      {volume === 'done' ? (
+        <BannerEstado tone="info">{demoTexts.volume.done(volumeCards)}</BannerEstado>
+      ) : null}
+      {volume === 'failed' ? (
+        <BannerEstado tone="attention">{demoTexts.volume.failed}</BannerEstado>
+      ) : null}
       {onOpenLab || onOpenGallery ? (
         <div className={styles.actions}>
           {onOpenGallery ? <Boton onClick={onOpenGallery}>{demoTexts.gallery.open}</Boton> : null}

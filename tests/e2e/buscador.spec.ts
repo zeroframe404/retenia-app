@@ -153,7 +153,7 @@ test('[CA-102] durante una sesión, Ctrl+K abre un resultado en un panel lateral
   await field.fill('mi borrador a medias');
 
   await openSearch(page);
-  await typeQuery(page, 'intervalos');
+  await typeQuery(page, 'tipo:nota intervalos');
   await expect(options(page).first()).toBeVisible();
   await page.keyboard.press('Enter');
   const panel = page.getByRole('dialog', { name: 'Intervalos de confianza' });

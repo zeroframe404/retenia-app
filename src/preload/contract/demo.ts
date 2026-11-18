@@ -21,5 +21,10 @@ export function demoChannels() {
     'demo.dataMode': { request: noRequest, response: mode },
     'demo.useFirstTime': { request: noRequest, response: mode },
     'demo.useCast': { request: noRequest, response: mode },
+    // «Cargar 10.000 tarjetas» (Fase 12): tarjetas de relleno en la materia «Volumen».
+    'demo.load10k': {
+      request: noRequest,
+      response: z.strictObject({ subjectId: z.uuid(), cards: z.number().int().min(0) }),
+    },
   };
 }

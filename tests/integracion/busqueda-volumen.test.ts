@@ -1,16 +1,17 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { systemStopwatch } from '../../src/core/clock';
 import { seedDemoCardCast, seedDemoOrganization, seedDemoVolume } from '../../src/main/demo/seed';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 
-// «Cargar 10.000 tarjetas» (Ajustes › «Demostración») y la búsqueda con ese volumen (CA-103).
+// «Cargar 10.000 tarjetas» (Ajustes › «Demostración») y la búsqueda con ese volumen (CA-103). La
+// carga tarda unos segundos: se hace una sola vez y las pruebas leen del mismo espacio.
 
-afterEach(closeSpaces);
+afterAll(closeSpaces);
 
 const VOLUME = 10_000;
 
-function withVolume() {
+function load() {
   const space = openSpace();
   seedDemoOrganization(space.workspace);
   seedDemoCardCast(space.workspace);
@@ -18,9 +19,15 @@ function withVolume() {
   return { ...space, loaded };
 }
 
+let shared: ReturnType<typeof load>;
+// La carga tarda unos segundos: más que los 10 que Vitest da por defecto cuando la máquina está cargada.
+beforeAll(() => {
+  shared = load();
+}, 120_000);
+
 describe('cargar 10.000 tarjetas', () => {
   it('deja 10.000 tarjetas de relleno en una materia aparte llamada «Volumen»', () => {
-    const { workspace, loaded } = withVolume();
+    const { workspace, loaded } = shared;
     const volume = workspace.subjects.list().subjects.find((subject) => subject.name === 'Volumen');
     expect(volume).toBeDefined();
     expect(volume?.status).not.toBe('active');
@@ -28,25 +35,24 @@ describe('cargar 10.000 tarjetas', () => {
     expect(workspace.cards.list({ subjectId: volume?.id ?? '' })).toHaveLength(VOLUME);
   });
 
-  it('es determinista: dos cargas dan exactamente las mismas tarjetas', () => {
-    const first = withVolume();
-    const second = withVolume();
-    const questions = (space: typeof first) =>
+  it('es determinista: otra carga da exactamente las mismas tarjetas', () => {
+    const other = load();
+    const questions = (space: typeof shared) =>
       space.workspace.cards
         .list({ subjectId: space.loaded.subjectId })
         .map((card) => card.question)
         .sort();
-    expect(questions(first)).toEqual(questions(second));
+    expect(questions(other)).toEqual(questions(shared));
   });
 
   it('cargarlas otra vez no duplica nada', () => {
-    const { workspace, loaded } = withVolume();
+    const { workspace, loaded } = shared;
     expect(seedDemoVolume(workspace, VOLUME)).toEqual(loaded);
     expect(workspace.cards.list({ subjectId: loaded.subjectId })).toHaveLength(VOLUME);
   });
 
   it('el índice queda al día: no hay nada pendiente y «Verificar datos» da 0 diferencias', () => {
-    const { workspace, file } = withVolume();
+    const { workspace, file } = shared;
     expect(readRows(file, 'SELECT COUNT(*) AS n FROM search_dirty')).toEqual([{ n: 0 }]);
     expect(workspace.verifyData()).toEqual([]);
   });
@@ -54,7 +60,7 @@ describe('cargar 10.000 tarjetas', () => {
 
 describe('buscar con 10.000 tarjetas', () => {
   it('[CA-103] los resultados aparecen en menos de 0,2 segundos', () => {
-    const { workspace } = withVolume();
+    const { workspace } = shared;
     // Una primera vez sin medir: abre las páginas de la base como lo haría el uso real.
     workspace.search.query({ text: 'desvio' });
     const times: number[] = [];
@@ -64,6 +70,8 @@ describe('buscar con 10.000 tarjetas', () => {
       'sqrt(n',
       'tipo:tarjeta mediana',
       'media y dispersion',
+      'relleno',
+      'materia:volumen puente',
     ]) {
       const stop = systemStopwatch().start();
       const { results } = workspace.search.query({ text });
@@ -74,8 +82,12 @@ describe('buscar con 10.000 tarjetas', () => {
   });
 
   it('[CA-103] con 10.000 tarjetas «desvio» sigue trayendo primero «¿Qué mide el desvío estándar?»', () => {
-    const { workspace } = withVolume();
-    const [first] = workspace.search.query({ text: 'desvio' }).results;
+    const [first] = shared.workspace.search.query({ text: 'desvio' }).results;
     expect(first?.title.map((part) => part.text).join('')).toBe('¿Qué mide el desvío estándar?');
+  });
+
+  it('una búsqueda que coincide con miles de tarjetas devuelve solo las primeras 50', () => {
+    const { results } = shared.workspace.search.query({ text: 'relleno' });
+    expect(results).toHaveLength(50);
   });
 });

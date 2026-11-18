@@ -100,7 +100,7 @@ describe('buscar en el elenco', () => {
     expect(new Set(hits.map((hit) => hit.kind))).toEqual(new Set(['card']));
     expect(titles(hits)).toContain('¿Qué es la mediana?');
     // Sin el filtro aparecen también apuntes.
-    expect(new Set(search(workspace, 'mediana').map((hit) => hit.kind)).size).toBeGreaterThan(1);
+    expect(new Set(search(workspace, 'media').map((hit) => hit.kind)).size).toBeGreaterThan(1);
   });
 
   it('[CA-098] «materia:historia mayo» devuelve la tarjeta de la Revolución de Mayo, y solo de esa materia', () => {

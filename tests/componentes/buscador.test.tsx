@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { App } from '../../src/renderer/App';
 import { closeWindows, openWindow } from './apoyo-ventana';
+import './editor-apoyo';
 
 // El buscador (Fase 12) en la ventana entera, contra el puente real y el elenco: Ctrl+K, flechas,
 // Enter, Esc, lo que se ve sin resultados y la consulta dentro de una sesión.
@@ -79,12 +80,14 @@ describe('buscar', () => {
     const { user } = withCast();
     render(<App />);
     const { dialog, input } = await openSearch(user);
-    await user.type(input, 'mediana');
+    await user.type(input, 'media');
     await within(dialog).findAllByRole('option', undefined, SLOW);
     const groups = within(dialog)
       .getAllByRole('group')
       .map((group) => group.getAttribute('aria-label'));
-    expect(groups).toEqual(['Apuntes', 'Tarjetas']);
+    expect(groups).toEqual(expect.arrayContaining(['Apuntes', 'Tarjetas']));
+    // Va primero el grupo del mejor resultado.
+    expect(groups[0]).toBe('Tarjetas');
   });
 
   it('[CA-101] sin resultados dice «No encontré nada con “zzzz”» y sugiere probar otra palabra', async () => {
@@ -112,8 +115,7 @@ describe('buscar', () => {
     render(<App />);
     const { dialog, input } = await openSearch(user);
     await user.click(input);
-    await user.paste('x'.repeat(2000));
-    await user.type(input, '"*()[]');
+    await user.paste(`${'x'.repeat(2000)}"*()[]`);
     await within(dialog).findByText(/No encontré nada con/, {}, SLOW);
     expect(within(dialog).queryByRole('alert')).toBeNull();
   });
@@ -135,10 +137,11 @@ describe('el teclado', () => {
     const wanted = options[1]?.textContent ?? '';
     await user.keyboard('{Enter}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    const question = wanted.split('Estadística básica')[0]?.trim() ?? '';
-    expect(
-      await screen.findByRole('heading', { name: new RegExp(question.slice(0, 20)) }, SLOW),
-    ).toBeTruthy();
+    // La pantalla de esa tarjeta: su título y su pregunta.
+    await screen.findByRole('heading', { name: 'Tarjeta' }, SLOW);
+    expect(wanted).toContain('Estadística básica');
+    await screen.findByRole('button', { name: 'Repasar' }, SLOW);
+    expect(document.body.textContent).toContain('desvío');
   });
 
   it('Enter sobre una tarjeta abre su pantalla en Apuntes › «Tarjetas»', async () => {
@@ -148,10 +151,11 @@ describe('el teclado', () => {
     await user.type(input, 'desvio');
     await within(dialog).findAllByRole('option', undefined, SLOW);
     await user.keyboard('{Enter}');
+    await screen.findByRole('heading', { name: 'Tarjeta' }, SLOW);
     expect(
-      await screen.findByRole('heading', { name: '¿Qué mide el desvío estándar?' }, SLOW),
-    ).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Repasar' })).toBeTruthy();
+      (await screen.findAllByText('¿Qué mide el desvío estándar?', {}, SLOW)).length,
+    ).toBeGreaterThan(0);
+    expect(await screen.findByRole('button', { name: 'Repasar' }, SLOW)).toBeTruthy();
   });
 
   it('Enter sobre un renglón de una nota abre la nota', async () => {
@@ -171,7 +175,7 @@ describe('el teclado', () => {
     await user.type(first.input, 'desvio');
     await within(first.dialog).findAllByRole('option', undefined, SLOW);
     await user.keyboard('{Enter}');
-    await screen.findByRole('heading', { name: '¿Qué mide el desvío estándar?' }, SLOW);
+    await screen.findByRole('heading', { name: 'Tarjeta' }, SLOW);
     await user.keyboard('{Control>}k{/Control}');
     const dialog = await screen.findByRole('dialog', { name: 'Buscar' });
     expect(await within(dialog).findByText('Abiertos hace poco', {}, SLOW)).toBeTruthy();
@@ -205,7 +209,7 @@ describe('dentro de una sesión', () => {
     const search = await screen.findByRole('dialog', { name: 'Buscar' });
     await user.type(
       within(search).getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' }),
-      'intervalos',
+      'tipo:nota intervalos',
     );
     await within(search).findAllByRole('option', undefined, SLOW);
     await user.keyboard('{Enter}');

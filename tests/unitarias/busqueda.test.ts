@@ -8,7 +8,9 @@ import {
   parseSearchQuery,
   quoteForIndex,
   type RankedHit,
+  relevanceOf,
   segmentsOf,
+  titleMatch,
 } from '../../src/core/search';
 
 // Las reglas de la búsqueda que no necesitan base: cómo se lee lo que escribís, cómo se arman
@@ -112,10 +114,15 @@ describe('armar la consulta al índice', () => {
     expect(quoteForIndex('a"b')).toBe('"a""b"');
   });
 
-  it('un pedazo corto sin letras ni números no puede coincidir con nada', () => {
+  it('un pedazo corto sin letras ni números no se puede buscar: se ignora, y si no queda nada no hay resultados', () => {
     expect(matchPlan(['*']).impossible).toBe(true);
     expect(matchPlan(['"']).impossible).toBe(true);
-    expect(matchPlan(['*', 'varianza']).impossible).toBe(true);
+    expect(matchPlan(['*', '/'])).toEqual({ pieces: null, words: null, impossible: true });
+    expect(matchPlan(['s', '/', 'sqrt(n)'])).toEqual({
+      pieces: '"sqrt(n)"',
+      words: '"s"',
+      impossible: false,
+    });
   });
 
   it('sin palabras no hay consulta', () => {
@@ -197,6 +204,57 @@ describe('el orden de los resultados', () => {
     ];
     expect(order(hits)).toEqual(order([...hits].reverse()));
     expect(order(hits)).toEqual(['c', 'b', 'a', 'd']);
+  });
+});
+
+describe('qué tan bien coincide el título', () => {
+  it('cuenta las palabras buscadas que están en el título y qué parte del título ocupan', () => {
+    const match = titleMatch('¿Qué mide el desvío estándar?', ['desvio']);
+    expect(match.matched).toBe(1);
+    expect(match.coverage).toBeCloseTo(6 / 29, 5);
+  });
+
+  it('una palabra que no está en el título no cuenta', () => {
+    expect(titleMatch('Media y desvío', ['desvio', 'varianza'])).toEqual({
+      matched: 1,
+      coverage: 6 / 14,
+    });
+    expect(titleMatch('Hola', ['zzzz'])).toEqual({ matched: 0, coverage: 0 });
+    expect(titleMatch('', ['a'])).toEqual({ matched: 0, coverage: 0 });
+  });
+});
+
+describe('la relevancia', () => {
+  const match = (matched: number, coverage: number) => ({ matched, coverage });
+
+  it('el título pesa más que el cuerpo: coincidir solo en el cuerpo vale menos que en cualquier título', () => {
+    expect(relevanceOf('card', match(0, 0), 1)).toBeLessThan(
+      relevanceOf('card', match(1, 0.01), 1),
+    );
+  });
+
+  it('un título más corto, que la palabra ocupa más, es más relevante', () => {
+    expect(relevanceOf('card', match(1, 0.2), 1)).toBeGreaterThan(
+      relevanceOf('card', match(1, 0.1), 1),
+    );
+  });
+
+  it('con varias palabras, importa cuántas están en el título', () => {
+    expect(relevanceOf('card', match(2, 0.3), 2)).toBeGreaterThan(
+      relevanceOf('card', match(1, 0.3), 2),
+    );
+  });
+
+  it('una tarjeta vale algo más que un apunte, un renglón o una duda con la misma coincidencia', () => {
+    const same = match(1, 0.3);
+    const card = relevanceOf('card', same, 1);
+    for (const kind of ['note', 'block', 'doubt'] as const) {
+      expect(card).toBeGreaterThan(relevanceOf(kind, same, 1));
+    }
+  });
+
+  it('sin palabras (solo filtros) todo vale lo mismo', () => {
+    expect(relevanceOf('card', match(0, 0), 0)).toBe(relevanceOf('card', match(0, 0), 0));
   });
 });
 

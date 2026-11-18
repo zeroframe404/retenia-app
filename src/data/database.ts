@@ -6,8 +6,10 @@ import { type Clock, systemClock } from '../core/clock';
 import { adoptLegacySchedules, adoptUnassignedCards } from './adoption';
 import { ensureLedgerState } from './ledger';
 import { applyMigrations } from './migrations';
+import type { Writer } from './orm';
 import { refreshStaleSchedules } from './projections';
 import * as schema from './schema';
+import { ensureSearchIndex, flushSearchIndex } from './search-index';
 
 export interface ReteniaDatabase {
   readonly orm: BetterSQLite3Database<typeof schema>;
@@ -43,6 +45,16 @@ export function openDatabase(
     onStatement ? { verbose: (message) => onStatement(String(message)) } : {},
   );
   const orm = drizzle(sqlite, { schema });
+  // El índice de búsqueda se actualiza en la misma transacción que el contenido: al terminar cada
+  // transacción, antes de confirmarla, se vuelve a armar lo que cambió (src/data/search-index.ts).
+  const transaction = orm.transaction.bind(orm);
+  orm.transaction = ((callback: (tx: Writer) => unknown, config?: unknown) =>
+    // biome-ignore lint/suspicious/noExplicitAny: la firma de drizzle es genérica; se la respeta tal cual.
+    (transaction as any)((tx: Writer) => {
+      const result = callback(tx);
+      flushSearchIndex(tx);
+      return result;
+    }, config)) as typeof orm.transaction;
   try {
     sqlite.pragma('journal_mode = WAL');
     sqlite.pragma('synchronous = FULL');
@@ -58,6 +70,8 @@ export function openDatabase(
       // Las agendas calculadas con el motor de antes, o con la retención de una materia que cambió
       // de estado, se recalculan con el motor vigente (Fase 09).
       refreshStaleSchedules(tx);
+      // Una base de antes de la búsqueda, o una copia vieja, arma su índice al abrir.
+      ensureSearchIndex(tx, clock);
     });
   } catch (error) {
     sqlite.close();

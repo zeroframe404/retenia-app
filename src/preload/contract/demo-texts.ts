@@ -14,6 +14,14 @@ export const demoTexts = {
   reset: 'Restablecer fecha',
   failed: 'No pude cambiar la fecha. Probá de nuevo.',
   offline: 'Simular sin conexión',
+  // «Cargar 10.000 tarjetas» (Fase 12): relleno en la materia «Volumen», para medir la búsqueda y las listas.
+  volume: {
+    load: 'Cargar 10.000 tarjetas',
+    loading: 'Cargando tarjetas…',
+    done: (count: number) =>
+      `Listo: ${new Intl.NumberFormat('es-AR').format(count)} tarjetas en la materia «Volumen».`,
+    failed: 'No pude cargar las tarjetas. Probá de nuevo.',
+  },
   // Abre Retenia con la base vacía, como la primera vez, y vuelve al elenco de ejemplo (Fase 07).
   firstTime: {
     start: 'Empezar como la primera vez',

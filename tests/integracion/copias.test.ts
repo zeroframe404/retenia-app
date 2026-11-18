@@ -165,6 +165,7 @@ describe('«Hacer copia ahora»', () => {
       '0005_tarjetas_fichas',
       '0006_motor_de_memoria',
       '0007_sesion_de_estudio',
+      '0008_busqueda',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

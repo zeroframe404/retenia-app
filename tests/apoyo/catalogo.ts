@@ -4,6 +4,10 @@ import { texts } from '../../src/preload/contract/texts';
 // Cada función del catálogo de textos se prueba con los argumentos de ejemplo de acá abajo; una
 // función nueva sin ejemplo hace fallar las pruebas que recorren el catálogo.
 const SAMPLES: Record<string, unknown[]> = {
+  'texts.search.noResults': ['zzzz'],
+  'texts.data.reindexed': [412],
+  'texts.data.differenceSearch': ['¿Qué es la varianza?'],
+  'demoTexts.volume.done': [10000],
   'texts.cards.questionTooLong': [100000],
   'texts.cards.answerTooLong': [100000],
   'texts.cards.nextReview': ['miércoles 17/03/2027'],

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Subject } from '../preload/contract/organization';
+import type { SearchHit } from '../preload/contract/search';
 import type { SessionView } from '../preload/contract/study';
 import { texts } from '../preload/contract/texts';
 import styles from './App.module.css';
@@ -17,8 +18,10 @@ import {
   type NoteRequest,
   NotesScreen,
   type NotesSectionName,
+  type TopicRequest,
 } from './screens/NotesScreen';
-import { SearchDialog } from './screens/SearchDialog';
+import { ResultPanel } from './search/ResultPanel';
+import { SearchDialog } from './search/SearchDialog';
 import { ProgressScreen } from './session/ProgressScreen';
 import { SessionScreen } from './session/SessionScreen';
 import { StudyScreen } from './session/StudyScreen';
@@ -66,6 +69,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const [noteRequest, setNoteRequest] = useState<NoteRequest | null>(null);
   // «Abrir la tarjeta» desde Progreso: la tarjeta que hay que abrir en Apuntes › «Tarjetas».
   const [cardRequest, setCardRequest] = useState<CardRequest | null>(null);
+  // Un resultado del buscador que se abre en Apuntes, en un tema.
+  const [topicRequest, setTopicRequest] = useState<TopicRequest | null>(null);
+  // Durante una sesión, un resultado del buscador se abre en un panel a la derecha.
+  const [panelHit, setPanelHit] = useState<SearchHit | null>(null);
   // La sesión de estudio abierta (Fase 10): ocupa la ventana entera, sin el riel.
   const [studying, setStudying] = useState<SessionView | null>(null);
   const studyingRef = useRef(false);
@@ -185,13 +192,17 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
         return;
       }
       // Con un cuadro abierto (el de «Buscar» o cualquier otro) los atajos de las pantallas esperan.
-      // Durante la sesión de estudio no se va a otro destino: primero se pausa.
-      if (event.shiftKey || modalOpen || studyingRef.current) {
+      if (event.shiftKey || modalOpen) {
         return;
       }
+      // «Buscar» también se abre durante la sesión: el resultado va a un panel, sin salir.
       if (event.key.toLowerCase() === 'k') {
         event.preventDefault();
         setSearching(true);
+        return;
+      }
+      // Durante la sesión de estudio no se va a otro destino: primero se pausa.
+      if (studyingRef.current) {
         return;
       }
       // Por la tecla física («Digit1»): en un teclado donde el número exige Mayús (como el francés)
@@ -210,7 +221,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
 
   const goToNotes = () => go('notes');
 
-  const openNoteFromCard = (noteId: string, blockId: string) => {
+  const openNoteFromCard = (noteId: string, blockId: string | null) => {
     requests.current += 1;
     setNoteRequest({ noteId, blockId, nonce: requests.current });
     setNotesSection('notes');
@@ -242,6 +253,54 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setSettingsView('settings');
     setNotesSection('cards');
     setNavigated(true);
+  };
+
+  // Un resultado del buscador (H-23): lleva a la pantalla donde vive o, en una sesión, lo muestra en
+  // un panel a la derecha sin salir de la actividad.
+  const openHit = (hit: SearchHit) => {
+    setSearching(false);
+    if (studyingRef.current) {
+      setPanelHit(hit);
+      return;
+    }
+    if (hit.kind === 'card') {
+      openCard(hit.subjectId, hit.entityId);
+    } else if (hit.kind === 'doubt' && hit.parentId !== null) {
+      openCard(hit.subjectId, hit.parentId);
+    } else if (hit.kind === 'doubt') {
+      go('progress');
+    } else if (hit.kind === 'topic') {
+      if (hit.subjectId !== null) {
+        setViewedId(hit.subjectId);
+      }
+      requests.current += 1;
+      setTopicRequest({ topicId: hit.entityId, nonce: requests.current });
+      setDestination('notes');
+      setSettingsView('settings');
+      setNotesSection('notes');
+      setNavigated(true);
+    } else if (hit.kind === 'note' || hit.kind === 'block') {
+      if (hit.subjectId !== null) {
+        setViewedId(hit.subjectId);
+      }
+      const noteId = hit.kind === 'note' ? hit.entityId : (hit.parentId ?? '');
+      requests.current += 1;
+      setNoteRequest({
+        noteId,
+        blockId: hit.kind === 'block' ? hit.entityId : null,
+        nonce: requests.current,
+      });
+      setDestination('notes');
+      setSettingsView('settings');
+      setNotesSection('notes');
+      setNavigated(true);
+    }
+  };
+
+  // Al cerrar el panel de un resultado, el foco vuelve al campo de respuesta.
+  const closePanel = () => {
+    setPanelHit(null);
+    setTimeout(() => document.querySelector<HTMLElement>('textarea')?.focus(), 0);
   };
 
   const toasts = (
@@ -282,6 +341,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
             onToast={setToast}
           />
         </div>
+        {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
+        {panelHit ? <ResultPanel hit={panelHit} onClose={closePanel} /> : null}
         {capturing ? (
           <CaptureDialog
             onClose={() => setCapturing(false)}
@@ -345,6 +406,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onOpenNoteFromCard={openNoteFromCard}
               onNoteRequestHandled={() => setNoteRequest(null)}
               cardRequest={cardRequest}
+              topicRequest={topicRequest}
+              onTopicRequestHandled={() => setTopicRequest(null)}
             />
           ) : null}
           {destination === 'materials' ? (
@@ -379,6 +442,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
                     onOpenLab={() => setSettingsView('lab')}
                     onOpenGallery={() => setSettingsView('gallery')}
                     onDataChanged={onDataReset}
+                    onSubjectsChanged={reloadShared}
                   />
                 ) : null
               }
@@ -392,7 +456,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           ) : null}
         </main>
       </div>
-      {searching ? <SearchDialog onClose={() => setSearching(false)} /> : null}
+      {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
       {capturing ? (
         <CaptureDialog
           onClose={() => setCapturing(false)}

@@ -399,3 +399,52 @@ export const settings = sqliteTable('settings', {
   value: text('value').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+// El buscador (Fase 12). Todo esto se puede borrar y reconstruir desde el contenido («Reconstruir
+// índice de búsqueda»): son proyecciones, no datos tuyos, salvo `search_recent` (qué abriste).
+
+// Una fila por cosa que se puede encontrar: una nota, un renglón, una tarjeta, un tema o una duda
+// (los materiales llegan con su fase). `title` y `body` son lo que indexan los dos índices (uno por
+// palabras y otro por pedazos de palabra); `raw` es el texto crudo de fórmulas y código; `label`
+// es lo que se muestra como título.
+export const searchDocuments = sqliteTable(
+  'search_documents',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    docId: text('doc_id').notNull(),
+    kind: text('kind').notNull(),
+    entityId: text('entity_id').notNull(),
+    parentId: text('parent_id'),
+    subjectId: text('subject_id'),
+    topicId: text('topic_id'),
+    label: text('label').notNull().default(''),
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    raw: text('raw').notNull().default(''),
+    aliases: text('aliases').notNull().default(''),
+    archived: integer('archived').notNull().default(0),
+    touchedAt: text('touched_at').notNull().default(''),
+  },
+  (table) => [
+    uniqueIndex('search_documents_doc_idx').on(table.docId),
+    index('search_documents_subject_idx').on(table.subjectId, table.kind),
+  ],
+);
+
+// Lo que cambió desde la última vez que se actualizó el índice: lo anotan disparadores de la base
+// y se vacía en la misma transacción que el cambio.
+export const searchDirty = sqliteTable(
+  'search_dirty',
+  {
+    kind: text('kind').notNull(),
+    entityId: text('entity_id').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.kind, table.entityId] })],
+);
+
+// Lo que abriste desde el buscador: sin texto, el buscador muestra esto. `seq` es el orden en que
+// lo abriste (el reloj de la demostración está quieto, así que no alcanza para ordenar).
+export const searchRecent = sqliteTable('search_recent', {
+  docId: text('doc_id').primaryKey(),
+  seq: integer('seq').notNull(),
+});
