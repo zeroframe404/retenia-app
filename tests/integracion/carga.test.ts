@@ -280,6 +280,16 @@ describe('posponer', () => {
     expect(observationsOf(file, 'review.postponed')).toHaveLength(60);
   });
 
+  it('[CA-091] el mismo pedido dos veces no agrega nada tampoco cuando la propuesta no cubre todo lo vencido (5 minutos)', () => {
+    const { workspace, file } = seeded();
+    const requestId = id();
+    const first = workspace.study.postpone({ requestId, minutes: 5, when: 'tomorrow' });
+    expect(first.postponed).toBe(20);
+    const second = workspace.study.postpone({ requestId, minutes: 5, when: 'tomorrow' });
+    expect(second).toMatchObject({ postponed: 20, plannedDay: '2027-03-16' });
+    expect(observationsOf(file, 'review.postponed')).toHaveLength(20);
+  });
+
   it('[CA-091] el historial de la primera tarjeta de la cola muestra el aplazamiento, sin resultado', () => {
     const { workspace } = seeded();
     const sessionId = id();
@@ -303,16 +313,30 @@ describe('posponer', () => {
     expect(workspace.study.overview({}).dueCount).toBeGreaterThanOrEqual(60);
   });
 
-  it('[CA-093] a la cuarta vez que se pospone una tarjeta no se pospone: pasa a prioridad máxima y entra primera', () => {
-    const { workspace, file } = seeded();
+  it('[CA-093] a la cuarta vez que se pospone una tarjeta a otro día no se pospone: pasa a prioridad máxima y entra primera', () => {
+    const { clock, advance } = movableClock();
+    const { workspace, file } = seeded(clock);
     for (let turn = 0; turn < 3; turn += 1) {
-      expect(workspace.study.postpone({ requestId: id(), when: 'later' }).forced).toBe(0);
+      expect(workspace.study.postpone({ requestId: id(), when: 'tomorrow' }).forced).toBe(0);
+      advance(1);
     }
-    const fourth = workspace.study.postpone({ requestId: id(), when: 'later' });
+    const fourth = workspace.study.postpone({ requestId: id(), when: 'tomorrow' });
     expect(fourth).toMatchObject({ postponed: 0, forced: 60 });
-    expect(observationsOf(file, 'review.postponed')).toHaveLength(180);
+    expect(observationsOf(file, 'review.postponed').length).toBeGreaterThanOrEqual(180);
     const view = workspace.study.start({ sessionId: id(), minutes: 5 });
     expect(view.progress.total).toBe(60);
+  });
+
+  it('[CA-093] «Más tarde hoy» no suma al tope de 3: moverla dentro del mismo día no es posponerla, y ninguna entra por la fuerza', () => {
+    const { workspace, file } = seeded();
+    for (let turn = 0; turn < 4; turn += 1) {
+      expect(workspace.study.postpone({ requestId: id(), when: 'later' })).toMatchObject({
+        postponed: 60,
+        forced: 0,
+      });
+    }
+    expect(observationsOf(file, 'review.postponed')).toHaveLength(240);
+    expect(proposalOf(workspace, 5)).toMatchObject({ reviews: 20, forced: 0, shownMinutes: 5 });
   });
 
   it('[CA-091] aplazar no cambia la memoria: ni la agenda de ninguna tarjeta ni lo que dice «¿Por qué hoy?»', () => {
@@ -388,5 +412,36 @@ describe('sumar tarjetas nuevas a mano', () => {
     expect(observationsOf(file, 'card.activated')).toHaveLength(3);
     const view = workspace.study.start({ sessionId: id(), only: { kind: 'newOnly' } });
     expect(view.current?.cardId).toBe(fresh[0]?.id);
+  });
+});
+
+describe('el cierre de la sesión', () => {
+  it('[CA-080] «Mañana vencen N» cuenta también los repasos que quedaron para mañana por no caber', () => {
+    const { workspace, file } = seeded();
+    const subject = workspace.subjects.list().subjects.find((item) => item.status === 'active');
+    const own = Number(
+      readRows(
+        file,
+        "SELECT count(*) AS total FROM card_schedule WHERE date(due_at, '-7 hours') = '2027-03-16' AND card_id IN (SELECT id FROM cards WHERE subject_id = ?)",
+        subject?.id,
+      )[0]?.total,
+    );
+    const sessionId = id();
+    workspace.study.start({ sessionId, minutes: 10 });
+    for (let turn = 0; turn < 45; turn += 1) {
+      const current = workspace.study.view({ sessionId }).current;
+      if (!current) {
+        throw new Error('sin tarjeta');
+      }
+      workspace.study.grade({
+        sessionId,
+        activityId: current.activityId,
+        attemptId: id(),
+        grade: 'good',
+        answer: null,
+        activeMs: 1000,
+      });
+    }
+    expect(workspace.study.summary({ sessionId }).dueTomorrow).toBe(own + 15);
   });
 });
