@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { projectFiles, projectFingerprint } from './archivos.mjs';
+import { seriousVulnerabilities } from './auditoria.mjs';
 import { readProjectSpec } from './especificacion.mjs';
 import { closedPhaseTags, currentPhase, testCountsAtTag } from './fases.mjs';
 import { listTitles } from './listado.mjs';
@@ -352,15 +353,15 @@ export async function runNetwork({ full }) {
         `no pude consultar la auditoría de dependencias (¿sin internet?): ${firstLine(r.stderr) || firstLine(r.stdout)}.`,
       ];
     }
-    const serious = (v.high ?? 0) + (v.critical ?? 0);
-    if (serious === 0) {
+    const serious = seriousVulnerabilities(report);
+    if (serious.length === 0) {
       return [];
     }
-    const names = Object.entries(report.vulnerabilities ?? {})
-      .filter(([, d]) => d.severity === 'high' || d.severity === 'critical')
-      .map(([name, d]) => `${name} (${d.severity === 'critical' ? 'crítica' : 'alta'})`);
+    const names = serious.map(
+      (d) => `${d.name} (${d.severity === 'critical' ? 'crítica' : 'alta'})`,
+    );
     return [
-      `hay ${serious} vulnerabilidades altas o críticas en las dependencias: ${names.join(', ')}.`,
+      `hay ${serious.length} vulnerabilidades altas o críticas en las dependencias: ${names.join(', ')}.`,
     ];
   };
 
