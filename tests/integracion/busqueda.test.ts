@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Workspace } from '../../src/data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { type SearchHit, searchQueryResponse } from '../../src/preload/contract/search';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, line, openSpace } from '../apoyo/espacio';
@@ -11,10 +10,7 @@ import { closeSpaces, line, openSpace } from '../apoyo/espacio';
 afterEach(closeSpaces);
 
 function seeded() {
-  const space = openSpace();
-  seedDemoOrganization(space.workspace);
-  seedDemoCardCast(space.workspace);
-  return space;
+  return openSpace({ withCast: true });
 }
 
 const plain = (segments: readonly { text: string }[]) => segments.map((s) => s.text).join('');
@@ -490,11 +486,12 @@ describe('una búsqueda rara no rompe nada', () => {
     '🙂 media',
   ];
 
-  it.for(odd)('«%s» no da error: da resultados o lista vacía', (text) => {
+  it('ninguna de las consultas raras da error: dan resultados o lista vacía', () => {
     const { workspace } = seeded();
-    expect(() => workspace.search.query({ text })).not.toThrow();
-    const { results } = workspace.search.query({ text });
-    expect(Array.isArray(results)).toBe(true);
+    for (const text of odd) {
+      expect(() => workspace.search.query({ text }), text.slice(0, 20)).not.toThrow();
+      expect(Array.isArray(workspace.search.query({ text }).results)).toBe(true);
+    }
   });
 
   it('las comillas y los símbolos se buscan como texto', () => {

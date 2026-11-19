@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { MAX_SEARCH_LENGTH } from '../../src/preload/contract/search';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
@@ -8,7 +7,7 @@ import { openBridge, type TestBridge } from '../apoyo/puente';
 
 const bridges: TestBridge[] = [];
 function bridge() {
-  const opened = openBridge();
+  const opened = openBridge({ withCast: true });
   bridges.push(opened);
   return opened;
 }
@@ -20,9 +19,7 @@ afterEach(() => {
 
 describe('search.query', () => {
   it('[CA-095] devuelve los resultados con su tipo, su título resaltado y su fragmento', async () => {
-    const { api, workspace } = bridge();
-    seedDemoOrganization(workspace);
-    seedDemoCardCast(workspace);
+    const { api } = bridge();
     const { results, recent } = await api['search.query']({ text: 'desvio' });
     expect(recent).toBe(false);
     expect(results[0]).toMatchObject({
@@ -86,9 +83,7 @@ describe('search.opened', () => {
 
 describe('search.rebuild', () => {
   it('reconstruye el índice y dice cuántas cosas indexó', async () => {
-    const { api, workspace } = bridge();
-    seedDemoOrganization(workspace);
-    seedDemoCardCast(workspace);
+    const { api } = bridge();
     const { documents } = await api['search.rebuild']({});
     expect(documents).toBeGreaterThan(190);
     await expect(api['search.rebuild']({})).resolves.toEqual({ documents });
@@ -97,9 +92,7 @@ describe('search.rebuild', () => {
 
 describe('«Verificar datos» y el índice', () => {
   it('una diferencia del índice llega con su tipo «search» y sin tarjeta', async () => {
-    const { api, workspace, file } = bridge();
-    seedDemoOrganization(workspace);
-    seedDemoCardCast(workspace);
+    const { api, file } = bridge();
     const { runRaw } = await import('../apoyo/base-cruda');
     runRaw(file, "DELETE FROM search_documents WHERE doc_id LIKE 'card:%' AND rowid % 3 = 0");
     const { differences } = await api['backups.verifyData']({});

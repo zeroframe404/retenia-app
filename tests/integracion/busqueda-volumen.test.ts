@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { systemStopwatch } from '../../src/core/clock';
-import { seedDemoCardCast, seedDemoOrganization, seedDemoVolume } from '../../src/main/demo/seed';
+import { seedDemoVolume } from '../../src/main/demo/seed';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 
@@ -12,9 +12,7 @@ afterAll(closeSpaces);
 const VOLUME = 10_000;
 
 function load() {
-  const space = openSpace();
-  seedDemoOrganization(space.workspace);
-  seedDemoCardCast(space.workspace);
+  const space = openSpace({ withCast: true });
   const loaded = seedDemoVolume(space.workspace, VOLUME);
   return { ...space, loaded };
 }
@@ -35,14 +33,26 @@ describe('cargar 10.000 tarjetas', () => {
     expect(workspace.cards.list({ subjectId: volume?.id ?? '' })).toHaveLength(VOLUME);
   });
 
-  it('es determinista: otra carga da exactamente las mismas tarjetas', () => {
-    const other = load();
-    const questions = (space: typeof shared) =>
-      space.workspace.cards
-        .list({ subjectId: space.loaded.subjectId })
+  it('es determinista: dos cargas dan exactamente las mismas tarjetas', () => {
+    // Con pocas tarjetas alcanza (la cuenta es la misma): cargar 10.000 otra vez tardaría unos segundos.
+    const small = () => {
+      const space = openSpace();
+      const loaded = seedDemoVolume(space.workspace, 300);
+      return space.workspace.cards
+        .list({ subjectId: loaded.subjectId })
         .map((card) => card.question)
         .sort();
-    expect(questions(other)).toEqual(questions(shared));
+    };
+    const first = small();
+    expect(first).toHaveLength(300);
+    expect(small()).toEqual(first);
+    // Y las 300 son las primeras de las 10.000.
+    const big = new Set(
+      shared.workspace.cards
+        .list({ subjectId: shared.loaded.subjectId })
+        .map((card) => card.question),
+    );
+    expect(first.every((question) => big.has(question))).toBe(true);
   });
 
   it('cargarlas otra vez no duplica nada', () => {

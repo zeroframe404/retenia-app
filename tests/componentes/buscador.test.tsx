@@ -1,6 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { App } from '../../src/renderer/App';
 import { closeWindows, openWindow } from './apoyo-ventana';
 import './editor-apoyo';
@@ -13,10 +12,7 @@ afterEach(closeWindows);
 const SLOW = { timeout: 15_000 };
 
 function withCast() {
-  const opened = openWindow();
-  seedDemoOrganization(opened.bridge.workspace);
-  seedDemoCardCast(opened.bridge.workspace);
-  return opened;
+  return openWindow('real', undefined, { withCast: true });
 }
 
 async function openSearch(user: ReturnType<typeof openWindow>['user']) {
