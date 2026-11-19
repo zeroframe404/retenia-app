@@ -490,11 +490,12 @@ describe('una búsqueda rara no rompe nada', () => {
     '🙂 media',
   ];
 
-  it.for(odd)('«%s» no da error: da resultados o lista vacía', (text) => {
+  it('ninguna de las consultas raras da error: dan resultados o lista vacía', () => {
     const { workspace } = seeded();
-    expect(() => workspace.search.query({ text })).not.toThrow();
-    const { results } = workspace.search.query({ text });
-    expect(Array.isArray(results)).toBe(true);
+    for (const text of odd) {
+      expect(() => workspace.search.query({ text }), text.slice(0, 20)).not.toThrow();
+      expect(Array.isArray(workspace.search.query({ text }).results)).toBe(true);
+    }
   });
 
   it('las comillas y los símbolos se buscan como texto', () => {
