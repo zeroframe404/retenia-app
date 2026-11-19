@@ -19,6 +19,7 @@ import { type CardNotice, CardNotices } from './CardNotices';
 import { Autosaver, type SaveStatus } from './editor/autosave';
 import { docToBlocks } from './editor/convert';
 import { RowsEditor } from './editor/RowsEditor';
+import { FLUSH_NOTES } from './flush';
 import styles from './NoteEditor.module.css';
 
 type Mentions = z.output<typeof notesMentionsResponse>['mentions'];
@@ -184,6 +185,15 @@ export function NoteEditor({
       unregister?.();
       void autosaver.flush();
     };
+  }, [autosaver]);
+
+  // Antes de buscar se guarda lo pendiente: el buscador tiene que ver lo que acabás de escribir.
+  useEffect(() => {
+    const flush = () => {
+      void autosaver.flush();
+    };
+    window.addEventListener(FLUSH_NOTES, flush);
+    return () => window.removeEventListener(FLUSH_NOTES, flush);
   }, [autosaver]);
 
   const changeDoc = useCallback(

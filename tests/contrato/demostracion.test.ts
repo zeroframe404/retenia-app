@@ -154,6 +154,7 @@ describe('contrato: canales de demostración', () => {
       'demo.dataMode',
       'demo.useFirstTime',
       'demo.useCast',
+      'demo.load10k',
     ]);
   });
 });

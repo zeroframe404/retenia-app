@@ -19,7 +19,7 @@ export const demoExclusiveChannels: readonly (keyof Registry)[] = [
 ];
 
 // Con qué datos está abierta la demostración y cómo cambiarlos.
-type DemoData = Pick<DemoWorkspace, 'mode' | 'useFirstTime' | 'useCast'>;
+type DemoData = Pick<DemoWorkspace, 'mode' | 'useFirstTime' | 'useCast' | 'loadVolume'>;
 
 // Los manejadores de los canales que solo existen en «Retenia (prueba)»: la fecha de la cinta y
 // los botones de Ajustes › «Demostración». Sin los datos (`data`), «demo.dataMode» responde el
@@ -38,5 +38,6 @@ export function createDemoHandlers(demo: DemoDate, data?: DemoData): DemoHandler
     'demo.dataMode': async () => ({ mode: data ? data.mode() : 'cast' }),
     'demo.useFirstTime': async () => ({ mode: await needData().useFirstTime() }),
     'demo.useCast': async () => ({ mode: await needData().useCast() }),
+    'demo.load10k': async () => needData().loadVolume(),
   };
 }

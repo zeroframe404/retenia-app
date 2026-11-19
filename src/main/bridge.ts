@@ -165,6 +165,12 @@ export function createHandlers({
     'notes.mentions': async (request) => workspace.notes.mentions(request),
     'images.save': async (request) => workspace.images.save(request),
     'images.read': async (request) => workspace.images.read(request),
+    'search.query': async (request) => workspace.search.query(request),
+    'search.opened': async (request) => {
+      workspace.search.opened(request);
+      return {};
+    },
+    'search.rebuild': async () => workspace.search.rebuild(),
     'inbox.list': async () => workspace.inbox.list(),
     'inbox.capture': async (request) => workspace.inbox.capture(request),
     'inbox.move': async (request) => workspace.inbox.move(request),

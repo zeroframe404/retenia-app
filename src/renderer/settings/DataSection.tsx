@@ -22,6 +22,8 @@ function describe(difference: DataDifference): string {
       return texts.data.differenceMissing(question);
     case 'extra':
       return texts.data.differenceExtra;
+    case 'search':
+      return texts.data.differenceSearch(difference.question);
   }
 }
 
@@ -33,6 +35,7 @@ export function DataSection() {
   const [differences, setDifferences] = useState<DataDifference[] | null>(null);
   const [verifyFailed, setVerifyFailed] = useState(false);
   const [notice, setNotice] = useState('');
+  const [indexNotice, setIndexNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const working = useRef(false);
 
@@ -70,6 +73,19 @@ export function DataSection() {
       } catch {
         setDifferences(null);
         setVerifyFailed(true);
+      }
+    });
+
+  // «Reconstruir índice de búsqueda»: lo vuelve a armar desde lo que guardaste.
+  const reindex = () =>
+    run(async () => {
+      setIndexNotice(texts.data.working);
+      try {
+        const { documents } = await window.retenia['search.rebuild']({});
+        setDifferences(null);
+        setIndexNotice(texts.data.reindexed(documents));
+      } catch {
+        setIndexNotice(texts.data.reindexFailed);
       }
     });
 
@@ -122,14 +138,18 @@ export function DataSection() {
         <Boton disabled={busy} onClick={() => void verify('backups.verifyData')}>
           {texts.data.verify}
         </Boton>
+        <Boton disabled={busy} onClick={() => void reindex()}>
+          {texts.data.reindex}
+        </Boton>
       </div>
+      <Toast>{indexNotice}</Toast>
       <Toast tone={verdict?.tone}>{verdict?.text}</Toast>
       {differences !== null && differences.length > 0 ? (
         <>
           <ItemList label={texts.data.differencesLabel}>
             {differences.map((difference) => (
               <ListItem
-                key={`${difference.cardId}-${difference.kind}`}
+                key={`${difference.cardId ?? difference.question}-${difference.kind}`}
                 text={describe(difference)}
               />
             ))}

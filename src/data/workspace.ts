@@ -10,6 +10,7 @@ import {
 import { join } from 'node:path';
 import { BACKUP_EXTENSION, isAutomaticBackupDue } from '../core/backups';
 import type { Clock } from '../core/clock';
+import type { DataDifference } from '../preload/contract/backups';
 import { type ActivityStore, createActivityStore } from './activity';
 import {
   BackupError,
@@ -31,7 +32,8 @@ import { createInboxStore, type InboxStore } from './inbox';
 import { continueSequence, readLedgerState } from './ledger';
 import { migrationIds } from './migrations';
 import { createNotesStore, type NotesStore } from './notes';
-import { type DataDifference, repairData, verifyData } from './projections';
+import { repairData, verifyData } from './projections';
+import { createSearchStore, type SearchStore } from './search';
 import { createStudyStore, type StudyStore } from './study';
 import { createSubjectsStore, type SubjectsStore } from './subjects';
 import { createTopicsStore, type TopicsStore } from './topics';
@@ -55,6 +57,7 @@ export interface Workspace {
   readonly images: ImagesStore;
   readonly study: StudyStore;
   readonly doubts: DoubtsStore;
+  readonly search: SearchStore;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
@@ -182,6 +185,7 @@ export function openWorkspace({
       images: createImagesStore(db, dataDir, clock),
       study: createStudyStore(db, clock, () => cards, { fuzz }),
       doubts: createDoubtsStore(db, clock),
+      search: createSearchStore(db),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -263,8 +267,16 @@ export function openWorkspace({
     get doubts() {
       return current().doubts;
     },
-    verifyData: () => verifyData(current().db),
-    repairData: () => repairData(current().db),
+    get search() {
+      return current().search;
+    },
+    // «Verificar datos» compara la agenda con el historial y el índice de búsqueda con el contenido.
+    verifyData: () => [...verifyData(current().db), ...current().search.verify()],
+    repairData: () => {
+      repairData(current().db);
+      current().search.rebuild();
+      return [...verifyData(current().db), ...current().search.verify()];
+    },
     integrityCheck: () => current().db.integrityCheck(),
     copiesFolder: () => {
       mkdirSync(copiesDir, { recursive: true });

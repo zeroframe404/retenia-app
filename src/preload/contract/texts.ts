@@ -254,9 +254,42 @@ export const texts = {
       { depth: 1, text: 'Tab mete un renglón adentro del anterior y Mayús+Tab lo saca.' },
     ],
   },
-  // Ctrl+K: por ahora abre un cuadro sin búsqueda.
+  // Ctrl+K o «Buscar»: el buscador (Fase 12).
   search: {
-    notAvailable: 'La búsqueda todavía no está disponible.',
+    label: 'Buscar en tus apuntes y tarjetas',
+    placeholder: 'Escribí para buscar',
+    resultsLabel: 'Resultados',
+    recentTitle: 'Abiertos hace poco',
+    recentEmpty: 'Todavía no abriste nada. Escribí para buscar.',
+    noResults: (text: string) => `No encontré nada con “${text}”`,
+    noResultsHint: 'Probá con otra palabra o con menos letras.',
+    failed: 'No pude buscar. Probá de nuevo.',
+    untitled: 'Sin título',
+    archived: 'Archivada',
+    groups: {
+      notes: 'Apuntes',
+      cards: 'Tarjetas',
+      materials: 'Materiales',
+      doubts: 'Dudas',
+    },
+    kinds: {
+      note: 'Nota',
+      block: 'Renglón',
+      card: 'Tarjeta',
+      topic: 'Tema',
+      doubt: 'Duda',
+      material: 'Material',
+      section: 'Sección',
+    },
+    // Dentro de una sesión: el resultado se abre en un panel a la derecha.
+    panel: {
+      loading: 'Abriendo…',
+      topicNotes: 'Notas de este tema',
+      noNotes: 'Este tema todavía no tiene notas.',
+      loadFailed: 'No pude abrir esto. Probá de nuevo.',
+      question: 'Pregunta',
+      answer: 'Respuesta',
+    },
   },
   // Ajustes › «Apariencia».
   appearance: {
@@ -827,6 +860,12 @@ export const texts = {
   data: {
     title: 'Datos y copias',
     verify: 'Verificar datos',
+    reindex: 'Reconstruir índice de búsqueda',
+    reindexed: (count: number) =>
+      count === 1
+        ? 'Índice reconstruido: 1 elemento.'
+        : `Índice reconstruido: ${numberFormat.format(count)} elementos.`,
+    reindexFailed: 'No pude reconstruir el índice. Probá de nuevo.',
     allGood: 'Todo en orden · 0 diferencias',
     differencesFound: (count: number) =>
       count === 1 ? 'Hay 1 diferencia' : `Hay ${numberFormat.format(count)} diferencias`,
@@ -837,6 +876,10 @@ export const texts = {
       `«${question}»: los datos de memoria guardados no coinciden con el historial`,
     differenceMissing: (question: string) => `«${question}»: le falta su agenda de repasos`,
     differenceExtra: 'Hay una agenda de repasos de una tarjeta que ya no existe',
+    differenceSearch: (label: string | null) =>
+      label === null
+        ? 'El índice de búsqueda no coincide con lo que guardaste'
+        : `«${label}»: el índice de búsqueda no coincide con lo que guardaste`,
     repair: 'Reparar desde el historial',
     verifyFailed: 'No pude verificar los datos. Probá de nuevo.',
     copiesTitle: 'Copias',

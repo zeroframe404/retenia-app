@@ -117,6 +117,10 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'backups.verifyData',
       'backups.repairData',
       'backups.openFolder',
+      // El buscador (Fase 12).
+      'search.query',
+      'search.opened',
+      'search.rebuild',
       // El zoom con el teclado (Fase 06).
       'window.zoom',
       // El aviso de que la pantalla guardó antes de cerrar (Fase 07).
@@ -128,6 +132,8 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'demo.dataMode',
       'demo.useFirstTime',
       'demo.useCast',
+      // «Cargar 10.000 tarjetas» (Fase 12).
+      'demo.load10k',
       // «Simular sin conexión» y el Laboratorio (Fase 05).
       'demo.connection',
       'demo.setConnection',

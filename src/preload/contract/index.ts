@@ -76,6 +76,13 @@ import {
 } from './organization';
 import { pingRequest, pingResponse } from './ping';
 import {
+  searchOpenedRequest,
+  searchOpenedResponse,
+  searchQueryRequest,
+  searchQueryResponse,
+  searchRebuildResponse,
+} from './search';
+import {
   activityRequest,
   doubtsCreateRequest,
   okResponse,
@@ -185,6 +192,9 @@ export const channels = {
   'backups.verifyData': { request: noRequest, response: differencesResponse },
   'backups.repairData': { request: noRequest, response: differencesResponse },
   'backups.openFolder': { request: noRequest, response: openFolderResponse },
+  'search.query': { request: searchQueryRequest, response: searchQueryResponse },
+  'search.opened': { request: searchOpenedRequest, response: searchOpenedResponse },
+  'search.rebuild': { request: noRequest, response: searchRebuildResponse },
   'window.zoom': { request: zoomRequest, response: zoomResponse },
   'window.flushed': { request: flushedRequest, response: flushedResponse },
 };

@@ -23,17 +23,19 @@ export function createDoubtsStore(db: ReteniaDatabase, clock: Clock): DoubtsStor
   const { orm } = db;
   return {
     create({ doubtId, text, cardId, sessionId }) {
-      orm
-        .insert(doubts)
-        .values({
-          id: doubtId,
-          text: text.trim(),
-          cardId,
-          sessionId,
-          createdAt: clock.now().toISOString(),
-        })
-        .onConflictDoNothing({ target: doubts.id })
-        .run();
+      // En una transacción: el índice de búsqueda se actualiza junto con la duda.
+      orm.transaction((tx) => {
+        tx.insert(doubts)
+          .values({
+            id: doubtId,
+            text: text.trim(),
+            cardId,
+            sessionId,
+            createdAt: clock.now().toISOString(),
+          })
+          .onConflictDoNothing({ target: doubts.id })
+          .run();
+      });
     },
 
     reviews() {

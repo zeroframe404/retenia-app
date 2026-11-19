@@ -13,8 +13,15 @@ export type NotesSectionName = 'notes' | 'inbox' | 'cards' | 'trash' | 'activity
 // Abrir una nota en un renglón desde otra pantalla («Ver en la nota» de una tarjeta).
 export interface NoteRequest {
   noteId: string;
-  blockId: string;
+  // Nulo: se abre la nota entera, sin ir a un renglón.
+  blockId: string | null;
   // Cada pedido es distinto aunque pida la misma nota otra vez.
+  nonce: number;
+}
+
+// Abrir un tema en Apuntes › «Notas» desde otra pantalla (un resultado del buscador).
+export interface TopicRequest {
+  topicId: string;
   nonce: number;
 }
 
@@ -41,6 +48,8 @@ export function NotesScreen({
   onOpenNoteFromCard,
   onNoteRequestHandled,
   cardRequest = null,
+  topicRequest = null,
+  onTopicRequestHandled,
 }: {
   focusTitle?: boolean;
   subject: Subject;
@@ -56,7 +65,9 @@ export function NotesScreen({
   noteRequest?: NoteRequest | null;
   // Abrir una tarjeta desde otra pantalla («Abrir la tarjeta» en Progreso).
   cardRequest?: CardRequest | null;
-  onOpenNoteFromCard?: (noteId: string, blockId: string) => void;
+  onOpenNoteFromCard?: (noteId: string, blockId: string | null) => void;
+  topicRequest?: TopicRequest | null;
+  onTopicRequestHandled?: () => void;
   onNoteRequestHandled?: () => void;
 }) {
   const sections = [
@@ -86,6 +97,8 @@ export function NotesScreen({
           onViewSubject={onViewSubject}
           noteRequest={noteRequest}
           onNoteRequestHandled={onNoteRequestHandled}
+          topicRequest={topicRequest}
+          onTopicRequestHandled={onTopicRequestHandled}
         />
       ) : null}
       {section === 'inbox' ? (

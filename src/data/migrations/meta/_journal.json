@@ -57,6 +57,13 @@
       "when": 1793893364637,
       "tag": "0007_sesion_de_estudio",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795042029760,
+      "tag": "0008_busqueda",
+      "breakpoints": true
     }
   ]
 }

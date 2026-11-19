@@ -1,0 +1,146 @@
+/* El buscador (Ctrl+K) y el panel donde se abre un resultado durante una sesión. */
+.box {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
+}
+
+.input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.input::placeholder {
+  color: var(--color-tinta-suave);
+}
+
+.results {
+  display: grid;
+  gap: var(--espacio-12);
+  max-height: min(60dvh, 480px);
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: var(--espacio-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.groupTitle {
+  margin: 0;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.option {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-8) var(--espacio-12);
+  cursor: pointer;
+  border: var(--trazo-lleno) transparent;
+  border-radius: var(--radio-8);
+  min-width: 0;
+}
+
+.option[aria-selected="true"] {
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+}
+
+.top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--espacio-8);
+  min-width: 0;
+}
+
+.kind {
+  flex: none;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.title {
+  font: var(--tipo-cuerpo-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.fragment {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  overflow-wrap: anywhere;
+}
+
+.context {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+/* La coincidencia se marca con color y subrayado, no solo con color. */
+.mark {
+  padding: 0;
+  color: var(--color-tinta);
+  background: var(--color-parcial-suave);
+  text-decoration: underline;
+  text-decoration-color: var(--color-parcial);
+  text-underline-offset: 2px;
+  border-radius: var(--radio-4);
+}
+
+.empty {
+  display: grid;
+  gap: var(--espacio-4);
+  margin: 0;
+}
+
+.emptyHint {
+  margin: 0;
+  color: var(--color-tinta-suave);
+}
+
+/* El contenido de un resultado abierto en el panel. */
+.body {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
+}
+
+.row {
+  margin: 0;
+  overflow-wrap: anywhere;
+  border-left: var(--trazo-lleno) transparent;
+}
+
+.row[data-focus="true"] {
+  padding-left: var(--espacio-8);
+  background: var(--color-parcial-suave);
+  border-left-color: var(--color-parcial);
+}
+
+.label {
+  margin: 0;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.text {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

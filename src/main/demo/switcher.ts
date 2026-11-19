@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { Clock } from '../../core/clock';
 import { openWorkspace, type Workspace } from '../../data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from './seed';
+import { seedDemoCardCast, seedDemoOrganization, seedDemoVolume } from './seed';
 
 // Los datos de «Retenia (prueba)» (Ajustes › «Demostración»): el elenco de ejemplo o una base
 // vacía, como la primera vez que se abre Retenia. La primera vez vive en una segunda carpeta de
@@ -21,6 +21,8 @@ export interface DemoWorkspace {
   // Cierran la base de ahora (después de que terminen los pedidos en curso) y abren la otra.
   useFirstTime(): Promise<DemoDataMode>;
   useCast(): Promise<DemoDataMode>;
+  // «Cargar 10.000 tarjetas»: relleno en la materia «Volumen».
+  loadVolume(): { subjectId: string; cards: number };
   close(): void;
 }
 
@@ -159,6 +161,9 @@ export function createDemoWorkspace({
     get doubts() {
       return active.doubts;
     },
+    get search() {
+      return active.search;
+    },
     verifyData: () => active.verifyData(),
     repairData: () => active.repairData(),
     integrityCheck: () => active.integrityCheck(),
@@ -175,6 +180,7 @@ export function createDemoWorkspace({
     mode: () => mode,
     useFirstTime: () => change('first-time'),
     useCast: () => change('cast'),
+    loadVolume: () => seedDemoVolume(active),
     close: () => active.close(),
   };
 }

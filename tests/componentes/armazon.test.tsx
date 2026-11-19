@@ -179,7 +179,9 @@ describe('atajos de teclado y cuadro de búsqueda', () => {
     await user.keyboard('{Control>}k{/Control}');
     const dialog = await screen.findByRole('dialog', { name: 'Buscar' });
     expect(dialog.contains(document.activeElement)).toBe(true);
-    expect(within(dialog).getByText('La búsqueda todavía no está disponible.')).toBeTruthy();
+    expect(
+      within(dialog).getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' }),
+    ).toBeTruthy();
     await user.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(document.activeElement).toBe(before);

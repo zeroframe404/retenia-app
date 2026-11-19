@@ -99,10 +99,15 @@ export function NotesSection({
   onViewSubject,
   noteRequest = null,
   onNoteRequestHandled,
+  topicRequest = null,
+  onTopicRequestHandled,
 }: {
   subject: Subject;
+  // Un tema que otra pantalla pide mirar (un resultado del buscador).
+  topicRequest?: { topicId: string; nonce: number } | null;
+  onTopicRequestHandled?: (() => void) | undefined;
   // Una nota que otra pantalla pide abrir en un renglón («Ver en la nota» de una tarjeta).
-  noteRequest?: { noteId: string; blockId: string; nonce: number } | null;
+  noteRequest?: { noteId: string; blockId: string | null; nonce: number } | null;
   onNoteRequestHandled?: (() => void) | undefined;
   // Un enlace puede llevar a una nota de otra materia: la pantalla pasa a mirar esa materia.
   onViewSubject: (subjectId: string) => void;
@@ -260,10 +265,21 @@ export function NotesSection({
     if (noteRequest === null) {
       return;
     }
-    void openLinked(noteRequest.noteId, noteRequest.blockId).finally(() =>
+    void openLinked(noteRequest.noteId, noteRequest.blockId ?? undefined).finally(() =>
       onNoteRequestHandled?.(),
     );
   }, [noteRequest]);
+
+  // Un resultado del buscador pide mirar un tema: se elige y se vuelve a la lista de notas.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
+  useEffect(() => {
+    if (topicRequest === null) {
+      return;
+    }
+    setSelection({ kind: 'topic', id: topicRequest.topicId });
+    setView({ kind: 'list' });
+    onTopicRequestHandled?.();
+  }, [topicRequest]);
 
   const moveNote = (note: NoteSummary, topic: Topic | null) =>
     act(async () => {

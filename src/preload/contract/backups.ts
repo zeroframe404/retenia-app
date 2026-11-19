@@ -32,10 +32,11 @@ export const backupsRestoreResponse = z.strictObject({
 });
 
 const differenceSchema = z.strictObject({
-  cardId: z.uuid(),
+  // Nulo en una diferencia del índice de búsqueda, que no es de una tarjeta.
+  cardId: z.uuid().nullable(),
   // La pregunta de la tarjeta; nada si la agenda guardada es de una tarjeta que no existe.
   question: z.string().nullable(),
-  kind: z.enum(['due', 'memory', 'missing', 'extra']),
+  kind: z.enum(['due', 'memory', 'missing', 'extra', 'search']),
   storedDay: day.nullable(),
   expectedDay: day.nullable(),
 });
