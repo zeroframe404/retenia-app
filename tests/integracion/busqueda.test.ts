@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Workspace } from '../../src/data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { type SearchHit, searchQueryResponse } from '../../src/preload/contract/search';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, line, openSpace } from '../apoyo/espacio';
@@ -11,10 +10,7 @@ import { closeSpaces, line, openSpace } from '../apoyo/espacio';
 afterEach(closeSpaces);
 
 function seeded() {
-  const space = openSpace();
-  seedDemoOrganization(space.workspace);
-  seedDemoCardCast(space.workspace);
-  return space;
+  return openSpace({ withCast: true });
 }
 
 const plain = (segments: readonly { text: string }[]) => segments.map((s) => s.text).join('');

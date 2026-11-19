@@ -14,9 +14,13 @@ import { openBridge, type TestBridge } from '../apoyo/puente';
 
 const bridges: TestBridge[] = [];
 
-export function openWindow(variant: 'prueba' | 'real' = 'real', clock?: Clock) {
+export function openWindow(
+  variant: 'prueba' | 'real' = 'real',
+  clock?: Clock,
+  { withCast = false }: { withCast?: boolean } = {},
+) {
   vi.stubGlobal('__VARIANTE__', variant);
-  const bridge = openBridge(clock === undefined ? {} : { clock });
+  const bridge = openBridge({ ...(clock === undefined ? {} : { clock }), withCast });
   bridges.push(bridge);
   let api: unknown = bridge.api;
   if (variant === 'prueba') {

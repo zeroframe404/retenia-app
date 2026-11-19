@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { systemStopwatch } from '../../src/core/clock';
-import { seedDemoCardCast, seedDemoOrganization, seedDemoVolume } from '../../src/main/demo/seed';
+import { seedDemoVolume } from '../../src/main/demo/seed';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 
@@ -12,9 +12,7 @@ afterAll(closeSpaces);
 const VOLUME = 10_000;
 
 function load() {
-  const space = openSpace();
-  seedDemoOrganization(space.workspace);
-  seedDemoCardCast(space.workspace);
+  const space = openSpace({ withCast: true });
   const loaded = seedDemoVolume(space.workspace, VOLUME);
   return { ...space, loaded };
 }

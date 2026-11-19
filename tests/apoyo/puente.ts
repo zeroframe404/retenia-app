@@ -5,6 +5,7 @@ import { createHandlers, handleMessage, type Variant } from '../../src/main/brid
 import { buildApi, type Invoke } from '../../src/preload/api';
 import type { ApiOf, channels } from '../../src/preload/contract';
 import { tempDataFolder } from './base';
+import { copyCastInto } from './elenco';
 
 export interface TestBridge {
   api: ApiOf<typeof channels>;
@@ -28,7 +29,10 @@ export function openBridge({
   variant = 'prueba',
   openFolder,
   stopwatch,
+  withCast = false,
 }: {
+  // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez).
+  withCast?: boolean;
   clock?: Clock;
   variant?: Variant;
   openFolder?: (path: string) => Promise<string>;
@@ -36,6 +40,9 @@ export function openBridge({
   stopwatch?: Stopwatch;
 } = {}): TestBridge {
   const data = tempDataFolder();
+  if (withCast) {
+    copyCastInto(data.folder);
+  }
   const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
   const opened: string[] = [];
   const handlers = createHandlers({
