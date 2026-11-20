@@ -66,3 +66,6 @@ desktop.ini
 
 # Herramientas bajadas por tools/preparar.mjs (se verifican por huella)
 tools/bin/
+
+# Tus exportaciones reales de Anki o RemNote (Fase 15): nunca se suben al repositorio.
+mis-exportaciones/

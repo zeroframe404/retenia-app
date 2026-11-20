@@ -1,7 +1,9 @@
 import { demoClock } from '../../src/core/clock';
 import { openWorkspace } from '../../src/data/workspace';
+import { createTransfersService } from '../../src/main/imports/service';
 import { createMaterialsService } from '../../src/main/materials/service';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
+import { runTransferTask } from '../../src/main/workers/transfers-tasks';
 
 // Programa hijo de la prueba del corte (CA-017): abre la carpeta de datos como Retenia, hace una
 // sola escritura real y se mata a sí mismo, sin cerrar nada, en el punto pedido. Cuenta
@@ -120,7 +122,26 @@ const operations: Record<string, () => unknown> = {
     const service = materials({ autoStart: true });
     await service.whenIdle();
   },
+  // La importación (Fase 15): la vista previa (no escribe nada) y «Importar».
+  importAnki: () => importFile('anki'),
+  importRemnote: () => importFile('remnote'),
 };
+
+async function importFile(kind: 'anki' | 'remnote') {
+  const transfers = createTransfersService({
+    workspace,
+    clock: demoClock(Number(field('days') || '0')),
+    execute: (task) => runTransferTask(task),
+  });
+  const outcome = await transfers.preview({ kind, path: field('file') });
+  if (outcome.outcome !== 'preview') {
+    throw new Error(`No hubo vista previa: ${outcome.problem}`);
+  }
+  await transfers.run({
+    previewId: outcome.preview.previewId,
+    destination: { kind: 'subject', subjectId: field('subjectId') },
+  });
+}
 
 function materials({ autoStart }: { autoStart: boolean }) {
   return createMaterialsService({
