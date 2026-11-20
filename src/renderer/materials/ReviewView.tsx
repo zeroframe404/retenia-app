@@ -82,6 +82,11 @@ function CorrectionEditor({
   );
 }
 
+// El nombre de un botón de un problema lleva su página: «Corregir texto · Página 7» (si no, los
+// botones de todos los problemas se llaman igual).
+const labelOf = (action: string, problem: ReviewProblem) =>
+  `${action} · ${t.pageLabel(problem.unit)}`;
+
 export function ReviewView({
   materialId,
   refreshKey,
@@ -159,6 +164,23 @@ export function ReviewView({
     );
     setAsking(null);
     setNotice(result && update ? t.derivedUpdated(result.updated) : t.savedCorrection);
+  }
+
+  // Las tarjetas que quedaron sin actualizar se pueden volver a preguntar desde el problema.
+  async function askAgain(problem: ReviewProblem) {
+    if (!problem.correctionId) {
+      return;
+    }
+    const result = await run(() =>
+      window.retenia['materials.updateDerived']({
+        correctionId: problem.correctionId as string,
+        update: true,
+      }),
+    );
+    if (result) {
+      setNotice(t.derivedUpdated(result.updated));
+      await load();
+    }
   }
 
   async function resolve(problem: ReviewProblem, resolution: 'image' | 'ignored' | null) {
@@ -322,6 +344,26 @@ export function ReviewView({
                 ) : null}
               </div>
               {problem.excerpt ? <p className={styles.excerpt}>{problem.excerpt}</p> : null}
+              {problem.diff && !problem.conflict && editing !== problem.id ? (
+                <div className={styles.editor}>
+                  <h5 className={styles.miniHeading}>{t.originalText}</h5>
+                  <Differences segments={problem.diff.original} />
+                  <h5 className={styles.miniHeading}>{t.correctedText}</h5>
+                  <Differences segments={problem.diff.corrected} />
+                </div>
+              ) : null}
+              {problem.cardsPending > 0 &&
+              problem.correctionId &&
+              asking?.correctionId !== problem.correctionId ? (
+                <div className={styles.derived}>
+                  <BannerEstado tone="pending">{t.derivedAsk(problem.cardsPending)}</BannerEstado>
+                  <div className={styles.actions}>
+                    <Boton onClick={() => void askAgain(problem)}>
+                      {t.derivedUpdate(problem.cardsPending)}
+                    </Boton>
+                  </div>
+                </div>
+              ) : null}
               {problem.conflict ? (
                 <div className={styles.conflict}>
                   <p>{t.conflict.explain}</p>
@@ -349,6 +391,7 @@ export function ReviewView({
                 <div className={styles.actions}>
                   {problem.actions.includes('viewOriginal') ? (
                     <Boton
+                      aria-label={labelOf(t.actions.viewOriginal, problem)}
                       onClick={() =>
                         onRead(
                           problem.blockId
@@ -361,23 +404,38 @@ export function ReviewView({
                     </Boton>
                   ) : null}
                   {problem.actions.includes('correctText') && problem.resolution !== 'conflict' ? (
-                    <Boton onClick={() => setEditing(problem.id)}>{t.actions.correctText}</Boton>
+                    <Boton
+                      aria-label={labelOf(t.actions.correctText, problem)}
+                      onClick={() => setEditing(problem.id)}
+                    >
+                      {t.actions.correctText}
+                    </Boton>
                   ) : null}
                   {problem.resolution === null || problem.resolution === 'conflict' ? (
                     <>
                       {problem.actions.includes('markAsImage') ? (
-                        <Boton onClick={() => void resolve(problem, 'image')}>
+                        <Boton
+                          aria-label={labelOf(t.actions.markAsImage, problem)}
+                          onClick={() => void resolve(problem, 'image')}
+                        >
                           {t.actions.markAsImage}
                         </Boton>
                       ) : null}
                       {problem.actions.includes('ignore') ? (
-                        <Boton onClick={() => void resolve(problem, 'ignored')}>
+                        <Boton
+                          aria-label={labelOf(t.actions.ignore, problem)}
+                          onClick={() => void resolve(problem, 'ignored')}
+                        >
                           {t.actions.ignore}
                         </Boton>
                       ) : null}
                     </>
                   ) : (
-                    <Boton variant="quiet" onClick={() => void resolve(problem, null)}>
+                    <Boton
+                      variant="quiet"
+                      aria-label={labelOf(t.actions.undo, problem)}
+                      onClick={() => void resolve(problem, null)}
+                    >
                       {t.actions.undo}
                     </Boton>
                   )}

@@ -70,9 +70,14 @@ export async function downloadPage(address: string, net: NetGate): Promise<Downl
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (error) {
-    return UNSAFE_REDIRECT.test(describeError(error))
-      ? { ok: false, problem: 'webNotPage' }
-      : { ok: false, pending: true };
+    if (UNSAFE_REDIRECT.test(describeError(error))) {
+      return { ok: false, problem: 'webNotPage' };
+    }
+    // Sin conexión (simulada o del sistema) espera; con conexión, una dirección que no responde (mal
+    // escrita, un servidor caído, uno lento) es un error con su motivo, no una espera sin fin.
+    return net.isOffline()
+      ? { ok: false, pending: true }
+      : { ok: false, problem: 'webUnreachable' };
   }
   if (BLOCKED.has(response.status)) {
     await response.body?.cancel().catch(() => undefined);
@@ -91,7 +96,9 @@ export async function downloadPage(address: string, net: NetGate): Promise<Downl
   try {
     bytes = await readCapped(response);
   } catch {
-    return { ok: false, pending: true };
+    return net.isOffline()
+      ? { ok: false, pending: true }
+      : { ok: false, problem: 'webUnreachable' };
   }
   if (bytes === null) {
     return { ok: false, problem: 'tooLarge' };

@@ -1,4 +1,4 @@
-import { blockKey, diffSegments } from '../../core/materials/corrections';
+import { diffSegments, occurrenceKeys } from '../../core/materials/corrections';
 import {
   coverageSummary,
   isOpenProblem,
@@ -28,13 +28,16 @@ const OFFERABLE_TYPES = new Set(['paragraph', 'list', 'table', 'formula', 'code'
 const EXCERPT = 120;
 
 export interface ReviewInput {
+  // El tipo del material: en un PDF una tabla o una fórmula puede ser una mala lectura; en Word,
+  // Markdown o una página web no hay lectura que dudar.
+  materialKind: string | null;
   units: readonly UnitRow[];
   blocks: readonly BlockRow[];
   corrections: readonly CorrectionRow[];
   resolutions: readonly ResolutionRow[];
 }
 
-interface Info {
+export interface Info {
   id: string;
   unit: number;
   type: string;
@@ -51,20 +54,25 @@ const excerptOf = (text: string) => {
   return flat.length > EXCERPT ? `${flat.slice(0, EXCERPT - 1).trimEnd()}…` : flat;
 };
 
-const infosOf = (blocks: readonly BlockRow[]): Info[] =>
-  blocks.map((row) => {
-    const base = row.baseText ?? row.normalizedText;
-    return {
-      id: row.id,
+export const infosOf = (blocks: readonly BlockRow[]): Info[] => {
+  const keys = occurrenceKeys(
+    blocks.map((row) => ({
       unit: row.unitNo,
       type: row.type,
-      level: row.level,
-      position: row.position,
-      base,
-      current: row.normalizedText,
-      key: blockKey(row.type, base),
-    };
-  });
+      base: row.baseText ?? row.normalizedText,
+    })),
+  );
+  return blocks.map((row, index) => ({
+    id: row.id,
+    unit: row.unitNo,
+    type: row.type,
+    level: row.level,
+    position: row.position,
+    base: row.baseText ?? row.normalizedText,
+    current: row.normalizedText,
+    key: keys[index] as string,
+  }));
+};
 
 const tokens = (text: string) => new Set(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []);
 
@@ -102,7 +110,7 @@ const resolutionOf = (
 
 // Los problemas de un material: uno por cada bloque con señal y uno por cada página con una señal
 // propia (poco texto para su tamaño, reconocimiento dudoso). Un problema resuelto sigue en la lista.
-function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
+function problemsOf({ materialKind, units, blocks, corrections, resolutions }: ReviewInput) {
   const infos = infosOf(blocks);
   const byUnit = new Map(units.map((unit) => [unit.unitNo, unit]));
   const problems = new Map<string, ReviewProblem>();
@@ -129,6 +137,8 @@ function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
         current: '',
         resolution: resolutionOf(resolutions, unit.unitNo, 'unit'),
         correctionId: null,
+        cardsPending: 0,
+        diff: null,
         actions: ['viewOriginal', 'markAsImage', 'ignore'],
         conflict: null,
       });
@@ -140,7 +150,11 @@ function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
     if (unit?.status !== 'ready' || !CHECKED_TYPES.has(info.type)) {
       continue;
     }
-    const signals = blockSignals({ type: info.type as never, text: info.base });
+    // Solo en un PDF una tabla o una fórmula puede ser una mala lectura.
+    const signals = blockSignals({ type: info.type as never, text: info.base }).filter(
+      (signal) =>
+        materialKind === 'pdf' || (signal !== 'possibleTable' && signal !== 'possibleFormula'),
+    );
     const id = `${info.unit}:${info.key}`;
     if (signals.length === 0 || problems.has(id)) {
       continue;
@@ -158,6 +172,14 @@ function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
       current: info.current,
       resolution: correction ? 'corrected' : resolutionOf(resolutions, info.unit, info.key),
       correctionId: correction?.id ?? null,
+      cardsPending: correction ? (JSON.parse(correction.pendingCards) as string[]).length : 0,
+      diff:
+        correction && info.current !== info.base
+          ? {
+              original: diffSegments(info.current, info.base),
+              corrected: diffSegments(info.base, info.current),
+            }
+          : null,
       actions: ['viewOriginal', 'correctText', 'markAsImage', 'ignore'],
       conflict: null,
     });
@@ -186,6 +208,8 @@ function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
       current,
       resolution: 'conflict',
       correctionId: correction.id,
+      cardsPending: 0,
+      diff: null,
       actions: ['viewOriginal', 'correctText'],
       conflict,
     });
@@ -330,8 +354,12 @@ export function offerableBlocks(input: ReviewInput): string[] {
       .filter((problem) => problem.blockId === null && problem.resolution === 'image')
       .map((problem) => problem.unit),
   );
+  // Una página que no está leída (sin texto, todavía leyéndose o con error) tampoco aporta bloques.
+  const readUnits = new Set(
+    input.units.filter((unit) => unit.status === 'ready').map((unit) => unit.unitNo),
+  );
   return infos
-    .filter((info) => OFFERABLE_TYPES.has(info.type))
+    .filter((info) => OFFERABLE_TYPES.has(info.type) && readUnits.has(info.unit))
     .filter((info) => {
       const own = problems.find((problem) => problem.blockId === info.id);
       return isOfferableForCards({

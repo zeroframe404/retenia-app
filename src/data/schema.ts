@@ -534,6 +534,9 @@ export const blockCorrections = sqliteTable(
     unitNo: integer('unit_no').notNull(),
     blockKey: text('block_key').notNull(),
     beforeText: text('before_text').notNull(),
+    // El texto que tenía el bloque justo antes de la última vez que se guardó esta corrección
+    // (el de base la primera vez): con él se mueve la cita de una tarjeta.
+    previousText: text('previous_text'),
     afterText: text('after_text').notNull(),
     state: text('state').notNull().default('applied'),
     pendingCards: text('pending_cards').notNull().default('[]'),

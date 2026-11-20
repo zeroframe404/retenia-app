@@ -68,7 +68,7 @@ describe('la Revisión', () => {
     expect(within(items[1] as HTMLElement).getByText('Posible fórmula')).toBeTruthy();
     for (const item of items) {
       for (const name of ['Ver original', 'Corregir texto', 'Marcar como imagen', 'Ignorar']) {
-        expect(within(item).getByRole('button', { name })).toBeTruthy();
+        expect(within(item).getByRole('button', { name: new RegExp(`^${name}`) })).toBeTruthy();
       }
     }
     const notExtracted = screen.getByRole('region', { name: 'No extraído' });
@@ -124,7 +124,7 @@ describe('la Revisión', () => {
     const item = within(screen.getByRole('region', { name: /Con problemas/ })).getAllByRole(
       'listitem',
     )[0] as HTMLElement;
-    await user.click(within(item).getByRole('button', { name: 'Corregir texto' }));
+    await user.click(within(item).getByRole('button', { name: /^Corregir texto/ }));
     expect(within(item).getByText('Texto original')).toBeTruthy();
     const field = within(item).getByRole('textbox', {
       name: 'Texto corregido',
@@ -163,6 +163,45 @@ describe('la Revisión', () => {
     expect(screen.getByText(/1 excluida/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Volver a incluir esta página' }));
     expect(await screen.findByRole('button', { name: 'Página 9 Pendiente' })).toBeTruthy();
+  });
+});
+
+describe('lo corregido, a la vista (revisión independiente)', () => {
+  it('[CA-115] un problema corregido muestra las diferencias resaltadas y deja volver a preguntar «¿Actualizarlas?»', async () => {
+    const { user, api } = await openInference();
+    const subject = (await api['subjects.list']({})).subjects[0];
+    const [material] = (await api['materials.list']({ subjectId: subject?.id ?? '' })).materials;
+    const review = await api['materials.review']({ materialId: material?.id ?? '' });
+    const page = await api['materials.page']({ materialId: material?.id ?? '', unit: 7 });
+    const block = page.blocks.find((entry) => entry.id === review.problems[0]?.blockId);
+    await api['materials.createCard']({
+      materialId: material?.id ?? '',
+      selection: {
+        from: { blockId: block?.id ?? '', offset: 0 },
+        to: { blockId: block?.id ?? '', offset: block?.text.length ?? 0 },
+      },
+      question: '¿t con 10 gl al 95 %?',
+      answer: 'Lo que dice la tabla',
+    });
+    const item = within(screen.getByRole('region', { name: /Con problemas/ })).getAllByRole(
+      'listitem',
+    )[0] as HTMLElement;
+    await user.click(within(item).getByRole('button', { name: /^Corregir texto/ }));
+    const field = within(item).getByRole('textbox', {
+      name: 'Texto corregido',
+    }) as HTMLTextAreaElement;
+    await user.clear(field);
+    await user.type(field, block?.text.replace('2,228', '2,229') ?? '');
+    await user.click(within(item).getByRole('button', { name: 'Guardar corrección' }));
+    await user.click(await screen.findByRole('button', { name: 'Ahora no' }));
+    // Las cifras que cambiaron quedan resaltadas, de los dos lados.
+    const marks = [...item.querySelectorAll('mark')].map((mark) => mark.textContent);
+    expect(marks).toEqual(expect.arrayContaining(['2,228', '2,229']));
+    // Y las tarjetas que no se actualizaron se pueden volver a preguntar desde acá.
+    expect(await within(item).findByText('1 tarjeta usa este texto. ¿Actualizarla?')).toBeTruthy();
+    await user.click(within(item).getByRole('button', { name: 'Actualizarla' }));
+    expect(await screen.findByText('Actualicé 1 tarjeta.')).toBeTruthy();
+    expect(within(item).queryByRole('button', { name: 'Actualizarla' })).toBeNull();
   });
 });
 

@@ -3,7 +3,7 @@ import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type Clock, type Stopwatch, systemStopwatch } from '../../core/clock';
 import { type Box, TEXT_TYPES } from '../../core/materials/blocks';
-import { applyCorrections, blockKey, remapQuote } from '../../core/materials/corrections';
+import { applyCorrections, remapQuote } from '../../core/materials/corrections';
 import { textLayer } from '../../core/materials/quality';
 import { type FailureKind, HEARTBEAT_MS } from '../../core/materials/queue';
 import { boxesFor, quoteContext, relocateQuote } from '../../core/materials/relocate';
@@ -45,7 +45,7 @@ import {
 } from '../workers/protocol';
 import { originalPath } from './originals';
 import { type Received, receiveFile, receiveText } from './receive';
-import { buildReview, closestBlock, offerableBlocks } from './review';
+import { buildReview, closestBlock, infosOf, offerableBlocks } from './review';
 import { downloadPage } from './web-download';
 
 // Los materiales en el proceso principal (H-25 y H-26): recibir archivos y textos, decidir qué
@@ -855,6 +855,7 @@ export function createMaterialsService({
   };
 
   const reviewInput = (materialId: string) => ({
+    materialKind: store().row(materialId).kind,
     units: store().units(materialId),
     blocks: store().blocks(materialId),
     corrections: store().corrections(materialId),
@@ -918,6 +919,31 @@ export function createMaterialsService({
       },
       quote,
     };
+  };
+
+  // Al deshacer una corrección: las tarjetas que se habían actualizado a su texto vuelven al texto
+  // que quedó (las que no se actualizaron todavía se encuentran, y no se tocan).
+  const revertCites = (materialId: string, from: string, to: string): void => {
+    const texts = store().unitTexts(materialId);
+    for (const { cardId, sourceCite } of workspace.cards.citing(materialId)) {
+      const stored = parseCite(sourceCite);
+      if (!stored || stored.materialId !== materialId || !from.includes(stored.quote)) {
+        continue;
+      }
+      const located = relocateQuote(texts, {
+        unit: stored.locator.page,
+        quote: stored.quote,
+        before: stored.locator.before,
+        after: stored.locator.after,
+      });
+      if (located.status === 'located') {
+        continue;
+      }
+      const next = movedCite(materialId, stored, from, to);
+      if (next) {
+        workspace.cards.updateSource({ cardId, sourceCite: JSON.stringify(next) });
+      }
+    }
   };
 
   // Páginas web: la descarga la hace el proceso principal. Sin conexión (o si falla la red) la
@@ -1087,6 +1113,8 @@ export function createMaterialsService({
         if (correction) {
           store().dropCorrection(correction.id);
           rebuildBlocks(materialId);
+          // Las tarjetas que ya se habían actualizado vuelven al texto de base.
+          revertCites(materialId, correction.afterText, correction.beforeText);
         }
       }
       store().setResolution(materialId, unit, key, resolution);
@@ -1098,13 +1126,10 @@ export function createMaterialsService({
       if (clean === '') {
         throw new Error('El texto corregido está vacío');
       }
-      const block = store()
-        .blocks(materialId)
-        .find((row) => row.id === blockId);
+      const block = infosOf(store().blocks(materialId)).find((info) => info.id === blockId);
       if (!block) {
         throw new Error('El bloque no es de este material');
       }
-      const base = block.baseText ?? block.normalizedText;
       // Las tarjetas que usan este texto, antes de que el texto cambie.
       const cards = [
         ...new Map(
@@ -1115,9 +1140,10 @@ export function createMaterialsService({
       ];
       const correctionId = store().saveCorrection({
         materialId,
-        unit: block.unitNo,
-        key: blockKey(block.type, base),
-        before: base,
+        unit: block.unit,
+        key: block.key,
+        before: block.base,
+        previous: block.current,
         after: clean,
         pendingCards: cards.map((card) => card.cardId),
       });
@@ -1135,6 +1161,7 @@ export function createMaterialsService({
         return { updated: 0 };
       }
       let updated = 0;
+      const remaining: string[] = [];
       for (const cardId of JSON.parse(correction.pendingCards) as string[]) {
         const stored = storedCiteOf(cardId);
         if (!stored || stored.materialId !== correction.materialId) {
@@ -1143,15 +1170,18 @@ export function createMaterialsService({
         const next = movedCite(
           correction.materialId,
           stored,
-          correction.beforeText,
+          correction.previousText ?? correction.beforeText,
           correction.afterText,
         );
         if (next) {
           workspace.cards.updateSource({ cardId, sourceCite: JSON.stringify(next) });
           updated++;
+        } else {
+          // Todavía no se puede mover (la página se está volviendo a leer): sigue pendiente.
+          remaining.push(cardId);
         }
       }
-      store().setPendingCards(correctionId, []);
+      store().setPendingCards(correctionId, remaining);
       return { updated };
     },
 
@@ -1161,26 +1191,23 @@ export function createMaterialsService({
         throw new Error('Esa corrección no existe');
       }
       const { materialId } = correction;
+      const here = infosOf(store().blocks(materialId)).filter(
+        (info) =>
+          info.unit === correction.unitNo &&
+          ['paragraph', 'list', 'table', 'formula', 'code'].includes(info.type),
+      );
+      const candidate = closestBlock(correction.beforeText, here);
       if (keep) {
-        const here = store()
-          .blocks(materialId)
-          .filter(
-            (row) =>
-              row.unitNo === correction.unitNo &&
-              ['paragraph', 'list', 'table', 'formula', 'code'].includes(row.type),
-          )
-          .map((row) => ({ type: row.type, base: row.baseText ?? row.normalizedText }));
-        const candidate = closestBlock(correction.beforeText, here);
         if (candidate) {
-          store().keepCorrection(correctionId, {
-            key: blockKey(candidate.type, candidate.base),
-            before: candidate.base,
-          });
+          store().keepCorrection(correctionId, { key: candidate.key, before: candidate.base });
         }
       } else {
         store().dropCorrection(correctionId);
       }
       rebuildBlocks(materialId);
+      if (!keep && candidate) {
+        revertCites(materialId, correction.afterText, candidate.base);
+      }
       return reviewOf(materialId);
     },
 

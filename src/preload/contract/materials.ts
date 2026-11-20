@@ -298,6 +298,12 @@ const problemSchema = z.strictObject({
   current: z.string(),
   resolution: resolution.nullable(),
   correctionId: z.uuid().nullable(),
+  // Cuántas tarjetas usan este texto y todavía no se actualizaron a la corrección.
+  cardsPending: count,
+  // Lo que cambió entre el texto de base y el corregido, de cada lado (nulo si no hay corrección).
+  diff: z
+    .strictObject({ original: z.array(diffSegment), corrected: z.array(diffSegment) })
+    .nullable(),
   actions: z.array(z.enum(['viewOriginal', 'correctText', 'markAsImage', 'ignore'])),
   conflict: z
     .strictObject({ mine: z.string(), current: z.string(), differences: z.array(diffSegment) })

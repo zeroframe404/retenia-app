@@ -235,6 +235,8 @@ export interface MaterialsStore {
     unit: number;
     key: string;
     before: string;
+    // El texto que tenía el bloque antes de esta corrección.
+    previous: string;
     after: string;
     pendingCards: readonly string[];
   }): string;
@@ -702,7 +704,7 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
     correction: (correctionId) =>
       orm.select().from(blockCorrections).where(eq(blockCorrections.id, correctionId)).get(),
 
-    saveCorrection({ materialId, unit, key, before, after, pendingCards }) {
+    saveCorrection({ materialId, unit, key, before, previous, after, pendingCards }) {
       const now = clock.now().toISOString();
       return orm.transaction((tx) => {
         rowOf(tx, materialId);
@@ -721,6 +723,7 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
           tx.update(blockCorrections)
             .set({
               afterText: after,
+              previousText: previous,
               state: 'applied',
               pendingCards: JSON.stringify(pendingCards),
               updatedAt: now,
@@ -737,6 +740,7 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
             unitNo: unit,
             blockKey: key,
             beforeText: before,
+            previousText: previous,
             afterText: after,
             state: 'applied',
             pendingCards: JSON.stringify(pendingCards),

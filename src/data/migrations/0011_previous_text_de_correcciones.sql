@@ -1,0 +1,1 @@
+ALTER TABLE `block_corrections` ADD `previous_text` text;

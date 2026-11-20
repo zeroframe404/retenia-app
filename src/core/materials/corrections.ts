@@ -20,6 +20,20 @@ export function blockKey(type: BlockType | string, base: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
 }
 
+// La clave de cada bloque de una lista: la huella de su tipo y su texto de base y, si ya hubo otro
+// igual antes en la misma página, el número de aparición. El primero lleva la clave de siempre, así
+// lo guardado antes de esto sigue valiendo.
+export function occurrenceKeys(blocks: readonly BaseBlock[]): string[] {
+  const seen = new Map<string, number>();
+  return blocks.map((block) => {
+    const key = blockKey(block.type, block.base);
+    const where = `${block.unit}:${key}`;
+    const count = seen.get(where) ?? 0;
+    seen.set(where, count + 1);
+    return count === 0 ? key : `${key}~${count}`;
+  });
+}
+
 export interface BaseBlock {
   unit: number;
   type: BlockType | string;
@@ -44,14 +58,25 @@ export function applyCorrections(
   corrections: readonly StoredCorrection[],
 ): { texts: string[]; outcomes: Record<string, CorrectionOutcome> } {
   const texts = blocks.map((block) => block.base);
-  const keys = blocks.map((block) => blockKey(block.type, block.base));
+  const keys = occurrenceKeys(blocks);
+  const plain = blocks.map((block) => blockKey(block.type, block.base));
   const taken = new Set<number>();
   const outcomes: Record<string, CorrectionOutcome> = {};
   for (const correction of corrections) {
-    const index = blocks.findIndex(
+    const exact = blocks.findIndex(
       (block, at) =>
         !taken.has(at) && block.unit === correction.unit && keys[at] === correction.key,
     );
+    // Una clave sin número de aparición (de antes) vale para el primer bloque igual que esté libre.
+    const index =
+      exact >= 0
+        ? exact
+        : blocks.findIndex(
+            (block, at) =>
+              !taken.has(at) &&
+              block.unit === correction.unit &&
+              plain[at] === correction.key.split('~')[0],
+          );
     if (index < 0) {
       outcomes[correction.id] = 'conflict';
       continue;
