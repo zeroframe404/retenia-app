@@ -23,6 +23,7 @@ export function PdfPage({
   highlight,
   label,
   highlightLabel,
+  onPageCount,
 }: {
   pdf: Uint8Array;
   page: number;
@@ -31,7 +32,12 @@ export function PdfPage({
   highlight: HighlightRect[];
   label: string;
   highlightLabel: string;
+  // Cuántas páginas tiene el PDF, apenas se abre (el visor de materiales lo usa mientras Retenia
+  // todavía no lo leyó).
+  onPageCount?: ((pages: number) => void) | undefined;
 }) {
+  const countRef = useRef(onPageCount);
+  countRef.current = onPageCount;
   const canvas = useRef<HTMLCanvasElement>(null);
   const scale = DISPLAY_WIDTH / width;
 
@@ -54,6 +60,7 @@ export function PdfPage({
         });
         destroy = () => loading.destroy();
         const file = await loading.promise;
+        countRef.current?.(file.numPages);
         const shown = await file.getPage(page);
         const target = canvas.current;
         const context = target?.getContext('2d');

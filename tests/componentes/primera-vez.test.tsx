@@ -37,7 +37,7 @@ describe('la pantalla de la primera vez', () => {
     expect(primaries).toEqual(['Agregar mi primer material']);
   });
 
-  it('[CA-041] escribir «Química orgánica» y apretar Enter crea la materia activa y lleva a Materiales, todavía vacío', async () => {
+  it('[CA-041] escribir «Química orgánica» y apretar Enter crea la materia activa y lleva a Materiales, todavía sin materiales', async () => {
     const { api, user } = openWindow();
     render(<App />);
     await user.type(
@@ -46,7 +46,7 @@ describe('la pantalla de la primera vez', () => {
     );
 
     expect(await screen.findByRole('heading', { level: 2, name: 'Materiales' })).toBeTruthy();
-    expect(main().getByText(/^Todavía no disponible\./)).toBeTruthy();
+    expect(await main().findByText('Todavía no hay materiales en esta materia.')).toBeTruthy();
     expect(rail()).not.toBeNull();
     expect(screen.queryByRole('textbox', { name: QUESTION })).toBeNull();
     const { subjects } = await api['subjects.list']({});

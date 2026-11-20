@@ -10,6 +10,8 @@ export interface WorkerProcess {
   on(event: 'message', listener: (message: unknown) => void): unknown;
   on(event: 'exit', listener: (code: number) => void): unknown;
   kill(): boolean;
+  // El número de proceso del sistema (para medir cuánta memoria usa).
+  readonly pid?: number | undefined;
 }
 
 export class WorkerProblem extends Error {
@@ -23,6 +25,8 @@ export class WorkerProblem extends Error {
 
 export interface WorkerClient {
   request(message: Record<string, unknown>, timeoutMs: number): Promise<unknown>;
+  // Corta el proceso actual: lo pendiente falla con ese motivo (cancelar un material, pausar).
+  interrupt?(problem: WorkerProblemName): void;
   stop(): void;
 }
 
@@ -35,14 +39,23 @@ interface Pending {
 export function createWorkerClient({
   spawn,
   idleMs = 5 * 60_000,
+  memory,
 }: {
   spawn: () => WorkerProcess;
   idleMs?: number;
+  // El vigilante de memoria: si el proceso pasa del tope mientras trabaja, se lo corta y lo
+  // pendiente falla con «memory» (cuenta como intento fallido).
+  memory?: {
+    limitBytes: number;
+    usageOf: (worker: WorkerProcess) => number | null;
+    everyMs?: number;
+  };
 }): WorkerClient {
   let current: WorkerProcess | null = null;
   let nextId = 1;
   const pending = new Map<number, Pending>();
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  let memoryTimer: ReturnType<typeof setInterval> | null = null;
 
   const failAll = (problem: WorkerProblemName) => {
     for (const [id, task] of pending) {
@@ -62,6 +75,22 @@ export function createWorkerClient({
     }
   };
 
+  const watchMemory = () => {
+    if (!memory || memoryTimer) {
+      return;
+    }
+    memoryTimer = setInterval(() => {
+      if (!current || pending.size === 0) {
+        return;
+      }
+      const used = memory.usageOf(current);
+      if (used !== null && used > memory.limitBytes) {
+        drop('memory');
+      }
+    }, memory.everyMs ?? 1000);
+    memoryTimer.unref?.();
+  };
+
   const touchIdle = () => {
     if (idleTimer) {
       clearTimeout(idleTimer);
@@ -78,6 +107,7 @@ export function createWorkerClient({
     }
     const created = spawn();
     current = created;
+    watchMemory();
     created.on('message', (raw) => {
       const parsed = workerResponse.safeParse(raw);
       if (!parsed.success) {
@@ -123,10 +153,17 @@ export function createWorkerClient({
         worker.postMessage({ ...message, id });
       });
     },
+    interrupt(problem) {
+      drop(problem);
+    },
     stop() {
       if (idleTimer) {
         clearTimeout(idleTimer);
         idleTimer = null;
+      }
+      if (memoryTimer) {
+        clearInterval(memoryTimer);
+        memoryTimer = null;
       }
       drop('crashed');
     },

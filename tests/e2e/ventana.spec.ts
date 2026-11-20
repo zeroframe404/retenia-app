@@ -121,6 +121,19 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'search.query',
       'search.opened',
       'search.rebuild',
+      // Los materiales (Fase 13); «materials.addFiles» llega solo por el puente de archivos.
+      'materials.addText',
+      'materials.decide',
+      'materials.list',
+      'materials.get',
+      'materials.cancel',
+      'materials.resume',
+      'materials.dismiss',
+      'materials.page',
+      'materials.open',
+      'materials.createCard',
+      'materials.saveExcerpt',
+      'materials.preview',
       // El zoom con el teclado (Fase 06).
       'window.zoom',
       // El aviso de que la pantalla guardó antes de cerrar (Fase 07).
@@ -134,6 +147,9 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'demo.useCast',
       // «Cargar 10.000 tarjetas» (Fase 12).
       'demo.load10k',
+      // «Procesar despacio» (Fase 13).
+      'demo.processing',
+      'demo.setProcessing',
       // «Simular sin conexión» y el Laboratorio (Fase 05).
       'demo.connection',
       'demo.setConnection',

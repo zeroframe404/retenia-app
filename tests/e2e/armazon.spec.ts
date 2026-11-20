@@ -121,8 +121,8 @@ test('[CA-031] lo que todavía no existe dice «Todavía no disponible» y «Ir 
   launchFromStart,
 }) => {
   const { page } = await launchFromStart();
-  // Estudiar y Progreso ya tienen contenido (Fase 10).
-  for (const destination of ['Materiales', 'Idiomas'] as const) {
+  // Estudiar y Progreso ya tienen contenido (Fase 10); Materiales, desde la Fase 13.
+  for (const destination of ['Idiomas'] as const) {
     await goToDestination(page, destination);
     await expect(page.getByText(/^Todavía no disponible\./)).toBeVisible();
   }
@@ -295,17 +295,27 @@ test('[CA-034] sin mouse: con Tab se llega a todo lo de Materiales y siempre se 
   await page.keyboard.press('Control+3');
   await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeFocused();
   expectVisibleFocus(await focusInfo(page), 'el título de Materiales');
+  // La lista se lee aparte (con la máquina cargada puede tardar): se espera a que esté a la vista.
+  await expect(
+    page.getByRole('list', { name: 'Materiales de la materia' }).getByRole('button'),
+  ).toHaveCount(2);
+  await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeFocused();
 
-  // De ahí, el siguiente Tab llega a lo que sigue en la pantalla; después da la vuelta por el riel.
+  // De ahí, el siguiente Tab llega a lo que sigue en la pantalla (desde la Fase 13, «Agregar
+  // material», «Cambiar» y los dos materiales del elenco, cada uno con su estado, que cambia
+  // mientras se leen); después da la vuelta por el riel.
   const visited: string[] = [];
-  for (let presses = 0; presses < 9; presses += 1) {
+  for (let presses = 0; presses < 12; presses += 1) {
     await page.keyboard.press('Tab');
     const info = await focusInfo(page);
     expectVisibleFocus(info, `Tab ${presses + 1}`);
-    visited.push(info.name);
+    visited.push(info.name.replace(/^(Inferencia — capítulos 1 a 4|Apunte 3) .*$/, '$1'));
   }
   expect(visited).toEqual([
-    'Ir a Apuntes',
+    'Agregar material',
+    'Cambiar',
+    'Inferencia — capítulos 1 a 4',
+    'Apunte 3',
     'BuscarCtrl+K',
     'Estudiar',
     'Apuntes',
@@ -313,7 +323,7 @@ test('[CA-034] sin mouse: con Tab se llega a todo lo de Materiales y siempre se 
     'Idiomas',
     'Progreso',
     'Ajustes',
-    'Ir a Apuntes',
+    'Agregar material',
   ]);
 });
 

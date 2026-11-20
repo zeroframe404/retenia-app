@@ -21,6 +21,7 @@ import {
 import { texts } from '../../src/preload/contract/texts';
 import { tempDataFolder } from '../apoyo/base';
 import { pngBytes } from '../apoyo/espacio';
+import { idleMaterials } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // Los canales de materias, temas, notas, imágenes y Bandeja (Fase 07): el principal valida cada
@@ -523,6 +524,7 @@ describe('«window.flushed»', () => {
       version: '0.0.0-prueba',
       openFolder: async () => '',
       ...(onFlushed ? { onFlushed } : {}),
+      materials: idleMaterials(workspace, clock),
     });
   }
 

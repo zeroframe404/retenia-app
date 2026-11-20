@@ -44,11 +44,11 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | pdfjs-dist | 6.4.299 | 13/10/2026 | Apache-2.0 | Texto y render de PDF; la 6.x eliminó el último uso de `eval` (ya no tiene la opción `isEvalSupported`; una prueba busca `eval` y `new Function` en su código) y su API nunca ejecuta el JavaScript de un PDF. En Node, compilación `legacy`; dentro de un `utilityProcess` hay que indicarle su hilo de trabajo (Fase 05). Trae `@napi-rs/canvas` como opcional: no se usa y no viaja en el instalador. |
 | tesseract.js, tesseract.js-core | 7.0.0 | 13/10/2026 | Apache-2.0 | Reconocimiento de escaneos en WebAssembly, sin internet con datos locales; hilos de trabajo en Node. Comprobado en la Fase 05: en Node carga siempre el núcleo completo (un error de la 7.0.0), así que viaja ese; su script de instalación (un aviso de donaciones) queda denegado. |
 | @tesseract.js-data/eng, @tesseract.js-data/spa | 1.0.0 | 17/10/2026 | MIT | Los datos de inglés y español que tesseract.js usa por defecto (versión entera comprimida, 2,9 y 2,1 MB), del mismo proyecto (naptha/tessdata). Publicados en 2023: son datos que no cambian. Van en el instalador (tu pedido de la Fase 05), no en la descarga única. |
-| mammoth | 1.13.0 | 13/10/2026 | BSD-2-Clause | Word a texto con títulos, activo. |
+| mammoth | 1.13.0 | 13/10/2026 | BSD-2-Clause | Word a texto con títulos, activo. Instalado en la Fase 13 (19/11/2026). |
 | @mozilla/readability | 0.6.0 | 13/10/2026 | Apache-2.0 | Extrae el texto principal de una página web; es el de Firefox. |
 | jsdom | 30.1.2 | 13/10/2026 | MIT | DOM en Node para readability y DOMPurify; también entorno de las pruebas de componentes. |
 | dompurify | 3.4.17 | 13/10/2026 | MPL-2.0 o Apache-2.0 | Sanea el HTML de las instantáneas web; documentado con jsdom. |
-| yauzl | 3.4.0 | 13/10/2026 | MIT | Lee comprimidos por partes y rechaza nombres con `..`, rutas absolutas y barras invertidas. |
+| yauzl | 3.4.0 | 13/10/2026 | MIT | Lee comprimidos por partes y rechaza nombres con `..`, rutas absolutas y barras invertidas. Instalado en la Fase 13 (19/11/2026), con `@types/yauzl` 3.4.0 para desarrollo. |
 | yazl | 3.3.1 | 13/10/2026 | MIT | Escribe comprimidos por partes (exportaciones y copias). |
 | **Voz** | | | | |
 | sherpa-onnx-node, sherpa-onnx-win-x64 | 1.13.8 | 13/10/2026 | Apache-2.0 | Voz y transcripción sin internet con modelos abiertos; complemento Node-API. Comprobado en esta PC dentro de un proceso de trabajo de Electron, empaquetado e instalado (Fase 05): las DLL viajan fuera del asar y se encuentran solas. Abre sus archivos con rutas de 8 bits: Retenia le pasa rutas relativas a la carpeta de modelos (una carpeta con «í» lo tumbaba). |

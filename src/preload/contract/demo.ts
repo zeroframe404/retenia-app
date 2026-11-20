@@ -26,5 +26,11 @@ export function demoChannels() {
       request: noRequest,
       response: z.strictObject({ subjectId: z.uuid(), cards: z.number().int().min(0) }),
     },
+    // «Procesar despacio» (Fase 13): una demora visible por página al leer un material.
+    'demo.processing': { request: noRequest, response: z.strictObject({ slow: z.boolean() }) },
+    'demo.setProcessing': {
+      request: z.strictObject({ slow: z.boolean() }),
+      response: z.strictObject({ slow: z.boolean() }),
+    },
   };
 }

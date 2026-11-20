@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, count, desc, eq, isNull, like } from 'drizzle-orm';
 import {
   matchesFilter,
   mergeSheet,
@@ -47,6 +47,7 @@ import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './dem
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
 import { estimatesOf } from './load';
+import { describeCite } from './materials';
 import { SubjectNotFoundError, TopicNotFoundError } from './organization-errors';
 import type { Writer } from './orm';
 import { plannedDayOf } from './postponements';
@@ -90,7 +91,20 @@ export interface CardsStore {
     },
     options?: { source?: EventSource },
   ): Card;
+  // Una tarjeta que sale de un material (Fase 13, «Crear tarjeta desde acá»): lleva la fuente
+  // legible en la ficha («Fuente: …») y la cita anclada.
+  createFromMaterial(input: {
+    question: string;
+    answer: string;
+    subjectId: string;
+    sourceText: string;
+    sourceCite: string;
+  }): Card;
   list(input?: ListInput): Card[];
+  // La cita de un material de la versión vigente (JSON), o null.
+  sourceCite(cardId: string): string | null;
+  // Las tarjetas (no borradas) cuya versión vigente cita ese material.
+  citing(materialId: string): { cardId: string; question: string; sourceCite: string }[];
   // La lista filtrada y cuántas tiene la materia sin filtrar.
   listWithTotal(input?: ListInput): { cards: Card[]; total: number };
   get(input: { cardId: string }): CardDetail;
@@ -258,6 +272,7 @@ function detailOf(db: Writer, row: CardRow): CardDetail {
     linked: row.origin === 'note' && canOpenNote,
     detached: row.detachedAt !== null,
     hasHistory: hasHistoryOf(db, row.id),
+    cite: describeCite(db, row.sourceCite),
   };
 }
 
@@ -449,8 +464,72 @@ export function createCardsStore(
       });
     },
 
+    createFromMaterial({ question, answer, subjectId, sourceText, sourceCite }) {
+      const now = clock.now().toISOString();
+      const cardId = newId();
+      const versionId = newId();
+      return orm.transaction((tx) => {
+        assertPlace(tx, subjectId, null);
+        tx.insert(cards)
+          .values({
+            id: cardId,
+            currentVersionId: versionId,
+            createdAt: now,
+            subjectId,
+            topicId: null,
+            origin: 'material',
+          })
+          .run();
+        tx.insert(cardVersions)
+          .values({
+            id: versionId,
+            cardId,
+            question,
+            answer,
+            createdAt: now,
+            cause: 'edit',
+            sourceText,
+            sourceCite,
+          })
+          .run();
+        recomputeCardSchedule(tx, cardId);
+        appendOperation(tx, clock, {
+          kind: 'card.create',
+          entityId: cardId,
+          versionAfterId: versionId,
+          source: 'user',
+        });
+        return cardOf(tx, cardId);
+      });
+    },
+
     list(input = {}) {
       return listCards(orm, input).cards;
+    },
+
+    sourceCite(cardId) {
+      return findCard(orm, cardId)?.sourceCite ?? null;
+    },
+
+    citing(materialId) {
+      return orm
+        .select({
+          cardId: cards.id,
+          question: cardVersions.question,
+          sourceCite: cardVersions.sourceCite,
+        })
+        .from(cards)
+        .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+        .where(
+          and(
+            isNull(cards.deletedAt),
+            like(cardVersions.sourceCite, `%"materialId":"${materialId}"%`),
+          ),
+        )
+        .all()
+        .flatMap((row) =>
+          row.sourceCite === null ? [] : [{ ...row, sourceCite: row.sourceCite }],
+        );
     },
 
     listWithTotal(input = {}) {

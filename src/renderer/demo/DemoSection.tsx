@@ -31,6 +31,8 @@ export function DemoSection({
   const [dataFailed, setDataFailed] = useState(false);
   const [volume, setVolume] = useState<'idle' | 'loading' | 'done' | 'failed'>('idle');
   const [volumeCards, setVolumeCards] = useState(0);
+  // «Procesar despacio» (Fase 13).
+  const [slow, setSlow] = useState<boolean | null>(null);
   const working = useRef(false);
 
   useEffect(() => {
@@ -51,6 +53,34 @@ export function DemoSection({
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const { slow: on } = await window.retenia['demo.processing']({});
+        if (alive) {
+          setSlow(on);
+        }
+      } catch {
+        if (alive) {
+          setSlow(false);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function toggleSlow(next: boolean) {
+    setSlow(next);
+    try {
+      setSlow((await window.retenia['demo.setProcessing']({ slow: next })).slow);
+    } catch {
+      setSlow(!next);
+    }
+  }
 
   // Con qué datos está abierta: el elenco de ejemplo o una base vacía, como la primera vez. Si no se
   // sabe, no se ofrece ninguno de los dos botones.
@@ -165,6 +195,21 @@ export function DemoSection({
         />
         {demoTexts.offline}
       </label>
+      <div>
+        <label className={styles.checkbox}>
+          <input
+            type="checkbox"
+            checked={slow ?? false}
+            disabled={slow === null}
+            aria-describedby="procesar-despacio-ayuda"
+            onChange={(event) => void toggleSlow(event.target.checked)}
+          />
+          {demoTexts.slowProcessing}
+        </label>
+        <p id="procesar-despacio-ayuda" className={styles.help}>
+          {demoTexts.slowProcessingHint}
+        </p>
+      </div>
       {dataFailed ? (
         <BannerEstado tone="attention">{demoTexts.firstTime.failed}</BannerEstado>
       ) : null}

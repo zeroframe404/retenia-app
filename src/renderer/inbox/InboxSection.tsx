@@ -4,6 +4,7 @@ import { formatShortDate, texts } from '../../preload/contract/texts';
 import { TopicPicker } from '../notes/TopicPicker';
 import { NoticeToast, useUndoNotice } from '../notes/undoNotice';
 import { Boton } from '../ui/Boton';
+import contentStyles from '../ui/Content.module.css';
 import { ItemList, ListItem, ScreenFrame } from '../ui/Frame';
 import { ViewState } from '../ui/ViewStates';
 
@@ -110,7 +111,9 @@ export function InboxSection({
                   <Boton onClick={() => void remove(item)}>{texts.inbox.remove}</Boton>
                 </>
               }
-            />
+            >
+              {item.source ? <p className={contentStyles.help}>{item.source}</p> : null}
+            </ListItem>
           ))}
         </ItemList>
       ) : null}

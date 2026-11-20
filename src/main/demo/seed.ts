@@ -1,11 +1,16 @@
+import { createHash } from 'node:crypto';
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { z } from 'zod';
 import cast from '../../../datos-de-ejemplo/elenco/materias.json';
 import cardCast from '../../../datos-de-ejemplo/elenco/tarjetas.json';
 import { findHoles } from '../../core/cards';
+import { extensionFor, HEAD_BYTES, identifyContent } from '../../core/materials/signature';
 import type { Grade } from '../../core/memory';
 import type { IncomingBlock } from '../../core/organization';
 import type { SeedCard, SeedReview } from '../../data/demo-cards';
 import { newId } from '../../data/ids';
+import { PIPELINE_VERSION, referenceOf, type StoredCite } from '../../data/materials';
 import type { Workspace } from '../../data/workspace';
 import type { InlineNode } from '../../preload/contract/notes';
 
@@ -54,6 +59,104 @@ const castSchema = z.strictObject({
 // entre ellas) y, al final, la materia «Ejemplo» en pausa. Se hace una sola vez: solo si todavía no
 // hay ninguna materia. Todo queda anotado como de la demostración y no aparece en «Actividad
 // reciente». Devuelve cuántas materias hay después (cero si no correspondía sembrar).
+// Los materiales del elenco (Fase 13): «Inferencia — capítulos 1 a 4.pdf», agregado el lunes
+// 08/03/2027, y «Apunte 3.pdf», el viernes 12/03/2027, los dos en «Estadística básica». Entran por
+// la misma cola que cualquier material: al abrir Retenia se leen de verdad, en segundo plano.
+const DEMO_MATERIALS = [
+  { file: 'Inferencia — capítulos 1 a 4.pdf', addedAt: '2027-03-08T13:00:00.000Z' },
+  { file: 'Apunte 3.pdf', addedAt: '2027-03-12T13:00:00.000Z' },
+] as const;
+
+export interface DemoMaterials {
+  inference?: { materialId: string; sha256: string; title: string };
+}
+
+// La copia del original en `originales\<sha256>.pdf` (solo lectura) y el material en «Recibido».
+// Se hace una sola vez: si ya hay materiales, no se siembra nada.
+export function seedDemoMaterials(workspace: Workspace, samplesDir: string | null): DemoMaterials {
+  if (samplesDir === null || workspace.materials.count() > 0) {
+    return {};
+  }
+  const subject = workspace.subjects
+    .list()
+    .subjects.find((item) => item.name === 'Estadística básica');
+  if (!subject) {
+    return {};
+  }
+  const seeded: DemoMaterials = {};
+  for (const { file, addedAt } of DEMO_MATERIALS) {
+    const source = join(samplesDir, file);
+    if (!existsSync(source)) {
+      continue;
+    }
+    const data = readFileSync(source);
+    const identified = identifyContent({
+      head: data.subarray(0, HEAD_BYTES),
+      size: data.length,
+      name: file,
+    });
+    if (!identified.ok) {
+      continue;
+    }
+    const sha256 = createHash('sha256').update(data).digest('hex');
+    const ext = extensionFor(identified.kind);
+    mkdirSync(workspace.originalsDir, { recursive: true });
+    const target = join(workspace.originalsDir, `${sha256}.${ext}`);
+    if (!existsSync(target)) {
+      writeFileSync(target, data);
+      chmodSync(target, 0o444);
+    }
+    const title = file.replace(/\.[^.]+$/, '');
+    const materialId = workspace.materials.create({
+      subjectId: subject.id,
+      title,
+      kind: identified.kind,
+      originalSha256: sha256,
+      originalName: file,
+      originalExt: ext,
+      sizeBytes: data.length,
+      errorCode: null,
+      addedAt,
+    });
+    if (file.startsWith('Inferencia')) {
+      seeded.inference = { materialId, sha256, title };
+    }
+  }
+  return seeded;
+}
+
+// La fuente y la cita de una tarjeta del elenco que cita el PDF de ejemplo. La cita se busca en el
+// original cada vez que se abre: no depende de cuándo terminó la lectura.
+function citeOf(
+  cita: { pagina: number; texto: string } | undefined,
+  inference: DemoMaterials['inference'],
+): { sourceText?: string; sourceCite?: string } {
+  if (!cita || !inference) {
+    return {};
+  }
+  const cite: StoredCite = {
+    materialId: inference.materialId,
+    originalSha256: inference.sha256,
+    materialVersion: 1,
+    pipelineVersion: PIPELINE_VERSION,
+    locator: {
+      kind: 'pdf',
+      page: cita.pagina,
+      boxes: [],
+      quote: cita.texto,
+      before: '',
+      after: '',
+      paragraphIndex: -1,
+      headingPath: [],
+    },
+    quote: cita.texto,
+  };
+  return {
+    sourceText: referenceOf(inference.title, 'pdf', cita.pagina, []),
+    sourceCite: JSON.stringify(cite),
+  };
+}
+
 export function seedDemoOrganization(workspace: Workspace): number {
   if (workspace.subjects.count() > 0) {
     return 0;
@@ -164,6 +267,10 @@ const cardCastSchema = () =>
                   q: z.string().min(1),
                   a: z.string().min(1).optional(),
                   p: z.enum(['d', 'n', 's', 'desvio', 'consolidada', 'varianza', 'fallos']),
+                  // La frase del PDF de ejemplo que cita la tarjeta (Fase 13).
+                  cita: z
+                    .strictObject({ pagina: z.number().int().positive(), texto: z.string().min(1) })
+                    .optional(),
                 }),
               )
               .min(1),
@@ -370,7 +477,7 @@ const reviewsOf = (template: Template): SeedReview[] =>
 // Estadística básica. Se hace una sola vez, después de sembrar las materias y las notas (tres
 // tarjetas nacen en la nota «Intervalos de confianza»). Devuelve cuántas tarjetas hay después
 // (cero si no correspondía sembrar).
-export function seedDemoCardCast(workspace: Workspace): number {
+export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials = {}): number {
   if (workspace.cards.hasManualCards()) {
     return 0;
   }
@@ -424,6 +531,7 @@ export function seedDemoCardCast(workspace: Workspace): number {
           topicId: topic.id,
           createdAt: created,
           reviews: reviewsOf(template ?? []),
+          ...citeOf(card.cita, materials.inference),
         });
       }
     }

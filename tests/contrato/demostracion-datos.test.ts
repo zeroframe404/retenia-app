@@ -8,6 +8,7 @@ import { createDemoWorkspace } from '../../src/main/demo/switcher';
 import { channels } from '../../src/preload/contract';
 import { demoChannels } from '../../src/preload/contract/demo';
 import { tempDataFolder } from '../apoyo/base';
+import { idleMaterials } from '../apoyo/materiales';
 
 // Los canales «demo.dataMode», «demo.useFirstTime» y «demo.useCast» (Ajustes › «Demostración»):
 // abren la demostración con una base vacía, como la primera vez, y vuelven al elenco.
@@ -54,6 +55,7 @@ function handlersWithSwitcher() {
         workspace: demo.workspace,
         version: '0.0.0-prueba',
         openFolder: async () => '',
+        materials: idleMaterials(demo.workspace, date.clock),
       }),
       ...createDemoHandlers(date, demo),
     },
@@ -61,7 +63,7 @@ function handlersWithSwitcher() {
 }
 
 describe('contrato: canales de los datos de la demostración', () => {
-  it('el contrato de la demostración trae los siete canales y el base ninguno', () => {
+  it('el contrato de la demostración trae los nueve canales y el base ninguno', () => {
     expect(Object.keys(demoChannels())).toEqual([
       'demo.state',
       'demo.advanceDays',
@@ -70,6 +72,8 @@ describe('contrato: canales de los datos de la demostración', () => {
       'demo.useFirstTime',
       'demo.useCast',
       'demo.load10k',
+      'demo.processing',
+      'demo.setProcessing',
     ]);
     expect(Object.keys(channels).filter((name) => name.startsWith('demo.'))).toEqual([]);
   });

@@ -24,6 +24,9 @@ export interface SeedCard {
   readonly topicId: string;
   readonly createdAt: Date;
   readonly reviews: readonly SeedReview[];
+  // La fuente legible y la cita de un material (Fase 13): las del elenco salen del PDF de ejemplo.
+  readonly sourceText?: string;
+  readonly sourceCite?: string;
 }
 
 // Cuánto tardaron los repasos sembrados (el primero de cada tarjeta, no): la mediana es 12 segundos,
@@ -103,6 +106,8 @@ export function plantCard(tx: Writer, clock: Clock, entry: SeedCard): string {
       answer: entry.answer,
       createdAt,
       cause: 'edit',
+      ...(entry.sourceText ? { sourceText: entry.sourceText } : {}),
+      ...(entry.sourceCite ? { sourceCite: entry.sourceCite } : {}),
     })
     .run();
   recomputeCardSchedule(tx, cardId);

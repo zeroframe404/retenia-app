@@ -2,8 +2,13 @@ import { cpSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { demoClock } from '../../src/core/clock';
 import { openWorkspace } from '../../src/data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
+import {
+  seedDemoCardCast,
+  seedDemoMaterials,
+  seedDemoOrganization,
+} from '../../src/main/demo/seed';
 import { tempDataFolder } from './base';
+import { SAMPLES } from './materiales';
 
 // El elenco de ejemplo (materias, notas y 192 tarjetas con su historial) tarda casi medio segundo en
 // sembrarse. Las pruebas que solo lo necesitan como punto de partida lo reciben ya sembrado: se
@@ -21,7 +26,7 @@ function castFolder(): string {
       appVersion: '0.0.0-prueba',
     });
     seedDemoOrganization(workspace);
-    seedDemoCardCast(workspace);
+    seedDemoCardCast(workspace, seedDemoMaterials(workspace, SAMPLES));
     workspace.close();
     template = { file: data.file };
     process.on('exit', () => data.remove());

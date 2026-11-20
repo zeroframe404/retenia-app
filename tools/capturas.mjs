@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11 y fase-12.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12 y fase-13.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -712,16 +712,164 @@ async function phase12(page) {
   await shoot(page, '10-desvio-con-10000');
 }
 
+// Fase 13: Materiales (la lista, agregar, las etapas, el duplicado, el error, el visor, crear una
+// tarjeta desde una frase, la tarjeta con su cita, el original en el panel de la sesión, el
+// extracto en la Bandeja y «Procesar despacio»).
+/** @param {import('@playwright/test').Page} page */
+async function phase13(page) {
+  const samples = join(ROOT, 'datos-de-ejemplo');
+  const inference = 'Inferencia — capítulos 1 a 4';
+  const main = page.getByRole('main');
+  const row = (/** @type {RegExp} */ title) => main.getByRole('button', { name: title });
+  const open = async () => {
+    await goToDestination(page, 'Materiales');
+    await row(new RegExp(inference)).filter({ hasText: 'Listo' }).waitFor({ timeout: 60_000 });
+  };
+  await open();
+  await shoot(page, '1-lista');
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Agregar material' });
+  await dialog.getByRole('button', { name: 'Más opciones' }).click();
+  await shoot(page, '2-agregar');
+  await dialog.getByLabel('Elegir archivo').setInputFiles(join(samples, 'Apunte 3.pdf'));
+  const duplicate = page.getByRole('dialog', { name: /^Parece que ya agregaste/ });
+  await duplicate.waitFor();
+  await shoot(page, '3-duplicado');
+  await duplicate.getByRole('button', { name: 'Abrir el existente' }).click();
+  // Las etapas a mitad de camino: «Procesar despacio» y una copia del PDF del elenco.
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('checkbox', { name: 'Procesar despacio' }).check();
+  await shoot(page, '4-procesar-despacio');
+  await open();
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  await page
+    .getByRole('dialog', { name: 'Agregar material' })
+    .getByLabel('Elegir archivo')
+    .setInputFiles(join(samples, `${inference}.pdf`));
+  await page
+    .getByRole('dialog', { name: /^Parece que ya agregaste/ })
+    .getByRole('button', { name: 'Agregar igual' })
+    .click();
+  const copy = main.getByRole('button', { name: new RegExp(inference) }).nth(1);
+  await copy.filter({ hasText: /Procesando [3-9] de 12/ }).waitFor({ timeout: 60_000 });
+  await copy.click();
+  await page.getByText(/^Texto extraído \(\d+ de 12 páginas\)$/).waitFor();
+  await shoot(page, '5-etapas');
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('checkbox', { name: 'Procesar despacio' }).uncheck();
+  await open();
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  await page
+    .getByRole('dialog', { name: 'Agregar material' })
+    .getByLabel('Elegir archivo')
+    .setInputFiles(join(samples, 'no-es-un-pdf.pdf'));
+  await row(/no-es-un-pdf/).click();
+  await page.getByText('No pudimos leer este PDF (protegido o dañado)').waitFor();
+  await shoot(page, '6-error');
+  // El visor: la página 1 con un pasaje citado por una tarjeta, resaltado.
+  await row(new RegExp(inference)).first().click();
+  await page.getByRole('button', { name: 'Leer el original' }).click();
+  await page.locator('[data-cited="true"]').first().click();
+  await page.getByRole('button', { name: 'Ver en el original' }).click();
+  await page.getByRole('img', { name: 'Pasaje resaltado' }).first().waitFor();
+  await shoot(page, '7-visor');
+  // Crear una tarjeta desde una oración de la página 2.
+  await page.getByRole('button', { name: 'Página siguiente' }).click();
+  await page.getByText(/^Página 2 de 12$/).waitFor();
+  const sentence =
+    'Un parámetro es un número que describe a la población: la media de las alturas de todos los estudiantes, por ejemplo.';
+  await page
+    .getByText(sentence, { exact: false })
+    .first()
+    .evaluate((element, text) => {
+      const node = /** @type {Text} */ (element.firstChild);
+      const start = node.data.indexOf(text);
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, start + text.length);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    }, sentence);
+  await page.getByRole('button', { name: 'Crear tarjeta desde acá' }).click();
+  const panel = page.getByRole('dialog', { name: 'Crear tarjeta desde acá' });
+  await panel
+    .getByRole('textbox', { name: 'Pregunta' })
+    .fill('¿Qué es un parámetro? Dá un ejemplo.');
+  await shoot(page, '8-crear-tarjeta');
+  await panel.getByRole('button', { name: 'Guardar' }).click();
+  await page.getByRole('button', { name: 'Guardar extracto' }).waitFor({ state: 'detached' });
+  // Un extracto de la página 2, en la Bandeja.
+  await page
+    .getByText(sentence, { exact: false })
+    .first()
+    .evaluate((element, text) => {
+      const node = /** @type {Text} */ (element.firstChild);
+      const start = node.data.indexOf(text);
+      const range = document.createRange();
+      range.setStart(node, start);
+      range.setEnd(node, start + text.length);
+      document.getSelection()?.removeAllRanges();
+      document.getSelection()?.addRange(range);
+      element.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    }, sentence);
+  await page.getByRole('button', { name: 'Guardar extracto' }).click();
+  await page.getByText('Extracto guardado en la Bandeja').waitFor();
+  // La Bandeja lleva su contador al lado del nombre: se entra por la fila del riel.
+  await page
+    .getByRole('navigation', { name: 'Riel lateral' })
+    .getByRole('button', { name: /Bandeja/ })
+    .click();
+  await page.getByText('Inferencia — capítulos 1 a 4 · página 2').waitFor();
+  await shoot(page, '9-bandeja-extracto');
+  // La tarjeta con su cita.
+  // (la lista solo dibuja las que se ven: se la abre con el buscador)
+  await page.keyboard.press('Control+k');
+  await page
+    .getByRole('dialog', { name: 'Buscar' })
+    .getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' })
+    .fill('qué es una muestra');
+  await page
+    .getByRole('dialog', { name: 'Buscar' })
+    .getByRole('option')
+    .filter({ hasText: '¿Qué es una muestra?' })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'Ver en el original' }).waitFor();
+  await shoot(page, '10-tarjeta-con-cita');
+  // Durante una sesión: el original en el panel de la derecha.
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await page.keyboard.press('Control+k');
+  await page
+    .getByRole('dialog', { name: 'Buscar' })
+    .getByRole('combobox', { name: 'Buscar en tus apuntes y tarjetas' })
+    .fill('qué es una muestra');
+  await page
+    .getByRole('dialog', { name: 'Buscar' })
+    .getByRole('option')
+    .filter({ hasText: '¿Qué es una muestra?' })
+    .first()
+    .click();
+  const side = page.getByRole('dialog', { name: '¿Qué es una muestra?' });
+  await side.getByRole('button', { name: 'Ver en el original' }).click();
+  await side.getByRole('img', { name: 'Pasaje resaltado' }).first().waitFor();
+  await shoot(page, '11-sesion-original');
+}
+
 let { app, page } = await launch(
   {},
   name !== 'fase-06' &&
     name !== 'fase-08' &&
     name !== 'fase-10' &&
     name !== 'fase-11' &&
-    name !== 'fase-12',
+    name !== 'fase-12' &&
+    name !== 'fase-13',
 );
 try {
-  if (name === 'fase-12') {
+  if (name === 'fase-13') {
+    await phase13(page);
+  } else if (name === 'fase-12') {
     await phase12(page);
   } else if (name === 'fase-11') {
     await phase11(page);

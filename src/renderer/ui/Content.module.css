@@ -95,3 +95,10 @@
   margin: 0;
   accent-color: var(--color-marca);
 }
+
+/* Una línea de ayuda debajo de un control. */
+.help {
+  margin: var(--espacio-4) 0 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}

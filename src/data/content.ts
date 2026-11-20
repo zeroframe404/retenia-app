@@ -62,6 +62,8 @@ export interface CardRow {
   hints: string;
   explanation: string;
   sourceText: string;
+  // La cita de un material (Fase 13), en JSON; nula si la tarjeta no salió de un material.
+  sourceCite: string | null;
   formType: string;
   sheetState: string;
 }
@@ -157,6 +159,7 @@ export function selectCards(db: Writer) {
       hints: cardVersions.hints,
       explanation: cardVersions.explanation,
       sourceText: cardVersions.sourceText,
+      sourceCite: cardVersions.sourceCite,
       formType: cardVersions.formType,
       sheetState: cardVersions.sheetState,
     })

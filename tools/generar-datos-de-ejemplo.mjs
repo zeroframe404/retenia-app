@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { writeBellCurve } from './datos-de-ejemplo/campana.mjs';
 import * as content from './datos-de-ejemplo/contenido.mjs';
 import { documentHtml, docx, scanHtml } from './datos-de-ejemplo/documentos.mjs';
+import { trapCodePdf, trapPathsZip } from './datos-de-ejemplo/trampas.mjs';
 import { DEV_MODELS_DIR } from './lib/modelos.mjs';
 
 const require = createRequire(import.meta.url);
@@ -138,6 +139,11 @@ async function generate({ app, BrowserWindow }) {
     writeFileSync(join(OUT, 'pagina.html'), content.WEB_PAGE_HTML);
     writeFileSync(join(OUT, 'no-es-un-pdf.pdf'), content.NOT_A_PDF);
     console.log('  notas.md, resumen.docx, pagina.html, no-es-un-pdf.pdf');
+    // Los archivos trampa de la Fase 13 (CA-337): un PDF con código adentro y un Word con rutas
+    // que salen de la carpeta. Las pruebas arman además los suyos en el momento.
+    writeFileSync(join(OUT, 'trampa-codigo.pdf'), trapCodePdf());
+    writeFileSync(join(OUT, 'trampa-rutas.zip'), trapPathsZip());
+    console.log('  trampa-codigo.pdf, trampa-rutas.zip');
     console.log(
       `  campana.png (${Math.round(writeBellCurve(OUT) / 1024)} KB, también en el elenco)`,
     );

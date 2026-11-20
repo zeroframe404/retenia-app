@@ -12,6 +12,7 @@ import { LabScreen } from './demo/lab/LabScreen';
 import { FirstTimeScreen } from './firstTime/FirstTimeScreen';
 import { CaptureDialog } from './inbox/CaptureDialog';
 import { trackInputMode } from './inputMode';
+import { type MaterialRequest, MaterialsScreen } from './materials/MaterialsScreen';
 import { FLUSH_NOTES } from './notes/flush';
 import { EmptyDestination } from './screens/EmptyDestination';
 import {
@@ -74,6 +75,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const [topicRequest, setTopicRequest] = useState<TopicRequest | null>(null);
   // Durante una sesión, un resultado del buscador se abre en un panel a la derecha.
   const [panelHit, setPanelHit] = useState<SearchHit | null>(null);
+  // Durante una sesión, «Ver en el original» de la tarjeta se abre en el mismo panel (Fase 13).
+  const [panelOriginal, setPanelOriginal] = useState<{ materialId: string; cardId: string } | null>(
+    null,
+  );
+  // «Ver en el original» (Fase 13): el material que hay que abrir, en su pasaje.
+  const [materialRequest, setMaterialRequest] = useState<MaterialRequest | null>(null);
   // La sesión de estudio abierta (Fase 10): ocupa la ventana entera, sin el riel.
   const [studying, setStudying] = useState<SessionView | null>(null);
   const studyingRef = useRef(false);
@@ -262,6 +269,15 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // «Ver en el original» (H-26): Materiales, con el visor en la página de la cita.
+  const openOriginal = (target: Omit<MaterialRequest, 'nonce'>) => {
+    requests.current += 1;
+    setMaterialRequest({ ...target, nonce: requests.current });
+    setDestination('materials');
+    setSettingsView('settings');
+    setNavigated(true);
+  };
+
   // Un resultado del buscador (H-23): lleva a la pantalla donde vive o, en una sesión, lo muestra en
   // un panel a la derecha sin salir de la actividad.
   const openHit = (hit: SearchHit) => {
@@ -286,6 +302,9 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
       setSettingsView('settings');
       setNotesSection('notes');
       setNavigated(true);
+    } else if (hit.kind === 'material' || hit.kind === 'section') {
+      const materialId = hit.kind === 'material' ? hit.entityId : (hit.parentId ?? '');
+      openOriginal(hit.kind === 'section' ? { materialId, blockId: hit.entityId } : { materialId });
     } else if (hit.kind === 'note' || hit.kind === 'block') {
       if (hit.subjectId !== null) {
         setViewedId(hit.subjectId);
@@ -307,6 +326,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   // Al cerrar el panel de un resultado, el foco vuelve al campo de respuesta.
   const closePanel = () => {
     setPanelHit(null);
+    setPanelOriginal(null);
     setTimeout(() => document.querySelector<HTMLElement>('textarea')?.focus(), 0);
   };
 
@@ -346,10 +366,14 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               setNavigated(true);
             }}
             onToast={setToast}
+            onOpenOriginal={setPanelOriginal}
           />
         </div>
         {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
         {panelHit ? <ResultPanel hit={panelHit} onClose={closePanel} /> : null}
+        {panelOriginal && !panelHit ? (
+          <ResultPanel original={panelOriginal} onClose={closePanel} />
+        ) : null}
         {capturing ? (
           <CaptureDialog
             onClose={() => setCapturing(false)}
@@ -365,7 +389,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     );
   }
 
-  const needsSubjects = destination === 'study' || destination === 'notes';
+  const needsSubjects =
+    destination === 'study' || destination === 'notes' || destination === 'materials';
   return (
     <div className={styles.app}>
       {__VARIANTE__ === 'prueba' ? <DemoRibbon /> : null}
@@ -411,18 +436,22 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onDataChanged={reloadShared}
               noteRequest={noteRequest}
               onOpenNoteFromCard={openNoteFromCard}
+              onOpenOriginal={(materialId, cardId) => openOriginal({ materialId, cardId })}
               onNoteRequestHandled={() => setNoteRequest(null)}
               cardRequest={cardRequest}
               topicRequest={topicRequest}
               onTopicRequestHandled={() => setTopicRequest(null)}
             />
           ) : null}
-          {destination === 'materials' ? (
-            <EmptyDestination
-              title={texts.nav.materials}
-              phrase={texts.screens.materials}
+          {destination === 'materials' && subjects !== null ? (
+            <MaterialsScreen
               focusTitle={navigated}
-              onGoToNotes={goToNotes}
+              subject={viewed}
+              active={active}
+              subjects={subjects}
+              request={materialRequest}
+              onChangeSubject={() => setChangingSubject(true)}
+              onInboxCount={setInboxCount}
             />
           ) : null}
           {destination === 'languages' ? (

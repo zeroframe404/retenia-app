@@ -18,13 +18,37 @@ import { activeTrashEntryOf, markRestored, sendToTrash } from './trash-entries';
 
 export interface InboxStore {
   list(): { items: InboxItem[]; count: number };
-  capture(input: { text: string }): { count: number };
+  // `source`: un extracto de un material (Fase 13), con su referencia («… · página 3»).
+  capture(input: { text: string; source?: ExcerptSource }): { count: number };
   move(input: { itemId: string; topicId: string }): NoteSummary;
   // «Eliminar»: el elemento va a la Papelera por 30 días.
   remove(input: { itemId: string }): { trashEntryId: string };
 }
 
 type ItemRow = typeof inboxItems.$inferSelect;
+
+// De dónde salió un extracto: el material, la unidad, la frase y la referencia que se muestra.
+interface ExcerptSource {
+  materialId: string;
+  unitNo: number;
+  reference: string;
+  quote: string;
+  locator: unknown;
+}
+
+const withSource = (reference: string | null) => (reference === null ? {} : { source: reference });
+
+function referenceOf(source: string | null): string | null {
+  if (source === null) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(source) as { reference?: unknown };
+    return typeof parsed.reference === 'string' ? parsed.reference : null;
+  } catch {
+    return null;
+  }
+}
 
 function findItem(db: Writer, itemId: string): ItemRow | undefined {
   return db.select().from(inboxItems).where(eq(inboxItems.id, itemId)).get();
@@ -125,18 +149,24 @@ export function createInboxStore(db: ReteniaDatabase, clock: Clock): InboxStore 
         id: row.id,
         text: row.text,
         day: localDateTime(new Date(row.createdAt)).day,
+        ...withSource(referenceOf(row.source)),
       }));
       return { items, count: items.length };
     },
 
-    capture({ text }) {
+    capture({ text, source }) {
       const clean = text.trim();
       if (clean === '') {
         throw new Error('El texto no puede estar vacío');
       }
       return orm.transaction((tx) => {
         tx.insert(inboxItems)
-          .values({ id: newId(), text: clean, createdAt: clock.now().toISOString() })
+          .values({
+            id: newId(),
+            text: clean,
+            createdAt: clock.now().toISOString(),
+            source: source ? JSON.stringify(source) : null,
+          })
           .run();
         return { count: waiting(tx).length };
       });

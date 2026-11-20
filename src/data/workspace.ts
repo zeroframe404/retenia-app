@@ -30,6 +30,7 @@ import { newId } from './ids';
 import { createImagesStore, type ImagesStore } from './images';
 import { createInboxStore, type InboxStore } from './inbox';
 import { continueSequence, readLedgerState } from './ledger';
+import { createMaterialsStore, type MaterialsStore } from './materials';
 import { migrationIds } from './migrations';
 import { createNotesStore, type NotesStore } from './notes';
 import { repairData, verifyData } from './projections';
@@ -47,6 +48,8 @@ import { createTrashStore, type TrashStore } from './trash';
 export interface Workspace {
   readonly dataDir: string;
   readonly copiesDir: string;
+  // Donde viven los originales de los materiales (`originales`): nunca cambian.
+  readonly originalsDir: string;
   readonly cards: CardsStore;
   readonly trash: TrashStore;
   readonly activity: ActivityStore;
@@ -58,6 +61,8 @@ export interface Workspace {
   readonly study: StudyStore;
   readonly doubts: DoubtsStore;
   readonly search: SearchStore;
+  // Los materiales (Fase 13). Los originales viven en `originales` de la carpeta de datos.
+  readonly materials: MaterialsStore;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
@@ -186,6 +191,7 @@ export function openWorkspace({
       study: createStudyStore(db, clock, () => cards, { fuzz }),
       doubts: createDoubtsStore(db, clock),
       search: createSearchStore(db),
+      materials: createMaterialsStore(db, clock),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -237,6 +243,7 @@ export function openWorkspace({
   return {
     dataDir,
     copiesDir,
+    originalsDir: join(dataDir, 'originales'),
     get cards() {
       return current().cards;
     },
@@ -269,6 +276,9 @@ export function openWorkspace({
     },
     get search() {
       return current().search;
+    },
+    get materials() {
+      return current().materials;
     },
     // «Verificar datos» compara la agenda con el historial y el índice de búsqueda con el contenido.
     verifyData: () => [...verifyData(current().db), ...current().search.verify()],

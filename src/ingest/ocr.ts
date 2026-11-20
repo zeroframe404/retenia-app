@@ -50,7 +50,7 @@ export async function recognize(
     gzip: true,
   });
   try {
-    const { data } = await worker.recognize(toPgm(image));
+    const { data } = await worker.recognize(Buffer.from(toPgm(image)));
     return data.text.trim();
   } finally {
     await worker.terminate();

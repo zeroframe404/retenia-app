@@ -259,3 +259,50 @@ describe('sesión de estudio en la ventana', () => {
     expect(screen.getByRole('button', { name: 'Dudas y revisiones' })).toBeTruthy();
   });
 });
+
+describe('la fuente desde la sesión (Fase 13)', () => {
+  it('[CA-110] una tarjeta con cita ofrece «Ver en el original» recién después de «Mostrar respuesta»: se abre en el panel de la derecha y la sesión sigue', async () => {
+    // Una materia con un solo material y una tarjeta sacada de él: es la única de la sesión.
+    const opened = openWindow();
+    const { api, bridge, user } = opened;
+    const subject = await api['subjects.create']({ name: 'Estadística básica', makeActive: true });
+    const quote = 'El desvío estándar mide cuánto se alejan los datos de la media.';
+    const added = await api['materials.addText']({
+      subjectId: subject.id,
+      text: `Dispersión\n\n${quote}`,
+    });
+    if (added.outcome !== 'added') {
+      throw new Error('no se agregó');
+    }
+    await bridge.materials.whenIdle();
+    const page = await api['materials.page']({ materialId: added.materialId, unit: 1 });
+    const block = page.blocks.find((each) => each.text === quote);
+    await api['materials.createCard']({
+      materialId: added.materialId,
+      selection: {
+        from: { blockId: block?.id ?? '', offset: 0 },
+        to: { blockId: block?.id ?? '', offset: quote.length },
+      },
+      question: '¿Qué mide el desvío?',
+      answer: 'Cuánto se alejan los datos de la media.',
+    });
+    render(<App />);
+    await waitFor(
+      () =>
+        expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(
+          false,
+        ),
+      SLOW,
+    );
+    await user.click(screen.getByRole('button', { name: 'Empezar' }));
+    await screen.findByText('¿Qué mide el desvío?', {}, SLOW);
+    expect(screen.queryByRole('button', { name: 'Ver en el original' })).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }));
+    await user.click(await screen.findByRole('button', { name: 'Ver en el original' }));
+    const panel = await screen.findByRole('dialog', {}, SLOW);
+    expect(await within(panel).findByText(quote)).toBeTruthy();
+    // La sesión sigue detrás, en la misma tarjeta.
+    expect(screen.getByText('¿Qué mide el desvío?')).toBeTruthy();
+    expect(progress()).toBeTruthy();
+  });
+});

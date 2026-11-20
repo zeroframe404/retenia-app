@@ -14,6 +14,10 @@ export const demoTexts = {
   reset: 'Restablecer fecha',
   failed: 'No pude cambiar la fecha. Probá de nuevo.',
   offline: 'Simular sin conexión',
+  // «Procesar despacio» (Fase 13): una demora visible por página al leer un material.
+  slowProcessing: 'Procesar despacio',
+  slowProcessingHint:
+    'Agrega una demora de 2 segundos por página para probar el cierre a mitad de camino.',
   // «Cargar 10.000 tarjetas» (Fase 12): relleno en la materia «Volumen», para medir la búsqueda y las listas.
   volume: {
     load: 'Cargar 10.000 tarjetas',

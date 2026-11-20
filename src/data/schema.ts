@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  blob,
   index,
   integer,
   primaryKey,
@@ -67,6 +68,9 @@ export const cardVersions = sqliteTable(
     hints: text('hints').notNull().default('[]'),
     explanation: text('explanation').notNull().default(''),
     sourceText: text('source_text').notNull().default(''),
+    // Fase 13: la cita de un material (JSON: material, huella del original, versión del material,
+    // versión de la cadena, localizador y cita textual). Nula en las tarjetas sin material.
+    sourceCite: text('source_cite'),
     // 'exact' o 'meaning'.
     formType: text('form_type').notNull().default('exact'),
     sheetState: text('sheet_state').notNull().default('reviewed'),
@@ -359,6 +363,8 @@ export const inboxItems = sqliteTable('inbox_items', {
   movedToNoteId: text('moved_to_note_id'),
   movedAt: text('moved_at'),
   deletedAt: text('deleted_at'),
+  // Fase 13: de dónde salió un extracto de un material (JSON: material, unidad, localizador y cita).
+  source: text('source'),
 });
 
 // --- La sesión de estudio (Fase 10) ---
@@ -448,3 +454,132 @@ export const searchRecent = sqliteTable('search_recent', {
   docId: text('doc_id').primaryKey(),
   seq: integer('seq').notNull(),
 });
+
+// --- Los materiales (Fase 13) ---
+
+// Un material: un archivo (o un texto pegado) que agregaste a una materia. El original vive en
+// `originales\<sha256>.<ext>` de la carpeta de datos y nunca cambia; acá queda su huella, su
+// nombre (un dato, no una ruta) y lo que dijo la recepción. El estado no se guarda: sale de sus
+// tareas y sus unidades (src/core/materials/status.ts). `error_code` dice por qué no se pudo leer;
+// un material con error puede no tener original.
+export const materials = sqliteTable(
+  'materials',
+  {
+    id: text('id').primaryKey(),
+    subjectId: text('subject_id').notNull(),
+    title: text('title').notNull(),
+    // 'pdf', 'docx', 'md' o 'text'; nulo si no se llegó a saber.
+    kind: text('kind'),
+    originalSha256: text('original_sha256'),
+    originalName: text('original_name').notNull(),
+    originalExt: text('original_ext'),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    errorCode: text('error_code'),
+    // Páginas de un PDF; 1 en Word, Markdown y texto. Nulo hasta validar.
+    unitCount: integer('unit_count'),
+    // «Agregar como nueva versión»: el material del que es versión nueva.
+    previousMaterialId: text('previous_material_id'),
+    versionNo: integer('version_no').notNull().default(1),
+    // La versión de la cadena de procesamiento con que se armaron sus bloques.
+    pipelineVersion: integer('pipeline_version').notNull().default(1),
+    addedAt: text('added_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [
+    index('materials_sha_idx').on(table.originalSha256),
+    index('materials_subject_idx').on(table.subjectId, table.addedAt),
+  ],
+);
+
+// Cada unidad de un material: una página de un PDF, o el documento entero en Word, Markdown y
+// texto. 'pending' hasta leerla; 'ready' leída con texto; 'no_text' leída sin texto (un escaneo);
+// 'review' si no se pudo leer después de los reintentos.
+export const materialUnits = sqliteTable(
+  'material_units',
+  {
+    materialId: text('material_id').notNull(),
+    unitNo: integer('unit_no').notNull(),
+    status: text('status').notNull().default('pending'),
+    charCount: integer('char_count').notNull().default(0),
+    // Cuántos bloques con texto salieron de la unidad (en Word, Markdown y texto, «párrafos»).
+    paragraphCount: integer('paragraph_count').notNull().default(0),
+    width: real('width'),
+    height: real('height'),
+  },
+  (table) => [primaryKey({ columns: [table.materialId, table.unitNo] })],
+);
+
+// Los bloques de un material, en orden: sección, título, párrafo, lista, tabla, fórmula, figura,
+// código, encabezado o pie de página. El texto crudo, el normalizado y la lista de arreglos que
+// lleva de uno al otro (se pueden deshacer); el localizador (página y cajas en un PDF; índice de
+// párrafo y ruta de títulos en Word, Markdown y texto). Es una proyección de los resultados de la
+// cadena: se rearma igual.
+export const materialBlocks = sqliteTable(
+  'material_blocks',
+  {
+    id: text('id').primaryKey(),
+    materialId: text('material_id').notNull(),
+    parentId: text('parent_id'),
+    position: integer('position').notNull(),
+    type: text('type').notNull(),
+    level: integer('level').notNull().default(0),
+    unitNo: integer('unit_no').notNull(),
+    rawText: text('raw_text').notNull(),
+    normalizedText: text('normalized_text').notNull(),
+    transformations: text('transformations').notNull().default('[]'),
+    locator: text('locator').notNull(),
+  },
+  (table) => [
+    index('material_blocks_unit_idx').on(table.materialId, table.unitNo),
+    index('material_blocks_position_idx').on(table.materialId, table.position),
+  ],
+);
+
+// El resultado de cada etapa, por su clave: la huella de (huella del original, unidad, etapa,
+// herramienta, versión de la herramienta, parámetros). Guarda la salida completa de la
+// herramienta, comprimida. Solo se agrega: un disparador impide cambiarla o borrarla.
+export const ingestResults = sqliteTable(
+  'ingest_results',
+  {
+    key: text('key').primaryKey(),
+    originalSha256: text('original_sha256').notNull(),
+    unitNo: integer('unit_no').notNull(),
+    stage: text('stage').notNull(),
+    tool: text('tool').notNull(),
+    toolVersion: text('tool_version').notNull(),
+    params: text('params').notNull(),
+    output: blob('output', { mode: 'buffer' }).notNull(),
+    outputSha256: text('output_sha256').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [index('ingest_results_original_idx').on(table.originalSha256)],
+);
+
+// La cola: una tarea por etapa y por unidad. `runner_id` es el arranque de Retenia que la tomó y
+// `heartbeat_at`, su último latido (en milisegundos del cronómetro de ese arranque). Una tarea «en
+// curso» de otro arranque, o sin latido hace más de 15 s, vuelve a «pendiente».
+export const ingestTasks = sqliteTable(
+  'ingest_tasks',
+  {
+    id: text('id').primaryKey(),
+    materialId: text('material_id').notNull(),
+    stage: text('stage').notNull(),
+    stageOrder: integer('stage_order').notNull(),
+    unitNo: integer('unit_no').notNull().default(0),
+    status: text('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    recoveries: integer('recoveries').notNull().default(0),
+    runnerId: text('runner_id'),
+    heartbeatAt: integer('heartbeat_at'),
+    lastProblem: text('last_problem'),
+    // La clave del resultado que dejó (en `ingest_results`).
+    resultKey: text('result_key'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [
+    index('ingest_tasks_status_idx').on(table.status, table.createdAt),
+    index('ingest_tasks_material_idx').on(table.materialId, table.stageOrder, table.unitNo),
+  ],
+);

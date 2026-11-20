@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWorkerClient, WorkerProblem, type WorkerProcess } from '../../src/main/supervisor';
+import { watchParent } from '../../src/main/workers/watch-parent';
 
 // El supervisor de los procesos de trabajo (voz y materiales): los abre recién al primer pedido,
 // reparte cada respuesta a su pedido, corta el proceso que vence su tiempo límite o se cae y
@@ -123,5 +124,85 @@ describe('supervisor de procesos de trabajo', () => {
     worker.stop();
     await expect(pending).rejects.toEqual(new WorkerProblem('crashed'));
     expect(spawned[0]?.killed).toBe(true);
+  });
+});
+
+describe('vigilante de memoria y cortes a pedido (Fase 13)', () => {
+  it('si el proceso pasa el tope de memoria mientras trabaja, se lo corta y el pedido falla con «memoria» (simulado)', async () => {
+    let used = 100;
+    const worker = createWorkerClient({
+      spawn: () => {
+        const created = new FakeProcess();
+        spawned.push(created);
+        return created;
+      },
+      idleMs: 300_000,
+      memory: { limitBytes: 1000, usageOf: () => used, everyMs: 1000 },
+    });
+    const pending = worker.request({ kind: 'pagina' }, 60_000);
+    const settled = pending.catch((error: unknown) => error);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(spawned[0]?.killed).toBe(false);
+    used = 5000;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(spawned[0]?.killed).toBe(true);
+    const error = await settled;
+    expect(error).toBeInstanceOf(WorkerProblem);
+    expect((error as WorkerProblem).problem).toBe('memory');
+    // El próximo pedido abre otro proceso.
+    void worker.request({ kind: 'otra' }, 60_000).catch(() => undefined);
+    expect(spawned).toHaveLength(2);
+    worker.stop();
+  });
+
+  it('sin pedidos en curso no se mide nada ni se corta nada (simulado)', async () => {
+    const worker = createWorkerClient({
+      spawn: () => {
+        const created = new FakeProcess();
+        spawned.push(created);
+        return created;
+      },
+      idleMs: 300_000,
+      memory: { limitBytes: 1000, usageOf: () => 5000, everyMs: 1000 },
+    });
+    const first = worker.request({ kind: 'uno' }, 60_000);
+    spawned[0]?.reply(0, { ok: true, result: 1 });
+    await first;
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(spawned[0]?.killed).toBe(false);
+    worker.stop();
+  });
+
+  it('«interrupt» corta el proceso y lo pendiente falla con el problema pedido (simulado)', async () => {
+    const worker = client();
+    const pending = worker.request({ kind: 'pagina' }, 60_000).catch((error: unknown) => error);
+    worker.interrupt?.('crashed');
+    expect(spawned[0]?.killed).toBe(true);
+    expect(((await pending) as WorkerProblem).problem).toBe('crashed');
+    worker.stop();
+  });
+});
+
+describe('un proceso de trabajo sin padre se cierra solo (Fase 13)', () => {
+  it('mientras el padre vive sigue; cuando desaparece se cierra (simulado)', () => {
+    let alive = true;
+    const exits: number[] = [];
+    const ticks: (() => void)[] = [];
+    watchParent({
+      everyMs: 1000,
+      parentAlive: () => alive,
+      exit: (code: number) => {
+        exits.push(code);
+      },
+      every: (tick: () => void) => {
+        ticks.push(tick);
+        return { unref: () => undefined };
+      },
+    });
+    ticks[0]?.();
+    expect(exits).toEqual([]);
+    alive = false;
+    ticks[0]?.();
+    expect(exits).toEqual([0]);
   });
 });

@@ -43,7 +43,7 @@ Tarjetas con nombre:
 - **«¿Qué es la varianza?»** → «El promedio de los cuadrados de las distancias a la media.» Programada. Para CA-096. Tema: Media y dispersión.
 - **Dos tarjetas con la tabla de la página 7** del PDF como cita; usan ese texto mal leído (CA-115). Tema: Pruebas de hipótesis.
 - **Tres tarjetas nacidas en la nota «Intervalos de confianza»:** una con «>>» y dos hermanas de un renglón con dos huecos (CA-050).
-- **Al menos 5 tarjetas con cita del PDF** en las páginas 1 a 4, con «Ver en el original» (humo S5, CA-110).
+- **Al menos 5 tarjetas con cita del PDF** en las páginas 1 a 4, con «Ver en el original» (humo S5, CA-110). Desde la Fase 13 son cinco, con la frase en `elenco/tarjetas.json` (`cita`): «¿Qué es una población en estadística?» y «¿Qué es una muestra?» (página 1), «¿Qué es un parámetro?» y «¿Qué es un estadístico?» (página 2) y «¿Qué es un estimador puntual?» (página 3).
 
 Ejercicio abierto (se lista en «Tarjetas» con la marca «Ejercicio»; no suma al 180): **«Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?»**, con respuesta modelo en 3 unidades de idea: (1) el 95 % habla del procedimiento, no de este intervalo en particular; (2) si se repitiera el muestreo muchas veces, cerca del 95 % de los intervalos contendría la media; (3) no es la probabilidad de que la media esté en [4,2; 5,8]. Tema: Intervalos de confianza.
 
@@ -58,12 +58,12 @@ Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para l
 
 - **Nota «Intervalos de confianza»** (tema Intervalos de confianza). Contiene: las 3 tarjetas escritas dentro del texto; un renglón que dice «varianza»; un renglón con la fórmula en texto «s / sqrt(n)» (CA-097); un renglón con la fórmula renderizada `$\bar{x} \pm t \cdot s/\sqrt{n}$` (CA-373); la imagen «campana.png» (una curva normal) (CA-372); un enlace «[[Media y dispersión]]» a la nota del mismo nombre (CA-374).
 - **Nota «Media y dispersión»** (tema Media y dispersión): texto breve. Es la que aparece en «Mencionada en» desde la nota anterior (CA-375).
-- **Bandeja:** 2 elementos: «Preguntar por el teorema central del límite» y un extracto de la página 3 del PDF (CA-047, CA-112).
+- **Bandeja:** 2 elementos: «Preguntar por el teorema central del límite» y un extracto de la página 3 del PDF (CA-047, CA-112). Todavía no se siembran: con algo en la Bandeja el riel muestra su contador y cambiarían todas las capturas de referencia (ver `docs/decisiones.md`, Fase 13).
 - Historia argentina: una nota breve en el tema Independencia.
 
 ## Materiales
 
-- **«Inferencia — capítulos 1 a 4.pdf»**, 12 páginas. Página 7: una tabla, con texto mal leído usado por 2 tarjetas. Página 9: escaneo sin texto. Página 11: una fórmula mal leída. Sección 1: unas 600 palabras. Cobertura: 9 listas · 2 para revisar · 1 pendiente. Nunca enviado a la IA (CA-172).
+- **«Inferencia — capítulos 1 a 4.pdf»**, 12 páginas. Página 7: una tabla, con texto mal leído usado por 2 tarjetas. Página 9: escaneo sin texto. Página 11: una fórmula mal leída. Sección 1: unas 600 palabras. Cobertura: 9 listas · 2 para revisar · 1 pendiente. Nunca enviado a la IA (CA-172). Agregado el lunes 08/03/2027 (Fase 13); se lee solo al abrir Retenia.
 - **«Apunte 3.pdf»**, agregado el 12/03/2027 (CA-106).
 
 ## Historia argentina
