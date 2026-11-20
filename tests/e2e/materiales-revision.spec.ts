@@ -202,3 +202,22 @@ test('[CA-121] «Simular sin conexión»: la página queda «Pendiente: se desca
     SLOW,
   );
 });
+
+test('[CA-119] una dirección que redirige (como http a https) se sigue hasta la página y llega a «Listo»', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  const target = await serve(readFileSync(join(SAMPLES, 'pagina.html'), 'utf8'));
+  const jump = createServer((_request, response) => {
+    response.writeHead(302, { location: target }).end();
+  });
+  servers.push(jump);
+  await new Promise<void>((done) => jump.listen(0, '127.0.0.1', done));
+  const address = `http://127.0.0.1:${String((jump.address() as AddressInfo).port)}/viejo`;
+  await toMaterials(page);
+  await addAddress(page, address);
+  await expect(main(page).getByRole('button', { name: /teorema central/ })).toContainText(
+    'Listo',
+    SLOW,
+  );
+});

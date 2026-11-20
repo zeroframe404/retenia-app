@@ -211,6 +211,15 @@ Fase 13 (migración `0009_materiales`, solo agrega; explicado en `docs/decisione
 - `inbox_items.source` (JSON, nula): de qué material y página salió un extracto, con su referencia («Inferencia — capítulos 1 a 4 · página 3»).
 - El buscador suma los tipos `material` (el título y el texto que no cae en ninguna sección) y `section` (el título de la sección y lo que cuelga directo de ella), con disparadores que anotan el material cuando cambian él o sus bloques. Las tablas nuevas suman a las cantidades que guarda cada copia.
 
+Fase 14 (migración `0010_revision_de_materiales`, solo agrega; explicado en `docs/decisiones.md`, sección Fase 14):
+
+- `materials` suma `source_url` (la dirección de una página web; nula si vino de un archivo .html), `snapshot_at` (cuándo se sacó la instantánea) y `pending_network` (0 o 1: una dirección que espera conexión y todavía no tiene original). `kind` admite `'web'`.
+- `material_units` suma `excluded` («Estudiar sin estas páginas»), `text_source` (`'pdf'` u `'ocr'`), `ocr_confidence` (0 a 100) y `generation` (cuántas veces se pidió leerla de nuevo; entra en la clave de la etapa, así «Reprocesar» no reusa lo guardado).
+- `material_blocks` suma `base_text`: el texto de base de un bloque corregido (nulo si no tiene corrección; el texto de base de un bloque sin corrección es `normalized_text`).
+- `block_corrections` reemplaza a `page_corrections` (la corrección es por bloque, no por página): `id, material_id, unit_no, block_key (huella del tipo y del texto de base), before_text, after_text, state ('applied' | 'conflict'), pending_cards (JSON: las tarjetas que usan el texto y todavía no se actualizaron), created_at, updated_at`.
+- `problem_resolutions`: lo que se decidió de cada problema de la revisión: `(material_id, unit_no, problem_key) → resolution ('image' | 'ignored')`. `problem_key` es la huella del bloque, o `'unit'` si el aviso es de la página entera.
+- Una página reconocida (escaneo) deja su resultado en `ingest_results` como cualquier lectura, con la herramienta `tesseract.js` y su confianza; la instantánea de una página web queda en el resultado de su lectura (`extract`), nunca ejecutable.
+
 ### Objetivos, metas y hábitos
 
 | Tabla | Columnas | Historias |

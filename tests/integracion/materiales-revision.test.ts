@@ -559,3 +559,37 @@ describe('la estructura de un escaneo reconocido', () => {
     expect(blocks.filter((row) => row.type === 'paragraph').length).toBeGreaterThanOrEqual(3);
   });
 });
+
+describe('corregir mientras una página se vuelve a leer', () => {
+  it('[CA-116] una corrección hecha mientras otra página se reprocesa no falla y queda aplicada cuando termina', async () => {
+    const space = openSpace();
+    let release: () => void = () => undefined;
+    let hold: Promise<void> | null = null;
+    const { opened, materialId } = await processed(space, {
+      execute: async (task: MaterialsTask) => {
+        if (hold && task.kind === 'extract' && task.unit === 7) {
+          await hold;
+        }
+        return runMaterialsTask(task);
+      },
+    });
+    const formula = blockOf(space, materialId, 'formula', 11);
+    hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    opened.service.reprocessPage({ materialId, unit: 7 });
+    const corrected = 't =\n(x̄ − μ0) / (s / √n)';
+    expect(() =>
+      opened.service.correctText({ materialId, blockId: formula.id, text: corrected }),
+    ).not.toThrow();
+    release();
+    await opened.service.whenIdle();
+    expect(
+      opened.service.page({ materialId, unit: 11 }).blocks.find((block) => block.type === 'formula')
+        ?.text,
+    ).toBe(corrected);
+    expect(readRows(space.file, 'SELECT state FROM block_corrections')).toEqual([
+      { state: 'applied' },
+    ]);
+  });
+});

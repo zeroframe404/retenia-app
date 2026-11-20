@@ -1,4 +1,4 @@
-import { MAX_WEB_BYTES, parseWebAddress } from '../../core/materials/web-address';
+import { MAX_WEB_BYTES } from '../../core/materials/web-address';
 import type { NetGate } from '../net-gate';
 
 // Bajar una página web (Fase 14, H-28). La descarga la hace el proceso principal; lo que baja se
@@ -13,7 +13,6 @@ export type Downloaded =
   // No hubo forma de conectarse: queda pendiente hasta que haya conexión.
   | { ok: false; pending: true };
 
-const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 20_000;
 const BLOCKED = new Set([401, 402, 403, 407, 451]);
 
@@ -48,62 +47,54 @@ async function readCapped(response: Response): Promise<Uint8Array | null> {
   return Buffer.concat(chunks);
 }
 
+// Un error de la red que dice que una redirección no es segura (otro esquema, demasiadas vueltas):
+// la página no sirve; no es que falte conexión.
+const UNSAFE_REDIRECT =
+  /UNSAFE_REDIRECT|TOO_MANY_REDIRECTS|unknown scheme|scheme must be|Redirect was cancelled|redirect count exceeded/i;
+
+function describeError(error: unknown): string {
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  return `${String(error)} ${String(cause ?? '')}`;
+}
+
 export async function downloadPage(address: string, net: NetGate): Promise<Downloaded> {
-  let url = address;
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    let response: Response;
-    try {
-      response = await net.fetch(url, {
-        redirect: 'manual',
-        credentials: 'omit',
-        referrerPolicy: 'no-referrer',
-        headers: {
-          accept: 'text/html,application/xhtml+xml',
-          'accept-language': 'es,en;q=0.8',
-        },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch {
-      return { ok: false, pending: true };
-    }
-    if (response.status >= 300 && response.status < 400) {
-      const location = response.headers.get('location');
-      await response.body?.cancel().catch(() => undefined);
-      let next: ReturnType<typeof parseWebAddress> = { ok: false };
-      try {
-        next = location ? parseWebAddress(new URL(location, url).href) : { ok: false };
-      } catch {
-        next = { ok: false };
-      }
-      if (!next.ok) {
-        return { ok: false, problem: 'webNotPage' };
-      }
-      url = next.url;
-      continue;
-    }
-    if (BLOCKED.has(response.status)) {
-      await response.body?.cancel().catch(() => undefined);
-      return { ok: false, problem: 'webBlocked' };
-    }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      return { ok: false, problem: 'webUnreachable' };
-    }
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!/\b(?:x?html)\b/iu.test(contentType)) {
-      await response.body?.cancel().catch(() => undefined);
-      return { ok: false, problem: 'webNotPage' };
-    }
-    let bytes: Uint8Array | null;
-    try {
-      bytes = await readCapped(response);
-    } catch {
-      return { ok: false, pending: true };
-    }
-    if (bytes === null) {
-      return { ok: false, problem: 'tooLarge' };
-    }
-    return { ok: true, html: decode(bytes, contentType) };
+  let response: Response;
+  try {
+    // Las redirecciones las sigue la red (solo a direcciones http o https: una a otro esquema falla
+    // sola, y con eso no se pasa a un archivo del disco).
+    response = await net.fetch(address, {
+      redirect: 'follow',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      headers: { accept: 'text/html,application/xhtml+xml', 'accept-language': 'es,en;q=0.8' },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+  } catch (error) {
+    return UNSAFE_REDIRECT.test(describeError(error))
+      ? { ok: false, problem: 'webNotPage' }
+      : { ok: false, pending: true };
   }
-  return { ok: false, problem: 'webNotPage' };
+  if (BLOCKED.has(response.status)) {
+    await response.body?.cancel().catch(() => undefined);
+    return { ok: false, problem: 'webBlocked' };
+  }
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => undefined);
+    return { ok: false, problem: 'webUnreachable' };
+  }
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!/\b(?:x?html)\b/iu.test(contentType)) {
+    await response.body?.cancel().catch(() => undefined);
+    return { ok: false, problem: 'webNotPage' };
+  }
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await readCapped(response);
+  } catch {
+    return { ok: false, pending: true };
+  }
+  if (bytes === null) {
+    return { ok: false, problem: 'tooLarge' };
+  }
+  return { ok: true, html: decode(bytes, contentType) };
 }

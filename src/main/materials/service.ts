@@ -408,6 +408,11 @@ export function createMaterialsService({
   // Vuelve a armar los bloques con lo que hay (una corrección nueva, una decisión sobre un
   // conflicto): no hace falta leer nada de nuevo, así que es al instante.
   function rebuildBlocks(materialId: string): void {
+    // Mientras se vuelve a leer una página no hay normalización a la que aplicarle nada: la
+    // corrección queda guardada y la aplica la etapa de indexar cuando llegue.
+    if (store().stageOutputs(materialId, 'normalize').length === 0) {
+      return;
+    }
     const row = store().row(materialId);
     const { indexed, outcomes } = indexedBlocksOf(materialId, (row.kind ?? 'text') as never);
     store().replaceBlocks(materialId, indexed, outcomes);
