@@ -1213,6 +1213,9 @@ export const texts = {
     historyTitle: 'Importaciones',
     historyLabel: 'Tus importaciones',
     historyEmpty: 'Todavía no importaste nada.',
+    // Lo que entró en una importación ya hecha (sin verbo: ya pasó).
+    historyAnki: (counts: { cards: { fresh: number }; reviews: number; rejected: number }) =>
+      `${numberFormat.format(counts.cards.fresh)} ${counts.cards.fresh === 1 ? 'tarjeta' : 'tarjetas'} y ${numberFormat.format(counts.reviews)} ${counts.reviews === 1 ? 'repaso' : 'repasos'} · ${counts.rejected === 1 ? '1 rechazada' : `${numberFormat.format(counts.rejected)} rechazadas`}`,
     historyRow: (date: string, kind: string, fileName: string, subject: string) =>
       `${date} · ${kind} · «${fileName}» en «${subject}»`,
     kinds: { anki: 'Anki', remnote: 'RemNote' },

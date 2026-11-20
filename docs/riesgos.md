@@ -76,6 +76,7 @@ Las piezas que más pueden fallar, qué se hace si fallan y en qué fase se comp
 - **Qué puede salir mal.** Anki 26.09 exporta `collection.anki21b` comprimido con zstd y la lista de medios en protobuf; el zstd de Node 24 está marcado experimental y el protobuf exige un lector mínimo propio. RemNote exporta en un formato poco documentado y no está confirmado que traiga el historial.
 - **Cómo nos damos cuenta.** CA-122 a CA-125 (Fase 15) con `mazo-demo.apkg` y `remnote-demo.zip`.
 - **Plan B.** Pedir, en la Ayuda y en la vista previa, la exportación de Anki con «Support older Anki versions» (produce `collection.anki21` con medios en JSON, que se lee sin zstd ni protobuf) y la exportación Markdown de RemNote; si RemNote no trae historial, las tarjetas entran como nuevas y la vista previa lo dice (ya previsto en H-29).
+- **Estado hoy (20/11/2026, Fase 15).** El zstd del Node de Electron 44 (24.22) anda, con tope de salida: no hizo falta el plan B ni un paquete. El protobuf lo lee un lector propio (`src/core/imports/protobuf.ts`), con pruebas de propiedades. Los tres formatos de Anki se leen (pruebas con mazos armados en el momento). RemNote: la exportación en Markdown no trae historial (sus tarjetas llegan «Disponibles»); su formato sigue sin documentar y no había una exportación real para comprobarlo: lo confirma la prueba manual M15.9.
 - **Se comprueba en** la Fase 15.
 
 ## 9. Licencias de los datos del curso de inglés

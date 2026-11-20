@@ -211,6 +211,18 @@ La evaluación con IA no tiene canal propio: `study.answer` decide, según ajust
 | `trash.list` / `trash.restore` / `trash.empty` | `{ entryId? }` | entradas con vencimiento | H-06 |
 | `activity.recent` / `activity.undo` | `{ versionId }` | lista de cambios; estado anterior restaurado | H-06 |
 
+Cómo quedó en la Fase 15 (importar y exportar; el archivo siempre lo elige el diálogo de Windows del principal, la ventana nunca manda una ruta):
+
+| Canal | Petición | Respuesta |
+|---|---|---|
+| `imports.choose` | `{ kind ('anki' · 'remnote'), folder? }` | `cancelled`, `problem` (`notAnki` · `notRemnote` · `tooNew` · `damaged` · `unsafe`) o `preview`: `previewId`, conteos (tarjetas y notas nuevas y que ya estaban, repasos, sin historial, rechazadas), rechazadas con motivo, anotadas y si el archivo ya se importó |
+| `imports.run` | `{ previewId, destination: { kind: 'subject', subjectId } · { kind: 'new', name } }` | `{ importId, subjectId, subjectName, counts, backupId }` (antes, la copia «Antes de importar») |
+| `imports.cancel` / `imports.list` / `imports.saveRejected` | `{ previewId }` / `{}` / `{ importId }` | `{ ok }` / `{ imports }` / `{ saved }` (el principal abre el diálogo de guardar) |
+| `exports.all` | `{}` | `cancelled` o `{ fileName, counts }` |
+| `exports.canLoad` / `exports.choose` / `exports.load` | `{}` / `{}` / `{ previewId }` | `{ empty }` / `cancelled`, `problem` (`notEmpty` · `notExport` · `damaged` · `tooNew` · `unsafe`) o `{ previewId, counts, exportedAt }` / `{ counts }` |
+
+`imports.run` y `exports.load` son exclusivos en la compuerta y frenan la cola de materiales mientras corren. Los archivos ajenos los lee un proceso aislado propio (`src/main/workers/transfers.ts`: sin red, con tope de memoria y de tiempo), que también escribe el comprimido de «Exportar todo».
+
 Cómo quedó en la Fase 04:
 
 | Canal | Petición | Respuesta |

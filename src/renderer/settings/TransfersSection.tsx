@@ -13,6 +13,7 @@ import styles from '../ui/Content.module.css';
 import form from '../ui/Form.module.css';
 import { ItemList, ListItem, Toast } from '../ui/Frame';
 import { ViewState } from '../ui/ViewStates';
+import local from './Transfers.module.css';
 
 // Ajustes › «Datos y copias» (Fase 15): «Traer de otros programas» (Anki y RemNote, con su vista
 // previa: nada se escribe hasta «Importar») y «Tus datos, para llevar» («Exportar todo» e «Importar
@@ -78,9 +79,9 @@ function Preview({
   const existing = preview.kind === 'anki' ? preview.counts.cards : preview.counts.notes;
   const ready = fresh && (target !== NEW_SUBJECT || name.trim() !== '');
   return (
-    <section className={styles.stack} aria-label={texts.imports.previewLabel}>
-      <h5>{texts.imports.previewTitle(preview.fileName)}</h5>
-      <p>{summaryOf(preview)}</p>
+    <section className={local.preview} aria-label={texts.imports.previewLabel}>
+      <h5 className={local.title}>{texts.imports.previewTitle(preview.fileName)}</h5>
+      <p className={local.summary}>{summaryOf(preview)}</p>
       {existing.existing > 0 ? <p>{texts.imports.again(existing)}</p> : null}
       {preview.importedBefore ? (
         <p>{texts.imports.importedBefore(dayOf(preview.importedBefore))}</p>
@@ -91,7 +92,10 @@ function Preview({
           <p>{texts.imports.withoutHistoryNote}</p>
         </>
       ) : null}
-      <p>{texts.imports.nothingWritten}</p>
+      <p className={local.note}>{texts.imports.nothingWritten}</p>
+      {preview.annotated.length > 0 ? (
+        <h6 className={local.subtitle}>{texts.imports.annotatedTitle}</h6>
+      ) : null}
       {preview.annotated.length > 0 ? (
         <ItemList label={texts.imports.annotatedTitle}>
           {preview.annotated.map((item, index) => (
@@ -102,6 +106,9 @@ function Preview({
             />
           ))}
         </ItemList>
+      ) : null}
+      {preview.rejected.length > 0 ? (
+        <h6 className={local.subtitle}>{texts.imports.rejectedTitle}</h6>
       ) : null}
       <RejectedList items={preview.rejected} />
       {fresh ? (
@@ -452,7 +459,7 @@ export function TransfersSection({ onChanged }: { onChanged: () => void }) {
                   record.subjectName,
                 )} · ${
                   record.kind === 'anki'
-                    ? texts.imports.ankiSummary(record.counts)
+                    ? texts.imports.historyAnki(record.counts)
                     : texts.imports.remnoteSummary(record.counts, record.rejected)
                 }`}
                 actions={

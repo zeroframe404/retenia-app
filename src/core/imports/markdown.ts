@@ -35,7 +35,10 @@ const FORBIDDEN = /[\\/:*?"<>|]/g;
 const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i;
 
 export function safeFileName(name: string, fallback: string): string {
-  const clean = name
+  // Los caracteres de control (códigos menores que 32) tampoco van en un nombre de archivo.
+  const clean = [...name]
+    .map((char) => ((char.codePointAt(0) ?? 0) < 32 ? ' ' : char))
+    .join('')
     .replace(FORBIDDEN, ' ')
     .replace(/\s+/g, ' ')
     .trim()

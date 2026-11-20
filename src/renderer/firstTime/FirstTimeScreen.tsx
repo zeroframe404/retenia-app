@@ -112,11 +112,9 @@ export function FirstTimeScreen({
           </Boton>
         </div>
         {__VARIANTE__ === 'prueba' ? <DemoFirstTimeExit onDataChanged={onDataChanged} /> : null}
-      </form>
-      {/* ¿Ya usaste Retenia? Una exportación entera se carga acá, con Retenia vacío (Fase 15). */}
-      <div className={styles.card}>
+        {/* ¿Ya usaste Retenia? Una exportación entera se carga acá, con Retenia vacío (Fase 15). */}
         <LoadExport onLoaded={onDataChanged} />
-      </div>
+      </form>
     </main>
   );
 }

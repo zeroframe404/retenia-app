@@ -40,6 +40,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.imports.rejectedLine': ['Cruce de los Andes: mapa-del-cruce.png', 'imagen faltante'],
   'texts.imports.doneAnki': [3, 5, 'Historia argentina'],
   'texts.imports.doneRemnote': [12, 8, 'Historia argentina'],
+  'texts.imports.historyAnki': [{ cards: { fresh: 3 }, reviews: 5, rejected: 0 }],
   'texts.imports.historyRow': ['15/03/2027', 'Anki', 'mazo-demo.apkg', 'Historia argentina'],
   'texts.imports.rejectedHeader': ['remnote-demo.zip', '15/03/2027'],
   'texts.imports.rejectedFileName': ['remnote-demo'],
