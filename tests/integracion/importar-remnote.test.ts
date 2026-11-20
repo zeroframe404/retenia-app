@@ -174,7 +174,18 @@ describe('remnote-demo.zip', () => {
         existing: second.counts.notes.existing,
       }),
     ).toBe('0 nuevas · 12 ya estaban');
-    expect(dumpTables(space.file)).toEqual(before);
+    // Y tocar «Importar» igual no escribe nada: ni notas, ni tarjetas, ni otra importación.
+    const notes = readRows(space.file, 'SELECT count(*) AS n FROM notes')[0];
+    const cards = readRows(space.file, 'SELECT count(*) AS n FROM cards')[0];
+    await transfers.run({
+      previewId: second.previewId,
+      destination: { kind: 'subject', subjectId },
+    });
+    expect(readRows(space.file, 'SELECT count(*) AS n FROM notes')[0]).toEqual(notes);
+    expect(readRows(space.file, 'SELECT count(*) AS n FROM cards')[0]).toEqual(cards);
+    expect(dumpTables(space.file, { except: ['imports'] })).toEqual(
+      Object.fromEntries(Object.entries(before).filter(([table]) => table !== 'imports')),
+    );
   });
 
   it('[CA-123] un documento que no es texto se rechaza con su motivo y los demás entran', async () => {
