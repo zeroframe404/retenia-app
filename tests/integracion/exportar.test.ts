@@ -97,7 +97,12 @@ describe('Exportar todo', () => {
     const result = await openTransfers(space).exportAll({ file });
     const entries = await entriesOf(result.file);
     const names = [...entries.keys()];
-    for (const name of ['indice.json', 'tarjetas.json', 'historial.jsonl', 'operaciones.jsonl']) {
+    for (const name of [
+      'indice.json',
+      'tarjetas/tarjetas-y-relaciones.json',
+      'historial/eventos.jsonl',
+      'historial/operaciones.jsonl',
+    ]) {
       expect(names).toContain(name);
     }
     expect(names.some((name) => /^apuntes\/.+\.md$/.test(name))).toBe(true);
@@ -170,7 +175,7 @@ describe('Exportar todo', () => {
     const space = await fullSpace();
     const result = await openTransfers(space).exportAll({ file: join(outsideFolder(), 'R.zip') });
     const entries = await entriesOf(result.file);
-    const lines = String(entries.get('historial.jsonl'))
+    const lines = String(entries.get('historial/eventos.jsonl'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as { tabla: string; id: string });
@@ -268,7 +273,10 @@ describe('Importar exportación', () => {
     const { zip } = await import('../../tools/datos-de-ejemplo/zip.mjs');
     const tampered = [...entries].map(([name, data]) => ({
       name,
-      data: name === 'tarjetas.json' ? Buffer.concat([data, Buffer.from(' ')]) : data,
+      data:
+        name === 'tarjetas/tarjetas-y-relaciones.json'
+          ? Buffer.concat([data, Buffer.from(' ')])
+          : data,
     }));
     const file = join(outsideFolder(), 'alterada.zip');
     writeFileSync(file, zip(tampered));

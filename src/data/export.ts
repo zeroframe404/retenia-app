@@ -30,8 +30,9 @@ import { migrationIds } from './migrations';
 import { repairData } from './projections';
 
 // «Exportar todo» e «Importar exportación» (H-30). La exportación lleva todo lo tuyo en un formato
-// abierto: los apuntes en Markdown, las tarjetas (tarjetas.json), el historial completo
-// (historial.jsonl: observaciones y evaluaciones) y el registro de operaciones (operaciones.jsonl),
+// abierto: los apuntes en Markdown, las tarjetas (tarjetas/tarjetas-y-relaciones.json), el historial completo
+// (historial/eventos.jsonl: observaciones y evaluaciones) y el registro de operaciones
+// (historial/operaciones.jsonl),
 // los originales de los materiales, las imágenes, los audios y un índice (indice.json) con los
 // conteos y la huella de cada archivo. El resto de las tablas va fila por fila en
 // datos/contenido.jsonl: con eso «Importar exportación» reconstruye un Retenia vacío por
@@ -207,14 +208,14 @@ export function stageExport(
     }
     writeData(
       staging,
-      'historial.jsonl',
+      'historial/eventos.jsonl',
       history.length > 0 ? `${history.join('\n')}\n` : '',
       'data',
       files,
     );
     writeData(
       staging,
-      'operaciones.jsonl',
+      'historial/operaciones.jsonl',
       operations.length > 0 ? `${operations.join('\n')}\n` : '',
       'data',
       files,
@@ -289,7 +290,13 @@ export function stageExport(
       creada: row.created_at,
       eliminada: row.deleted_at,
     }));
-    writeData(staging, 'tarjetas.json', `${JSON.stringify(cardsJson, null, 2)}\n`, 'data', files);
+    writeData(
+      staging,
+      'tarjetas/tarjetas-y-relaciones.json',
+      `${JSON.stringify(cardsJson, null, 2)}\n`,
+      'data',
+      files,
+    );
 
     // Los apuntes en Markdown.
     const imageExtension = new Map(
@@ -403,7 +410,7 @@ export function stageExport(
   return { index, entries };
 }
 
-export class ExportNotLoadableError extends Error {
+class ExportNotLoadableError extends Error {
   constructor(reason: string) {
     super(`No se puede cargar la exportación: ${reason}`);
     this.name = 'ExportNotLoadableError';
@@ -481,7 +488,11 @@ export function loadStagedExport(
   db.orm.transaction((tx) => {
     raw.pragma('defer_foreign_keys = ON');
     let lastSeq = 0;
-    for (const file of ['datos/contenido.jsonl', 'historial.jsonl', 'operaciones.jsonl']) {
+    for (const file of [
+      'datos/contenido.jsonl',
+      'historial/eventos.jsonl',
+      'historial/operaciones.jsonl',
+    ]) {
       for (const line of readLines(join(staging, file))) {
         insert(line);
         if (typeof line.seq === 'number' && line.seq > lastSeq) {

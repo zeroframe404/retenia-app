@@ -57,7 +57,7 @@ function pngChunk(type, data) {
 }
 
 /** Franjas horizontales de colores. @param {number} width @param {number} height @param {number[][]} stripes */
-export function stripesPng(width, height, stripes) {
+function stripesPng(width, height, stripes) {
   const rows = [];
   for (let y = 0; y < height; y++) {
     const color = stripes[Math.min(stripes.length - 1, Math.floor((y * stripes.length) / height))];
@@ -82,13 +82,13 @@ export function stripesPng(width, height, stripes) {
   ]);
 }
 
-export const FLAG_PNG = () =>
+const FLAG_PNG = () =>
   stripesPng(60, 36, [
     [116, 172, 223],
     [255, 255, 255],
     [116, 172, 223],
   ]);
-export const SHIELD_PNG = () =>
+const SHIELD_PNG = () =>
   stripesPng(40, 48, [
     [116, 172, 223],
     [255, 255, 255],
@@ -385,7 +385,7 @@ export function ankiPackage(spec) {
 
 // Un instante a las 10:00 de Buenos Aires (13:00 UTC), en milisegundos.
 /** @param {string} day dd/mm/aaaa */
-export function ankiInstant(day, minute = 0) {
+function ankiInstant(day, minute = 0) {
   const [d, m, y] = day.split('/').map(Number);
   return Date.UTC(y ?? 2027, (m ?? 1) - 1, d ?? 1, 13, minute, 0);
 }

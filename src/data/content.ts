@@ -118,9 +118,7 @@ export function parseContent(json: string | null): InlineNode[] | null {
 
 // «Disponible» (Fase 15): importada sin historial, no entra a los repasos hasta «Sumar a mis
 // repasos». Una que ya se repasó (por ejemplo, desde su pantalla con «Repasar») ya no lo es.
-export function isAvailableOnly(
-  row: Pick<CardRow, 'availableOnly' | 'activated' | 'reps'>,
-): boolean {
+function isAvailableOnly(row: Pick<CardRow, 'availableOnly' | 'activated' | 'reps'>): boolean {
   return row.availableOnly === 1 && row.activated === 0 && row.reps === 0;
 }
 

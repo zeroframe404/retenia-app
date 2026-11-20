@@ -664,6 +664,8 @@ export const texts = {
     empty: 'Todavía no tenés tarjetas. Tocá «Nueva tarjeta» para crear la primera.',
     emptyFiltered: 'Ninguna tarjeta cumple esos filtros.',
     notReviewed: 'Todavía sin repasar',
+    // Fase 15: importada sin historial; entra a los repasos con «Sumar a mis repasos».
+    available: 'Disponible',
     nextReview: (longDate: string) => `Próximo repaso: ${longDate}`,
     paused: 'En pausa',
     review: 'Repasar',

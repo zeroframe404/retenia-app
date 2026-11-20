@@ -20,7 +20,8 @@
 }
 
 .field textarea,
-.field input {
+.field input,
+.field select {
   min-height: var(--alto-control);
   padding: var(--espacio-8) var(--espacio-12);
   font: var(--tipo-cuerpo);
@@ -38,6 +39,10 @@
 .field input {
   width: 100%;
   min-width: 0;
+}
+
+.field select {
+  max-width: 100%;
 }
 
 .field textarea[aria-invalid="true"],

@@ -93,6 +93,8 @@ describe('catálogo de textos', () => {
       auto: 'Automática',
       manual: 'Hecha por vos',
       before_restore: 'Antes de restaurar',
+      // Fase 15 (glosario: «Copias con nombre: «Antes de importar»…»).
+      before_import: 'Antes de importar',
     });
     expect(demoTexts.section).toBe('Demostración');
     expect(demoTexts.advance).toEqual({ 1: '+1 día', 7: '+7 días', 35: '+35 días' });

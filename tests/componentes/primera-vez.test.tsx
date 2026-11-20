@@ -27,9 +27,11 @@ describe('la pantalla de la primera vez', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Retenia' })).toBeTruthy();
     expect(screen.getAllByRole('textbox')).toHaveLength(1);
     expect(rail()).toBeNull();
+    // Desde la Fase 15, debajo de la pregunta, «Importar exportación» (para un Retenia vacío).
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
       'Agregar mi primer material',
       'Probar con un ejemplo (3 min)',
+      'Importar exportación',
     ]);
     const primaries = [...document.querySelectorAll('[data-button="primary"]')].map(
       (button) => button.textContent,

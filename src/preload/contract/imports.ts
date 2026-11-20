@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { noRequest } from './common';
 
 // Canales de importar y exportar (H-29, H-30, Fase 15). Los archivos se eligen con el diálogo de
 // Windows desde el proceso principal: la ventana nunca manda una ruta. La vista previa no escribe
@@ -18,21 +17,20 @@ const REJECT_REASONS = [
 const ANNOTATIONS = ['plainText', 'latex', 'unknownLink'] as const;
 const MAX_ITEMS = 200_000;
 
-export const importKindSchema = z.enum(['anki', 'remnote']);
+const importKindSchema = z.enum(['anki', 'remnote']);
 export type ImportKindValue = z.output<typeof importKindSchema>;
 
-export const rejectedSchema = z.strictObject({
+const rejectedSchema = z.strictObject({
   what: z.string().max(1000),
   reason: z.enum(REJECT_REASONS),
 });
-export type RejectedView = z.output<typeof rejectedSchema>;
 const annotatedSchema = z.strictObject({ what: z.string().max(1000), note: z.enum(ANNOTATIONS) });
 
 const pairSchema = z.strictObject({
   fresh: z.number().int().min(0),
   existing: z.number().int().min(0),
 });
-export const importCountsSchema = z.strictObject({
+const importCountsSchema = z.strictObject({
   cards: pairSchema,
   notes: pairSchema,
   reviews: z.number().int().min(0),
@@ -40,9 +38,8 @@ export const importCountsSchema = z.strictObject({
   // Cuántas cosas no entran (con su motivo en la lista de rechazadas).
   rejected: z.number().int().min(0),
 });
-export type ImportCounts = z.output<typeof importCountsSchema>;
 
-export const importPreviewSchema = z.strictObject({
+const importPreviewSchema = z.strictObject({
   previewId: z.uuid(),
   kind: importKindSchema,
   fileName: z.string().max(500),
@@ -56,7 +53,7 @@ export type ImportPreview = z.output<typeof importPreviewSchema>;
 
 // Por qué no hay vista previa: el archivo no es lo que dice, es de una versión más nueva, está
 // dañado o tiene partes que no son seguras.
-export const importProblemSchema = z.enum(['notAnki', 'notRemnote', 'tooNew', 'damaged', 'unsafe']);
+const importProblemSchema = z.enum(['notAnki', 'notRemnote', 'tooNew', 'damaged', 'unsafe']);
 export type ImportProblem = z.output<typeof importProblemSchema>;
 
 export const importsChooseRequest = z.strictObject({
@@ -70,11 +67,10 @@ export const importsChooseResponse = z.discriminatedUnion('outcome', [
   z.strictObject({ outcome: z.literal('problem'), problem: importProblemSchema }),
 ]);
 
-export const destinationSchema = z.discriminatedUnion('kind', [
+const destinationSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('subject'), subjectId: z.uuid() }),
   z.strictObject({ kind: z.literal('new'), name: z.string().trim().min(1).max(120) }),
 ]);
-export type DestinationValue = z.output<typeof destinationSchema>;
 
 export const importsRunRequest = z.strictObject({
   previewId: z.uuid(),
@@ -91,7 +87,7 @@ export type ImportResult = z.output<typeof importsRunResponse>;
 
 export const importsCancelRequest = z.strictObject({ previewId: z.uuid() });
 
-export const importRecordSchema = z.strictObject({
+const importRecordSchema = z.strictObject({
   importId: z.uuid(),
   kind: importKindSchema,
   fileName: z.string(),
@@ -102,7 +98,6 @@ export const importRecordSchema = z.strictObject({
   annotated: z.array(annotatedSchema).max(MAX_ITEMS),
 });
 export type ImportRecordView = z.output<typeof importRecordSchema>;
-export const importsListRequest = noRequest;
 export const importsListResponse = z.strictObject({ imports: z.array(importRecordSchema) });
 
 export const importsSaveRejectedRequest = z.strictObject({ importId: z.uuid() });
@@ -110,7 +105,7 @@ export const importsSaveRejectedResponse = z.strictObject({ saved: z.boolean() }
 
 // --- Exportar todo e Importar exportación ---
 
-export const exportCountsSchema = z.strictObject({
+const exportCountsSchema = z.strictObject({
   subjects: z.number().int().min(0),
   topics: z.number().int().min(0),
   notes: z.number().int().min(0),
@@ -122,7 +117,6 @@ export const exportCountsSchema = z.strictObject({
 });
 export type ExportCountsView = z.output<typeof exportCountsSchema>;
 
-export const exportsAllRequest = noRequest;
 export const exportsAllResponse = z.discriminatedUnion('outcome', [
   z.strictObject({ outcome: z.literal('cancelled') }),
   z.strictObject({
@@ -132,9 +126,8 @@ export const exportsAllResponse = z.discriminatedUnion('outcome', [
   }),
 ]);
 
-export const exportProblemSchema = z.enum(['notEmpty', 'notExport', 'damaged', 'tooNew', 'unsafe']);
+const exportProblemSchema = z.enum(['notEmpty', 'notExport', 'damaged', 'tooNew', 'unsafe']);
 export type ExportProblem = z.output<typeof exportProblemSchema>;
-export const exportsChooseRequest = noRequest;
 export const exportsChooseResponse = z.discriminatedUnion('outcome', [
   z.strictObject({ outcome: z.literal('cancelled') }),
   z.strictObject({
@@ -148,5 +141,4 @@ export const exportsChooseResponse = z.discriminatedUnion('outcome', [
 export const exportsLoadRequest = z.strictObject({ previewId: z.uuid() });
 export const exportsLoadResponse = z.strictObject({ counts: exportCountsSchema });
 // Retenia está vacío: se puede cargar una exportación entera.
-export const exportsCanLoadRequest = noRequest;
 export const exportsCanLoadResponse = z.strictObject({ empty: z.boolean() });

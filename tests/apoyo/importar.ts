@@ -8,7 +8,7 @@ import type { Space } from './espacio';
 // La importación y la exportación (Fase 15) con el proceso de trabajo corriendo en el mismo proceso
 // de la prueba: el mismo código que corre en el proceso aislado «transfers».
 
-export const SAMPLES_DIR = resolve(import.meta.dirname, '..', '..', 'datos-de-ejemplo');
+const SAMPLES_DIR = resolve(import.meta.dirname, '..', '..', 'datos-de-ejemplo');
 export const sample = (name: string) => join(SAMPLES_DIR, name);
 
 const folders: string[] = [];

@@ -23,7 +23,7 @@ export interface ImportPlan {
 
 // Las tarjetas que va a pedir un renglón: las de su contenido (huecos o «>>») y, si es de ida y
 // vuelta, su inversa.
-export function cardsOfBlock(block: Pick<PackageBlock, 'content' | 'inverse'>): number {
+function cardsOfBlock(block: Pick<PackageBlock, 'content' | 'inverse'>): number {
   const specs = rowCardSpecs(asRowContent(block.content));
   return specs.length + (block.inverse && specs[0]?.kind === 'qa' ? 1 : 0);
 }

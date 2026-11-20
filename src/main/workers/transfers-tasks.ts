@@ -36,7 +36,7 @@ import {
 
 const limitsSchema = z.strictObject({ maxBytes: z.number().int().positive().optional() });
 
-export const transferTask = z.discriminatedUnion('kind', [
+const transferTask = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('readAnki'),
     path: z.string().min(1),
@@ -61,11 +61,10 @@ export const transferTask = z.discriminatedUnion('kind', [
     limits: limitsSchema.optional(),
   }),
 ]);
-export type TransferTask = z.input<typeof transferTask>;
 
-export type ReadProblem = 'notAnki' | 'notRemnote' | 'notExport' | 'tooNew' | 'damaged' | 'unsafe';
+type ReadProblem = 'notAnki' | 'notRemnote' | 'notExport' | 'tooNew' | 'damaged' | 'unsafe';
 
-export type ReadResult =
+type ReadResult =
   | { ok: true; package: ImportPackage; fileSha256: string; fileName: string }
   | { ok: false; problem: ReadProblem };
 

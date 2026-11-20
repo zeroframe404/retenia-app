@@ -2,7 +2,7 @@
 // una ruta: las elige la persona en el diálogo del principal. En las pruebas son un doble declarado
 // en docs/plan-de-pruebas.md (anotan el pedido y devuelven una ruta fija).
 
-export interface FileFilter {
+interface FileFilter {
   name: string;
   extensions: string[];
 }
@@ -21,9 +21,9 @@ export interface Dialogs {
 // Los de Electron: modales de la ventana de Retenia.
 export function electronDialogs(
   dialog: Pick<typeof import('electron').dialog, 'showOpenDialog' | 'showSaveDialog'>,
-  window: () => import('electron').BaseWindow | null,
+  ownerWindow: () => import('electron').BaseWindow | null,
 ): Dialogs {
-  const parent = () => window() ?? undefined;
+  const parent = () => ownerWindow() ?? undefined;
   return {
     async chooseFile({ title, filters }) {
       const options = { title, filters, properties: ['openFile' as const] };

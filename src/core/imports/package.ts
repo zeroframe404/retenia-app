@@ -5,11 +5,10 @@ import { z } from 'zod';
 // lo vuelve a validar con este esquema antes de usarlo, porque viene de un archivo ajeno: es dato,
 // nunca instrucción.
 
-export const IMPORT_KINDS = ['anki', 'remnote'] as const;
-export type ImportKind = (typeof IMPORT_KINDS)[number];
+const IMPORT_KINDS = ['anki', 'remnote'] as const;
 
 // Por qué no entró algo (se muestra en palabras, en tono neutro).
-export const REJECT_REASONS = [
+const REJECT_REASONS = [
   'missingImage',
   'missingAudio',
   'onlineImage',
@@ -19,20 +18,17 @@ export const REJECT_REASONS = [
   'tooLarge',
   'unreadableDocument',
 ] as const;
-export type RejectReason = (typeof REJECT_REASONS)[number];
 
 // Lo que entró, pero distinto de como venía (se anota).
-export const ANNOTATIONS = ['plainText', 'latex', 'unknownLink'] as const;
-export type Annotation = (typeof ANNOTATIONS)[number];
+const ANNOTATIONS = ['plainText', 'latex', 'unknownLink'] as const;
 
 // Los topes: lo que pasa de acá se rechaza con su motivo.
 export const MAX_TEXT = 200_000;
-export const MAX_TITLE = 300;
+const MAX_TITLE = 300;
 const MAX_NODES = 5000;
 const MAX_ITEMS = 200_000;
 const SHA = z.string().regex(/^[0-9a-f]{64}$/);
 const GRADES = ['again', 'hard', 'good'] as const;
-export type PackageGrade = (typeof GRADES)[number];
 
 const nodeSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('text'), text: z.string().min(1).max(MAX_TEXT) }),
@@ -52,7 +48,7 @@ const nodeSchema = z.discriminatedUnion('type', [
     label: z.string().max(MAX_TITLE),
   }),
 ]);
-export type PackageNode = z.output<typeof nodeSchema>;
+type PackageNode = z.output<typeof nodeSchema>;
 const contentSchema = z.array(nodeSchema).max(MAX_NODES);
 export type PackageContent = PackageNode[];
 

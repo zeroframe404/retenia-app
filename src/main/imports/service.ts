@@ -28,11 +28,11 @@ import { formatShortDate, texts } from '../../preload/contract/texts';
 // acá se vuelve a validar lo que devuelve, se arma la vista previa (sin escribir nada) y, con
 // «Importar», se hace la copia «Antes de importar» y se escribe todo en una sola transacción.
 
-export type PreviewOutcome =
+type PreviewOutcome =
   | { outcome: 'preview'; preview: ImportPreview }
   | { outcome: 'problem'; problem: ImportProblem };
 
-export type ExportPreviewOutcome =
+type ExportPreviewOutcome =
   | { outcome: 'preview'; previewId: string; counts: ExportCountsView; exportedAt: string }
   | { outcome: 'problem'; problem: ExportProblem };
 
@@ -49,14 +49,14 @@ export interface TransfersService {
   isEmpty(): boolean;
 }
 
-export class PreviewExpiredError extends Error {
+class PreviewExpiredError extends Error {
   constructor() {
     super('La vista previa ya no está: elegí el archivo otra vez');
     this.name = 'PreviewExpiredError';
   }
 }
 
-export class NotEmptyError extends Error {
+class NotEmptyError extends Error {
   constructor() {
     super('Retenia ya tiene datos: una exportación se carga en un Retenia vacío');
     this.name = 'NotEmptyError';

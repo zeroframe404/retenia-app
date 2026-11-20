@@ -104,7 +104,7 @@ export function noteMarkdown(
 export const EXPORT_FORMAT = 'retenia-exportacion';
 export const EXPORT_FORMAT_VERSION = 1;
 
-export const exportCountsSchema = z.strictObject({
+const exportCountsSchema = z.strictObject({
   subjects: z.number().int().min(0),
   topics: z.number().int().min(0),
   notes: z.number().int().min(0),
@@ -116,7 +116,7 @@ export const exportCountsSchema = z.strictObject({
 });
 export type ExportCounts = z.output<typeof exportCountsSchema>;
 
-export const exportFileSchema = z.strictObject({
+const exportFileSchema = z.strictObject({
   path: z.string().min(1).max(500),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
   bytes: z.number().int().min(0),

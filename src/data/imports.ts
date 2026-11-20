@@ -71,21 +71,21 @@ export interface ImportsStore {
   get(importId: string): ImportRecord;
 }
 
-export class ImportNotFoundError extends Error {
+class ImportNotFoundError extends Error {
   constructor() {
     super('No encontré esa importación');
     this.name = 'ImportNotFoundError';
   }
 }
 
-export class DestinationNotFoundError extends Error {
+class DestinationNotFoundError extends Error {
   constructor() {
     super('No encontré la materia de destino');
     this.name = 'DestinationNotFoundError';
   }
 }
 
-export class MediaMismatchError extends Error {
+class MediaMismatchError extends Error {
   constructor() {
     super('Un archivo del paquete no coincide con su huella');
     this.name = 'MediaMismatchError';
