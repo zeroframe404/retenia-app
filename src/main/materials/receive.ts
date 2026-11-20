@@ -25,7 +25,16 @@ import { originalPath } from './originals';
 export const MAX_MATERIAL_BYTES = 1024 * 1024 * 1024;
 
 export type Received =
-  | { ok: true; sha256: string; size: number; kind: MaterialKind; ext: string; name: string }
+  | {
+      ok: true;
+      sha256: string;
+      size: number;
+      kind: MaterialKind;
+      ext: string;
+      name: string;
+      // El original se guardó recién ahora (no había uno con esa huella).
+      fresh: boolean;
+    }
   | { ok: false; problem: ErrorProblem; size: number; name: string };
 
 const RENAME_ATTEMPTS = 10;
@@ -87,7 +96,7 @@ async function store(
   originalsDir: string,
   sha256: string,
   ext: string,
-): Promise<void> {
+): Promise<boolean> {
   const target = originalPath(originalsDir, sha256, ext);
   if (target === null) {
     throw new Error('Huella o extensión inesperadas');
@@ -96,10 +105,11 @@ async function store(
   const existing = await stat(target).catch(() => null);
   if (existing?.isFile()) {
     await rm(staged, { force: true });
-    return;
+    return false;
   }
   await renameWithRetries(staged, target);
   await chmod(target, 0o444);
+  return true;
 }
 
 async function receive(
@@ -134,12 +144,21 @@ async function receive(
       return { ok: false, problem: identified.problem, size: copied.size, name };
     }
     const ext = extensionFor(identified.kind);
+    let fresh: boolean;
     try {
-      await store(staged, originalsDir, copied.sha256, ext);
+      fresh = await store(staged, originalsDir, copied.sha256, ext);
     } catch {
       return { ok: false, problem: 'copyFailed', size: copied.size, name };
     }
-    return { ok: true, sha256: copied.sha256, size: copied.size, kind: identified.kind, ext, name };
+    return {
+      ok: true,
+      sha256: copied.sha256,
+      size: copied.size,
+      kind: identified.kind,
+      ext,
+      name,
+      fresh,
+    };
   } finally {
     await rm(staged, { force: true }).catch(() => undefined);
   }

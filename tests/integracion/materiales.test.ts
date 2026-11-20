@@ -718,7 +718,8 @@ describe('fechas, títulos y claves', () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
-    const result = await service.addText({ subjectId, text: '###\n\nSolo un renglón de texto.' });
+    // Solo marcas de Markdown, sin palabras: no hay nada que sirva de título.
+    const result = await service.addText({ subjectId, text: '### ##\n\n***' });
     if (result.outcome !== 'added') {
       throw new Error('no se agregó');
     }

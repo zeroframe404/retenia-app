@@ -3,7 +3,7 @@ import yauzl from 'yauzl';
 // Antes de abrir un comprimido (un Word es un comprimido), se lo revisa entero sin escribir nada al
 // disco (docs/arquitectura.md, sección 4): nombres que suben de carpeta, absolutos, con unidad o
 // con barras invertidas; entradas cifradas; demasiadas entradas; demasiado contenido descomprimido
-// (contado al leer, no por lo que declara el comprimido); y XML con declaraciones de tipo o
+// (contado al leer, no por lo que declara el comprimido); y partes con declaraciones de tipo o
 // entidades, que podrían apuntar a archivos de la PC. Lo reusa la importación de la Fase 15.
 
 const MAX_ENTRIES = 2000;
@@ -18,8 +18,12 @@ export class ZipRejectedError extends Error {
 
 const BAD_NAME = /(^|[\\/])\.\.([\\/]|$)|^[\\/]|^[a-zA-Z]:|\\/;
 const hasNul = (name: string) => name.includes(String.fromCharCode(0));
-const XML = /\.(xml|rels)$/i;
+// Se revisan todas las partes, se llamen como se llamen (el documento puede nombrar como principal
+// una parte sin «.xml»). En las imágenes (una SVG es texto) solo se rechazan las entidades: Word
+// guarda dibujos con su declaración de tipo, que sola no apunta a nada.
+const IMAGE = /\.(png|jpe?g|gif|bmp|emf|wmf|tiff?|ico|webp|svg)$/i;
 const FORBIDDEN = /<!(DOCTYPE|ENTITY)/i;
+const FORBIDDEN_IN_IMAGES = /<!ENTITY/i;
 
 export interface ZipSummary {
   entries: string[];
@@ -75,7 +79,7 @@ export async function inspectZip(buffer: Buffer): Promise<ZipSummary> {
             fail(String(error?.message ?? 'una entrada que no se pudo leer'));
             return;
           }
-          const xml = XML.test(name);
+          const forbidden = IMAGE.test(name) ? FORBIDDEN_IN_IMAGES : FORBIDDEN;
           let tail = '';
           let stopped = false;
           stream.on('data', (chunk: Buffer) => {
@@ -89,16 +93,14 @@ export async function inspectZip(buffer: Buffer): Promise<ZipSummary> {
               fail('demasiado contenido descomprimido');
               return;
             }
-            if (xml) {
-              const text = tail + chunk.toString('latin1');
-              if (FORBIDDEN.test(text)) {
-                stopped = true;
-                stream.destroy();
-                fail(`un XML con declaraciones de tipo o entidades: ${name}`);
-                return;
-              }
-              tail = text.slice(-16);
+            const text = tail + chunk.toString('latin1');
+            if (forbidden.test(text)) {
+              stopped = true;
+              stream.destroy();
+              fail(`un XML con declaraciones de tipo o entidades: ${name}`);
+              return;
             }
+            tail = text.slice(-16);
           });
           stream.on('error', (streamError: Error) => {
             if (!stopped) {

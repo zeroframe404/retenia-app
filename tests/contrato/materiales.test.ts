@@ -42,6 +42,8 @@ describe('materials.*', () => {
       ['materials.cancel', { materialId: UUID, extra: true }],
       ['materials.createCard', { materialId: UUID, question: 'a', answer: 'b' }],
       ['materials.saveExcerpt', { materialId: UUID, selection: { from: {}, to: {} } }],
+      ['materials.preview', { materialId: UUID, selection: { from: {}, to: {} } }],
+      ['materials.preview', { materialId: 'no-es-un-id', selection: null }],
       ['materials.open', { materialId: UUID, text: 'a'.repeat(301) }],
     ];
     for (const [channel, request] of bad) {

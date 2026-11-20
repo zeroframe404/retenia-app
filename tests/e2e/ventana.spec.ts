@@ -133,6 +133,7 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'materials.open',
       'materials.createCard',
       'materials.saveExcerpt',
+      'materials.preview',
       // El zoom con el teclado (Fase 06).
       'window.zoom',
       // El aviso de que la pantalla guardó antes de cerrar (Fase 07).

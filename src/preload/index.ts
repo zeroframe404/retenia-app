@@ -4,6 +4,7 @@ import { demoChannels } from './contract/demo';
 import { EVENTS_CHANNEL, type MaterialEvent, materialEventSchema } from './contract/events';
 import { labChannels } from './contract/lab';
 import { fileChannels } from './contract/materials';
+import { pathsOfFiles } from './files';
 
 const invoke = (channel: string, request: unknown) => ipcRenderer.invoke(channel, request);
 
@@ -50,15 +51,16 @@ contextBridge.exposeInMainWorld('reteniaCierre', {
 // rutas.
 const files = buildApi(invoke, fileChannels);
 contextBridge.exposeInMainWorld('reteniaArchivos', {
-  agregar(list: File[], options: { subjectId: string; title?: string }) {
-    const paths = list.map((file) => webUtils.getPathForFile(file));
-    if (paths.length === 0 || paths.some((path) => path === '')) {
+  agregar(list: unknown, options: { subjectId: string; title?: string }) {
+    const paths = pathsOfFiles(list, (file) => webUtils.getPathForFile(file));
+    if (!paths) {
       return Promise.reject(new Error('Solo se pueden agregar archivos del disco'));
     }
+    // El resto lo valida el contrato del canal, como cualquier otro pedido.
     return files['materials.addFiles']({
       paths,
-      subjectId: options.subjectId,
-      title: options.title,
+      subjectId: options?.subjectId,
+      title: options?.title,
     });
   },
 });

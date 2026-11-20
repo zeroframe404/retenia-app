@@ -39,6 +39,22 @@ export function failTask(task: TaskState, kind: FailureKind): TaskState {
   return { ...task, status, runnerId: null, heartbeatAt: null };
 }
 
+// Una tarea en curso que se suelta a propósito (la cola se pausa porque Windows se suspende o se
+// restaura una copia): vuelve a «pendiente» sin contar intento ni vuelta. Devuelve null si no
+// estaba en curso.
+export function releaseTask(task: TaskState): TaskState | null {
+  if (task.status !== 'running') {
+    return null;
+  }
+  return {
+    ...task,
+    status: 'pending',
+    attempts: Math.max(0, task.attempts - 1),
+    runnerId: null,
+    heartbeatAt: null,
+  };
+}
+
 // Una tarea «en curso» de otro arranque vuelve a «pendiente» enseguida; una del mismo arranque,
 // cuando su latido tiene más de 15 s. Devuelve null si no cambia.
 export function recoverTask(

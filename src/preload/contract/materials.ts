@@ -9,9 +9,9 @@ import { day } from './common';
 // Lo más largo que se acepta pegar con «Pegar texto».
 export const MAX_PASTED_TEXT = 200_000;
 // Cuántos archivos se pueden soltar juntos.
-const MAX_FILES = 20;
+export const MAX_FILES = 20;
 const MAX_TITLE = 200;
-const MAX_CARD_TEXT = 2000;
+export const MAX_CARD_TEXT = 2000;
 
 const count = z.number().int().nonnegative();
 const materialKind = z.enum(['pdf', 'docx', 'md', 'text']);
@@ -133,6 +133,9 @@ export const materialPageSchema = z.strictObject({
   unit: z.number().int().positive(),
   unitCount: count,
   status: unitStatus,
+  // Si el material se está leyendo (o espera en la cola): una unidad sin leer de un material
+  // cancelado no dice «Todavía estamos leyendo».
+  working: z.boolean(),
   width: z.number().nullable(),
   height: z.number().nullable(),
   blocks: z.array(blockViewSchema),
@@ -143,12 +146,13 @@ const positionSchema = z.strictObject({ blockId: z.uuid(), offset: count });
 const selectionSchema = z.strictObject({ from: positionSchema, to: positionSchema });
 export type MaterialSelection = z.output<typeof selectionSchema>;
 
-// Una ruta de Windows absoluta: con unidad («C:\…») o de red («\\equipo\…»).
+// Una ruta de Windows absoluta: con unidad («C:\…») o de red («\\equipo\…»). Nunca de
+// dispositivo («\\.\…» o «\\?\…»), que llegan a tuberías y a unidades sin pasar por una carpeta.
 const absolutePath = z
   .string()
   .min(1)
   .max(1024)
-  .regex(/^(?:[a-zA-Z]:[\\/]|\\\\[^\\/]+[\\/])/);
+  .regex(/^(?:[a-zA-Z]:[\\/]|\\\\(?![.?][\\/])[^\\/]+[\\/])/);
 
 const addResultSchema = z.discriminatedUnion('outcome', [
   z.strictObject({ outcome: z.literal('added'), materialId: z.uuid() }),
@@ -231,6 +235,12 @@ export const materialsExcerptRequest = z.strictObject({
   selection: selectionSchema,
 });
 export const materialsExcerptResponse = z.strictObject({ count });
+
+// Lo que se va a citar de una selección, tal como se va a guardar: la frase y su referencia.
+export const materialsPreviewResponse = z.strictObject({
+  quote: z.string(),
+  reference: z.string(),
+});
 
 // El canal que solo usa el puente de archivos.
 export const fileChannels = {

@@ -1,5 +1,5 @@
 import { type DragEvent, useCallback, useEffect, useRef, useState } from 'react';
-import type { AddResult, MaterialSummary } from '../../preload/contract/materials';
+import { type AddResult, MAX_FILES, type MaterialSummary } from '../../preload/contract/materials';
 import type { Subject } from '../../preload/contract/organization';
 import { formatShortDate, texts } from '../../preload/contract/texts';
 import { ViewedSubject } from '../subjects/SubjectBar';
@@ -52,6 +52,8 @@ export function MaterialsScreen({
   const [adding, setAdding] = useState<AddMode | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [progress, setProgress] = useState(0);
+  // Lo que pasó al soltar archivos sobre la pantalla, si no se pudo: siempre a la vista.
+  const [dropProblem, setDropProblem] = useState<string | null>(null);
   const subjectId = subject?.id ?? null;
   const handled = useRef<number | null>(null);
 
@@ -103,6 +105,9 @@ export function MaterialsScreen({
 
   const afterAdding = (results: AddResult[]) => {
     setAdding(null);
+    setDropProblem(null);
+    // Lo que se acaba de agregar se ve en la lista, aunque estuvieras leyendo otro material.
+    setViewing(null);
     const offered = results.filter((result): result is Duplicate => result.outcome === 'duplicate');
     setDuplicates((current) => [...current, ...offered]);
     const last = [...results].reverse().find((result) => result.outcome === 'added');
@@ -151,11 +156,16 @@ export function MaterialsScreen({
     if (files.length === 0 || !subjectId || !window.reteniaArchivos) {
       return;
     }
+    if (files.length > MAX_FILES) {
+      setDropProblem(texts.materials.tooManyFiles);
+      return;
+    }
     window.reteniaArchivos
       .agregar(files, { subjectId })
       .then(({ results }) => afterAdding(results))
       .catch((error: unknown) => {
         console.error('La ventana no pudo agregar los archivos soltados', error);
+        setDropProblem(texts.materials.addFailed);
       });
   };
 
@@ -179,6 +189,7 @@ export function MaterialsScreen({
         {subject ? (
           <ViewedSubject viewed={subject} active={active} onChange={onChangeSubject} />
         ) : null}
+        {dropProblem ? <BannerEstado tone="info">{dropProblem}</BannerEstado> : null}
         {viewing ? (
           <MaterialViewer
             materialId={viewing.materialId}

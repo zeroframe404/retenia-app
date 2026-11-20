@@ -9,6 +9,7 @@ import { createDemoDate } from '../../src/main/demo/clock';
 import { channels } from '../../src/preload/contract';
 import { demoChannels } from '../../src/preload/contract/demo';
 import { tempDataFolder } from '../apoyo/base';
+import { idleMaterials } from '../apoyo/materiales';
 
 // Ajustes › «Demostración»: «+1 día», «+7 días», «+35 días» y «Restablecer fecha» mueven el reloj
 // de la variante de prueba. Los días sumados quedan en ajustes.json de la carpeta de datos, así
@@ -101,6 +102,7 @@ describe('contrato: canales de demostración', () => {
         workspace,
         version: '0.0.0-prueba',
         openFolder: async () => '',
+        materials: idleMaterials(workspace, demo.clock),
       }),
       ...createDemoHandlers(demo),
     };

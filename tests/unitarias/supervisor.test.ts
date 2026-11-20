@@ -191,8 +191,10 @@ describe('un proceso de trabajo sin padre se cierra solo (Fase 13)', () => {
     watchParent({
       everyMs: 1000,
       parentAlive: () => alive,
-      exit: (code) => exits.push(code),
-      every: (tick) => {
+      exit: (code: number) => {
+        exits.push(code);
+      },
+      every: (tick: () => void) => {
         ticks.push(tick);
         return { unref: () => undefined };
       },

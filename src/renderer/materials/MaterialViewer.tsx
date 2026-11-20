@@ -202,8 +202,20 @@ export function MaterialViewer({
       return;
     }
     const block = page.blocks.find((candidate) => candidate.id === from.blockId);
-    setPicked({ selection: { from, to }, quote, reference: referenceFor(page, block) });
+    const selected = { from, to };
+    setPicked({ selection: selected, quote, reference: referenceFor(page, block) });
     setCited(null);
+    // La frase y la referencia que se van a guardar las arma el principal (la página donde empieza
+    // la frase en la hoja, aunque su párrafo empiece en la anterior).
+    window.retenia['materials.preview']({ materialId, selection: selected }).then(
+      (preview) =>
+        setPicked((current) =>
+          current?.selection === selected ? { ...current, ...preview } : current,
+        ),
+      (error: unknown) => {
+        console.error('La ventana no pudo armar la cita por el puente', error);
+      },
+    );
   };
 
   async function saveExcerpt() {
@@ -229,7 +241,12 @@ export function MaterialViewer({
   const total = detail.units.length || pagesInFile || 1;
   const visible =
     page?.blocks.filter((block) => !HIDDEN.includes(block.type) && block.text !== '') ?? [];
-  const reading = page !== null && page.status === 'pending' && visible.length === 0;
+  const unread = page !== null && page.status === 'pending' && visible.length === 0;
+  const readingText = !page?.working
+    ? texts.materials.notReadCancelled
+    : page.kind === 'pdf'
+      ? texts.materials.stillReading
+      : texts.materials.stillReadingDocument;
   const openedHere = opened && opened.unit === unit ? opened : null;
   const highlight: MaterialBox[] =
     hovered?.boxes ?? (openedHere?.highlight.length ? openedHere.highlight : (cited?.boxes ?? []));
@@ -311,7 +328,7 @@ export function MaterialViewer({
             onMouseUp={readSelection}
             onKeyUp={readSelection}
           >
-            {reading ? <p className={styles.reading}>{texts.materials.stillReading}</p> : null}
+            {unread ? <p className={styles.reading}>{readingText}</p> : null}
             {visible.map((block) => (
               <BlockText
                 key={block.id}

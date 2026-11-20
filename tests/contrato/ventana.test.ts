@@ -4,6 +4,7 @@ import type { ZoomDirection } from '../../src/core/zoom';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
 import { createHandlers, handleMessage } from '../../src/main/bridge';
 import { tempDataFolder } from '../apoyo/base';
+import { idleMaterials } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // El zoom de la ventana con el teclado (canal «window.zoom»): la ventana atrapa Ctrl y +, Ctrl y -
@@ -37,6 +38,7 @@ function handlersWithZoom(zoom: (direction: ZoomDirection) => number) {
     version: '0.0.0-prueba',
     openFolder: async () => '',
     zoom,
+    materials: idleMaterials(workspace, clock),
   });
 }
 

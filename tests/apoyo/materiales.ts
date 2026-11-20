@@ -1,7 +1,8 @@
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { Stopwatch } from '../../src/core/clock';
+import type { Clock, Stopwatch } from '../../src/core/clock';
+import type { Workspace } from '../../src/data/workspace';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
@@ -88,4 +89,15 @@ export function openMaterials(
 // La materia activa de la prueba.
 export function statisticsSubject(space: Space): string {
   return space.workspace.subjects.create({ name: 'Estadística básica', makeActive: true }).id;
+}
+
+// Una cola de materiales que no lee nada, para las pruebas de otros canales que arman el puente
+// entero: no arranca sola y, si algo le pidiera leer, el pedido falla (simulado).
+export function idleMaterials(workspace: Workspace, clock: Clock): MaterialsService {
+  return createMaterialsService({
+    workspace,
+    clock,
+    execute: () => Promise.reject(new Error('(simulado) esta prueba no lee materiales')),
+    autoStart: false,
+  });
 }

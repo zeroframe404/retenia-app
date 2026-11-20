@@ -1,6 +1,6 @@
 import { type DragEvent, useId, useState } from 'react';
 import type { AddResult } from '../../preload/contract/materials';
-import { MAX_PASTED_TEXT } from '../../preload/contract/materials';
+import { MAX_FILES, MAX_PASTED_TEXT } from '../../preload/contract/materials';
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
@@ -33,15 +33,20 @@ export function AddMaterialDialog({
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  // Por qué no se pudo agregar lo elegido (null: nada que decir).
+  const [failed, setFailed] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
   async function addFiles(files: File[]) {
     if (files.length === 0 || busy || !window.reteniaArchivos) {
       return;
     }
+    if (files.length > MAX_FILES) {
+      setFailed(texts.materials.tooManyFiles);
+      return;
+    }
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       const { results } = await window.reteniaArchivos.agregar(files, {
         subjectId,
@@ -49,7 +54,7 @@ export function AddMaterialDialog({
       });
       onAdded(results);
     } catch {
-      setFailed(true);
+      setFailed(texts.materials.addFailed);
       setBusy(false);
     }
   }
@@ -59,7 +64,7 @@ export function AddMaterialDialog({
       return;
     }
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
     try {
       const result = await window.retenia['materials.addText']({
         subjectId,
@@ -68,7 +73,7 @@ export function AddMaterialDialog({
       });
       onAdded([result]);
     } catch {
-      setFailed(true);
+      setFailed(texts.materials.problems.copyFailed);
       setBusy(false);
     }
   }
@@ -164,9 +169,7 @@ export function AddMaterialDialog({
             </div>
           ) : null}
         </div>
-        {failed ? (
-          <BannerEstado tone="info">{texts.materials.problems.copyFailed}</BannerEstado>
-        ) : null}
+        {failed ? <BannerEstado tone="info">{failed}</BannerEstado> : null}
         {mode === 'paste' ? (
           <div className={styles.actions}>
             <Boton variant="primary" busy={busy} onClick={() => void addText()}>

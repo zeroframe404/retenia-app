@@ -19,12 +19,34 @@ function hasControl(text: string): boolean {
   return false;
 }
 
-function decodeWith(encoding: 'utf-8' | 'utf-16le' | 'utf-16be', bytes: Uint8Array): string | null {
+function decodeWith(
+  encoding: 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252',
+  bytes: Uint8Array,
+): string | null {
   try {
     return new TextDecoder(encoding, { fatal: true, ignoreBOM: true }).decode(bytes);
   } catch {
     return null;
   }
+}
+
+// Un texto leído como ANSI es creíble si no tiene caracteres de control de esa tabla (0x80 a 0x9F
+// sin letra asignada) y cada carácter fuera del ASCII tiene una letra al lado.
+function looksLikeAnsiText(text: string): boolean {
+  const letter = /\p{L}/u;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code < 0x80) {
+      continue;
+    }
+    if (code <= 0x9f) {
+      return false;
+    }
+    if (!letter.test(text[index - 1] ?? '') && !letter.test(text[index + 1] ?? '')) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // Cuántos bytes del final hay que dejar afuera para no cortar una letra de UTF-8 a la mitad.
@@ -69,6 +91,13 @@ export function decodeText(
       'utf-8',
       partial ? body.subarray(0, body.length - incompleteTail(body)) : body,
     );
+    // Un texto guardado en ANSI (el Latin-1 de Windows, con sus eñes y tildes en un byte): si no
+    // es UTF-8 válido, se lo lee así, pero solo si cada letra fuera del ASCII está pegada a otra
+    // letra (como en «año» o «desviación»). Lo que no es texto no pasa por esta puerta.
+    if (text === null) {
+      const latin = decodeWith('windows-1252', body);
+      text = latin !== null && looksLikeAnsiText(latin) ? latin : null;
+    }
   }
   if (text === null || hasControl(text)) {
     return null;

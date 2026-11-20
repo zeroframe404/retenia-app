@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import type { MaterialSelection } from '../../preload/contract/materials';
+import { MAX_CARD_TEXT, type MaterialSelection } from '../../preload/contract/materials';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import form from '../ui/Form.module.css';
@@ -41,6 +41,11 @@ export function CreateCardFromQuote({
     }
     if (answer.trim() === '') {
       setProblem(texts.cards.answerRequired);
+      return;
+    }
+    // Una selección larga llena la respuesta: se avisa antes de mandarla, no después.
+    if (answer.trim().length > MAX_CARD_TEXT) {
+      setProblem(texts.materials.answerTooLong);
       return;
     }
     setBusy(true);

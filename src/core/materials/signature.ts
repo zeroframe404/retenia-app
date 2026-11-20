@@ -40,14 +40,25 @@ function startsWith(bytes: Uint8Array, signature: readonly number[], at = 0): bo
   return signature.every((value, index) => bytes[at + index] === value);
 }
 
-function hasPdfSignature(head: Uint8Array): boolean {
+// Dónde empieza la firma de PDF dentro de los primeros 1024 bytes, o null.
+function pdfSignatureAt(head: Uint8Array): number | null {
   const start = head.subarray(0, PDF_WINDOW + 5);
   for (let at = 0; at + 5 <= start.length && at <= PDF_WINDOW; at++) {
     if (startsWith(start, [0x25, 0x50, 0x44, 0x46, 0x2d], at)) {
-      return true;
+      return at;
     }
   }
-  return false;
+  return null;
+}
+
+// Una firma de PDF que no está al principio cuenta si el nombre dice PDF o si lo que hay antes no
+// es texto: un Markdown o un texto que menciona «%PDF-» en su primer renglón sigue siendo texto.
+function isPdf(head: Uint8Array, says: NameSays): boolean {
+  const at = pdfSignatureAt(head);
+  if (at === null) {
+    return false;
+  }
+  return at === 0 || says === 'pdf' || decodeText(head.subarray(0, at), { partial: true }) === null;
 }
 
 const ZIP = [0x50, 0x4b, 0x03, 0x04];
@@ -84,7 +95,7 @@ export function identifyContent({
     return { ok: false, problem: 'empty' };
   }
   const says = nameSays(name);
-  if (hasPdfSignature(head)) {
+  if (isPdf(head, says)) {
     return says === 'docx' ? { ok: false, problem: 'notWord' } : { ok: true, kind: 'pdf' };
   }
   if (says === 'pdf') {
@@ -103,6 +114,10 @@ export function identifyContent({
   const text = decodeText(head, { partial: size > head.length });
   if (text === null || isHtml(text)) {
     return { ok: false, problem: 'unsupported' };
+  }
+  // Un archivo chico que solo tiene espacios y renglones vacíos está vacío.
+  if (size <= head.length && text.trim() === '') {
+    return { ok: false, problem: 'empty' };
   }
   if (says === 'md' || looksLikeMarkdown(text)) {
     return { ok: true, kind: 'md' };

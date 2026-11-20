@@ -62,7 +62,12 @@ function occurrences(text: string, wanted: string): number[] {
   return found;
 }
 
-function locateIn(unit: UnitText, cite: Cite): { start: number; end: number }[] {
+// Dónde está la cita en una unidad: `all` cuenta todas las apariciones de la frase; `chosen`, las
+// que además coinciden con su contexto (todas, si la cita no guardó contexto).
+function locateIn(
+  unit: UnitText,
+  cite: Cite,
+): { all: number; chosen: { start: number; end: number }[] } {
   const { text, origin } = collapsed(unit.text);
   const quote = squeeze(cite.quote);
   const all = occurrences(text, quote);
@@ -79,10 +84,13 @@ function locateIn(unit: UnitText, cite: Cite): { start: number; end: number }[] 
       chosen = all;
     }
   }
-  return chosen.map((at) => ({
-    start: origin[at] ?? 0,
-    end: (origin[at + quote.length - 1] ?? 0) + 1,
-  }));
+  return {
+    all: all.length,
+    chosen: chosen.map((at) => ({
+      start: origin[at] ?? 0,
+      end: (origin[at + quote.length - 1] ?? 0) + 1,
+    })),
+  };
 }
 
 export function relocateQuote(units: readonly UnitText[], cite: Cite): Located {
@@ -91,17 +99,23 @@ export function relocateQuote(units: readonly UnitText[], cite: Cite): Located {
   }
   const own = units.find((unit) => unit.unit === cite.unit);
   if (own) {
-    const found = locateIn(own, cite);
-    if (found.length === 1) {
-      return { status: 'located', unit: own.unit, ...(found[0] as { start: number; end: number }) };
+    const { all, chosen } = locateIn(own, cite);
+    if (chosen.length === 1) {
+      return {
+        status: 'located',
+        unit: own.unit,
+        ...(chosen[0] as { start: number; end: number }),
+      };
     }
-    if (found.length > 1) {
+    // La frase sigue en su página pero el contexto no alcanza para elegir: no se la va a buscar
+    // a otra página (sería resaltar otro pasaje).
+    if (all > 0) {
       return { status: 'relocate' };
     }
   }
   const neighbors = units.filter((unit) => Math.abs(unit.unit - cite.unit) === 1);
   const found = neighbors.flatMap((unit) =>
-    locateIn(unit, cite).map((range) => ({ unit: unit.unit, ...range })),
+    locateIn(unit, cite).chosen.map((range) => ({ unit: unit.unit, ...range })),
   );
   if (found.length === 1) {
     const [only] = found as [{ unit: number; start: number; end: number }];

@@ -9,6 +9,7 @@ import {
   failTask,
   pickNext,
   recoverTask,
+  releaseTask,
   startTask,
   type TaskState,
   type TaskStatus,
@@ -23,7 +24,7 @@ import {
   stageView,
   type UnitStatus,
 } from '../core/materials/status';
-import { studyDayOf } from '../core/study-day';
+import { localDateTime } from '../core/study-day';
 import type { MaterialDetail, MaterialSummary } from '../preload/contract/materials';
 import { texts } from '../preload/contract/texts';
 import type { ReteniaDatabase } from './database';
@@ -36,7 +37,9 @@ import { ingestResults, ingestTasks, materialBlocks, materials, materialUnits } 
 // un material, qué tarea sigue, qué pasa cuando una falla) son las de src/core/materials; acá se
 // leen y se escriben, siempre en transacciones.
 
-// La versión de la cadena: cambiarla hace que los bloques se vuelvan a armar.
+// La versión de la cadena propia de Retenia (lo que arma con lo que leen pdf.js y mammoth: cajas,
+// bloques, estructura y normalización). Es parte de la clave de cada etapa: subirla cuando cambia
+// ese código hace que cada etapa se vuelva a hacer en vez de reusar lo guardado.
 export const PIPELINE_VERSION = 1;
 
 const STAGE_ORDER: Record<Stage, number> = {
@@ -198,6 +201,8 @@ export interface MaterialsStore {
   next(): QueueItem | null;
   peek(): QueueItem | null;
   recover(runnerId: string, now: number): number;
+  // Suelta la tarea en curso sin contar intento ni vuelta (la cola se pausa).
+  release(taskId: string): void;
   start(taskId: string, runnerId: string, now: number): TaskRow | null;
   heartbeat(taskId: string, runnerId: string, now: number): void;
   task(taskId: string): TaskRow | undefined;
@@ -280,7 +285,8 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
       kind: row.kind as MaterialKind | null,
       versionNo: row.versionNo,
       previousMaterialId: row.previousMaterialId,
-      addedDay: studyDayOf(new Date(row.addedAt)),
+      // El día del calendario en que lo agregaste (no el «día de estudio», que corta a las 04:00).
+      addedDay: localDateTime(new Date(row.addedAt)).day,
       state: materialState(input),
       stages: stageView({
         kind,
@@ -567,6 +573,16 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
           }
         }
         return changed;
+      });
+    },
+
+    release(taskId) {
+      orm.transaction((tx) => {
+        const task = taskRow(tx, taskId);
+        const next = task ? releaseTask(toState(task)) : null;
+        if (task && next) {
+          writeTask(tx, task, next);
+        }
       });
     },
 
@@ -870,10 +886,12 @@ export function describeCite(
     return null;
   }
   const material = db.select().from(materials).where(eq(materials.id, cite.materialId)).get();
+  // La página que se nombra es donde empieza la frase en la hoja (puede ser la siguiente a la de
+  // su párrafo, si el párrafo sigue en la página de al lado).
   const reference = referenceOf(
     material?.title ?? '',
     cite.locator.kind,
-    cite.locator.page,
+    cite.locator.boxes?.[0]?.page ?? cite.locator.page,
     cite.locator.headingPath,
   );
   const base = { materialId: cite.materialId, reference, quote: cite.quote };

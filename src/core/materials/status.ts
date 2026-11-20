@@ -82,6 +82,9 @@ export interface StageInput {
 const finished = (status: TaskStatus) =>
   status === 'done' || status === 'review' || status === 'failed';
 
+// Una etapa está «en curso» solo si la anterior terminó y el material tiene algo corriendo o por
+// correr: un material en «Requiere revisión», cancelado o con una etapa fallida no muestra nada
+// girando.
 function statusOf(
   tasks: StageInput['tasks'],
   stages: readonly Stage[],
@@ -92,7 +95,10 @@ function statusOf(
   if (expected && own.every((task) => finished(task.status))) {
     return 'done';
   }
-  return previousDone ? 'current' : 'pending';
+  const active =
+    tasks.length === 0 ||
+    tasks.some((task) => task.status === 'pending' || task.status === 'running');
+  return previousDone && active ? 'current' : 'pending';
 }
 
 // Las cuatro etapas que se ven: «Archivo guardado» (validar), «Texto extraído» (extraer, con su

@@ -1,4 +1,5 @@
 import { realpathSync } from 'node:fs';
+import { open, stat } from 'node:fs/promises';
 import { sep } from 'node:path';
 import { MIME, type OriginalExtension, originalPath } from './originals';
 
@@ -69,4 +70,80 @@ export function parseRange(
     return 'invalid';
   }
   return { start, end };
+}
+
+// Lee del disco solo el tramo [start, end] del archivo (un PDF grande no se lee entero por cada
+// pedido de pdf.js).
+export async function readPart(file: string, start: number, end: number): Promise<Uint8Array> {
+  const handle = await open(file, 'r');
+  try {
+    const length = end - start + 1;
+    const buffer = Buffer.alloc(length);
+    let read = 0;
+    while (read < length) {
+      const { bytesRead } = await handle.read(buffer, read, length - read, start + read);
+      if (bytesRead === 0) {
+        break;
+      }
+      read += bytesRead;
+    }
+    return buffer.subarray(0, read);
+  } finally {
+    await handle.close();
+  }
+}
+
+export interface ServedOriginal {
+  status: number;
+  headers: Record<string, string>;
+  body: Uint8Array | null;
+}
+
+// La respuesta a un pedido del original. Solo los orígenes de la ventana de Retenia reciben el
+// permiso para leerlo (`access-control-allow-origin`); a cualquier otro, el navegador no le deja
+// ver la respuesta.
+export async function serveOriginal(
+  request: { url: string; origin: string | null; range: string | null },
+  {
+    lookup,
+    dataDir,
+    allowedOrigins,
+    read = readPart,
+  }: {
+    lookup: (materialId: string) => { sha256: string; ext: OriginalExtension } | null;
+    dataDir: string;
+    allowedOrigins: readonly string[];
+    read?: (file: string, start: number, end: number) => Promise<Uint8Array>;
+  },
+): Promise<ServedOriginal> {
+  const resolved = resolveOriginal(request.url, lookup, dataDir);
+  if (!resolved) {
+    return { status: 404, headers: {}, body: null };
+  }
+  const headers: Record<string, string> = {
+    'content-type': resolved.mime,
+    'accept-ranges': 'bytes',
+    'cache-control': 'no-store',
+  };
+  if (request.origin !== null && allowedOrigins.includes(request.origin)) {
+    headers['access-control-allow-origin'] = request.origin;
+    headers.vary = 'origin';
+  }
+  const { size } = await stat(resolved.file);
+  const range = parseRange(request.range, size);
+  if (range === 'invalid') {
+    return { status: 416, headers: { ...headers, 'content-range': `bytes */${size}` }, body: null };
+  }
+  if (range === null) {
+    return {
+      status: 200,
+      headers,
+      body: size === 0 ? new Uint8Array() : await read(resolved.file, 0, size - 1),
+    };
+  }
+  return {
+    status: 206,
+    headers: { ...headers, 'content-range': `bytes ${range.start}-${range.end}/${size}` },
+    body: await read(resolved.file, range.start, range.end),
+  };
 }

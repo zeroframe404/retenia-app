@@ -52,6 +52,7 @@ import {
   materialsOpenRequest,
   materialsOpenResponse,
   materialsPageRequest,
+  materialsPreviewResponse,
 } from './materials';
 import {
   imagesReadRequest,
@@ -231,6 +232,7 @@ export const channels = {
     response: materialsCreateCardResponse,
   },
   'materials.saveExcerpt': { request: materialsExcerptRequest, response: materialsExcerptResponse },
+  'materials.preview': { request: materialsExcerptRequest, response: materialsPreviewResponse },
   'window.zoom': { request: zoomRequest, response: zoomResponse },
   'window.flushed': { request: flushedRequest, response: flushedResponse },
 };

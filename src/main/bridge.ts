@@ -15,9 +15,8 @@ import {
 import type { Backup } from '../preload/contract/backups';
 import type { fileChannels } from '../preload/contract/materials';
 import { createAppearanceStore } from './appearance';
-import { createMaterialsService, type MaterialsService } from './materials/service';
+import type { MaterialsService } from './materials/service';
 import { createStudyTimer } from './study-timer';
-import { WorkerProblem } from './supervisor';
 
 export type Variant = 'prueba' | 'real';
 
@@ -60,7 +59,7 @@ export function createHandlers({
   zoom,
   onFlushed,
   stopwatch = systemStopwatch(),
-  materials: givenMaterials,
+  materials,
 }: {
   clock: Clock;
   variant: Variant;
@@ -75,18 +74,9 @@ export function createHandlers({
   onFlushed?: () => void;
   // Mide los tiempos de la sesión de estudio (en las pruebas, uno fijo).
   stopwatch?: Stopwatch;
-  // Los materiales (Fase 13): la cola y su proceso de trabajo. Sin uno, los materiales se pueden
-  // listar pero no se procesan (las pruebas que no los usan).
-  materials?: MaterialsService;
+  // Los materiales (Fase 13): la cola y su proceso de trabajo.
+  materials: MaterialsService;
 }): Handlers {
-  const materials =
-    givenMaterials ??
-    createMaterialsService({
-      workspace,
-      clock,
-      execute: () => Promise.reject(new WorkerProblem('crashed')),
-      autoStart: false,
-    });
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
@@ -206,6 +196,7 @@ export function createHandlers({
     'materials.open': async (request) => materials.open(request),
     'materials.createCard': async (request) => materials.createCard(request),
     'materials.saveExcerpt': async (request) => materials.saveExcerpt(request),
+    'materials.preview': async (request) => materials.preview(request),
     'inbox.list': async () => workspace.inbox.list(),
     'inbox.capture': async (request) => workspace.inbox.capture(request),
     'inbox.move': async (request) => workspace.inbox.move(request),

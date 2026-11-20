@@ -1,11 +1,10 @@
-import { readFile, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { app, powerMonitor, protocol, utilityProcess } from 'electron';
 import type { Clock } from '../../core/clock';
 import type { Workspace } from '../../data/workspace';
 import type { MaterialEvent } from '../../preload/contract/events';
 import { createWorkerClient, type WorkerProcess } from '../supervisor';
-import { ORIGINAL_SCHEME, parseRange, resolveOriginal } from './original-protocol';
+import { ORIGINAL_SCHEME, serveOriginal } from './original-protocol';
 import { isOriginalExtension } from './originals';
 import { createMaterialsService, type MaterialsService } from './service';
 
@@ -70,10 +69,21 @@ export function startMaterials({
     autoStart: false,
     interrupt: () => worker.interrupt?.('crashed'),
   });
+  // Cada suspensión pausa una vez y cada vuelta suelta esa misma pausa: un «resume» sin su
+  // «suspend» no suelta la de una restauración en curso.
+  let suspended = false;
   powerMonitor.on('suspend', () => {
-    void service.pause();
+    if (!suspended) {
+      suspended = true;
+      void service.pause();
+    }
   });
-  powerMonitor.on('resume', () => service.unpause());
+  powerMonitor.on('resume', () => {
+    if (suspended) {
+      suspended = false;
+      service.unpause();
+    }
+  });
   return {
     service,
     // La cola arranca un segundo después de mostrar la ventana: el arranque sigue siendo rápido.
@@ -89,45 +99,34 @@ export function startMaterials({
 
 // «retenia-original://<material>»: el original, con su tipo y, si se pide, un tramo.
 export function handleOriginalProtocol(workspace: Workspace): void {
+  // La ventana se abre desde un archivo local (Chromium lo manda como «file://» o «null»); en
+  // desarrollo, desde el servidor de Vite.
+  const devOrigin = process.env.ELECTRON_RENDERER_URL
+    ? new URL(process.env.ELECTRON_RENDERER_URL).origin
+    : null;
+  const allowedOrigins = ['file://', 'null', ...(devOrigin ? [devOrigin] : [])];
   protocol.handle(ORIGINAL_SCHEME, async (request) => {
-    const resolved = resolveOriginal(
-      request.url,
-      (materialId) => {
-        try {
-          const row = workspace.materials.row(materialId);
-          return row.originalSha256 && row.originalExt && isOriginalExtension(row.originalExt)
-            ? { sha256: row.originalSha256, ext: row.originalExt }
-            : null;
-        } catch {
-          return null;
-        }
+    const served = await serveOriginal(
+      {
+        url: request.url,
+        origin: request.headers.get('origin'),
+        range: request.headers.get('range'),
       },
-      dirname(workspace.originalsDir),
+      {
+        lookup: (materialId) => {
+          try {
+            const row = workspace.materials.row(materialId);
+            return row.originalSha256 && row.originalExt && isOriginalExtension(row.originalExt)
+              ? { sha256: row.originalSha256, ext: row.originalExt }
+              : null;
+          } catch {
+            return null;
+          }
+        },
+        dataDir: dirname(workspace.originalsDir),
+        allowedOrigins,
+      },
     );
-    if (!resolved) {
-      return new Response(null, { status: 404 });
-    }
-    const headers = {
-      'content-type': resolved.mime,
-      'access-control-allow-origin': '*',
-      'accept-ranges': 'bytes',
-      'cache-control': 'no-store',
-    };
-    const { size } = await stat(resolved.file);
-    const range = parseRange(request.headers.get('range'), size);
-    if (range === 'invalid') {
-      return new Response(null, {
-        status: 416,
-        headers: { ...headers, 'content-range': `bytes */${size}` },
-      });
-    }
-    const data = await readFile(resolved.file);
-    if (range === null) {
-      return new Response(data, { status: 200, headers });
-    }
-    return new Response(data.subarray(range.start, range.end + 1), {
-      status: 206,
-      headers: { ...headers, 'content-range': `bytes ${range.start}-${range.end}/${size}` },
-    });
+    return new Response(served.body, { status: served.status, headers: served.headers });
   });
 }

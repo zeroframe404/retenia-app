@@ -12,6 +12,7 @@ import {
   blockInputs,
   type IndexedBlock,
   type MaterialRow,
+  PIPELINE_VERSION,
   type QueueItem,
   referenceOf,
   type StoredCite,
@@ -26,6 +27,7 @@ import type {
   MaterialSelection,
   MaterialSummary,
 } from '../../preload/contract/materials';
+import { texts as catalog } from '../../preload/contract/texts';
 import { WorkerProblem } from '../supervisor';
 import {
   extractResult,
@@ -80,6 +82,11 @@ export interface MaterialsService {
     answer: string;
   }): { cardId: string };
   saveExcerpt(input: { materialId: string; selection: MaterialSelection }): { count: number };
+  // Lo que se va a citar de una selección (la frase y su referencia), antes de guardarla.
+  preview(input: { materialId: string; selection: MaterialSelection }): {
+    quote: string;
+    reference: string;
+  };
   // La cola: arrancarla (vuelven a «pendiente» las tareas «en curso» de otro arranque), esperar a que
   // no quede nada, una tarea por vez (pruebas), pausarla y soltarla sin escribir nada (pruebas del
   // corte).
@@ -95,6 +102,10 @@ export interface MaterialsService {
   stop(): Promise<void>;
   abandon(): void;
 }
+
+// Un material se está leyendo, o espera en la cola para leerse.
+const isWorkingState = (state: MaterialSummary['state']) =>
+  state.kind === 'processing' || (state.kind === 'received' && state.cancelled !== true);
 
 const DEFAULT_TIMEOUTS = { validate: 30_000, extract: 30_000, document: 60_000 };
 // Cuánto espera «Procesar despacio» antes de cada página.
@@ -119,12 +130,14 @@ function failureOf(error: unknown): { kind: FailureKind; problem: string } {
 
 const titleFromName = (name: string) => name.replace(/\.[^.]+$/, '').trim() || name;
 
+// El primer renglón con letras o números, sin las marcas de título de Markdown: un renglón de
+// puras marcas («##», «***») no sirve de título.
 function firstLine(text: string): string {
   const line =
     text
       .split('\n')
       .map((part) => part.replace(/^#+\s*/, '').trim())
-      .find((part) => part !== '') ?? '';
+      .find((part) => /[\p{L}\p{N}]/u.test(part)) ?? '';
   return line.length > 80 ? `${line.slice(0, 79).trimEnd()}…` : line;
 }
 
@@ -161,6 +174,9 @@ export function createMaterialsService({
     originalsDir: workspace.originalsDir,
   });
   let started = false;
+  // Cuántas pausas hay pedidas (la suspensión de Windows y la restauración de una copia pueden
+  // coincidir): la cola sigue recién cuando se sueltan todas.
+  let pauses = 0;
   let paused = false;
   let abandoned = false;
   let running: Promise<void> | null = null;
@@ -266,7 +282,7 @@ export function createMaterialsService({
     switch (item.stage) {
       case 'validate': {
         const declaredWord = /\.docx$/i.test(row.originalName);
-        const params = { format: item.kind, declaredWord };
+        const params = { format: item.kind, declaredWord, pipeline: PIPELINE_VERSION };
         const { key, output } = await cachedOr(item, 'validate', 0, meta, params, () =>
           run(
             { kind: 'validate', format: item.kind, file: fileOf(item), declaredWord },
@@ -290,7 +306,7 @@ export function createMaterialsService({
             throw new AbandonedError();
           }
         }
-        const params = { format: item.kind };
+        const params = { format: item.kind, pipeline: PIPELINE_VERSION };
         const limit = item.kind === 'pdf' ? limits.extract : limits.document;
         const { key, output } = await cachedOr(item, 'extract', item.unitNo, meta, params, () =>
           run({ kind: 'extract', format: item.kind, file: fileOf(item), unit: item.unitNo }, limit),
@@ -328,7 +344,7 @@ export function createMaterialsService({
             ? ((validated as { outline: { title: string; page: number | null; level: number }[] })
                 .outline ?? [])
             : [];
-        const params = { inputs: keys, outline: outline.length };
+        const params = { inputs: keys, outline: outline.length, pipeline: PIPELINE_VERSION };
         const { key, output } = await cachedOr(
           item,
           'structure',
@@ -363,7 +379,7 @@ export function createMaterialsService({
           throw new Error('Falta la estructura');
         }
         const drafts = structureResult.parse(structure.output).drafts;
-        const params = { input: structure.key };
+        const params = { input: structure.key, pipeline: PIPELINE_VERSION };
         const { key, output } = await cachedOr(item, 'normalize', 0, TOOLS.normalize, params, () =>
           run({ kind: 'normalize', drafts }, limits.document + 500 * (row.unitCount ?? 1)),
         );
@@ -436,7 +452,11 @@ export function createMaterialsService({
         return;
       }
       if (releasing) {
-        store().recover(`${runnerId}:pausa`, elapsed());
+        try {
+          store().release(task.id);
+        } catch {
+          // La base se está reemplazando: al abrir de nuevo, la tarea vuelve sola a «pendiente».
+        }
         return;
       }
       const { kind, problem } = failureOf(error);
@@ -607,9 +627,12 @@ export function createMaterialsService({
     if (!unit || !fromBlock) {
       throw new Error('La selección no es de este material');
     }
-    const toBlock = unit.blocks.find((block) => block.id === selection.to.blockId) ?? fromBlock;
+    // Si la selección termina en un bloque de otra unidad (un párrafo que sigue en la página de al
+    // lado, o algo que no tiene texto), la cita llega hasta el final del bloque donde empezó: nunca
+    // se mezclan desplazamientos de dos bloques distintos.
+    const toBlock = unit.blocks.find((block) => block.id === selection.to.blockId);
     let start = Math.min(fromBlock.start + selection.from.offset, fromBlock.end);
-    let end = Math.min(toBlock.start + selection.to.offset, toBlock.end);
+    let end = toBlock ? Math.min(toBlock.start + selection.to.offset, toBlock.end) : fromBlock.end;
     if (end < start) {
       [start, end] = [end, start];
     }
@@ -631,7 +654,9 @@ export function createMaterialsService({
     const headingPath = locatorOfBlock?.headingPath ?? [];
     const { before, after } = quoteContext(unit.text, start, end);
     const boxes = boxesFor(unit.spans, start, end);
-    const reference = referenceOf(row.title, kind, unit.unit, headingPath);
+    // La página que se nombra es donde empieza la frase en la hoja: un párrafo que sigue en la
+    // página de al lado se guarda con la primera, pero su final está en la otra.
+    const reference = referenceOf(row.title, kind, boxes[0]?.page ?? unit.unit, headingPath);
     const cite: StoredCite = {
       materialId,
       originalSha256: row.originalSha256 ?? '',
@@ -664,7 +689,7 @@ export function createMaterialsService({
     },
 
     async addText({ subjectId, text, title }) {
-      const name = title?.trim() || firstLine(text) || 'Texto';
+      const name = title?.trim() || firstLine(text) || catalog.materials.untitledText;
       const received = await receiveText(text, `${name}.txt`, dirs());
       const result = offer(received, subjectId, name);
       kick();
@@ -679,8 +704,14 @@ export function createMaterialsService({
       pending.delete(pendingId);
       const { received, subjectId, title, existing } = choice;
       if (decision === 'open') {
-        // Un original nuevo (mismo nombre, otro contenido) que nadie usa no se guarda.
-        if (received.sha256 !== existing.originalSha256 && !store().findByHash(received.sha256)) {
+        // Un original recién guardado para esta decisión (mismo nombre, otro contenido) que nadie
+        // usa no se guarda. Uno que ya estaba de antes (de un material quitado, o que otra copia
+        // nombra) se deja.
+        if (
+          received.fresh &&
+          received.sha256 !== existing.originalSha256 &&
+          !store().findByHash(received.sha256)
+        ) {
           const path = originalPath(workspace.originalsDir, received.sha256, received.ext);
           if (path) {
             await rm(path, { force: true }).catch(() => undefined);
@@ -761,6 +792,7 @@ export function createMaterialsService({
         unit,
         unitCount: row.unitCount ?? 0,
         status: (unitRow?.status ?? 'pending') as MaterialPage['status'],
+        working: isWorkingState(store().summary(materialId).state),
         width: unitRow?.width ?? null,
         height: unitRow?.height ?? null,
         blocks,
@@ -795,11 +827,13 @@ export function createMaterialsService({
         const block = entry?.blocks.find(
           (candidate) => candidate.start <= located.start && located.start < candidate.end,
         );
+        const highlight = entry ? boxesFor(entry.spans, located.start, located.end) : [];
         return {
           materialId,
-          unit: located.unit,
+          // Se abre la página donde empieza la frase en la hoja.
+          unit: highlight[0]?.page ?? located.unit,
           blockId: block?.id ?? null,
-          highlight: entry ? boxesFor(entry.spans, located.start, located.end) : [],
+          highlight,
           notFound: false,
         };
       }
@@ -823,6 +857,11 @@ export function createMaterialsService({
         ),
         notFound: false,
       };
+    },
+
+    preview({ materialId, selection }) {
+      const { reference, quote } = citeOf(materialId, selection);
+      return { reference, quote };
     },
 
     createCard({ materialId, selection, question, answer }) {
@@ -876,6 +915,7 @@ export function createMaterialsService({
     recoverStale,
 
     async pause() {
+      pauses++;
       paused = true;
       if (current) {
         releasing = true;
@@ -887,6 +927,10 @@ export function createMaterialsService({
     },
 
     unpause() {
+      pauses = Math.max(0, pauses - 1);
+      if (pauses > 0) {
+        return;
+      }
       paused = false;
       kick();
     },

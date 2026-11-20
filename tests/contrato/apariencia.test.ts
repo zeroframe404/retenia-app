@@ -9,6 +9,7 @@ import { createHandlers, handleMessage } from '../../src/main/bridge';
 import { createDemoDate } from '../../src/main/demo/clock';
 import { themeChoice } from '../../src/preload/contract/appearance';
 import { tempDataFolder } from '../apoyo/base';
+import { idleMaterials } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // Ajustes › «Apariencia» (CA-032): la elección vive en `ajustes.json` de la carpeta de datos,
@@ -50,6 +51,7 @@ function handlersWithNotice(notice: (choice: ThemeChoice) => void) {
       version: '0.0.0-prueba',
       openFolder: async () => '',
       onAppearanceChange: notice,
+      materials: idleMaterials(workspace, clock),
     }),
   };
 }

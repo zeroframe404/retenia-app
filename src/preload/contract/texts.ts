@@ -342,6 +342,13 @@ export const texts = {
     pageImage: (number: number) => `Página ${number} del original`,
     highlighted: 'Pasaje resaltado',
     stillReading: 'Todavía estamos leyendo esta página',
+    stillReadingDocument: 'Todavía estamos leyendo este documento',
+    notReadCancelled:
+      'No se leyó porque cancelaste el procesamiento. Tocá «Seguir procesando» para leerlo.',
+    untitledText: 'Texto pegado',
+    tooManyFiles: 'Podés agregar hasta 20 archivos a la vez.',
+    addFailed: 'No pudimos agregar estos archivos. Probá de nuevo.',
+    answerTooLong: 'La respuesta puede tener hasta 2.000 letras: acortala para guardar.',
     back: 'Volver a la lista',
     createCard: 'Crear tarjeta desde acá',
     saveExcerpt: 'Guardar extracto',
