@@ -346,17 +346,18 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
   });
 
   // Desde la Fase 13, la versión real lee materiales: lleva pdf.js (en el proceso de materiales y
-  // en el visor de la ventana), mammoth, yauzl y el proceso de materiales. La voz, los escaneos y
-  // el Laboratorio siguen afuera hasta sus fases (14 y 28).
-  it('la versión de uso real no trae las piezas del Laboratorio, la voz ni los escaneos, ni siquiera compiladas', () => {
+  // en el visor de la ventana), mammoth, yauzl y el proceso de materiales. Desde la Fase 14 también
+  // lee escaneos (tesseract.js con sus datos de español e inglés). La voz y el Laboratorio siguen
+  // afuera hasta la Fase 28.
+  it('la versión de uso real no trae las piezas del Laboratorio ni la voz, ni siquiera compiladas', () => {
     const real = readPackage(requirePackage('real').folder);
     const pieces = real
       .map((file) => file.path)
-      .filter((path) => /sherpa-onnx|tesseract|@napi-rs|\/voice\.js$|\/ocr[-.]/.test(path));
+      .filter((path) => /sherpa-onnx|@napi-rs|\/voice\.js$/.test(path));
     expect(pieces).toEqual([]);
     const code = real
       .filter((file) => /\.(c?js|mjs)$/.test(file.path) && !file.path.includes('node_modules'))
-      .filter((file) => file.text?.includes('tesseract') || file.text?.includes('sherpa-onnx'))
+      .filter((file) => file.text?.includes('sherpa-onnx'))
       .map((file) => file.path);
     expect(code).toEqual([]);
     // Lo que sí trae desde la Fase 13: el proceso de materiales y los lectores.

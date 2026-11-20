@@ -32,6 +32,9 @@ files:
   # De tesseract.js-core, solo los núcleos que carga en Node: tesseract.js 7.0.0 elige siempre
   # el completo (no el «solo LSTM») sin importar el modo pedido. De los idiomas, solo la versión
   # entera comprimida que usa (no la grande).
+  # De tesseract.js no hacen falta su documentación, sus ejemplos ni sus herramientas de desarrollo.
+  - "!node_modules/tesseract.js/{docs,examples,scripts,karma.conf.js}/**"
+  - "!node_modules/tesseract.js/karma.conf.js"
   - "!node_modules/tesseract.js-core/*.wasm.js"
   - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}-lstm.{js,wasm}"
   - "!node_modules/@tesseract.js-data/*/4.0.0/**"
