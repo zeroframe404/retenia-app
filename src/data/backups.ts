@@ -57,6 +57,12 @@ const COUNTED_TABLES = [
   'block_links',
   'images',
   'inbox_items',
+  // Los materiales (Fase 13).
+  'materials',
+  'material_units',
+  'material_blocks',
+  'ingest_results',
+  'ingest_tasks',
 ];
 
 const manifestSchema = z.strictObject({

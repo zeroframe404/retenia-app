@@ -484,7 +484,8 @@ describe('[CA-112] guardar un extracto', () => {
     });
     expect(count).toBe(1);
     const [item] = space.workspace.inbox.list().items;
-    expect(item?.text).toBe(block.text.slice(0, 40));
+    // La Bandeja guarda el texto sin espacios en los bordes (como cualquier anotación).
+    expect(item?.text).toBe(block.text.slice(0, 40).trim());
     expect(item?.source).toBe('Inferencia — capítulos 1 a 4 · página 3');
   });
 });

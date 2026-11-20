@@ -101,6 +101,17 @@ export const cardDetailSchema = z.strictObject({
   // El renglón dejó de pedirla (lo borraste o le sacaste la marca) y la conservaste.
   detached: z.boolean(),
   hasHistory: z.boolean(),
+  // La cita de un material (Fase 13): de dónde salió, la frase y si todavía se encuentra en el
+  // original («located»), si el material todavía se está leyendo («pending») o si hay que
+  // reubicarla («relocate», «Fuente a reubicar»).
+  cite: z
+    .strictObject({
+      materialId: z.uuid(),
+      reference: z.string(),
+      quote: z.string(),
+      status: z.enum(['located', 'pending', 'relocate']),
+    })
+    .nullable(),
 });
 export type CardDetail = z.output<typeof cardDetailSchema>;
 

@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import { type Clock, type Stopwatch, systemStopwatch } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
 import type { ThemeChoice } from '../core/theme';
@@ -12,13 +13,24 @@ import {
   type Registry,
 } from '../preload/contract';
 import type { Backup } from '../preload/contract/backups';
+import type { fileChannels } from '../preload/contract/materials';
 import { createAppearanceStore } from './appearance';
+import { createMaterialsService, type MaterialsService } from './materials/service';
 import { createStudyTimer } from './study-timer';
+import { WorkerProblem } from './supervisor';
 
 export type Variant = 'prueba' | 'real';
 
 export type Handlers = {
   [K in ChannelName]: (request: HandlerRequest<K>) => Promise<HandlerResponse<K>>;
+};
+
+type FileChannels = typeof fileChannels;
+// El canal del puente de archivos (`materials.addFiles`), que la ventana no ve.
+export type FileHandlers = {
+  [K in keyof FileChannels]: (
+    request: z.output<FileChannels[K]['request']>,
+  ) => Promise<z.input<FileChannels[K]['response']>>;
 };
 
 // Una copia tal como la ve la ventana: sin rutas ni nombres de archivo.
@@ -48,6 +60,7 @@ export function createHandlers({
   zoom,
   onFlushed,
   stopwatch = systemStopwatch(),
+  materials: givenMaterials,
 }: {
   clock: Clock;
   variant: Variant;
@@ -62,7 +75,18 @@ export function createHandlers({
   onFlushed?: () => void;
   // Mide los tiempos de la sesión de estudio (en las pruebas, uno fijo).
   stopwatch?: Stopwatch;
+  // Los materiales (Fase 13): la cola y su proceso de trabajo. Sin uno, los materiales se pueden
+  // listar pero no se procesan (las pruebas que no los usan).
+  materials?: MaterialsService;
 }): Handlers {
+  const materials =
+    givenMaterials ??
+    createMaterialsService({
+      workspace,
+      clock,
+      execute: () => Promise.reject(new WorkerProblem('crashed')),
+      autoStart: false,
+    });
   const backups = async () => (await workspace.backups()).map(toBackup);
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
@@ -171,6 +195,17 @@ export function createHandlers({
       return {};
     },
     'search.rebuild': async () => workspace.search.rebuild(),
+    'materials.addText': (request) => materials.addText(request),
+    'materials.decide': (request) => materials.decide(request),
+    'materials.list': async (request) => materials.list(request),
+    'materials.get': async (request) => materials.get(request),
+    'materials.cancel': async (request) => materials.cancel(request),
+    'materials.resume': async (request) => materials.resume(request),
+    'materials.dismiss': async (request) => materials.dismiss(request),
+    'materials.page': async (request) => materials.page(request),
+    'materials.open': async (request) => materials.open(request),
+    'materials.createCard': async (request) => materials.createCard(request),
+    'materials.saveExcerpt': async (request) => materials.saveExcerpt(request),
     'inbox.list': async () => workspace.inbox.list(),
     'inbox.capture': async (request) => workspace.inbox.capture(request),
     'inbox.move': async (request) => workspace.inbox.move(request),
@@ -217,6 +252,12 @@ type AnyHandlers = Readonly<Record<string, (request: never) => Promise<unknown>>
 // Lo que corre del lado del principal al recibir un mensaje del puente: valida la petición
 // antes de tocar nada y la respuesta antes de devolverla. Nunca registra el contenido.
 // El registro de canales es el del contrato; la variante de prueba le suma los suyos.
+// Los manejadores del puente de archivos (`materials.addFiles`): aparte de los demás, porque la
+// ventana no tiene ese canal (solo lo usa el puente con las rutas de los archivos soltados).
+export function createFileHandlers(materials: MaterialsService): FileHandlers {
+  return { 'materials.addFiles': (request) => materials.addFiles(request) };
+}
+
 export async function handleMessage(
   handlers: AnyHandlers,
   channel: string,

@@ -34,6 +34,26 @@ import { noRequest } from './common';
 import type { demoChannels } from './demo';
 import type { labChannels } from './lab';
 import {
+  materialDetailSchema,
+  materialIdRequest,
+  materialIdResponse,
+  materialPageSchema,
+  materialSummarySchema,
+  materialsAddTextRequest,
+  materialsAddTextResponse,
+  materialsCreateCardRequest,
+  materialsCreateCardResponse,
+  materialsDecideRequest,
+  materialsDismissResponse,
+  materialsExcerptRequest,
+  materialsExcerptResponse,
+  materialsListRequest,
+  materialsListResponse,
+  materialsOpenRequest,
+  materialsOpenResponse,
+  materialsPageRequest,
+} from './materials';
+import {
   imagesReadRequest,
   imagesReadResponse,
   imagesSaveRequest,
@@ -195,6 +215,22 @@ export const channels = {
   'search.query': { request: searchQueryRequest, response: searchQueryResponse },
   'search.opened': { request: searchOpenedRequest, response: searchOpenedResponse },
   'search.rebuild': { request: noRequest, response: searchRebuildResponse },
+  // Los materiales (Fase 13). «materials.addFiles» está aparte (`fileChannels`): solo lo usa el
+  // puente de archivos.
+  'materials.addText': { request: materialsAddTextRequest, response: materialsAddTextResponse },
+  'materials.decide': { request: materialsDecideRequest, response: materialIdResponse },
+  'materials.list': { request: materialsListRequest, response: materialsListResponse },
+  'materials.get': { request: materialIdRequest, response: materialDetailSchema },
+  'materials.cancel': { request: materialIdRequest, response: materialSummarySchema },
+  'materials.resume': { request: materialIdRequest, response: materialSummarySchema },
+  'materials.dismiss': { request: materialIdRequest, response: materialsDismissResponse },
+  'materials.page': { request: materialsPageRequest, response: materialPageSchema },
+  'materials.open': { request: materialsOpenRequest, response: materialsOpenResponse },
+  'materials.createCard': {
+    request: materialsCreateCardRequest,
+    response: materialsCreateCardResponse,
+  },
+  'materials.saveExcerpt': { request: materialsExcerptRequest, response: materialsExcerptResponse },
   'window.zoom': { request: zoomRequest, response: zoomResponse },
   'window.flushed': { request: flushedRequest, response: flushedResponse },
 };

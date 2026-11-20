@@ -39,5 +39,7 @@ export function createDemoHandlers(demo: DemoDate, data?: DemoData): DemoHandler
     'demo.useFirstTime': async () => ({ mode: await needData().useFirstTime() }),
     'demo.useCast': async () => ({ mode: await needData().useCast() }),
     'demo.load10k': async () => needData().loadVolume(),
+    'demo.processing': async () => ({ slow: demo.slowProcessing() }),
+    'demo.setProcessing': async ({ slow }) => ({ slow: demo.setSlowProcessing(slow) }),
   };
 }

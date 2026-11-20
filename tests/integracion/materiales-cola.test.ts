@@ -40,18 +40,24 @@ async function uninterrupted() {
 const never = () => new Promise<never>(() => undefined);
 
 describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
-  const stages: { name: string; stop: (task: MaterialsTask) => boolean }[] = [
-    { name: 'validación', stop: (task) => task.kind === 'validate' },
+  const stages: { name: string; where: string; stop: (task: MaterialsTask) => boolean }[] = [
+    { name: 'validación', where: "stage = 'validate'", stop: (task) => task.kind === 'validate' },
     {
       name: 'extracción de la página 1',
+      where: "stage = 'extract' AND unit_no = 1",
       stop: (task) => task.kind === 'extract' && task.unit === 1,
     },
     {
       name: 'extracción de la página 2',
+      where: "stage = 'extract' AND unit_no = 2",
       stop: (task) => task.kind === 'extract' && task.unit === 2,
     },
-    { name: 'estructura', stop: (task) => task.kind === 'structure' },
-    { name: 'normalización', stop: (task) => task.kind === 'normalize' },
+    { name: 'estructura', where: "stage = 'structure'", stop: (task) => task.kind === 'structure' },
+    {
+      name: 'normalización',
+      where: "stage = 'normalize'",
+      stop: (task) => task.kind === 'normalize',
+    },
   ];
 
   for (const stage of stages) {
@@ -69,7 +75,7 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
           () =>
             readRows(
               space.file,
-              "SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running'",
+              `SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running' AND ${stage.where}`,
             )[0]?.n,
         )
         .toBe(1);
@@ -103,8 +109,10 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
     await expect
       .poll(
         () =>
-          readRows(space.file, "SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running'")[0]
-            ?.n,
+          readRows(
+            space.file,
+            "SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running' AND stage = 'extract'",
+          )[0]?.n,
       )
       .toBe(1);
     first.service.abandon();
@@ -186,8 +194,10 @@ describe('reintentos con un proceso de trabajo que falla (simulado)', () => {
     await expect
       .poll(
         () =>
-          readRows(space.file, "SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running'")[0]
-            ?.n,
+          readRows(
+            space.file,
+            "SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running' AND stage = 'extract'",
+          )[0]?.n,
       )
       .toBe(1);
     first.service.abandon();

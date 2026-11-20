@@ -1,7 +1,12 @@
 import { join } from 'node:path';
 import { type Clock, demoClock, type Stopwatch } from '../../src/core/clock';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
-import { createHandlers, handleMessage, type Variant } from '../../src/main/bridge';
+import {
+  createFileHandlers,
+  createHandlers,
+  handleMessage,
+  type Variant,
+} from '../../src/main/bridge';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
@@ -18,6 +23,7 @@ export interface TestBridge {
   // archivos con las rutas que saca de cada archivo soltado o elegido.
   files: ApiOf<typeof fileChannels>;
   handlers: ReturnType<typeof createHandlers>;
+  fileHandlers: ReturnType<typeof createFileHandlers>;
   workspace: Workspace;
   materials: MaterialsService;
   // Los avisos del principal a la ventana (`material.progress`…).
@@ -90,6 +96,7 @@ export function openBridge({
         return '';
       }),
   });
+  const fileHandlers = createFileHandlers(materials);
   const sent: TestBridge['sent'] = [];
   const invoke: Invoke = async (channel, request) => {
     sent.push({ channel, request });
@@ -97,12 +104,13 @@ export function openBridge({
   };
   const invokeFiles: Invoke = async (channel, request) => {
     sent.push({ channel, request });
-    return handleMessage(handlers, channel, request, fileChannels);
+    return handleMessage(fileHandlers, channel, request, fileChannels);
   };
   return {
     api: buildApi(invoke),
     files: buildApi(invokeFiles, fileChannels),
     handlers,
+    fileHandlers,
     workspace,
     materials,
     subscribe: (listener) => {

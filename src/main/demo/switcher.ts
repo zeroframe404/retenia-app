@@ -131,6 +131,9 @@ export function createDemoWorkspace({
     get copiesDir() {
       return active.copiesDir;
     },
+    get originalsDir() {
+      return active.originalsDir;
+    },
     get cards() {
       return active.cards;
     },
@@ -163,6 +166,9 @@ export function createDemoWorkspace({
     },
     get search() {
       return active.search;
+    },
+    get materials() {
+      return active.materials;
     },
     verifyData: () => active.verifyData(),
     repairData: () => active.repairData(),

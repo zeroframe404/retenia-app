@@ -24,7 +24,7 @@ afterEach(() => {
 const UUID = '01930000-0000-7000-8000-000000000000';
 const registry = { ...channels, ...fileChannels };
 const send = (opened: TestBridge, channel: string, request: unknown) =>
-  handleMessage(opened.handlers, channel, request, registry);
+  handleMessage({ ...opened.handlers, ...opened.fileHandlers }, channel, request, registry);
 
 describe('materials.*', () => {
   it('cada canal rechaza pedidos que no cumplen el contrato, sin tocar la base', async () => {

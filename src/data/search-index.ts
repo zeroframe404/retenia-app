@@ -9,6 +9,8 @@ import {
   cards,
   cardVersions,
   doubts,
+  materialBlocks,
+  materials,
   notes,
   topicAliases,
   topics,
@@ -238,12 +240,105 @@ function loadDoubts(tx: Writer, ids: readonly string[] | null): DocRow[] {
   }));
 }
 
+// Un material (su título y el texto que no cae en ninguna sección) y cada una de sus secciones (su
+// título y el texto de lo que cuelga directo de ella). Lo que tiene error o está borrado no se
+// indexa. Las fórmulas y el código van también como texto crudo.
+function loadMaterials(tx: Writer, ids: readonly string[] | null): DocRow[] {
+  const rows = tx
+    .select()
+    .from(materials)
+    .where(
+      and(
+        isNull(materials.deletedAt),
+        isNull(materials.errorCode),
+        ids === null ? undefined : inArray(materials.id, [...ids]),
+      ),
+    )
+    .all();
+  if (rows.length === 0) {
+    return [];
+  }
+  const blockRows = tx
+    .select({
+      id: materialBlocks.id,
+      materialId: materialBlocks.materialId,
+      parentId: materialBlocks.parentId,
+      type: materialBlocks.type,
+      text: materialBlocks.normalizedText,
+    })
+    .from(materialBlocks)
+    .where(
+      inArray(
+        materialBlocks.materialId,
+        rows.map((row) => row.id),
+      ),
+    )
+    .orderBy(materialBlocks.materialId, materialBlocks.position)
+    .all();
+  const docs: DocRow[] = [];
+  for (const row of rows) {
+    const own = blockRows.filter((block) => block.materialId === row.id);
+    const sectionIds = new Set(own.filter((block) => block.type === 'section').map((b) => b.id));
+    const textOf = (parent: string | null) =>
+      own.filter(
+        (block) =>
+          block.type !== 'section' &&
+          block.type !== 'header' &&
+          block.type !== 'footer' &&
+          (parent === null
+            ? block.parentId === null || !sectionIds.has(block.parentId)
+            : block.parentId === parent),
+      );
+    const loose = textOf(null);
+    const rawOf = (blocks: typeof own) =>
+      blocks
+        .filter((block) => block.type === 'formula' || block.type === 'code')
+        .map((block) => block.text)
+        .join('\n');
+    docs.push({
+      docId: `material:${row.id}`,
+      kind: 'material',
+      entityId: row.id,
+      parentId: null,
+      subjectId: row.subjectId,
+      topicId: null,
+      label: row.title,
+      title: row.title,
+      body: loose.map((block) => block.text).join('\n'),
+      raw: rawOf(loose),
+      aliases: '',
+      archived: 0,
+      touchedAt: row.addedAt,
+    });
+    for (const section of own.filter((block) => block.type === 'section')) {
+      const inside = textOf(section.id);
+      docs.push({
+        docId: `section:${section.id}`,
+        kind: 'section',
+        entityId: section.id,
+        parentId: row.id,
+        subjectId: row.subjectId,
+        topicId: null,
+        label: section.text,
+        title: section.text,
+        body: inside.map((block) => block.text).join('\n'),
+        raw: rawOf(inside),
+        aliases: '',
+        archived: 0,
+        touchedAt: row.addedAt,
+      });
+    }
+  }
+  return docs;
+}
+
 const LOADERS: Record<string, (tx: Writer, ids: readonly string[] | null) => DocRow[]> = {
   card: loadCards,
   note: loadNotes,
   block: loadBlocks,
   topic: loadTopics,
   doubt: loadDoubts,
+  material: loadMaterials,
 };
 
 // Todo lo que debería estar en el índice, tal como está hoy el contenido.
@@ -353,6 +448,13 @@ export function flushSearchIndex(tx: Writer): number {
       const foundIds = new Set(found.map((doc) => doc.docId));
       docs.push(...found);
       removed.push(...batch.map((id) => `${kind}:${id}`).filter((docId) => !foundIds.has(docId)));
+      // Las secciones de un material que se volvió a leer (o se borró) y ya no están.
+      if (kind === 'material') {
+        const stale = tx.all<{ doc_id: string }>(
+          sql`SELECT doc_id FROM search_documents WHERE kind = 'section' AND parent_id IN (${list(batch)})`,
+        );
+        removed.push(...stale.map((row) => row.doc_id).filter((docId) => !foundIds.has(docId)));
+      }
       checked += batch.length;
     }
   }

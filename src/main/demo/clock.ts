@@ -15,6 +15,10 @@ export interface DemoDate {
   today(): string;
   advance(days: 1 | 7 | 35): string;
   reset(): string;
+  // «Procesar despacio» (Fase 13): una demora visible por página al leer un material. También queda
+  // en ajustes.json, así sobrevive a cerrar Retenia a mitad de camino.
+  slowProcessing(): boolean;
+  setSlowProcessing(on: boolean): boolean;
 }
 
 const offsetSchema = z.number().int().nonnegative();
@@ -34,16 +38,14 @@ export function createDemoDate(dataDir: string): DemoDate {
   const file = join(dataDir, 'ajustes.json');
   const stored = offsetSchema.safeParse(readSettings(file).demoDayOffset);
   let offset = stored.success ? stored.data : 0;
+  let slow = readSettings(file).demoSlowProcessing === true;
   const clock: Clock = { now: () => demoClock(offset).now() };
   const today = () => studyDayOf(clock.now());
   // Se escribe aparte y se renombra: un corte nunca deja el archivo a medias.
-  const save = () => {
+  const save = (change: Record<string, unknown>) => {
     mkdirSync(dataDir, { recursive: true });
     const temporary = `${file}.tmp`;
-    writeFileSync(
-      temporary,
-      `${JSON.stringify({ ...readSettings(file), demoDayOffset: offset })}\n`,
-    );
+    writeFileSync(temporary, `${JSON.stringify({ ...readSettings(file), ...change })}\n`);
     renameSync(temporary, file);
   };
   return {
@@ -51,12 +53,18 @@ export function createDemoDate(dataDir: string): DemoDate {
     today,
     advance(days) {
       offset += days;
-      save();
+      save({ demoDayOffset: offset });
       return today();
+    },
+    slowProcessing: () => slow,
+    setSlowProcessing(on) {
+      slow = on;
+      save({ demoSlowProcessing: slow });
+      return slow;
     },
     reset() {
       offset = 0;
-      save();
+      save({ demoDayOffset: offset });
       return today();
     },
   };

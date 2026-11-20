@@ -116,6 +116,213 @@ function toGray(image: PdfImage): GrayImage {
   return { width, height, pixels };
 }
 
+// --- Lo que usa la cadena de los materiales (Fase 13) ---------------------------------------
+
+export const PDFJS_VERSION = '6.4.299';
+
+export class PdfUnreadableError extends Error {
+  constructor(reason: string) {
+    super(`No se pudo leer el PDF: ${reason}`);
+    this.name = 'PdfUnreadableError';
+  }
+}
+
+export interface OpenPdf {
+  pdf: PdfDocument;
+  close: () => Promise<void>;
+}
+
+// Abre un PDF y lo deja abierto (el proceso de trabajo lo guarda mientras lee sus páginas). Un PDF
+// con contraseña o que pdf.js no entiende no se puede leer.
+export async function openPdf(data: Uint8Array): Promise<OpenPdf> {
+  const loading = getDocument({ data: data.slice(), ...PDF_OPTIONS });
+  try {
+    const pdf = await loading.promise;
+    return { pdf, close: () => loading.destroy() };
+  } catch (error) {
+    await loading.destroy().catch(() => undefined);
+    const name = (error as { name?: string }).name ?? '';
+    throw new PdfUnreadableError(name || 'el archivo no es un PDF válido');
+  }
+}
+
+export interface PdfInfo {
+  pages: { unit: number; width: number; height: number }[];
+  outline: { title: string; page: number | null; level: number }[];
+}
+
+// Cuántas páginas tiene, de qué tamaño, y su índice (si lo trae).
+export async function pdfInfo({ pdf }: OpenPdf): Promise<PdfInfo> {
+  const pages: PdfInfo['pages'] = [];
+  for (let unit = 1; unit <= pdf.numPages; unit++) {
+    const page = await pdf.getPage(unit);
+    const viewport = page.getViewport({ scale: 1 });
+    pages.push({ unit, width: viewport.width, height: viewport.height });
+    page.cleanup();
+  }
+  const outline: PdfInfo['outline'] = [];
+  const walk = async (items: Awaited<ReturnType<PdfDocument['getOutline']>>, level: number) => {
+    for (const item of items ?? []) {
+      let page: number | null = null;
+      try {
+        const destination =
+          typeof item.dest === 'string' ? await pdf.getDestination(item.dest) : item.dest;
+        const reference = Array.isArray(destination) ? destination[0] : null;
+        if (reference && typeof reference === 'object') {
+          page =
+            (await pdf.getPageIndex(reference as Parameters<PdfDocument['getPageIndex']>[0])) + 1;
+        }
+      } catch {
+        page = null;
+      }
+      outline.push({ title: item.title, page, level });
+      await walk(item.items, level + 1);
+    }
+  };
+  try {
+    await walk(await pdf.getOutline(), 1);
+  } catch {
+    // Sin índice legible: las secciones salen del tamaño de la letra.
+  }
+  return { pages, outline };
+}
+
+type Matrix = [number, number, number, number, number, number];
+const multiply = (m: Matrix, n: Matrix): Matrix => [
+  m[0] * n[0] + m[2] * n[1],
+  m[1] * n[0] + m[3] * n[1],
+  m[0] * n[2] + m[2] * n[3],
+  m[1] * n[2] + m[3] * n[3],
+  m[0] * n[4] + m[2] * n[5] + m[4],
+  m[1] * n[4] + m[3] * n[5] + m[5],
+];
+
+export interface PdfPageExtraction {
+  width: number;
+  height: number;
+  items: {
+    text: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    size: number;
+    bold: boolean;
+    fontFamily: string;
+    fontName: string;
+  }[];
+  images: { x: number; y: number; width: number; height: number }[];
+  // La salida de pdf.js tal cual (el texto con sus transformaciones y las letras), para guardarla.
+  tool: unknown;
+}
+
+// El texto de una página con su caja, su letra y su tamaño, más las cajas de sus imágenes.
+export async function extractPdfPage({ pdf }: OpenPdf, unit: number): Promise<PdfPageExtraction> {
+  const page = await pdf.getPage(unit);
+  try {
+    const viewport = page.getViewport({ scale: 1 });
+    // La lista de operaciones carga las letras (para saber su nombre) y dice dónde van las imágenes.
+    const operators = await page.getOperatorList();
+    const images: PdfPageExtraction['images'] = [];
+    const stack: Matrix[] = [];
+    let current: Matrix = [1, 0, 0, 1, 0, 0];
+    const IMAGE_OPS = new Set([
+      OPS.paintImageXObject,
+      OPS.paintInlineImageXObject,
+      OPS.paintImageMaskXObject,
+    ]);
+    operators.fnArray.forEach((fn, index) => {
+      if (fn === OPS.save) {
+        stack.push(current);
+      } else if (fn === OPS.restore) {
+        current = stack.pop() ?? [1, 0, 0, 1, 0, 0];
+      } else if (fn === OPS.transform) {
+        const args = (operators.argsArray[index] ?? []) as number[];
+        current = multiply(current, [
+          args[0] ?? 1,
+          args[1] ?? 0,
+          args[2] ?? 0,
+          args[3] ?? 1,
+          args[4] ?? 0,
+          args[5] ?? 0,
+        ]);
+      } else if (IMAGE_OPS.has(fn)) {
+        const corners = [
+          [0, 0],
+          [1, 0],
+          [0, 1],
+          [1, 1],
+        ].map(([u = 0, v = 0]) =>
+          viewport.convertToViewportPoint(
+            current[0] * u + current[2] * v + current[4],
+            current[1] * u + current[3] * v + current[5],
+          ),
+        );
+        const xs = corners.map((point) => point[0] ?? 0);
+        const ys = corners.map((point) => point[1] ?? 0);
+        const left = Math.max(0, Math.min(...xs));
+        const top = Math.max(0, Math.min(...ys));
+        const right = Math.min(viewport.width, Math.max(...xs));
+        const bottom = Math.min(viewport.height, Math.max(...ys));
+        if (right > left && bottom > top) {
+          images.push({ x: left, y: top, width: right - left, height: bottom - top });
+        }
+      }
+    });
+    const content = await page.getTextContent();
+    const fontNames = new Map<string, string>();
+    const fontOf = (id: string) => {
+      if (!fontNames.has(id)) {
+        let name = '';
+        try {
+          const font = page.commonObjs.has(id)
+            ? (page.commonObjs.get(id) as { name?: string } | null)
+            : null;
+          name = font?.name ?? '';
+        } catch {
+          name = '';
+        }
+        fontNames.set(id, name);
+      }
+      return fontNames.get(id) ?? '';
+    };
+    const items: PdfPageExtraction['items'] = [];
+    for (const item of content.items) {
+      if (!('str' in item) || item.str === '' || item.width <= 0) {
+        continue;
+      }
+      const [, , c = 0, d = 0, e = 0, f = 0] = item.transform as number[];
+      const size = Math.hypot(c, d) || item.height;
+      const style = content.styles[item.fontName];
+      const ascent = style?.ascent || 0.8;
+      const descent = style?.descent || -0.2;
+      const [x = 0, baseline = 0] = viewport.convertToViewportPoint(e, f);
+      const top = Math.max(0, baseline - size * ascent);
+      const name = fontOf(item.fontName);
+      items.push({
+        text: item.str,
+        x: Math.max(0, x),
+        y: top,
+        width: Math.min(item.width, viewport.width - Math.max(0, x)),
+        height: Math.min(viewport.height - top, size * (ascent - descent)),
+        size,
+        bold: /bold|black|heavy|semibold|demi/i.test(name),
+        fontFamily: style?.fontFamily ?? '',
+        fontName: name,
+      });
+    }
+    return {
+      width: viewport.width,
+      height: viewport.height,
+      items,
+      images,
+      tool: { items: content.items, styles: content.styles },
+    };
+  } finally {
+    page.cleanup();
+  }
+}
+
 // La imagen más grande de la página (la de un escaneo ocupa la hoja entera), o null si la página
 // no tiene imágenes.
 export function pdfPageImage(data: Uint8Array, pageNumber: number): Promise<GrayImage | null> {
