@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
@@ -12,6 +13,9 @@ const INFERENCE = 'Inferencia — capítulos 1 a 4.pdf';
 const SLOW = { timeout: 60_000 };
 
 const main = (page: Page) => page.getByRole('main');
+// Donde se sueltan los archivos: algo de adentro de la pantalla (el suelte sube hasta ella), como
+// cuando se arrastra desde el Explorador.
+const dropTarget = (page: Page) => page.getByRole('heading', { level: 2, name: 'Materiales' });
 const materialItem = (page: Page, name: RegExp) => main(page).getByRole('button', { name });
 
 // Arrastrar archivos del disco sobre la pantalla: los archivos se toman de un selector de archivos
@@ -72,7 +76,7 @@ test('[CA-104] arrastrar «Inferencia — capítulos 1 a 4.pdf»: las etapas ava
     .fill('Estadística básica');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeVisible();
-  await dropFiles(page, main(page), [join(SAMPLES, INFERENCE)]);
+  await dropFiles(page, dropTarget(page), [join(SAMPLES, INFERENCE)]);
   const item = materialItem(page, /Inferencia — capítulos 1 a 4/);
   await item.click();
   const stages = page.getByRole('list', { name: 'Etapas del procesamiento' });
@@ -100,12 +104,16 @@ test('[CA-105] cerrar Retenia a mitad del procesamiento: al volver a abrir sigue
   await slowProcessing(first.page, true);
   await toMaterials(first.page);
   const file = copyAs(testInfo.outputPath('archivos'), INFERENCE, 'Otro PDF.pdf');
-  await dropFiles(first.page, main(first.page), [file]);
+  await dropFiles(first.page, dropTarget(first.page), [file]);
   const duplicate = first.page.getByRole('dialog', { name: /^Parece que ya agregaste/ });
   await duplicate.getByRole('button', { name: 'Agregar igual' }).click();
   await expect(materialItem(first.page, /Otro PDF/)).toContainText(/Procesando [3-9] de 12/, SLOW);
-  // Se corta de golpe, sin cerrar la ventana.
-  first.app.process().kill('SIGKILL');
+  // A la fuerza, como «Finalizar árbol de procesos» del Administrador de tareas: Retenia, su
+  // ventana y su proceso de materiales mueren sin cerrar nada.
+  const child = first.app.process();
+  const exited = new Promise((done) => child.once('exit', done));
+  execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+  await exited;
   rmSync(file);
   const second = await launchFromStart(dataDir);
   await toMaterials(second.page);
@@ -118,7 +126,7 @@ test('[CA-106] arrastrar «Apunte 3.pdf» otra vez: «Parece que ya agregaste �
 }) => {
   const { page } = await launchFromStart();
   await toMaterials(page);
-  await dropFiles(page, main(page), [join(SAMPLES, 'Apunte 3.pdf')]);
+  await dropFiles(page, dropTarget(page), [join(SAMPLES, 'Apunte 3.pdf')]);
   const dialog = page.getByRole('dialog', {
     name: 'Parece que ya agregaste “Apunte 3.pdf” el 12/03/2027',
   });
@@ -135,7 +143,10 @@ test('[CA-107] «notas.md», «resumen.docx» y un texto pegado llegan a «Listo
 }) => {
   const { page } = await launchFromStart();
   await toMaterials(page);
-  await dropFiles(page, main(page), [join(SAMPLES, 'notas.md'), join(SAMPLES, 'resumen.docx')]);
+  await dropFiles(page, dropTarget(page), [
+    join(SAMPLES, 'notas.md'),
+    join(SAMPLES, 'resumen.docx'),
+  ]);
   await page.getByRole('button', { name: 'Agregar material' }).click();
   const dialog = page.getByRole('dialog', { name: 'Agregar material' });
   await dialog.getByRole('button', { name: 'Pegar texto' }).click();
@@ -158,7 +169,7 @@ test('[CA-108] «no-es-un-pdf.pdf»: «No pudimos leer este PDF (protegido o da�
 }) => {
   const { page } = await launchFromStart();
   await toMaterials(page);
-  await dropFiles(page, main(page), [join(SAMPLES, 'no-es-un-pdf.pdf')]);
+  await dropFiles(page, dropTarget(page), [join(SAMPLES, 'no-es-un-pdf.pdf')]);
   await materialItem(page, /no-es-un-pdf/).click();
   await expect(page.getByText('No pudimos leer este PDF (protegido o dañado)')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Elegir otro' })).toBeVisible();
@@ -177,7 +188,7 @@ test('[CA-109] mientras procesa: «Leer el original», estudiar otra cosa y «Ca
   await toMaterials(page);
   // Una copia del PDF del elenco con otro nombre: es un duplicado y se agrega igual.
   const file = copyAs(testInfo.outputPath('archivos'), INFERENCE, 'Apunte 4.pdf');
-  await dropFiles(page, main(page), [file]);
+  await dropFiles(page, dropTarget(page), [file]);
   await page
     .getByRole('dialog', { name: /^Parece que ya agregaste/ })
     .getByRole('button', { name: 'Agregar igual' })
@@ -238,11 +249,12 @@ test('[CA-110] una oración de la página 2 se vuelve tarjeta con su cita, y «V
   await page.getByRole('button', { name: 'Crear tarjeta desde acá' }).click();
   const panel = page.getByRole('dialog', { name: 'Crear tarjeta desde acá' });
   await expect(panel.getByText('Inferencia — capítulos 1 a 4 · página 2')).toBeVisible();
-  await expect(panel.getByText(PARAMETER)).toBeVisible();
+  await expect(panel.locator('blockquote')).toHaveText(PARAMETER);
   await panel
     .getByRole('textbox', { name: 'Pregunta' })
     .fill('¿Qué es un parámetro, con un ejemplo?');
   await panel.getByRole('button', { name: 'Guardar' }).click();
+  await goTo(page, 'Tarjetas');
   await openCardByQuestion(page, '¿Qué es un parámetro, con un ejemplo?');
   await expect(page.getByText('Fuente: Inferencia — capítulos 1 a 4 · página 2')).toBeVisible();
   await page.getByRole('button', { name: 'Ver en el original' }).click();
@@ -256,7 +268,7 @@ test('[CA-111] Retenia tiene su copia: se borra el archivo de afuera y el materi
   const { page } = await launchFromStart();
   await toMaterials(page);
   const file = copyAs(testInfo.outputPath('archivos'), 'resumen.docx', 'prueba.docx');
-  await dropFiles(page, main(page), [file]);
+  await dropFiles(page, dropTarget(page), [file]);
   await expect(materialItem(page, /prueba/)).toContainText('Listo', SLOW);
   rmSync(file);
   await materialItem(page, /prueba/).click();
@@ -306,13 +318,13 @@ test('M13.8: tres archivos juntos entran a la cola; una foto y un archivo vacío
     writeFileSync(path, `Archivo ${name}\n\nUn párrafo del archivo ${name}.`);
     return path;
   });
-  await dropFiles(page, main(page), files);
+  await dropFiles(page, dropTarget(page), files);
   for (const name of [/^uno/, /^dos/, /^tres/]) {
     await expect(materialItem(page, name)).toContainText('Listo', SLOW);
   }
   const empty = join(folder, 'vacio.txt');
   writeFileSync(empty, '');
-  await dropFiles(page, main(page), [join(SAMPLES, 'campana.png'), empty]);
+  await dropFiles(page, dropTarget(page), [join(SAMPLES, 'campana.png'), empty]);
   await materialItem(page, /campana/).click();
   await expect(
     page.getByText(
@@ -330,6 +342,9 @@ test('«Ver en el original» desde una sesión: se abre en el panel de la derech
   launchFromStart,
 }) => {
   const { page } = await launchFromStart();
+  // Primero el PDF del elenco tiene que estar leído (se lee solo al abrir).
+  await toMaterials(page);
+  await expect(materialItem(page, /Inferencia — capítulos 1 a 4/)).toContainText('Listo', SLOW);
   await goToDestination(page, 'Estudiar');
   await page.getByRole('button', { name: 'Empezar' }).click();
   const answer = page.getByPlaceholder('Tu respuesta…');

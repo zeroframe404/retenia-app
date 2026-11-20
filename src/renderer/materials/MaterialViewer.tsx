@@ -120,6 +120,8 @@ export function MaterialViewer({
   const [cited, setCited] = useState<MaterialBlockView | null>(null);
   const [creating, setCreating] = useState(false);
   const [toast, setToast] = useState('');
+  // Las páginas del original, contadas al abrirlo: sirve mientras Retenia todavía no lo leyó.
+  const [pagesInFile, setPagesInFile] = useState(0);
   const textRef = useRef<HTMLDivElement>(null);
   const isPdf = detail?.kind === 'pdf';
   const bytes = useOriginal(materialId, isPdf);
@@ -224,7 +226,7 @@ export function MaterialViewer({
   if (!detail || unit === null) {
     return null;
   }
-  const total = detail.units.length || 1;
+  const total = detail.units.length || pagesInFile || 1;
   const visible =
     page?.blocks.filter((block) => !HIDDEN.includes(block.type) && block.text !== '') ?? [];
   const reading = page !== null && page.status === 'pending' && visible.length === 0;
@@ -265,6 +267,7 @@ export function MaterialViewer({
               highlight={highlight.filter((box) => box.page === unit)}
               label={texts.materials.pageImage(unit)}
               highlightLabel={texts.materials.highlighted}
+              onPageCount={setPagesInFile}
             />
           </div>
         ) : null}
@@ -284,14 +287,17 @@ export function MaterialViewer({
               </ul>
               <Boton
                 onClick={() => {
-                  setOpened({
-                    materialId,
-                    unit,
-                    blockId: cited.id,
-                    highlight: cited.boxes,
-                    notFound: false,
-                  });
+                  // La frase exacta de la primera tarjeta que cita este pasaje.
+                  const [first] = cited.cited;
                   setCited(null);
+                  if (!first) {
+                    return;
+                  }
+                  window.retenia['materials.open']({ materialId, cardId: first.cardId })
+                    .then(setOpened)
+                    .catch((error: unknown) => {
+                      console.error('La ventana no pudo abrir la cita por el puente', error);
+                    });
                 }}
               >
                 {texts.materials.viewOriginal}

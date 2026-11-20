@@ -48,6 +48,14 @@ for (const destination of ['Estudiar', 'Materiales', 'Idiomas', 'Progreso'] as c
       await expect(page.getByRole('button', { name: 'Empezar', exact: true })).toBeEnabled();
     } else if (destination === 'Progreso') {
       await expect(page.getByText('Todavía no guardaste dudas.')).toBeVisible();
+    } else if (destination === 'Materiales') {
+      // Desde la Fase 13, los dos materiales del elenco se leen solos al abrir: la captura espera a
+      // que los dos estén «Listo», así no depende del momento.
+      const rows = page.getByRole('list', { name: 'Materiales de la materia' }).getByRole('button');
+      await expect(rows).toHaveCount(2);
+      for (const row of await rows.all()) {
+        await expect(row).toContainText('Listo', { timeout: 60_000 });
+      }
     }
     await page.mouse.move(480, 4);
     await shoot(page, destination.toLowerCase());
