@@ -61,7 +61,7 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
   ];
 
   for (const stage of stages) {
-    it(`cortado en la ${stage.name}: sigue desde donde estaba, termina igual y el original está`, async () => {
+    it(`[CA-105] (simulado) cortado en la ${stage.name}: sigue desde donde estaba, termina igual y el original está`, async () => {
       const expected = await uninterrupted();
       const space = openSpace();
       const subjectId = statisticsSubject(space);
@@ -98,7 +98,7 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
     });
   }
 
-  it('la vuelta a «pendiente» por un corte no cuenta como intento fallido', async () => {
+  it('[CA-105] (simulado) la vuelta a «pendiente» por un corte no cuenta como intento fallido', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const first = openMaterials(space, {
@@ -180,7 +180,7 @@ describe('reintentos con un proceso de trabajo que falla (simulado)', () => {
     expect(service.list({ subjectId }).materials[0]?.state).toEqual({ kind: 'review' });
   });
 
-  it('una tarea en curso del mismo arranque sin latido hace más de 15 s vuelve a «pendiente»', async () => {
+  it('(simulado) una tarea en curso del mismo arranque sin latido hace más de 15 s vuelve a «pendiente»', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     // El tiempo que mide el latido (no el de la demostración, que está quieto).
@@ -212,5 +212,72 @@ describe('reintentos con un proceso de trabajo que falla (simulado)', () => {
         "SELECT status FROM ingest_tasks WHERE stage = 'extract' AND unit_no = 1",
       ),
     ).toEqual([{ status: 'pending' }]);
+  });
+});
+
+// La pausa de la cola: la usan la suspensión de Windows y la restauración de una copia. El
+// proceso de trabajo es un doble (simulado): la página 1 se queda leyendo hasta que la pausa la
+// corta, como hace el supervisor con el proceso de verdad.
+function heldOnFirstPage(space: Space) {
+  let cut: ((error: Error) => void) | null = null;
+  let held = false;
+  let reached: () => void = () => undefined;
+  const atPage = new Promise<void>((resolve) => {
+    reached = resolve;
+  });
+  const opened = openMaterials(space, {
+    execute: (task) => {
+      if (task.kind === 'extract' && task.unit === 1 && !held) {
+        held = true;
+        reached();
+        return new Promise((_, reject) => {
+          cut = reject;
+        });
+      }
+      return runMaterialsTask(task);
+    },
+    interrupt: () => cut?.(new WorkerProblem('crashed')),
+  });
+  return { ...opened, atPage };
+}
+
+describe('[CA-105] (simulado) la pausa de la cola', () => {
+  it('[CA-105] (simulado) pausar corta la página en curso sin contar intento ni recuperación; al soltar, la cola sigue y termina', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service, executed, atPage } = heldOnFirstPage(space);
+    await service.addFiles({ paths: [sample(APUNTE)], subjectId });
+    await atPage;
+    await service.pause();
+    expect(
+      readRows(
+        space.file,
+        "SELECT status, attempts, recoveries FROM ingest_tasks WHERE stage = 'extract' AND unit_no = 1",
+      ),
+    ).toEqual([{ status: 'pending', attempts: 0, recoveries: 0 }]);
+    const before = executed.length;
+    await service.whenIdle();
+    expect(executed).toHaveLength(before);
+    service.unpause();
+    await service.whenIdle();
+    expect(service.list({ subjectId }).materials[0]?.state).toEqual({ kind: 'ready' });
+  });
+
+  it('[CA-105] (simulado) dos pausas a la vez (Windows se suspende durante una restauración): la cola sigue recién cuando se sueltan las dos', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service, executed, atPage } = heldOnFirstPage(space);
+    await service.addFiles({ paths: [sample(APUNTE)], subjectId });
+    await atPage;
+    await service.pause();
+    await service.pause();
+    service.unpause();
+    const before = executed.length;
+    await service.whenIdle();
+    expect(executed).toHaveLength(before);
+    expect(service.list({ subjectId }).materials[0]?.state.kind).not.toBe('ready');
+    service.unpause();
+    await service.whenIdle();
+    expect(service.list({ subjectId }).materials[0]?.state).toEqual({ kind: 'ready' });
   });
 });

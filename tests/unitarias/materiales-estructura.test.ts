@@ -237,7 +237,7 @@ $$x = 1$$
 <script>alert(1)</script>
 `;
 
-  it('cada bloque con su tipo y su nivel; el HTML es texto común', () => {
+  it('[CA-107] cada bloque con su tipo y su nivel; el HTML es texto común', () => {
     const blocks = readMarkdown(NOTES);
     expect(
       blocks.map((block) => [block.type, block.level, block.lines.map((l) => l.text)]),
@@ -264,7 +264,7 @@ $$x = 1$$
     expect(blocks.every((block) => block.unit === 1)).toBe(true);
   });
 
-  it('el texto pegado: párrafos por renglón en blanco; un renglón corto sin punto final es un título', () => {
+  it('[CA-107] el texto pegado: párrafos por renglón en blanco; un renglón corto sin punto final es un título', () => {
     const blocks = readPlainText(
       'Intervalos de confianza\n\nEs un rango de valores plausibles\npara un parámetro.\n\nSe calcula como la estimación más y menos un margen.\n',
     );
@@ -275,7 +275,7 @@ $$x = 1$$
     ]);
   });
 
-  it('tres párrafos sin títulos: tres párrafos, ninguna sección', () => {
+  it('[CA-107] tres párrafos sin títulos: tres párrafos, ninguna sección', () => {
     const blocks = readPlainText('Uno, el primero.\n\nDos, el segundo.\n\nTres, el tercero.');
     expect(blocks.map((block) => block.type)).toEqual(['paragraph', 'paragraph', 'paragraph']);
   });
@@ -289,7 +289,7 @@ describe('[CA-107] Word: títulos por estilo', () => {
     children: [run(text)],
   });
 
-  it('«Title» es el título del documento, «Heading N» una sección de nivel N; listas, tablas e imágenes', () => {
+  it('[CA-107] «Title» es el título del documento, «Heading N» una sección de nivel N; listas, tablas e imágenes', () => {
     const tree: DocxNode = {
       type: 'document',
       children: [

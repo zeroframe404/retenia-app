@@ -88,7 +88,7 @@ async function cutPoints(base: string, operation: string, data: Record<string, s
 }
 
 describe('[CA-105] corte a la fuerza al agregar un material', () => {
-  it('antes de cada sentencia, o recién terminado: el material entero o ausente, y sigue solo hasta «Listo»', async () => {
+  it('[CA-105] antes de cada sentencia, o recién terminado: el material entero o ausente, y sigue solo hasta «Listo»', async () => {
     const data = { file: sample(APUNTE), subjectId };
     const statements = await cutPoints(bases.empty, 'materialAdd', data);
     for (const cutAt of [...Array.from({ length: statements }, (_, n) => n + 1), -1]) {
@@ -111,7 +111,7 @@ describe('[CA-105] corte a la fuerza al agregar un material', () => {
 });
 
 describe('[CA-105] corte a la fuerza al terminar la indexación', () => {
-  it('antes de cada sentencia, o recién terminada: la indexación entera o ausente, y al volver queda «Listo»', async () => {
+  it('[CA-105] antes de cada sentencia, o recién terminada: la indexación entera o ausente, y al volver queda «Listo»', async () => {
     const statements = await cutPoints(bases.beforeIndex, 'materialIndex', {});
     for (const cutAt of [...Array.from({ length: statements }, (_, n) => n + 1), -1]) {
       const dataDir = copyOf(bases.beforeIndex, `indexar-${cutAt}`);

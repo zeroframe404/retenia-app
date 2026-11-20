@@ -1,7 +1,12 @@
 import { mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { parseRange, resolveOriginal } from '../../src/main/materials/original-protocol';
+import {
+  parseRange,
+  readPart,
+  resolveOriginal,
+  serveOriginal,
+} from '../../src/main/materials/original-protocol';
 import { tempDataFolder } from '../apoyo/base';
 
 // «retenia-original://<material>» (Fase 13): la ventana pide el original de un material por su
@@ -98,5 +103,58 @@ describe('pedidos por rangos', () => {
     for (const bad of ['bytes=1000-1001', 'bytes=5-2', 'bits=0-1', 'bytes=0-1,4-5', 'bytes=x-y']) {
       expect(parseRange(bad, 1000), bad).toBe('invalid');
     }
+  });
+});
+
+describe('servir un original', () => {
+  const URL_OF = `retenia-original://${MATERIAL}`;
+  const ALLOWED = ['file://', 'null'];
+
+  it('solo la ventana de Retenia (abierta desde un archivo local) recibe permiso para leerlo; otro origen no', async () => {
+    const { dataDir, lookup } = setup();
+    const own = await serveOriginal(
+      { url: URL_OF, origin: 'file://', range: null },
+      { lookup, dataDir, allowedOrigins: ALLOWED },
+    );
+    expect(own.status).toBe(200);
+    expect(own.headers['access-control-allow-origin']).toBe('file://');
+    expect(Buffer.from(own.body ?? []).toString()).toBe('%PDF-1.4');
+    for (const origin of ['https://ejemplo.com', 'http://localhost:9', null]) {
+      const other = await serveOriginal(
+        { url: URL_OF, origin, range: null },
+        { lookup, dataDir, allowedOrigins: ALLOWED },
+      );
+      expect(other.headers['access-control-allow-origin'], String(origin)).toBeUndefined();
+    }
+    const missing = await serveOriginal(
+      { url: 'retenia-original://../retenia.db', origin: 'file://', range: null },
+      { lookup, dataDir, allowedOrigins: ALLOWED },
+    );
+    expect(missing.status).toBe(404);
+  });
+
+  it('un pedido por rango lee del disco solo ese tramo, no el archivo entero', async () => {
+    const { dataDir, lookup } = setup();
+    const file = join(dataDir, 'originales', `${SHA}.pdf`);
+    writeFileSync(file, Buffer.alloc(1024 * 1024, 0x41));
+    const reads: [number, number][] = [];
+    const read = async (path: string, start: number, end: number) => {
+      reads.push([start, end]);
+      return readPart(path, start, end);
+    };
+    const part = await serveOriginal(
+      { url: URL_OF, origin: 'file://', range: 'bytes=100-199' },
+      { lookup, dataDir, allowedOrigins: ALLOWED, read },
+    );
+    expect(part.status).toBe(206);
+    expect(part.headers['content-range']).toBe(`bytes 100-199/${1024 * 1024}`);
+    expect(part.body?.length).toBe(100);
+    expect(reads).toEqual([[100, 199]]);
+    const outside = await serveOriginal(
+      { url: URL_OF, origin: 'file://', range: 'bytes=5000000-5000001' },
+      { lookup, dataDir, allowedOrigins: ALLOWED, read },
+    );
+    expect(outside.status).toBe(416);
+    expect(reads).toHaveLength(1);
   });
 });

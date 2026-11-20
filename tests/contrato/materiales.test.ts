@@ -3,6 +3,7 @@ import { handleMessage } from '../../src/main/bridge';
 import { channels } from '../../src/preload/contract';
 import { materialEventSchema } from '../../src/preload/contract/events';
 import { fileChannels } from '../../src/preload/contract/materials';
+import { pathsOfFiles } from '../../src/preload/files';
 import { INFERENCE, sample } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
@@ -49,11 +50,48 @@ describe('materials.*', () => {
     expect(opened.workspace.materials.count()).toBe(0);
   });
 
-  it('[CA-104] la ventana no tiene un canal para mandar rutas: los archivos llegan solo por el puente de archivos', () => {
+  it('la ventana no tiene un canal para mandar rutas: los archivos llegan solo por el puente de archivos', () => {
     const opened = bridge();
     expect(Object.keys(opened.api)).not.toContain('materials.addFiles');
     expect(Object.keys(channels)).not.toContain('materials.addFiles');
     expect(Object.keys(fileChannels)).toEqual(['materials.addFiles']);
+  });
+
+  it('el puente de archivos solo saca rutas de archivos de verdad: una lista armada por la ventana no manda ninguna', () => {
+    const getPath = (file: File) => `C:\\Datos\\${file.name}`;
+    // Una lista que no es una lista: su «map» lo escribió la ventana.
+    const forged = { map: () => ['C:\\Windows\\win.ini'], length: 1 };
+    expect(pathsOfFiles(forged, getPath)).toBeNull();
+    // Objetos que se parecen a archivos pero no lo son.
+    expect(pathsOfFiles([{ name: 'win.ini', path: 'C:\\Windows\\win.ini' }], getPath)).toBeNull();
+    expect(pathsOfFiles('C:\\Windows\\win.ini', getPath)).toBeNull();
+    expect(pathsOfFiles(null, getPath)).toBeNull();
+    expect(pathsOfFiles([], getPath)).toBeNull();
+    // Un archivo armado en la página no tiene ruta: no se manda nada.
+    expect(pathsOfFiles([new File(['x'], 'a.txt')], () => '')).toBeNull();
+    // Archivos de verdad (con su ruta): sí.
+    expect(
+      pathsOfFiles([new File(['x'], 'notas.md'), new File(['y'], 'resumen.docx')], getPath),
+    ).toEqual(['C:\\Datos\\notas.md', 'C:\\Datos\\resumen.docx']);
+  });
+
+  it('materials.addFiles rechaza rutas de dispositivo («\\\\.\\» y «\\\\?\\»); las de red siguen sirviendo', async () => {
+    const opened = bridge();
+    const subjectId = opened.workspace.subjects.create({
+      name: 'Estadística básica',
+      makeActive: true,
+    }).id;
+    for (const path of ['\\\\.\\pipe\\retenia', '\\\\?\\C:\\Windows\\win.ini', '\\\\.\\C:']) {
+      await expect(
+        send(opened, 'materials.addFiles', { paths: [path], subjectId }),
+      ).rejects.toThrow(/rechazada/);
+    }
+    // Solo el contrato: abrir de verdad una carpeta de red que no existe tarda lo que tarde Windows.
+    const network = fileChannels['materials.addFiles'].request.safeParse({
+      paths: ['\\\\equipo\\recurso\\a.pdf'],
+      subjectId,
+    });
+    expect(network.success).toBe(true);
   });
 
   it('materials.addFiles solo acepta rutas absolutas, de 1 a 20, sin vacías', async () => {

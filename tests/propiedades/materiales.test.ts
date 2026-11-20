@@ -96,14 +96,24 @@ describe('cola', () => {
 });
 
 describe('firma', () => {
-  it('cualquier contenido que empieza con %PDF- es PDF, se llame como se llame', () => {
+  it('cualquier contenido que empieza con %PDF- es PDF, se llame como se llame; si el nombre dice Word, no es un Word', () => {
+    // Los nombres salen al azar, y también con las extensiones que importan.
+    const name = fc.oneof(
+      fc.string({ maxLength: 20 }),
+      fc
+        .tuple(
+          fc.string({ maxLength: 12 }),
+          fc.constantFrom('.pdf', '.docx', '.DOCX', '.md', '.txt', ''),
+        )
+        .map(([base, ext]) => `${base}${ext}`),
+    );
     fc.assert(
-      fc.property(fc.uint8Array({ maxLength: 200 }), fc.string({ maxLength: 20 }), (tail, name) => {
+      fc.property(fc.uint8Array({ maxLength: 200 }), name, (tail, fileName) => {
         const head = new Uint8Array([...new TextEncoder().encode('%PDF-1.4\n'), ...tail]);
-        expect(identifyContent({ head, size: head.length, name })).toEqual({
-          ok: true,
-          kind: 'pdf',
-        });
+        const saysWord = /\.docx$/i.test(fileName.trim());
+        expect(identifyContent({ head, size: head.length, name: fileName })).toEqual(
+          saysWord ? { ok: false, problem: 'notWord' } : { ok: true, kind: 'pdf' },
+        );
       }),
       config,
     );

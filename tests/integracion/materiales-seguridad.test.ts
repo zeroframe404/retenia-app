@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { systemStopwatch } from '../../src/core/clock';
+import { inspectZip, ZipRejectedError } from '../../src/ingest/zip-guard';
 import { MAX_MATERIAL_BYTES } from '../../src/main/materials/receive';
 import {
   trapBombDocx,
@@ -11,6 +12,7 @@ import {
   trapEntitiesDocx,
   trapPathsZip,
 } from '../../tools/datos-de-ejemplo/trampas.mjs';
+import { zip } from '../../tools/datos-de-ejemplo/zip.mjs';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 import {
@@ -76,6 +78,34 @@ describe('Word con trampas', () => {
     writeFileSync(file, trapEntitiesDocx());
     const { service, materialId } = await addOne(file);
     expect(service.get({ materialId }).state).toEqual({ kind: 'error', problem: 'wordUnreadable' });
+  });
+
+  it('las entidades XML se buscan en todas las partes del Word, se llamen como se llamen', async () => {
+    const parts = (extra: { name: string; data: Buffer }[]) =>
+      zip([
+        { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+        { name: '_rels/.rels', data: Buffer.from('<Relationships/>') },
+        { name: 'word/document.xml', data: Buffer.from('<w:document/>') },
+        ...extra,
+      ]);
+    const entity = Buffer.from(
+      '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY robo SYSTEM "file:///C:/Windows/win.ini">]><x>&robo;</x>',
+    );
+    // Una parte que el documento puede nombrar como principal, sin «.xml» en el nombre.
+    await expect(inspectZip(parts([{ name: 'word/principal.bin', data: entity }]))).rejects.toThrow(
+      ZipRejectedError,
+    );
+    // Una imagen SVG con entidades tampoco pasa.
+    await expect(
+      inspectZip(parts([{ name: 'word/media/dibujo.svg', data: entity }])),
+    ).rejects.toThrow(ZipRejectedError);
+    // Una imagen SVG común, con su declaración de tipo y sin entidades, sí (Word las guarda así).
+    const svg = Buffer.from(
+      '<?xml version="1.0"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg/>',
+    );
+    await expect(
+      inspectZip(parts([{ name: 'word/media/dibujo.svg', data: svg }])),
+    ).resolves.toMatchObject({ entries: expect.arrayContaining(['word/media/dibujo.svg']) });
   });
 
   it('un Word «bomba» (más de 200 MB descomprimido) se rechaza sin descomprimirlo entero', async () => {

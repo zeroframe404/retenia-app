@@ -57,11 +57,14 @@ export function openMaterials(
     runnerId,
     timeouts,
     stopwatch,
+    interrupt,
   }: {
     execute?: (task: MaterialsTask) => Promise<unknown>;
     runnerId?: string;
     timeouts?: Partial<Record<'validate' | 'extract' | 'document', number>>;
     stopwatch?: Stopwatch;
+    // Cómo se corta la tarea en curso (en Retenia, el supervisor corta el proceso de trabajo).
+    interrupt?: () => void;
   } = {},
 ): OpenMaterials {
   const executed: string[] = [];
@@ -77,6 +80,7 @@ export function openMaterials(
     ...(runnerId ? { runnerId } : {}),
     ...(timeouts ? { timeouts } : {}),
     ...(stopwatch ? { stopwatch } : {}),
+    ...(interrupt ? { interrupt } : {}),
   });
   return { service, executed, events };
 }

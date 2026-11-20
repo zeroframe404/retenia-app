@@ -27,6 +27,18 @@ function runGuarded(port: number): Promise<{ results: Record<string, string>; st
     await attempt('net', async () => { const net = await import('node:net'); await new Promise((ok, ko) => net.connect(${port}, '127.0.0.1', ok).on('error', ko)); });
     await attempt('child_process', async () => { const cp = await import('node:child_process'); cp.execSync('echo hola'); });
     await attempt('WebSocket', () => new Promise((ok, ko) => { const ws = new WebSocket('ws://127.0.0.1:${port}'); ws.onopen = ok; ws.onerror = ko; }));
+    await attempt('getBuiltinModule child_process', async () => { process.getBuiltinModule('node:child_process').execSync('echo hola'); });
+    await attempt('getBuiltinModule dgram', async () => { const dgram = process.getBuiltinModule('dgram'); const socket = dgram.createSocket('udp4'); await new Promise((ok, ko) => socket.send('robo', ${port}, '127.0.0.1', (error) => { socket.close(); error ? ko(error) : ok(); })); });
+    await attempt('electron', async () => { await import('electron'); });
+    await attempt('worker_threads eval', async () => { const { Worker } = await import('node:worker_threads'); await new Promise((ok, ko) => { const worker = new Worker('fetch(' + JSON.stringify(url) + ').then(() => process.exit(0), () => process.exit(1))', { eval: true }); worker.once('exit', (code) => (code === 0 ? ok() : ko(new Error('falló')))); worker.once('error', ko); }); });
+    await attempt('worker_threads', async () => {
+      const { Worker } = await import('node:worker_threads');
+      const fs = await import('node:fs'); const path = await import('node:path'); const os = await import('node:os');
+      const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'retenia-hilo-')), 'hilo.cjs');
+      fs.writeFileSync(file, 'const { parentPort } = require("node:worker_threads"); fetch(' + JSON.stringify(url) + ').then(() => parentPort.postMessage("conectó"), () => parentPort.postMessage("bloqueado"));');
+      const answer = await new Promise((ok, ko) => { const worker = new Worker(file); worker.once('message', (value) => { ok(value); worker.terminate(); }); worker.once('error', ko); });
+      if (answer !== 'conectó') throw new Error(String(answer));
+    });
     process.stdout.write(JSON.stringify(results));
   `;
   return new Promise((resolve) => {
@@ -49,7 +61,7 @@ function runGuarded(port: number): Promise<{ results: Record<string, string>; st
 }
 
 describe('sin red', () => {
-  it('el proceso de materiales no puede conectarse a nada: fetch, http, net, WebSocket ni otros programas', async () => {
+  it('el proceso de materiales no puede conectarse a nada: fetch, http, net, WebSocket, otros programas, módulos pedidos por otro camino ni hilos nuevos', async () => {
     const calls: string[] = [];
     const server = createServer((request, response) => {
       calls.push(request.url ?? '');
@@ -66,6 +78,11 @@ describe('sin red', () => {
         net: 'bloqueado',
         child_process: 'bloqueado',
         WebSocket: 'bloqueado',
+        'getBuiltinModule child_process': 'bloqueado',
+        'getBuiltinModule dgram': 'bloqueado',
+        electron: 'bloqueado',
+        'worker_threads eval': 'bloqueado',
+        worker_threads: 'bloqueado',
       });
       expect(calls).toEqual([]);
     } finally {

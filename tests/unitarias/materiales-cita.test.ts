@@ -93,3 +93,19 @@ describe('las cajas de un tramo', () => {
     expect(boxesFor([{ start: 0, end: 10, box: null }], 0, 5)).toEqual([]);
   });
 });
+
+describe('[CA-110] nunca un resaltado falso', () => {
+  it('si la frase está en su página pero el contexto ya no alcanza para elegir, no se la busca en la vecina: «Fuente a reubicar»', () => {
+    const pages = [
+      { unit: 2, text: 'Primero: la media resume los datos. Después: la media resume los datos.' },
+      { unit: 3, text: 'En otro capítulo, la media resume los datos.' },
+    ];
+    const result = relocateQuote(pages, {
+      unit: 2,
+      quote: 'la media resume los datos.',
+      before: 'Un contexto que ya no está: ',
+      after: ' Y otro que tampoco.',
+    });
+    expect(result).toEqual({ status: 'relocate' });
+  });
+});

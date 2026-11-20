@@ -119,3 +119,28 @@ describe('leer un texto', () => {
     expect(decodeText(new Uint8Array([0xc3, 0x28, 0x41]))).toBeNull();
   });
 });
+
+describe('textos que mencionan «%PDF-» y textos raros', () => {
+  it('[CA-108] un Markdown o un texto que menciona «%PDF-» en su primer renglón sigue siendo texto', () => {
+    const md = bytes('# Formatos\n\nTodo PDF empieza con %PDF-1.7 y después viene lo demás.\n');
+    expect(of(md, 'formatos.md')).toEqual({ ok: true, kind: 'md' });
+    const txt = bytes('Dato curioso: los PDF empiezan con %PDF- seguido de la versión.\n');
+    expect(of(txt, 'curioso.txt')).toEqual({ ok: true, kind: 'text' });
+  });
+
+  it('un archivo que solo tiene espacios y renglones vacíos está vacío', () => {
+    expect(of(bytes('   \n\n\t  \r\n'), 'en-blanco.txt')).toEqual({ ok: false, problem: 'empty' });
+  });
+
+  it('un texto guardado en ANSI (Latin-1 de Windows) se lee igual, con sus eñes y tildes', () => {
+    const latin = new Uint8Array([
+      ...bytes('El a'),
+      0xf1,
+      ...bytes('o pasado vimos la media y la desviaci'),
+      0xf3,
+      ...bytes('n.\r\n'),
+    ]);
+    expect(of(latin, 'apunte viejo.txt')).toEqual({ ok: true, kind: 'text' });
+    expect(decodeText(latin)).toBe('El año pasado vimos la media y la desviación.\n');
+  });
+});

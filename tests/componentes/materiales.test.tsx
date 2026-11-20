@@ -98,7 +98,8 @@ describe('la pantalla Materiales', () => {
     expect(item.textContent).toContain('Error');
     await user.click(item);
     const message = await screen.findByText('No pudimos leer este PDF (protegido o dañado)');
-    expect(message.closest('[data-tone]')?.getAttribute('data-tone')).not.toBe('error');
+    // El tono de un aviso común, nunca el de alerta ni rojo.
+    expect(message.closest('[data-tone]')?.getAttribute('data-tone')).toBe('info');
     expect(screen.getByRole('button', { name: 'Elegir otro' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Pegar el texto' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quitar de la lista' })).toBeTruthy();
@@ -198,6 +199,22 @@ describe('el visor y la fuente anclada', () => {
     const detail = await api['cards.get']({ cardId: card?.id ?? '' });
     expect(detail.sheet.source).toBe('notas · Dispersión');
     expect(detail.cite).toMatchObject({ quote: phrase, status: 'located' });
+    // Y desde su ficha, «Ver en el original» vuelve al pasaje resaltado.
+    const rail = screen.getByRole('navigation', { name: 'Riel lateral' });
+    await user.click(within(rail).getByRole('button', { name: 'Apuntes' }));
+    await user.click(
+      within(await screen.findByRole('navigation', { name: 'Secciones de Apuntes' })).getByRole(
+        'button',
+        { name: 'Tarjetas' },
+      ),
+    );
+    await user.click(
+      await screen.findByRole('button', { name: 'Abrir la tarjeta «¿Qué mide el desvío?»' }),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Ver en el original' }));
+    expect(await screen.findByRole('heading', { level: 2, name: 'Materiales' })).toBeTruthy();
+    const marked = await screen.findByText((content) => content.includes(phrase));
+    expect(marked.closest('[data-highlighted="true"]')).not.toBeNull();
   });
 
   it('[CA-112] (simulado) «Guardar extracto» manda la frase a la Bandeja con su referencia', async () => {
@@ -284,7 +301,8 @@ describe('la tarjeta con cita', () => {
     );
     await openTheCard(user);
     const notice = screen.getByText('Fuente a reubicar');
-    expect(notice.closest('[data-tone]')?.getAttribute('data-tone')).not.toBe('error');
+    // «En espera», con borde punteado: nunca el de alerta ni rojo.
+    expect(notice.closest('[data-tone]')?.getAttribute('data-tone')).toBe('pending');
     await user.click(screen.getByRole('button', { name: 'Ver en el original' }));
     expect(await screen.findByText('No encontramos esta cita en el original')).toBeTruthy();
   });
@@ -306,5 +324,106 @@ describe('Ajustes › «Demostración»', () => {
     ).toBeTruthy();
     await user.click(box);
     await waitFor(() => expect((box as HTMLInputElement).checked).toBe(true));
+  });
+});
+
+describe('lo que no se ve no pasa (objeciones del revisor)', () => {
+  const dropOn = (names: string[]) => {
+    const heading = screen.getByRole('heading', { level: 2, name: 'Materiales' });
+    fireEvent.drop(heading, {
+      dataTransfer: { files: names.map((name) => new File(['x'], name)) },
+    });
+  };
+  const many = Array.from({ length: 21 }, (_, index) => `apunte-${String(index + 1)}.md`);
+
+  it('soltar más de 20 archivos juntos lo dice en pantalla, sin agregar ninguno', async () => {
+    await withSubject();
+    dropOn(many);
+    expect(await screen.findByText('Podés agregar hasta 20 archivos a la vez.')).toBeTruthy();
+    expect(main().getByText('Todavía no hay materiales en esta materia.')).toBeTruthy();
+  });
+
+  it('en «Agregar material», elegir más de 20 dice lo mismo, no «No pudimos guardar una copia»', async () => {
+    const { user } = await withSubject();
+    await chooseFiles(user, ...many);
+    expect(await screen.findByText('Podés agregar hasta 20 archivos a la vez.')).toBeTruthy();
+    expect(screen.queryByText('No pudimos guardar una copia de este archivo')).toBeNull();
+  });
+
+  it('soltar un archivo mientras leés otro vuelve a la lista y muestra el nuevo', async () => {
+    const { user } = await withSubject();
+    await chooseFiles(user, 'notas.md');
+    const item = await main().findByRole('button', { name: /notas/ }, SLOW);
+    await waitFor(() => expect(item.textContent).toContain('Listo'), SLOW);
+    await user.click(item);
+    await user.click(screen.getByRole('button', { name: 'Leer el original' }));
+    await screen.findByRole('heading', { name: 'Dispersión' });
+    dropOn(['resumen.docx']);
+    expect(await main().findByRole('button', { name: /resumen/ }, SLOW)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Volver a la lista' })).toBeNull();
+  });
+
+  it('una respuesta de más de 2.000 letras no se manda: lo dice y el panel queda abierto', async () => {
+    const { user, api } = await withSubject();
+    await chooseFiles(user, 'notas.md');
+    const item = await main().findByRole('button', { name: /notas/ }, SLOW);
+    await waitFor(() => expect(item.textContent).toContain('Listo'), SLOW);
+    await user.click(item);
+    await user.click(screen.getByRole('button', { name: 'Leer el original' }));
+    await screen.findByRole('heading', { name: 'Dispersión' });
+    const phrase = 'La moda es el valor que más se repite.';
+    const element = screen.getByText((content) => content.includes(phrase));
+    const node = element.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(node, node.data.indexOf(phrase));
+    range.setEnd(node, node.data.indexOf(phrase) + phrase.length);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+    fireEvent.mouseUp(element);
+    await user.click(await screen.findByRole('button', { name: 'Crear tarjeta desde acá' }));
+    const panel = await screen.findByRole('dialog', { name: 'Crear tarjeta desde acá' });
+    await user.type(within(panel).getByRole('textbox', { name: 'Pregunta' }), '¿Qué es la moda?');
+    fireEvent.change(within(panel).getByRole('textbox', { name: 'Respuesta' }), {
+      target: { value: 'a'.repeat(2001) },
+    });
+    await user.click(within(panel).getByRole('button', { name: 'Guardar' }));
+    expect(
+      await within(panel).findByText(
+        'La respuesta puede tener hasta 2.000 letras: acortala para guardar.',
+      ),
+    ).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Crear tarjeta desde acá' })).toBeTruthy();
+    expect((await api['cards.list']({})).cards).toHaveLength(0);
+  });
+
+  it('«Leer el original» de un Markdown mientras se lee lo dice para el documento, y después de «Cancelar» dice que no se leyó', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const opened = openWindow('real', undefined, { holdExtraction: () => gate });
+    await opened.api['subjects.create']({ name: 'Estadística básica', makeActive: true });
+    render(<App />);
+    const { user } = opened;
+    await toMaterials(user);
+    await chooseFiles(user, 'notas.md');
+    const item = await main().findByRole('button', { name: /notas/ }, SLOW);
+    await waitFor(() => expect(item.textContent).toContain('Procesando 0 de 1'), SLOW);
+    await user.click(item);
+    await user.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await screen.findByRole('button', { name: 'Seguir procesando' });
+    await user.click(screen.getByRole('button', { name: 'Leer el original' }));
+    expect(
+      await screen.findByText(
+        'No se leyó porque cancelaste el procesamiento. Tocá «Seguir procesando» para leerlo.',
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Todavía estamos leyendo esta página')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Volver a la lista' }));
+    await user.click(main().getByRole('button', { name: /notas/ }));
+    await user.click(screen.getByRole('button', { name: 'Seguir procesando' }));
+    await user.click(screen.getByRole('button', { name: 'Leer el original' }));
+    expect(await screen.findByText('Todavía estamos leyendo este documento')).toBeTruthy();
+    release();
   });
 });

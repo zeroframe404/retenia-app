@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { fixedClock } from '../../src/core/clock';
+import { PIPELINE_VERSION } from '../../src/data/materials';
+import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
+import type { MaterialsTask } from '../../src/main/workers/protocol';
+import { texts } from '../../src/preload/contract/texts';
 import { INFERENCE_PAGES, NOT_A_PDF } from '../../tools/datos-de-ejemplo/contenido.mjs';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
@@ -134,7 +139,7 @@ describe('un PDF de punta a punta', () => {
 });
 
 describe('[CA-107] Markdown, Word y texto pegado', () => {
-  it('«notas.md» llega a «Listo» con sus títulos como secciones', async () => {
+  it('[CA-107] «notas.md» llega a «Listo» con sus títulos como secciones', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -156,7 +161,7 @@ describe('[CA-107] Markdown, Word y texto pegado', () => {
     expect(list?.text).toContain('La media es la suma de los datos dividida por la cantidad.');
   });
 
-  it('«resumen.docx» llega a «Listo» con sus títulos como secciones', async () => {
+  it('[CA-107] «resumen.docx» llega a «Listo» con sus títulos como secciones', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -174,7 +179,7 @@ describe('[CA-107] Markdown, Word y texto pegado', () => {
     expect(detail.stages[1]).toEqual({ id: 'extracted', status: 'done', paragraphs: 7 });
   });
 
-  it('un texto pegado llega a «Listo», con su título y sus párrafos', async () => {
+  it('[CA-107] un texto pegado llega a «Listo», con su título y sus párrafos', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -201,7 +206,7 @@ describe('[CA-107] Markdown, Word y texto pegado', () => {
     expect(String(row?.original_sha256)).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  it('el título se puede poner a mano en «Más opciones»', async () => {
+  it('[CA-107] el título se puede poner a mano en «Más opciones»', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -214,7 +219,7 @@ describe('[CA-107] Markdown, Word y texto pegado', () => {
 });
 
 describe('[CA-108] un archivo que miente', () => {
-  it('«no-es-un-pdf.pdf» queda en «Error» con su motivo, sin guardar el original, y lo demás sigue andando', async () => {
+  it('[CA-108] «no-es-un-pdf.pdf» queda en «Error» con su motivo, sin guardar el original, y lo demás sigue andando', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service, executed } = openMaterials(space);
@@ -236,7 +241,7 @@ describe('[CA-108] un archivo que miente', () => {
     ).toBe('¿Sigue andando?');
   });
 
-  it('un archivo vacío y una foto dicen por qué no sirven', async () => {
+  it('[CA-108] un archivo vacío y una foto dicen por qué no sirven', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -251,7 +256,7 @@ describe('[CA-108] un archivo que miente', () => {
     });
   });
 
-  it('«Quitar de la lista» saca el material con error', async () => {
+  it('[CA-108] «Quitar de la lista» saca el material con error', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -260,13 +265,13 @@ describe('[CA-108] un archivo que miente', () => {
     expect(service.list({ subjectId }).materials).toEqual([]);
   });
 
-  it('el texto de «no-es-un-pdf.pdf» es el del elenco', () => {
+  it('[CA-108] el texto de «no-es-un-pdf.pdf» es el del elenco', () => {
     expect(readFileSync(sample('no-es-un-pdf.pdf'), 'utf8')).toBe(NOT_A_PDF);
   });
 });
 
 describe('[CA-106] duplicados', () => {
-  it('el mismo contenido con otro nombre se reconoce por su huella, con el nombre y el día del que ya estaba', async () => {
+  it('[CA-106] el mismo contenido con otro nombre se reconoce por su huella, con el nombre y el día del que ya estaba', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -283,7 +288,7 @@ describe('[CA-106] duplicados', () => {
     expect(service.list({ subjectId }).materials).toHaveLength(1);
   });
 
-  it('«Abrir el existente» no agrega nada; «Agregar igual» y «Agregar como nueva versión» no reprocesan', async () => {
+  it('[CA-106] «Abrir el existente» no agrega nada; «Agregar igual» y «Agregar como nueva versión» no reprocesan', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service, executed } = openMaterials(space);
@@ -320,7 +325,7 @@ describe('[CA-106] duplicados', () => {
     ).toBe(1);
   });
 
-  it('el mismo nombre con otro contenido en la misma materia también pregunta; la versión nueva lee lo nuevo', async () => {
+  it('[CA-106] el mismo nombre con otro contenido en la misma materia también pregunta; la versión nueva lee lo nuevo', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -344,7 +349,7 @@ describe('[CA-106] duplicados', () => {
 });
 
 describe('[CA-111] Retenia guarda su propia copia', () => {
-  it('se borra el archivo del disco y el material se sigue abriendo; el original es de solo lectura y no cambia', async () => {
+  it('[CA-111] se borra el archivo del disco y el material se sigue abriendo; el original es de solo lectura y no cambia', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -389,7 +394,7 @@ describe('idempotencia', () => {
 });
 
 describe('[CA-110] la fuente anclada', () => {
-  it('una oración de la página 2 se vuelve tarjeta con su cita, y «Ver en el original» la resalta en la página 2', async () => {
+  it('[CA-110] una oración de la página 2 se vuelve tarjeta con su cita, y «Ver en el original» la resalta en la página 2', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -437,7 +442,7 @@ describe('[CA-110] la fuente anclada', () => {
     });
   });
 
-  it('una cita que ya no se encuentra queda «Fuente a reubicar» y no se resalta nada', async () => {
+  it('[CA-110] una cita que ya no se encuentra queda «Fuente a reubicar» y no se resalta nada', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -468,7 +473,7 @@ describe('[CA-110] la fuente anclada', () => {
 });
 
 describe('[CA-112] guardar un extracto', () => {
-  it('va a la Bandeja con su referencia a la página', async () => {
+  it('[CA-112] va a la Bandeja con su referencia a la página', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     const { service } = openMaterials(space);
@@ -491,7 +496,7 @@ describe('[CA-112] guardar un extracto', () => {
 });
 
 describe('cancelar y seguir', () => {
-  it('[CA-109] «Cancelar» conserva el original y «Seguir procesando» termina', async () => {
+  it('[CA-109] (simulado) «Cancelar» conserva el original y «Seguir procesando» termina', async () => {
     const space = openSpace();
     const subjectId = statisticsSubject(space);
     let release: () => void = () => undefined;
@@ -559,5 +564,204 @@ describe('buscador y datos', () => {
     await service.whenIdle();
     expect(result.outcome).toBe('added');
     expect(space.workspace.cards.list().map((each) => each.id)).toEqual([card.id]);
+  });
+});
+
+// Un PDF de dos páginas cuyo párrafo de la página 1 sigue arriba de la página 2. El lector de PDF
+// es un doble (simulado, declarado en docs/plan-de-pruebas.md): devuelve lo que devolvería pdf.js
+// para estas dos páginas; la estructura, la normalización y la indexación son las de verdad.
+const A4 = { width: 595, height: 842 };
+const pdfLine = (text: string, y: number, size = 11) => ({
+  text,
+  x: 68,
+  y,
+  width: Math.min(460, text.length * size * 0.5),
+  height: size * 1.15,
+  size,
+  bold: size > 12,
+  fontFamily: 'sans-serif',
+  fontName: size > 12 ? 'Arial-Bold' : 'Arial',
+});
+const SPLIT_PAGES = [
+  {
+    page: 1,
+    ...A4,
+    images: [],
+    items: [
+      pdfLine('Medidas de resumen', 80, 17),
+      pdfLine('La media resume los datos en un solo número y', 130),
+      pdfLine('sirve como punto de partida; en cambio, la mediana', 146.5),
+      pdfLine('1', 800, 9),
+    ],
+  },
+  {
+    page: 2,
+    ...A4,
+    images: [],
+    items: [
+      pdfLine('casi no se mueve con valores extremos y se usa', 80),
+      pdfLine('mucho con ingresos.', 96.5),
+      pdfLine('Otro párrafo de la página dos, que empieza con mayúscula.', 130),
+      pdfLine('2', 800, 9),
+    ],
+  },
+];
+const splitPdfReader = (task: MaterialsTask): Promise<unknown> => {
+  if (task.kind === 'validate') {
+    return Promise.resolve({
+      units: SPLIT_PAGES.map((page) => ({ unit: page.page, ...A4 })),
+      outline: [],
+    });
+  }
+  if (task.kind === 'extract') {
+    return Promise.resolve({
+      format: 'pdf',
+      page: SPLIT_PAGES[task.unit - 1],
+      tool: { simulado: true },
+    });
+  }
+  return runMaterialsTask(task);
+};
+
+async function splitMaterial() {
+  const space = openSpace();
+  const subjectId = statisticsSubject(space);
+  const { service } = openMaterials(space, { execute: splitPdfReader });
+  const file = join(tempFolder(), 'partido.pdf');
+  writeFileSync(file, '%PDF-1.7\n% Un PDF de dos páginas (simulado)\n');
+  const materialId = await added(service, file, subjectId);
+  await service.whenIdle();
+  const blocks = service.page({ materialId, unit: 1 }).blocks;
+  const joined = blocks.find((block) => block.text.includes('casi no se mueve'));
+  const next = service
+    .page({ materialId, unit: 2 })
+    .blocks.find((block) => block.text.startsWith('Otro párrafo'));
+  if (!joined || !next) {
+    throw new Error('faltan los párrafos');
+  }
+  return { space, service, materialId, joined, next };
+}
+
+describe('[CA-110] (simulado) un párrafo que sigue en la página de al lado', () => {
+  it('[CA-110] (simulado) una frase de la parte que está en la página 2 se cita como «página 2» y «Ver en el original» abre la página 2 resaltada', async () => {
+    const { space, service, materialId, joined } = await splitMaterial();
+    expect(joined.unit).toBe(1);
+    const phrase = 'casi no se mueve con valores extremos';
+    const start = joined.text.indexOf(phrase);
+    const selection = {
+      from: { blockId: joined.id, offset: start },
+      to: { blockId: joined.id, offset: start + phrase.length },
+    };
+    expect(service.preview({ materialId, selection })).toEqual({
+      quote: phrase,
+      reference: 'partido · página 2',
+    });
+    const { cardId } = service.createCard({
+      materialId,
+      selection,
+      question: '¿Qué pasa con la mediana?',
+      answer: phrase,
+    });
+    const card = space.workspace.cards.get({ cardId });
+    expect(card.sheet.source).toBe('partido · página 2');
+    expect(card.cite).toMatchObject({ reference: 'partido · página 2', status: 'located' });
+    const opened = service.open({ materialId, cardId });
+    expect(opened).toMatchObject({ unit: 2, notFound: false });
+    expect(opened.highlight.length).toBeGreaterThan(0);
+    expect(opened.highlight.every((box) => box.page === 2)).toBe(true);
+  });
+
+  it('[CA-110] (simulado) una frase de la parte que está en la página 1 sigue siendo «página 1»', async () => {
+    const { service, materialId, joined } = await splitMaterial();
+    const phrase = 'La media resume los datos';
+    const selection = {
+      from: { blockId: joined.id, offset: 0 },
+      to: { blockId: joined.id, offset: phrase.length },
+    };
+    expect(service.preview({ materialId, selection })).toEqual({
+      quote: phrase,
+      reference: 'partido · página 1',
+    });
+  });
+
+  it('[CA-110] (simulado) una selección que pasa a un bloque de otra página guarda lo que se eligió del primer bloque, nunca otra frase', async () => {
+    const { service, materialId, joined, next } = await splitMaterial();
+    const start = joined.text.indexOf('mucho con ingresos.');
+    const preview = service.preview({
+      materialId,
+      selection: {
+        from: { blockId: joined.id, offset: start },
+        to: { blockId: next.id, offset: 'Otro párrafo'.length },
+      },
+    });
+    expect(preview.quote).toBe('mucho con ingresos.');
+    expect(joined.text).toContain(preview.quote);
+  });
+});
+
+describe('fechas, títulos y claves', () => {
+  it('[CA-106] el aviso de duplicado dice el día del calendario en que lo agregaste, también de madrugada', async () => {
+    // 02:30 del 13/03/2027 en Buenos Aires (UTC-3).
+    const space = openSpace({ clock: fixedClock(new Date('2027-03-13T05:30:00Z')) });
+    const subjectId = statisticsSubject(space);
+    const { service } = openMaterials(space);
+    const materialId = await added(service, sample('notas.md'), subjectId);
+    expect(service.get({ materialId }).addedDay).toBe('2027-03-13');
+    const { results } = await service.addFiles({
+      paths: [copySample('notas.md', 'otra copia.md')],
+      subjectId,
+    });
+    expect(results[0]).toMatchObject({ outcome: 'duplicate', existing: { day: '2027-03-13' } });
+  });
+
+  it('un texto pegado sin nada que sirva de título toma su título del catálogo', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service } = openMaterials(space);
+    const result = await service.addText({ subjectId, text: '###\n\nSolo un renglón de texto.' });
+    if (result.outcome !== 'added') {
+      throw new Error('no se agregó');
+    }
+    expect(service.get({ materialId: result.materialId }).title).toBe(texts.materials.untitledText);
+  });
+
+  it('la clave de cada etapa lleva la versión de la cadena de Retenia: un arreglo del código propio no reusa lo viejo', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service } = openMaterials(space);
+    await added(service, sample('notas.md'), subjectId);
+    await service.whenIdle();
+    const rows = readRows(space.file, 'SELECT stage, params FROM ingest_results ORDER BY stage');
+    expect(rows.map((row) => row.stage)).toEqual(['extract', 'normalize', 'structure', 'validate']);
+    for (const row of rows) {
+      expect(JSON.parse(String(row.params)), String(row.stage)).toMatchObject({
+        pipeline: PIPELINE_VERSION,
+      });
+    }
+  });
+
+  it('«Abrir el existente» no borra un original que ya estaba guardado de antes', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service } = openMaterials(space);
+    // «notas.md» se agrega y se quita de la lista: su original queda guardado.
+    const first = await added(service, sample('notas.md'), subjectId);
+    await service.whenIdle();
+    const kept = join(space.workspace.originalsDir, `${sha256(sample('notas.md'))}.md`);
+    service.dismiss({ materialId: first });
+    expect(statSync(kept).isFile()).toBe(true);
+    // Otro material se llama «clase.md»; después llega un «clase.md» con el contenido de notas.
+    const folder = tempFolder();
+    writeFileSync(join(folder, 'clase.md'), '# Clase\n\nOtro contenido.\n');
+    await added(service, join(folder, 'clase.md'), subjectId);
+    const again = join(tempFolder(), 'clase.md');
+    writeFileSync(again, readFileSync(sample('notas.md')));
+    const { results } = await service.addFiles({ paths: [again], subjectId });
+    const [offer] = results;
+    if (offer?.outcome !== 'duplicate') {
+      throw new Error('tenía que avisar el duplicado');
+    }
+    await service.decide({ pendingId: offer.pendingId, decision: 'open' });
+    expect(statSync(kept).isFile()).toBe(true);
   });
 });

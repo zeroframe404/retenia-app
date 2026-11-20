@@ -51,25 +51,25 @@ describe('reintentos', () => {
 });
 
 describe('[CA-105] una tarea «en curso» sin latido vuelve a «pendiente»', () => {
-  it('al abrir, la de otro arranque vuelve enseguida y no cuenta como intento', () => {
+  it('[CA-105] al abrir, la de otro arranque vuelve enseguida y no cuenta como intento', () => {
     const running = startTask(task(), 'arranque-viejo', 1000);
     const back = recoverTask(running, { runnerId: 'arranque-nuevo', now: 1001 });
     expect(back).toMatchObject({ status: 'pending', attempts: 0, recoveries: 1, runnerId: null });
   });
 
-  it('en el mismo arranque, vuelve recién cuando el latido tiene más de 15 s', () => {
+  it('[CA-105] en el mismo arranque, vuelve recién cuando el latido tiene más de 15 s', () => {
     const running = startTask(task(), 'arranque-1', 0);
     expect(STALE_MS).toBe(15_000);
     expect(recoverTask(running, { runnerId: 'arranque-1', now: 15_000 })).toBeNull();
     expect(recoverTask(running, { runnerId: 'arranque-1', now: 15_001 })?.status).toBe('pending');
   });
 
-  it('una tarea que no está en curso no cambia', () => {
+  it('[CA-105] una tarea que no está en curso no cambia', () => {
     expect(recoverTask(task(), { runnerId: 'x', now: 99_999 })).toBeNull();
     expect(recoverTask(task({ status: 'done' }), { runnerId: 'x', now: 99_999 })).toBeNull();
   });
 
-  it('tope de 3 vueltas: una página que tumba el programa no lo hace para siempre', () => {
+  it('[CA-105] tope de 3 vueltas: una página que tumba el programa no lo hace para siempre', () => {
     expect(MAX_RECOVERIES).toBe(3);
     let state = task();
     for (let round = 1; round <= 3; round++) {
@@ -217,7 +217,7 @@ describe('estado de un material', () => {
 });
 
 describe('[CA-104] las etapas que se ven, con sus conteos reales', () => {
-  it('a mitad de la extracción: guardado hecho, texto en curso con su conteo', () => {
+  it('[CA-104] a mitad de la extracción: guardado hecho, texto en curso con su conteo', () => {
     const view = stageView({
       kind: 'pdf',
       unitCount: 12,
@@ -241,7 +241,7 @@ describe('[CA-104] las etapas que se ven, con sus conteos reales', () => {
     ]);
   });
 
-  it('terminado: las cuatro hechas, «11 de 12» páginas con texto', () => {
+  it('[CA-104] terminado: las cuatro hechas, «11 de 12» páginas con texto', () => {
     const view = stageView({
       kind: 'pdf',
       unitCount: 12,
@@ -262,7 +262,7 @@ describe('[CA-104] las etapas que se ven, con sus conteos reales', () => {
     expect(view[1]).toEqual({ id: 'extracted', status: 'done', withText: 11, total: 12 });
   });
 
-  it('en Word, Markdown y texto la extracción cuenta párrafos', () => {
+  it('[CA-104] en Word, Markdown y texto la extracción cuenta párrafos', () => {
     const view = stageView({
       kind: 'docx',
       unitCount: 1,
@@ -278,7 +278,7 @@ describe('[CA-104] las etapas que se ven, con sus conteos reales', () => {
     expect(view[2]).toEqual({ id: 'sections', status: 'current' });
   });
 
-  it('antes de validar, la primera etapa está en curso', () => {
+  it('[CA-104] antes de validar, la primera etapa está en curso', () => {
     const view = stageView({
       kind: 'pdf',
       unitCount: null,
@@ -316,5 +316,62 @@ describe('clave de cada etapa', () => {
     ]) {
       expect(stageKeyInput(changed)).not.toBe(key);
     }
+  });
+});
+
+describe('[CA-104] una etapa está «en curso» solo si algo está corriendo', () => {
+  const pdf = (
+    tasks: {
+      stage: 'validate' | 'extract' | 'structure' | 'normalize' | 'index';
+      status: TaskState['status'];
+    }[],
+    units: { status: 'pending' | 'ready' | 'no_text' | 'review'; chars: number }[],
+  ) => stageView({ kind: 'pdf', unitCount: units.length, units, paragraphs: 0, tasks });
+
+  it('[CA-104] ninguna página se pudo leer («Requiere revisión»): nada queda en curso', () => {
+    const view = pdf(
+      [
+        { stage: 'validate', status: 'done' },
+        { stage: 'extract', status: 'review' },
+        { stage: 'extract', status: 'review' },
+      ],
+      [
+        { status: 'review', chars: 0 },
+        { status: 'review', chars: 0 },
+      ],
+    );
+    expect(view.map((stage) => stage.status)).not.toContain('current');
+  });
+
+  it('[CA-104] cancelado antes de leer: nada queda en curso', () => {
+    const view = pdf(
+      [
+        { stage: 'validate', status: 'done' },
+        { stage: 'extract', status: 'cancelled' },
+        { stage: 'extract', status: 'cancelled' },
+      ],
+      [
+        { status: 'pending', chars: 0 },
+        { status: 'pending', chars: 0 },
+      ],
+    );
+    expect(view.map((stage) => stage.status)).not.toContain('current');
+  });
+
+  it('[CA-104] la validación agotó sus intentos: nada queda en curso', () => {
+    const view = pdf([{ stage: 'validate', status: 'review' }], []);
+    expect(view.map((stage) => stage.status)).not.toContain('current');
+  });
+
+  it('[CA-104] la estructura falló con páginas leídas («Parcialmente procesado»): nada queda en curso', () => {
+    const view = pdf(
+      [
+        { stage: 'validate', status: 'done' },
+        { stage: 'extract', status: 'done' },
+        { stage: 'structure', status: 'review' },
+      ],
+      [{ status: 'ready', chars: 300 }],
+    );
+    expect(view.map((stage) => stage.status)).not.toContain('current');
   });
 });

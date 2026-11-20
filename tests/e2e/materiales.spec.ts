@@ -76,15 +76,23 @@ test('[CA-104] arrastrar «Inferencia — capítulos 1 a 4.pdf»: las etapas ava
     .fill('Estadística básica');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeVisible();
+  // Despacio, para ver avanzar las etapas (2 segundos por página).
+  await slowProcessing(page, true);
+  await toMaterials(page);
   await dropFiles(page, dropTarget(page), [join(SAMPLES, INFERENCE)]);
   const item = materialItem(page, /Inferencia — capítulos 1 a 4/);
   await item.click();
   const stages = page.getByRole('list', { name: 'Etapas del procesamiento' });
   await expect(stages.getByText('Archivo guardado')).toBeVisible();
+  // A mitad de camino: el conteo avanza página por página y lo que está en curso dice cuánto va.
+  await expect(stages.getByText(/^Texto extraído \(([1-9]|10) de 12 páginas\)$/)).toBeVisible(SLOW);
+  await expect(item).toContainText(/Procesando \d+ de 12/);
+  await expect(page.locator('[aria-busy="true"]:not(:has-text(" de "))')).toHaveCount(0);
   await expect(stages.getByText('Texto extraído (11 de 12 páginas)')).toBeVisible(SLOW);
   await expect(stages.getByText('Secciones detectadas')).toBeVisible();
   await expect(item).toContainText('Listo', SLOW);
   await expect(page.locator('[aria-busy="true"]:not(:has-text(" de "))')).toHaveCount(0);
+  await slowProcessing(page, false);
 });
 
 test('[CA-104] «Elegir archivo» hace lo mismo que arrastrar', async ({ launchFromStart }) => {
