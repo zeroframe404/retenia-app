@@ -80,6 +80,8 @@ export function openBridge({
         listener(event);
       }
     },
+    // Con el elenco, los materiales sembrados quedan «Recibido»: las pruebas que lo usan no los leen.
+    autoStart: !withCast,
   });
   const opened: string[] = [];
   const handlers = createHandlers({

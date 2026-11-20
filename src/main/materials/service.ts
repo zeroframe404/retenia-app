@@ -88,7 +88,9 @@ export interface MaterialsService {
   nextTask(): { stage: Stage; unit: number } | null;
   step(): Promise<void>;
   recoverStale(): number;
-  pause(): void;
+  // Frena la cola (la tarea en curso vuelve a «pendiente» sin contar intento) y espera a que no
+  // quede nada corriendo: antes de restaurar una copia, al suspenderse Windows.
+  pause(): Promise<void>;
   unpause(): void;
   stop(): Promise<void>;
   abandon(): void;
@@ -96,7 +98,7 @@ export interface MaterialsService {
 
 const DEFAULT_TIMEOUTS = { validate: 30_000, extract: 30_000, document: 60_000 };
 // Cuánto espera «Procesar despacio» antes de cada página.
-export const SLOW_DELAY_MS = 2000;
+const SLOW_DELAY_MS = 2000;
 
 class AbandonedError extends Error {}
 
@@ -175,11 +177,18 @@ export function createMaterialsService({
       existing: MaterialRow;
     }
   >();
+  // Cada 10 s: una tarea «en curso» sin latido hace más de 15 s vuelve a «pendiente». Si la carpeta
+  // de datos está cerrada o se está reemplazando (restaurar una copia), se espera a la próxima.
   const staleTimer = setInterval(() => {
-    if (started && !abandoned) {
+    if (!started || abandoned) {
+      return;
+    }
+    try {
       if (recoverStale() > 0) {
         kick();
       }
+    } catch {
+      // La base no está disponible ahora: la próxima vuelta lo intenta de nuevo.
     }
   }, 10_000);
   staleTimer.unref?.();
@@ -399,7 +408,13 @@ export function createMaterialsService({
   }
 
   async function runOne(item: QueueItem): Promise<void> {
-    const task = store().start(item.id, runnerId, elapsed());
+    let task: ReturnType<ReturnType<typeof store>['start']>;
+    try {
+      task = store().start(item.id, runnerId, elapsed());
+    } catch {
+      // La base no está disponible ahora (se cerró o se está reemplazando).
+      return;
+    }
     if (!task) {
       return;
     }
@@ -460,9 +475,13 @@ export function createMaterialsService({
     if (!started || paused || abandoned || running) {
       return;
     }
-    running = loop().finally(() => {
-      running = null;
-    });
+    running = loop()
+      .catch((error: unknown) => {
+        console.error('Retenia: la cola de materiales se frenó', error);
+      })
+      .finally(() => {
+        running = null;
+      });
   }
 
   function recoverStale(): number {
@@ -856,11 +875,14 @@ export function createMaterialsService({
 
     recoverStale,
 
-    pause() {
+    async pause() {
       paused = true;
       if (current) {
         releasing = true;
         interrupt();
+      }
+      if (running) {
+        await running.catch(() => undefined);
       }
     },
 

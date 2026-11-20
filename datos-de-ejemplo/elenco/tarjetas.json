@@ -213,22 +213,38 @@
             {
               "q": "¿Qué es una población en estadística?",
               "p": "s",
-              "a": "El conjunto completo de individuos o elementos sobre el que se quiere concluir algo."
+              "a": "El conjunto completo de individuos o elementos sobre el que se quiere concluir algo.",
+              "cita": {
+                "pagina": 1,
+                "texto": "Ese conjunto completo se llama población."
+              }
             },
             {
               "q": "¿Qué es una muestra?",
               "p": "d",
-              "a": "Un subconjunto de la población que se observa para estimar características de toda la población."
+              "a": "Un subconjunto de la población que se observa para estimar características de toda la población.",
+              "cita": {
+                "pagina": 1,
+                "texto": "Una muestra es una parte de la población que se elige para observarla y sacar conclusiones sobre el todo."
+              }
             },
             {
               "q": "¿Qué es un parámetro?",
               "p": "n",
-              "a": "Una característica numérica de la población, como la media poblacional; suele ser desconocida."
+              "a": "Una característica numérica de la población, como la media poblacional; suele ser desconocida.",
+              "cita": {
+                "pagina": 2,
+                "texto": "Un parámetro es un número que describe a la población: la media de las alturas de todos los estudiantes, por ejemplo."
+              }
             },
             {
               "q": "¿Qué es un estadístico?",
               "p": "s",
-              "a": "Una cantidad calculada a partir de los datos de una muestra, como la media muestral."
+              "a": "Una cantidad calculada a partir de los datos de una muestra, como la media muestral.",
+              "cita": {
+                "pagina": 2,
+                "texto": "Un estadístico es un número que se calcula con la muestra: la media de las alturas de los cien estudiantes que medimos."
+              }
             },
             {
               "q": "¿Qué símbolo se usa habitualmente para la media poblacional?",
@@ -346,7 +362,11 @@
             {
               "q": "¿Qué es un estimador puntual?",
               "p": "s",
-              "a": "Un único valor calculado de la muestra que se usa como estimación de un parámetro, como x̄ para μ."
+              "a": "Un único valor calculado de la muestra que se usa como estimación de un parámetro, como x̄ para μ.",
+              "cita": {
+                "pagina": 3,
+                "texto": "Un estimador es una regla para calcular un estadístico que se usa en lugar de un parámetro."
+              }
             },
             {
               "q": "¿Qué es el error estándar de la media?",

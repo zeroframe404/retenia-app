@@ -50,7 +50,6 @@ export const texts = {
   },
   // Lo que todavía no existe dice «Todavía no disponible» y lleva a lo que sí se puede hacer.
   screens: {
-    materials: 'Todavía no disponible. Acá vas a guardar tus PDF, textos y páginas web.',
     languages: 'Todavía no disponible. Acá vas a seguir el curso de inglés, de cero a C2.',
     goToNotes: 'Ir a Apuntes',
   },
@@ -343,7 +342,6 @@ export const texts = {
     pageImage: (number: number) => `Página ${number} del original`,
     highlighted: 'Pasaje resaltado',
     stillReading: 'Todavía estamos leyendo esta página',
-    sectionsLabel: 'Texto por secciones',
     back: 'Volver a la lista',
     createCard: 'Crear tarjeta desde acá',
     saveExcerpt: 'Guardar extracto',

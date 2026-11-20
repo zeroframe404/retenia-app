@@ -1,11 +1,10 @@
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { Stopwatch } from '../../src/core/clock';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
-import { ROOT } from '../../tools/lib/proceso.mjs';
 import type { Space } from './espacio';
 
 // Los materiales sobre una carpeta de datos real. El proceso de trabajo corre en el mismo proceso
@@ -13,7 +12,7 @@ import type { Space } from './espacio';
 // Electron en el medio. Las pruebas que necesitan un proceso que falla o se cuelga usan su propio
 // ejecutor (simulado), declarado en docs/plan-de-pruebas.md.
 
-export const SAMPLES = join(ROOT, 'datos-de-ejemplo');
+export const SAMPLES = resolve(import.meta.dirname, '..', '..', 'datos-de-ejemplo');
 export const INFERENCE = 'Inferencia — capítulos 1 a 4.pdf';
 
 export const sample = (name: string) => join(SAMPLES, name);

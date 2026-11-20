@@ -23,7 +23,7 @@ export type Located =
   | { status: 'relocate' };
 
 // Cuánto contexto de cada lado se guarda con la cita.
-export const CONTEXT_LENGTH = 40;
+const CONTEXT_LENGTH = 40;
 
 // El texto con los blancos juntados en un espacio, y de dónde salió cada letra.
 function collapsed(text: string): { text: string; origin: number[] } {

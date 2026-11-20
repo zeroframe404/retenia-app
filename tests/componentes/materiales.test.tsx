@@ -47,7 +47,7 @@ describe('la pantalla Materiales', () => {
   it('sin materiales: lo dice, y «Agregar material» es el único botón principal', async () => {
     await withSubject();
     expect(main().getByText('Todavía no hay materiales en esta materia.')).toBeTruthy();
-    const primaries = [...document.querySelectorAll('[data-variant="primary"]')].map(
+    const primaries = [...document.querySelectorAll('[data-button="primary"]')].map(
       (button) => button.textContent,
     );
     expect(primaries).toEqual(['Agregar material']);
@@ -184,7 +184,7 @@ describe('el visor y la fuente anclada', () => {
     await user.click(await screen.findByRole('button', { name: 'Crear tarjeta desde acá' }));
     const panel = await screen.findByRole('dialog', { name: 'Crear tarjeta desde acá' });
     expect(within(panel).getByText('notas · Dispersión')).toBeTruthy();
-    expect(within(panel).getByText(phrase)).toBeTruthy();
+    expect(within(panel).getByText(phrase, { selector: 'blockquote' })).toBeTruthy();
     expect(
       (within(panel).getByRole('textbox', { name: 'Respuesta' }) as HTMLTextAreaElement).value,
     ).toBe(phrase);
@@ -253,7 +253,12 @@ describe('la tarjeta con cita', () => {
   async function openTheCard(user: ReturnType<typeof openWindow>['user']) {
     const rail = screen.getByRole('navigation', { name: 'Riel lateral' });
     await user.click(within(rail).getByRole('button', { name: 'Apuntes' }));
-    await user.click(await screen.findByRole('tab', { name: 'Tarjetas' }));
+    await user.click(
+      within(await screen.findByRole('navigation', { name: 'Secciones de Apuntes' })).getByRole(
+        'button',
+        { name: 'Tarjetas' },
+      ),
+    );
     await user.click(
       await screen.findByRole('button', { name: 'Abrir la tarjeta «¿Qué es la media?»' }),
     );
@@ -287,7 +292,8 @@ describe('la tarjeta con cita', () => {
 
 describe('Ajustes › «Demostración»', () => {
   it('«Procesar despacio» está al lado de «Simular sin conexión», con su explicación', async () => {
-    const { user } = openWindow('prueba');
+    const { user, api } = openWindow('prueba');
+    await api['subjects.create']({ name: 'Estadística básica', makeActive: true });
     render(<App />);
     const rail = await screen.findByRole('navigation', { name: 'Riel lateral' });
     await user.click(within(rail).getByRole('button', { name: 'Ajustes' }));

@@ -5,8 +5,6 @@ import type { TaskStatus } from './queue';
 
 export type Stage = 'validate' | 'extract' | 'structure' | 'normalize' | 'index';
 
-export const STAGES: readonly Stage[] = ['validate', 'extract', 'structure', 'normalize', 'index'];
-
 export type UnitStatus = 'pending' | 'ready' | 'no_text' | 'review';
 
 export type ErrorProblem =
@@ -65,8 +63,7 @@ export function materialState({ errorCode, unitCount, units, tasks }: StatusInpu
   return { kind: 'ready' };
 }
 
-export type StageId = 'saved' | 'extracted' | 'sections' | 'ready';
-export type StageStatus = 'done' | 'current' | 'pending';
+type StageStatus = 'done' | 'current' | 'pending';
 
 export type StageView =
   | { id: 'saved' | 'sections' | 'ready'; status: StageStatus }

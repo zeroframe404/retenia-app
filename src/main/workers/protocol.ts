@@ -42,14 +42,14 @@ const blockType = z.enum([
   'header',
   'footer',
 ]);
-export const draftSchema = z.strictObject({
+const draftSchema = z.strictObject({
   type: blockType,
   level: z.number().int().nonnegative(),
   unit: z.number().int().positive(),
   lines: z.array(z.strictObject({ text: z.string(), box: boxSchema.nullable() })),
   markup: z.literal('md').optional(),
 });
-export const pdfExtractSchema = z.strictObject({
+const pdfExtractSchema = z.strictObject({
   page: z.number().int().positive(),
   width: z.number().positive(),
   height: z.number().positive(),

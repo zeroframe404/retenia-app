@@ -4,7 +4,6 @@ import { normalizeDocument } from '../../core/materials/normalize';
 import { structurePdf } from '../../core/materials/structure';
 import { decodeText, readMarkdown, readPlainText } from '../../core/materials/text';
 import { checkDocx, readDocx } from '../../ingest/docx';
-import { recognize } from '../../ingest/ocr';
 import {
   extractPdfPage,
   type OpenPdf,
@@ -58,6 +57,9 @@ export async function runMaterialsTask(raw: unknown): Promise<unknown> {
       return readPdfPage(new Uint8Array(await readFile(task.file)), task.page);
     case 'ocrPdfPage': {
       const image = await pdfPageImage(new Uint8Array(await readFile(task.file)), task.page);
+      // El reconocimiento de escaneos (tesseract.js) se carga recién acá: la versión real todavía no
+      // lo trae (llega con la Fase 14) y el proceso igual tiene que poder abrir.
+      const { recognize } = await import('../../ingest/ocr');
       return { text: image ? await recognize(image, { workDir: task.workDir }) : '' };
     }
     case 'validate': {

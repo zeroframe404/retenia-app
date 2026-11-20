@@ -22,7 +22,7 @@ export interface Box {
   height: number;
 }
 
-export interface DraftLine {
+interface DraftLine {
   text: string;
   // Nula en Word, Markdown y texto: ahí no hay hoja.
   box: Box | null;

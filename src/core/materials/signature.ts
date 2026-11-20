@@ -6,7 +6,7 @@ import { decodeText, looksLikeMarkdown } from './text';
 
 export type MaterialKind = 'pdf' | 'docx' | 'md' | 'text';
 
-export type IdentifyProblem = 'empty' | 'unsupported' | 'notPdf' | 'notWord';
+type IdentifyProblem = 'empty' | 'unsupported' | 'notPdf' | 'notWord';
 
 export type Identified = { ok: true; kind: MaterialKind } | { ok: false; problem: IdentifyProblem };
 

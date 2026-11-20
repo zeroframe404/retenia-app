@@ -104,7 +104,7 @@ describe('un PDF de punta a punta', () => {
       for (const box of block.boxes) {
         expect(box.page).toBe(1);
         expect(box.x).toBeGreaterThanOrEqual(0);
-        expect(box.x + box.width).toBeLessThanOrEqual(page.width + 1);
+        expect(box.x + box.width).toBeLessThanOrEqual((page.width ?? 0) + 1);
       }
     }
     // La página 9 es un escaneo: una figura, sin texto.

@@ -43,10 +43,12 @@ interface Activation {
 export function CardsScreen({
   subject,
   onOpenNote,
+  onOpenOriginal,
   cardRequest = null,
 }: {
   subject?: Subject | undefined;
   onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
+  onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
   // Una tarjeta para abrir de entrada («Abrir la tarjeta» en Progreso); cada pedido es distinto.
   cardRequest?: { cardId: string; nonce: number } | null;
 }) {
@@ -239,6 +241,7 @@ export function CardsScreen({
           onReview={(card) => setView({ kind: 'review', card })}
           onHistory={(card) => setView({ kind: 'history', card })}
           onOpenNote={onOpenNote}
+          onOpenOriginal={onOpenOriginal}
           onChanged={() => void load()}
           onRemoved={backToList}
           onNotice={setNotice}

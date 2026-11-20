@@ -264,3 +264,12 @@
   flex: none;
   width: var(--espacio-24);
 }
+
+/* La cita de un material (Fase 13): la frase tal como está en el original. */
+.citeQuote {
+  margin: var(--espacio-8) 0 0;
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  border-left: 3px solid var(--color-parcial);
+  background: var(--color-parcial-suave);
+}

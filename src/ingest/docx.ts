@@ -7,9 +7,7 @@ import { inspectZip, ZipRejectedError } from './zip-guard';
 // imágenes: de cada una queda solo su texto alternativo. Lo que devuelve es el árbol del documento
 // pasado a datos simples, junto con los avisos del lector.
 
-export const MAMMOTH_VERSION = '1.13.0';
-
-export class WordUnreadableError extends Error {
+class WordUnreadableError extends Error {
   constructor(reason: string) {
     super(`No se pudo leer el Word: ${reason}`);
     this.name = 'WordUnreadableError';

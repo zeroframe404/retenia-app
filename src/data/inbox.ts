@@ -28,7 +28,7 @@ export interface InboxStore {
 type ItemRow = typeof inboxItems.$inferSelect;
 
 // De dónde salió un extracto: el material, la unidad, la frase y la referencia que se muestra.
-export interface ExcerptSource {
+interface ExcerptSource {
   materialId: string;
   unitNo: number;
   reference: string;

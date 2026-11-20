@@ -1,0 +1,351 @@
+/* Materiales (Fase 13): la lista, el detalle con sus etapas, «Agregar material» y el visor lado a
+   lado. Los errores del usuario van con los colores neutros o de «parcial», nunca en rojo. */
+.screen {
+  min-width: 0;
+}
+
+.layout {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+}
+
+.empty {
+  margin: 0;
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta-suave);
+}
+
+.list {
+  display: grid;
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--espacio-8);
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  text-align: left;
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.row:hover,
+.row[aria-pressed="true"] {
+  border-color: var(--color-marca);
+}
+
+.rowTitle {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.rowState,
+.rowVersion {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.rowState[data-state="ready"] {
+  color: var(--color-correcta);
+}
+
+.rowState[data-state="partial"],
+.rowState[data-state="review"],
+.rowState[data-state="error"] {
+  color: var(--color-parcial);
+}
+
+.detail {
+  display: grid;
+  gap: var(--espacio-12);
+  padding: var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+}
+
+.detailTitle {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.partial {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-12);
+}
+
+.addForm {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: min(32rem, 100%);
+}
+
+.select {
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.dropZone {
+  display: grid;
+  gap: var(--espacio-12);
+  margin: 0;
+  padding: var(--espacio-24) var(--espacio-16);
+  text-align: center;
+  border: 2px dashed var(--color-linea-fuerte);
+  border-radius: var(--radio-14);
+}
+
+.dropZone[data-dragging="true"] {
+  background: var(--color-marca-suave);
+  border-color: var(--color-marca);
+}
+
+.dropText {
+  padding: 0;
+  margin: 0 auto;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta-suave);
+}
+
+.dropZone .actions {
+  justify-content: center;
+}
+
+/* «Elegir archivo»: un selector de archivos de verdad, con la cara de un botón. */
+.fileButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--alto-control);
+  padding: 0 var(--espacio-16);
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.fileButton:focus-within {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.more {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.moreToggle {
+  justify-self: start;
+  padding: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-marca);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.cite {
+  display: grid;
+  gap: var(--espacio-4);
+  margin: 0;
+}
+
+.citeReference {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.citeQuote {
+  margin: 0;
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  border-left: 3px solid var(--color-parcial);
+  background: var(--color-parcial-suave);
+}
+
+.viewer {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+}
+
+.viewerHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-12);
+}
+
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+}
+
+.pageNumber {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.viewerBody {
+  display: grid;
+  gap: var(--espacio-24);
+  align-items: start;
+  min-width: 0;
+}
+
+.viewerBody[data-columns="2"] {
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+}
+
+@media (max-width: 960px) {
+  .viewerBody[data-columns="2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.original {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+
+.textColumn {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
+  max-width: var(--ancho-lectura);
+}
+
+.selectionActions,
+.citedMenu {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+  padding: var(--espacio-8) var(--espacio-12);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  box-shadow: var(--sombra-tarjeta);
+}
+
+.citedList {
+  flex: 1 1 100%;
+  margin: 0;
+  padding-left: var(--espacio-16);
+  font: var(--tipo-pequeno);
+}
+
+.text {
+  display: grid;
+  gap: var(--espacio-12);
+}
+
+.reading {
+  margin: 0;
+  color: var(--color-tinta-suave);
+}
+
+.heading {
+  margin: var(--espacio-8) 0 0;
+  font: var(--tipo-subtitulo);
+  overflow-wrap: anywhere;
+}
+
+.blockText {
+  margin: 0;
+  font: var(--tipo-consigna);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 6;
+}
+
+.blockText[data-kind="title"] {
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.blockText[data-kind="code"],
+.blockText[data-kind="formula"],
+.blockText[data-kind="table"] {
+  padding: var(--espacio-8) var(--espacio-12);
+  font-family: var(--fuente-codigo);
+  background: var(--color-superficie-hundida);
+  border-radius: var(--radio-8);
+}
+
+.blockText[data-kind="list"] {
+  padding-left: var(--espacio-12);
+  border-left: 2px solid var(--color-linea);
+}
+
+[data-cited="true"] {
+  text-decoration: underline dotted var(--color-parcial);
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+[data-highlighted="true"] {
+  background: color-mix(in srgb, var(--color-parcial) 22%, transparent);
+  outline: 2px solid var(--color-parcial);
+  border-radius: var(--radio-4);
+}
+
+.toast {
+  position: fixed;
+  right: var(--espacio-24);
+  bottom: var(--espacio-24);
+  z-index: 5;
+}
+
+.passage {
+  display: grid;
+  gap: var(--espacio-12);
+}

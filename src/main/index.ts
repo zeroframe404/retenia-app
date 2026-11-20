@@ -6,16 +6,23 @@ import { zoomStep } from '../core/zoom';
 import { openWorkspace } from '../data/workspace';
 import { channels, type Registry } from '../preload/contract';
 import { demoChannels } from '../preload/contract/demo';
+import { EVENTS_CHANNEL } from '../preload/contract/events';
 import { labChannels } from '../preload/contract/lab';
+import { fileChannels } from '../preload/contract/materials';
 import { texts } from '../preload/contract/texts';
 import { createAppearanceStore } from './appearance';
-import { createHandlers, handleMessage, type Variant } from './bridge';
+import { createFileHandlers, createHandlers, handleMessage, type Variant } from './bridge';
 import { createCloseGuard } from './close-guard';
 import { createDemoHandlers, demoExclusiveChannels } from './demo';
 import { createDemoDate } from './demo/clock';
-import { prepareLabSwitches, startLab } from './demo/lab-setup';
+import { prepareLabSwitches, samplesDirectory, startLab } from './demo/lab-setup';
 import { createDemoWorkspace } from './demo/switcher';
 import { createGate, gateHandlers } from './gate';
+import {
+  handleOriginalProtocol,
+  registerOriginalScheme,
+  startMaterials,
+} from './materials/electron';
 import { fuzzForVariant } from './memory-options';
 
 const variant: Variant = __VARIANTE__;
@@ -33,6 +40,9 @@ if (app.isPackaged) {
 if (__VARIANTE__ === 'prueba') {
   prepareLabSwitches();
 }
+// El esquema con que la ventana pide el original de un material (Fase 13): antes de que Electron
+// esté listo.
+registerOriginalScheme();
 
 // Los datos viven en la carpeta de datos de aplicaciones de la cuenta de Windows, una por
 // variante («Retenia» y «Retenia (prueba)»), nunca dentro de la carpeta del programa. La
@@ -144,7 +154,12 @@ function start(): void {
   // elenco al abrirlo.
   const demoData =
     __VARIANTE__ === 'prueba'
-      ? createDemoWorkspace({ dataDir, clock, appVersion: app.getVersion() })
+      ? createDemoWorkspace({
+          dataDir,
+          clock,
+          appVersion: app.getVersion(),
+          samplesDir: samplesDirectory(),
+        })
       : null;
   // En el uso real las fechas de repaso llevan la variación al azar del motor (Fase 09); en la
   // demostración no.
@@ -152,6 +167,24 @@ function start(): void {
     demoData?.workspace ??
     openWorkspace({ dataDir, clock, appVersion: app.getVersion(), fuzz: fuzzForVariant(variant) });
   app.on('quit', () => (demoData ? demoData.close() : workspace.close()));
+
+  // Los materiales (Fase 13): la cola, su proceso de trabajo y el protocolo del original. El avance
+  // le llega a la ventana por avisos.
+  const materials = startMaterials({
+    workspace,
+    clock,
+    ...(demo ? { slow: () => demo.slowProcessing() } : {}),
+    send: (event) => {
+      const contents = mainWindow?.webContents;
+      if (contents && !contents.isDestroyed()) {
+        contents.send(EVENTS_CHANNEL, event);
+      }
+    },
+  });
+  app.on('before-quit', () => {
+    void materials.stop();
+  });
+  handleOriginalProtocol(workspace);
 
   const paper = applyFrameTheme(createAppearanceStore(dataDir).get());
   let handlers: Record<string, (request: never) => Promise<unknown>> = createHandlers({
@@ -161,6 +194,7 @@ function start(): void {
     version: app.getVersion(),
     openFolder: (path) => shell.openPath(path),
     onFlushed: () => flushDone?.(),
+    materials: materials.service,
     onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
     zoom: (direction) => {
       const contents = mainWindow?.webContents;
@@ -182,6 +216,23 @@ function start(): void {
     exclusive = demoExclusiveChannels;
   }
 
+  handlers = { ...handlers, ...createFileHandlers(materials.service) };
+  registry = { ...registry, ...fileChannels };
+  // Mientras se restaura una copia o se cambian los datos de la demostración, la cola de los
+  // materiales se frena (la base se cierra y se reemplaza) y sigue después.
+  for (const name of ['backups.restore', ...exclusive]) {
+    const original = handlers[name];
+    if (original) {
+      handlers[name] = async (request: never) => {
+        await materials.service.pause();
+        try {
+          return await original(request);
+        } finally {
+          materials.service.unpause();
+        }
+      };
+    }
+  }
   // Mientras se restaura una copia o se cambian los datos de la demostración, todo lo demás
   // espera (la base se cierra y se reemplaza).
   const gate = createGate();
@@ -206,6 +257,8 @@ function start(): void {
     );
   }
   createWindow(paper);
+  // La cola de los materiales sigue sola un segundo después de que se ve la ventana.
+  mainWindow?.once('ready-to-show', materials.begin);
 
   // Al abrir: la copia automática (si la última tiene 24 horas o más) y, recién después, lo que
   // venció en la Papelera; si la copia falla, lo vencido espera a la próxima vez.

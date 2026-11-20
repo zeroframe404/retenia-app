@@ -19,6 +19,14 @@ import { createLabHandlers, type LabHandlers, microphoneAccess } from './lab';
 
 const SAMPLE_PDF = 'Inferencia — capítulos 1 a 4.pdf';
 
+// La carpeta de los archivos de ejemplo: viaja junto al programa instalado; sin instalar, está en el
+// proyecto. La usan el Laboratorio y los materiales del elenco (Fase 13).
+export function samplesDirectory(): string {
+  return app.isPackaged
+    ? join(process.resourcesPath, 'datos-de-ejemplo')
+    : resolve(import.meta.dirname, '..', '..', '..', 'datos-de-ejemplo');
+}
+
 // Antes de que Electron esté listo: el micrófono de prueba de Chromium con el audio pedido.
 export function prepareLabSwitches(): void {
   const file = process.env.RETENIA_MICROFONO_ARCHIVO;
@@ -50,10 +58,7 @@ export function startLab({
     origin: process.env.RETENIA_MODELOS_ORIGEN ?? MODELS_ORIGIN,
     fetch: (url, init) => net.fetch(url, init),
   });
-  // El PDF de ejemplo viaja junto al programa instalado; sin instalar, está en el proyecto.
-  const samplePdf = app.isPackaged
-    ? join(process.resourcesPath, 'datos-de-ejemplo', SAMPLE_PDF)
-    : resolve(here, '..', '..', '..', 'datos-de-ejemplo', SAMPLE_PDF);
+  const samplePdf = join(samplesDirectory(), SAMPLE_PDF);
   const handlers = createLabHandlers({
     dataDir,
     samplePdf,

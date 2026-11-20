@@ -5,7 +5,7 @@ import { join } from 'node:path';
 // modifica (queda de solo lectura). El nombre que tenía el archivo es un dato del material, no una
 // ruta.
 
-export const ORIGINAL_EXTENSIONS = ['pdf', 'docx', 'md', 'txt'] as const;
+const ORIGINAL_EXTENSIONS = ['pdf', 'docx', 'md', 'txt'] as const;
 export type OriginalExtension = (typeof ORIGINAL_EXTENSIONS)[number];
 
 const SHA256 = /^[0-9a-f]{64}$/;

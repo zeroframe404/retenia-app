@@ -118,8 +118,6 @@ function toGray(image: PdfImage): GrayImage {
 
 // --- Lo que usa la cadena de los materiales (Fase 13) ---------------------------------------
 
-export const PDFJS_VERSION = '6.4.299';
-
 export class PdfUnreadableError extends Error {
   constructor(reason: string) {
     super(`No se pudo leer el PDF: ${reason}`);

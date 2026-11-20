@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
-import { type BlockType, type Box, TEXT_TYPES } from '../core/materials/blocks';
+import type { BlockType, Box } from '../core/materials/blocks';
 import type { Transformation } from '../core/materials/normalize';
 import {
   type FailureKind,
@@ -39,7 +39,7 @@ import { ingestResults, ingestTasks, materialBlocks, materials, materialUnits } 
 // La versión de la cadena: cambiarla hace que los bloques se vuelvan a armar.
 export const PIPELINE_VERSION = 1;
 
-export const STAGE_ORDER: Record<Stage, number> = {
+const STAGE_ORDER: Record<Stage, number> = {
   validate: 0,
   extract: 1,
   structure: 2,
@@ -47,7 +47,7 @@ export const STAGE_ORDER: Record<Stage, number> = {
   index: 4,
 };
 
-export class MaterialNotFoundError extends Error {
+class MaterialNotFoundError extends Error {
   constructor() {
     super('No encontré el material');
     this.name = 'MaterialNotFoundError';
@@ -59,7 +59,7 @@ type TaskRowDb = typeof ingestTasks.$inferSelect;
 type UnitRow = typeof materialUnits.$inferSelect;
 export type BlockRow = typeof materialBlocks.$inferSelect;
 
-export interface TaskRow {
+interface TaskRow {
   id: string;
   materialId: string;
   stage: Stage;
@@ -120,12 +120,12 @@ export interface IndexedBlock {
   locator: BlockLocator;
 }
 
-export interface SavedResult {
+interface SavedResult {
   key: string;
   output: unknown;
 }
 
-export interface StageMeta {
+interface StageMeta {
   tool: string;
   toolVersion: string;
   params: unknown;
@@ -848,9 +848,6 @@ export function blockInputs(rows: readonly BlockRow[]) {
     };
   });
 }
-
-// ¿Se puede leer como texto? (las figuras, los encabezados y los pies no entran en las citas)
-export const citable = (type: BlockType) => TEXT_TYPES.includes(type);
 
 // La cita de una tarjeta, como la muestra su ficha: la referencia, la frase y si todavía se
 // encuentra en el original.

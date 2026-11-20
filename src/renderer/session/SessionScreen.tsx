@@ -38,10 +38,13 @@ export function SessionScreen({
   initial,
   onExit,
   onToast,
+  onOpenOriginal,
 }: {
   initial: SessionView;
   onExit: () => void;
   onToast: (text: string) => void;
+  // «Ver en el original» de la tarjeta (Fase 13): se abre en el panel de la derecha, sin salir.
+  onOpenOriginal?: ((target: { materialId: string; cardId: string }) => void) | undefined;
 }) {
   const [view, setView] = useState<SessionView>(initial);
   const sessionId = view.sessionId;
@@ -63,6 +66,27 @@ export function SessionScreen({
   const question = useRef<HTMLElement>(null);
   const answer = useRef<HTMLElement>(null);
   const current = view.current;
+  // Si la tarjeta salió de un material, después de mostrar la respuesta se puede ver el original
+  // (antes no: la cita puede decir la respuesta).
+  const [citedMaterial, setCitedMaterial] = useState<string | null>(null);
+  const cardId = current?.cardId ?? null;
+  useEffect(() => {
+    setCitedMaterial(null);
+    if (!answerShown || cardId === null || !onOpenOriginal) {
+      return;
+    }
+    let alive = true;
+    window.retenia['cards.get']({ cardId })
+      .then((card) => {
+        if (alive) {
+          setCitedMaterial(card.cite?.materialId ?? null);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [answerShown, cardId, onOpenOriginal]);
 
   // Lo que guarda el borrador: siempre lo último que hay en pantalla.
   const latest = useRef({ sessionId, activityId: current?.activityId ?? '', text, answerShown });
@@ -401,6 +425,16 @@ export function SessionScreen({
                   <div className={styles.side}>
                     <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
                     <CardFace content={current.card.answerContent} />
+                    {citedMaterial && onOpenOriginal ? (
+                      <Boton
+                        variant="quiet"
+                        onClick={() =>
+                          onOpenOriginal({ materialId: citedMaterial, cardId: current.cardId })
+                        }
+                      >
+                        {texts.materials.viewOriginal}
+                      </Boton>
+                    ) : null}
                   </div>
                 </div>
                 <fieldset className={styles.grades}>

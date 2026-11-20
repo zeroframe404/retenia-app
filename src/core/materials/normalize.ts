@@ -14,7 +14,7 @@ export type { BlockDraft } from './blocks';
 // - en Markdown, las marcas de énfasis («**», «__» y «`») se sacan.
 // Cada arreglo queda anotado: deshacerlos todos devuelve exactamente el texto crudo.
 
-export type TransformationKind = 'nfc' | 'hyphen' | 'linebreak' | 'join' | 'markup';
+type TransformationKind = 'nfc' | 'hyphen' | 'linebreak' | 'join' | 'markup';
 
 export interface Transformation {
   kind: TransformationKind;
@@ -25,7 +25,7 @@ export interface Transformation {
   original: string;
 }
 
-export interface NormalizedLine {
+interface NormalizedLine {
   text: string;
   box: Box | null;
   // Dónde quedó el renglón dentro del texto normalizado del bloque.

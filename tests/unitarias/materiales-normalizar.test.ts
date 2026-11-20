@@ -60,7 +60,7 @@ describe('párrafos partidos entre páginas', () => {
       'El tamaño de la muestra también importa cuando hay pocos casos.',
     );
     // El bloque recuerda sus dos páginas.
-    expect(joined[0]?.lines.map((line) => line.box.page)).toEqual([1, 1, 2]);
+    expect(joined[0]?.lines.map((line) => line.box?.page)).toEqual([1, 1, 2]);
     expect(joined[0]?.unit).toBe(1);
   });
 

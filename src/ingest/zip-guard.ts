@@ -6,8 +6,8 @@ import yauzl from 'yauzl';
 // (contado al leer, no por lo que declara el comprimido); y XML con declaraciones de tipo o
 // entidades, que podrían apuntar a archivos de la PC. Lo reusa la importación de la Fase 15.
 
-export const MAX_ENTRIES = 2000;
-export const MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024;
+const MAX_ENTRIES = 2000;
+const MAX_UNCOMPRESSED_BYTES = 200 * 1024 * 1024;
 
 export class ZipRejectedError extends Error {
   constructor(reason: string) {

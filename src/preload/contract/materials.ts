@@ -9,7 +9,7 @@ import { day } from './common';
 // Lo más largo que se acepta pegar con «Pegar texto».
 export const MAX_PASTED_TEXT = 200_000;
 // Cuántos archivos se pueden soltar juntos.
-export const MAX_FILES = 20;
+const MAX_FILES = 20;
 const MAX_TITLE = 200;
 const MAX_CARD_TEXT = 2000;
 
@@ -26,7 +26,6 @@ const errorProblem = z.enum([
   'wordUnreadable',
   'textUnreadable',
 ]);
-export type MaterialProblem = z.output<typeof errorProblem>;
 
 const materialState = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('received'), cancelled: z.literal(true).optional() }),
@@ -164,12 +163,12 @@ export type AddResult = z.output<typeof addResultSchema>;
 
 const titleInput = z.string().trim().max(MAX_TITLE).optional();
 
-export const materialsAddFilesRequest = z.strictObject({
+const materialsAddFilesRequest = z.strictObject({
   paths: z.array(absolutePath).min(1).max(MAX_FILES),
   subjectId: z.uuid(),
   title: titleInput,
 });
-export const materialsAddFilesResponse = z.strictObject({ results: z.array(addResultSchema) });
+const materialsAddFilesResponse = z.strictObject({ results: z.array(addResultSchema) });
 
 export const materialsAddTextRequest = z.strictObject({
   subjectId: z.uuid(),

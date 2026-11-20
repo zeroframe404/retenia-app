@@ -25,6 +25,7 @@ export function CardDetailView({
   onReview,
   onHistory,
   onOpenNote,
+  onOpenOriginal,
   onChanged,
   onRemoved,
   onNotice,
@@ -37,6 +38,8 @@ export function CardDetailView({
   onReview: (card: CardDetail) => void;
   onHistory: (card: CardDetail) => void;
   onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
+  // «Ver en el original»: la tarjeta salió de un material (Fase 13).
+  onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
   // Algo cambió (pausa, inversa): la lista de atrás se vuelve a leer.
   onChanged: () => void;
   onRemoved: () => void;
@@ -156,6 +159,10 @@ export function CardDetailView({
           )}
           {sheet.source === '' ? null : <li>{texts.cards.sourceLine(sheet.source)}</li>}
         </ul>
+        {card.cite ? <blockquote className={styles.citeQuote}>{card.cite.quote}</blockquote> : null}
+        {card.cite?.status === 'relocate' ? (
+          <BannerEstado tone="pending">{texts.materials.relocate}</BannerEstado>
+        ) : null}
       </section>
       {card.siblingGroupId === null ? null : (
         <p className={styles.fieldHelp}>{texts.cards.siblingsNotice}</p>
@@ -178,6 +185,11 @@ export function CardDetailView({
         <Boton onClick={() => onHistory(card)}>{texts.cards.history}</Boton>
         {path.canOpenNote && noteId !== null && blockId !== null && onOpenNote ? (
           <Boton onClick={() => onOpenNote(noteId, blockId)}>{texts.cards.viewInNote}</Boton>
+        ) : null}
+        {card.cite && onOpenOriginal ? (
+          <Boton onClick={() => onOpenOriginal(card.cite?.materialId ?? '', card.id)}>
+            {texts.materials.viewOriginal}
+          </Boton>
         ) : null}
         <Boton onClick={() => setDoubting(true)}>{texts.cards.saveDoubt}</Boton>
         <Boton onClick={() => void remove()}>{texts.cards.remove}</Boton>

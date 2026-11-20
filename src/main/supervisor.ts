@@ -26,7 +26,7 @@ export class WorkerProblem extends Error {
 export interface WorkerClient {
   request(message: Record<string, unknown>, timeoutMs: number): Promise<unknown>;
   // Corta el proceso actual: lo pendiente falla con ese motivo (cancelar un material, pausar).
-  interrupt(problem: WorkerProblemName): void;
+  interrupt?(problem: WorkerProblemName): void;
   stop(): void;
 }
 

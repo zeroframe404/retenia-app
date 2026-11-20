@@ -46,6 +46,7 @@ export function NotesScreen({
   onDataChanged,
   noteRequest = null,
   onOpenNoteFromCard,
+  onOpenOriginal,
   onNoteRequestHandled,
   cardRequest = null,
   topicRequest = null,
@@ -66,6 +67,8 @@ export function NotesScreen({
   // Abrir una tarjeta desde otra pantalla («Abrir la tarjeta» en Progreso).
   cardRequest?: CardRequest | null;
   onOpenNoteFromCard?: (noteId: string, blockId: string | null) => void;
+  // «Ver en el original» de una tarjeta que salió de un material (Fase 13).
+  onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
   topicRequest?: TopicRequest | null;
   onTopicRequestHandled?: () => void;
   onNoteRequestHandled?: () => void;
@@ -105,7 +108,12 @@ export function NotesScreen({
         <InboxSection subjectId={subject.id} count={inboxCount} onCount={onInboxCount} />
       ) : null}
       {section === 'cards' ? (
-        <CardsScreen subject={subject} onOpenNote={onOpenNoteFromCard} cardRequest={cardRequest} />
+        <CardsScreen
+          subject={subject}
+          onOpenNote={onOpenNoteFromCard}
+          onOpenOriginal={onOpenOriginal}
+          cardRequest={cardRequest}
+        />
       ) : null}
       {section === 'trash' ? (
         <TrashScreen onBackToCards={toCards} onChanged={onDataChanged} />

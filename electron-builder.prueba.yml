@@ -49,10 +49,19 @@ asarUnpack:
   - node_modules/tesseract.js-core/**
   - node_modules/@tesseract.js-data/**
   - node_modules/{wasm-feature-detect,regenerator-runtime,is-url,bmp-js}/**
-# El PDF de ejemplo de «Leer PDF de prueba» y «Leer página escaneada».
+# El PDF de ejemplo de «Leer PDF de prueba» y «Leer página escaneada», y los materiales del elenco
+# con los archivos de las pruebas manuales de la Fase 13.
 extraResources:
   - from: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"
     to: "datos-de-ejemplo/Inferencia — capítulos 1 a 4.pdf"
+  - from: "datos-de-ejemplo/Apunte 3.pdf"
+    to: "datos-de-ejemplo/Apunte 3.pdf"
+  - from: "datos-de-ejemplo/notas.md"
+    to: "datos-de-ejemplo/notas.md"
+  - from: "datos-de-ejemplo/resumen.docx"
+    to: "datos-de-ejemplo/resumen.docx"
+  - from: "datos-de-ejemplo/no-es-un-pdf.pdf"
+    to: "datos-de-ejemplo/no-es-un-pdf.pdf"
 npmRebuild: false
 compression: normal
 artifactName: Retenia-prueba-instalador-${version}.${ext}

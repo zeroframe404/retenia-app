@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { z } from 'zod';
 import type { Clock } from '../../core/clock';
 import { openWorkspace, type Workspace } from '../../data/workspace';
-import { seedDemoCardCast, seedDemoOrganization, seedDemoVolume } from './seed';
+import { seedDemoCardCast, seedDemoMaterials, seedDemoOrganization, seedDemoVolume } from './seed';
 
 // Los datos de «Retenia (prueba)» (Ajustes › «Demostración»): el elenco de ejemplo o una base
 // vacía, como la primera vez que se abre Retenia. La primera vez vive en una segunda carpeta de
@@ -47,10 +47,14 @@ export function createDemoWorkspace({
   dataDir,
   clock,
   appVersion,
+  samplesDir = null,
 }: {
   dataDir: string;
   clock: Clock;
   appVersion: string;
+  // Dónde están los archivos de ejemplo (los materiales del elenco); sin carpeta, el elenco no trae
+  // materiales.
+  samplesDir?: string | null;
 }): DemoWorkspace {
   const file = join(dataDir, 'demo-modo.json');
 
@@ -63,7 +67,8 @@ export function createDemoWorkspace({
     const opened = openWorkspace({ dataDir, clock, appVersion });
     try {
       seedDemoOrganization(opened);
-      seedDemoCardCast(opened);
+      const materials = seedDemoMaterials(opened, samplesDir);
+      seedDemoCardCast(opened, materials);
     } catch (error) {
       opened.close();
       throw error;
