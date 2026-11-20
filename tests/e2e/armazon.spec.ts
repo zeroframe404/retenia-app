@@ -295,6 +295,11 @@ test('[CA-034] sin mouse: con Tab se llega a todo lo de Materiales y siempre se 
   await page.keyboard.press('Control+3');
   await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeFocused();
   expectVisibleFocus(await focusInfo(page), 'el título de Materiales');
+  // La lista se lee aparte (con la máquina cargada puede tardar): se espera a que esté a la vista.
+  await expect(
+    page.getByRole('list', { name: 'Materiales de la materia' }).getByRole('button'),
+  ).toHaveCount(2);
+  await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeFocused();
 
   // De ahí, el siguiente Tab llega a lo que sigue en la pantalla (desde la Fase 13, «Agregar
   // material», «Cambiar» y los dos materiales del elenco, cada uno con su estado, que cambia

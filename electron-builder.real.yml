@@ -26,6 +26,9 @@ files:
   - "!node_modules/pdfjs-dist/legacy/build/*.{map,d.mts}"
   - "!node_modules/pdfjs-dist/legacy/build/pdf.{min,sandbox,sandbox.min,worker.min}.mjs"
   - "!node_modules/pdfjs-dist/{webpack.mjs,legacy/webpack.mjs,README.md,CODE_OF_CONDUCT.md}"
+  # Las carpetas de ejemplos de las dependencias (sprintf-js, que llega con mammoth, trae una
+  # «demo»): no se usan y en la versión real no va nada que se llame así.
+  - "!node_modules/**/demo{,/**}"
 extraMetadata:
   main: out/real/main/index.js
 asar: true

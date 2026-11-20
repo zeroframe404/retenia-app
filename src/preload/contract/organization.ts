@@ -66,7 +66,7 @@ export const inboxItemSchema = z.strictObject({
   text: z.string(),
   // El día de Buenos Aires en que se anotó.
   day,
-  // Un extracto de un material (Fase 13): de dónde salió («Inferencia — capítulos 1 a 4 · página 3»).
+  // Un extracto de un material (Fase 13): de dónde salió («Apunte de la clase · página 3»).
   // Solo está en los extractos.
   source: z.string().optional(),
 });

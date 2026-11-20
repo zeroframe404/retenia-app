@@ -345,28 +345,50 @@ describe('piezas del Laboratorio en el paquete (Fase 05)', () => {
     expect(existsSync(join(requirePackage('real').folder, 'resources', ...sample))).toBe(false);
   });
 
-  it('la versión de uso real no trae las piezas del Laboratorio ni sus procesos de trabajo', () => {
-    const real = readPackage(requirePackage('real').folder).map((f) => f.path);
-    const pieces = real.filter((path) =>
-      /sherpa-onnx|tesseract|pdfjs-dist|@napi-rs|\/voice\.js$|\/materials\.js$/.test(path),
-    );
+  // Desde la Fase 13, la versión real lee materiales: lleva pdf.js (en el proceso de materiales y
+  // en el visor de la ventana), mammoth, yauzl y el proceso de materiales. La voz, los escaneos y
+  // el Laboratorio siguen afuera hasta sus fases (14 y 28).
+  it('la versión de uso real no trae las piezas del Laboratorio, la voz ni los escaneos, ni siquiera compiladas', () => {
+    const real = readPackage(requirePackage('real').folder);
+    const pieces = real
+      .map((file) => file.path)
+      .filter((path) => /sherpa-onnx|tesseract|@napi-rs|\/voice\.js$|\/ocr[-.]/.test(path));
     expect(pieces).toEqual([]);
+    const code = real
+      .filter((file) => /\.(c?js|mjs)$/.test(file.path) && !file.path.includes('node_modules'))
+      .filter((file) => file.text?.includes('tesseract') || file.text?.includes('sherpa-onnx'))
+      .map((file) => file.path);
+    expect(code).toEqual([]);
+    // Lo que sí trae desde la Fase 13: el proceso de materiales y los lectores.
+    const paths = real.map((file) => file.path);
+    expect(paths).toEqual(
+      expect.arrayContaining([
+        'app.asar/out/real/main/materials.js',
+        'app.asar/node_modules/pdfjs-dist/legacy/build/pdf.mjs',
+        'app.asar/node_modules/mammoth/package.json',
+        'app.asar/node_modules/yauzl/package.json',
+      ]),
+    );
   });
 
-  it('la ventana de la versión de uso real no lleva pdf.js ni su hilo de trabajo, con ningún nombre', () => {
+  it('la ventana de la versión de uso real lleva pdf.js solo para el visor de materiales, sin la pantalla del Laboratorio', () => {
     const real = readPackage(requirePackage('real').folder);
-    const withPdfjs = real
+    const window = real.filter((file) => file.path.startsWith('app.asar/out/real/renderer/'));
+    // El visor de materiales (Fase 13) dibuja la página con pdf.js y su hilo de trabajo.
+    expect(window.some((file) => /pdf\.worker/i.test(file.path))).toBe(true);
+    // La pantalla del Laboratorio, no: ninguno de sus textos está en la ventana real.
+    const lab = window
       .filter(
         (file) =>
-          /pdf\.worker/i.test(file.path) ||
-          file.text?.includes('GlobalWorkerOptions') ||
-          file.text?.includes('pdfjsVersion'),
+          file.text?.includes('Leer PDF de prueba') ||
+          file.text?.includes('Leer página escaneada') ||
+          file.text?.includes('Decir en voz alta'),
       )
       .map((file) => file.path);
-    expect(withPdfjs).toEqual([]);
-    // Control: en la variante de prueba sí se encuentra (si no, la búsqueda no probaría nada).
+    expect(lab).toEqual([]);
+    // Control: en la variante de prueba sí se encuentran (si no, la búsqueda no probaría nada).
     const prueba = readPackage(requirePackage('prueba').folder);
-    expect(prueba.some((file) => file.text?.includes('GlobalWorkerOptions'))).toBe(true);
+    expect(prueba.some((file) => file.text?.includes('Leer PDF de prueba'))).toBe(true);
   });
 
   it('del lector de PDF viaja solo lo que usa el proceso de materiales, sin el lienzo nativo', () => {

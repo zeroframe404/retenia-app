@@ -160,7 +160,7 @@ const toState = (task: TaskRow): TaskState => ({
   heartbeatAt: task.heartbeatAt,
 });
 
-// La referencia legible de un pasaje: «Inferencia — capítulos 1 a 4 · página 2» en un PDF;
+// La referencia legible de un pasaje: «Apunte de la clase · página 2» en un PDF;
 // «notas · Dispersión» (la sección que lo contiene) en Word, Markdown y texto.
 export function referenceOf(
   title: string,

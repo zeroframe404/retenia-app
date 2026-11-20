@@ -57,9 +57,13 @@ export async function runMaterialsTask(raw: unknown): Promise<unknown> {
       return readPdfPage(new Uint8Array(await readFile(task.file)), task.page);
     case 'ocrPdfPage': {
       const image = await pdfPageImage(new Uint8Array(await readFile(task.file)), task.page);
-      // El reconocimiento de escaneos (tesseract.js) se carga recién acá: la versión real todavía no
-      // lo trae (llega con la Fase 14) y el proceso igual tiene que poder abrir.
-      const { recognize } = await import('../../ingest/ocr');
+      // El reconocimiento de escaneos (tesseract.js) se carga recién acá y solo en la variante de
+      // prueba (el Laboratorio): la versión real todavía no lo trae (llega con la Fase 14), ni
+      // siquiera compilado.
+      const { recognize } =
+        __VARIANTE__ === 'prueba'
+          ? await import('../../ingest/ocr')
+          : { recognize: (): Promise<string> => Promise.reject(new Error('Sin escaneos todavía')) };
       return { text: image ? await recognize(image, { workDir: task.workDir }) : '' };
     }
     case 'validate': {

@@ -70,6 +70,8 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
         execute: async (task) => (stage.stop(task) ? never() : runMaterialsTask(task)),
       });
       await first.service.addFiles({ paths: [sample(APUNTE)], subjectId });
+      // Con la máquina cargada (la red completa corre todo junto) llegar a la etapa puede tardar
+      // más que el segundo que se espera por defecto: lo que se espera no cambia, solo cuánto.
       await expect
         .poll(
           () =>
@@ -77,6 +79,7 @@ describe('[CA-105] cerrar Retenia a mitad de camino y volver a abrir', () => {
               space.file,
               `SELECT COUNT(*) AS n FROM ingest_tasks WHERE status = 'running' AND ${stage.where}`,
             )[0]?.n,
+          { timeout: 15_000 },
         )
         .toBe(1);
       // Se corta: nadie avisa nada, la tarea queda «en curso» en la base.
