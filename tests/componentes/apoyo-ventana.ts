@@ -7,6 +7,7 @@ import { createDemoHandlers } from '../../src/main/demo';
 import { createDemoDate } from '../../src/main/demo/clock';
 import { buildApi } from '../../src/preload/api';
 import { demoChannels } from '../../src/preload/contract/demo';
+import { sample } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // La ventana entera (App) contra el puente real y una carpeta de datos real, para las pruebas de
@@ -17,11 +18,30 @@ const bridges: TestBridge[] = [];
 export function openWindow(
   variant: 'prueba' | 'real' = 'real',
   clock?: Clock,
-  { withCast = false }: { withCast?: boolean } = {},
+  {
+    withCast = false,
+    holdExtraction,
+  }: { withCast?: boolean; holdExtraction?: () => Promise<void> } = {},
 ) {
   vi.stubGlobal('__VARIANTE__', variant);
-  const bridge = openBridge({ ...(clock === undefined ? {} : { clock }), withCast });
+  const bridge = openBridge({
+    ...(clock === undefined ? {} : { clock }),
+    withCast,
+    ...(holdExtraction ? { holdExtraction } : {}),
+  });
   bridges.push(bridge);
+  // El puente de archivos (simulado): en jsdom un archivo elegido no tiene ruta en el disco, así
+  // que el doble lo busca por su nombre en datos-de-ejemplo. El de verdad la saca con
+  // `webUtils.getPathForFile` (src/preload/index.ts).
+  window.reteniaArchivos = {
+    agregar: (files, { subjectId, title }) =>
+      bridge.files['materials.addFiles']({
+        paths: files.map((file) => sample(file.name)),
+        subjectId,
+        ...(title ? { title } : {}),
+      }),
+  };
+  window.reteniaAvisos = { alRecibir: (listener) => bridge.subscribe(listener) };
   let api: unknown = bridge.api;
   if (variant === 'prueba') {
     const demo = createDemoDate(bridge.dataDir);

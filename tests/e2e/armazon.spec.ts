@@ -121,8 +121,8 @@ test('[CA-031] lo que todavía no existe dice «Todavía no disponible» y «Ir 
   launchFromStart,
 }) => {
   const { page } = await launchFromStart();
-  // Estudiar y Progreso ya tienen contenido (Fase 10).
-  for (const destination of ['Materiales', 'Idiomas'] as const) {
+  // Estudiar y Progreso ya tienen contenido (Fase 10); Materiales, desde la Fase 13.
+  for (const destination of ['Idiomas'] as const) {
     await goToDestination(page, destination);
     await expect(page.getByText(/^Todavía no disponible\./)).toBeVisible();
   }

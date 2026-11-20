@@ -196,6 +196,7 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0006_motor_de_memoria' },
       { id: '0007_sesion_de_estudio' },
       { id: '0008_busqueda' },
+      { id: '0009_materiales' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([

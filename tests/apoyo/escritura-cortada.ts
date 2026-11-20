@@ -1,5 +1,7 @@
 import { demoClock } from '../../src/core/clock';
 import { openWorkspace } from '../../src/data/workspace';
+import { createMaterialsService } from '../../src/main/materials/service';
+import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 
 // Programa hijo de la prueba del corte (CA-017): abre la carpeta de datos como Retenia, hace una
 // sola escritura real y se mata a sí mismo, sin cerrar nada, en el punto pedido. Cuenta
@@ -108,7 +110,27 @@ const operations: Record<string, () => unknown> = {
       cardId: field('cardId'),
       sessionId: field('sessionId'),
     }),
+  // Los materiales (Fase 13): agregar un archivo (sin procesarlo) y terminar la indexación de uno
+  // que ya pasó por todas las etapas anteriores.
+  materialAdd: async () => {
+    const service = materials({ autoStart: false });
+    await service.addFiles({ paths: [field('file')], subjectId: field('subjectId') });
+  },
+  materialIndex: async () => {
+    const service = materials({ autoStart: true });
+    await service.whenIdle();
+  },
 };
+
+function materials({ autoStart }: { autoStart: boolean }) {
+  return createMaterialsService({
+    workspace,
+    clock: demoClock(Number(field('days') || '0')),
+    execute: (task) => runMaterialsTask(task),
+    autoStart,
+    runnerId: 'corte',
+  });
+}
 
 const run = operations[operation];
 if (!run) {

@@ -106,10 +106,11 @@ describe('el riel lateral', () => {
       found[name] = primaries();
     }
     expect(found).toEqual({
-      // Desde la Fase 10, Estudiar tiene «Empezar» y Progreso, «Dudas y revisiones».
+      // Desde la Fase 10, Estudiar tiene «Empezar» y Progreso, «Dudas y revisiones»; desde la
+      // Fase 13, Materiales tiene «Agregar material».
       Estudiar: ['Empezar'],
       Apuntes: ['Nueva nota'],
-      Materiales: ['Ir a Apuntes'],
+      Materiales: ['Agregar material'],
       Idiomas: ['Ir a Apuntes'],
       Progreso: ['Ir a Estudiar'],
       Ajustes: ['Hacer copia ahora'],
@@ -119,8 +120,8 @@ describe('el riel lateral', () => {
   it('lo que todavía no existe dice «Todavía no disponible» y «Ir a Apuntes» lleva a lo que sí se puede hacer', async () => {
     const { user } = openApp('real');
     render(<App />);
-    // Estudiar y Progreso ya existen (Fase 10).
-    for (const name of ['Materiales', 'Idiomas']) {
+    // Estudiar y Progreso ya existen (Fase 10); Materiales, desde la Fase 13.
+    for (const name of ['Idiomas']) {
       await goTo(user, name);
       const main = screen.getByRole('main');
       expect(within(main).getByText(/^Todavía no disponible\./)).toBeTruthy();
