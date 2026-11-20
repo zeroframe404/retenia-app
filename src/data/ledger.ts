@@ -14,8 +14,15 @@ import { evaluations, ledgerState, observations, operations } from './schema';
 // Cada evento lleva un UUID v7 generado antes de guardar, el dispositivo, un número de
 // secuencia (uno solo para los tres tipos de evento), la hora en UTC y la zona.
 
-// Quién originó el evento: vos, Retenia (al adoptar datos viejos) o la siembra del ejemplo.
-export type EventSource = 'user' | 'system' | 'demo';
+// Quién originó el evento: vos, Retenia (al adoptar datos viejos), la siembra del ejemplo o una
+// importación (Fase 15: de Anki, de RemNote o de una exportación de Retenia).
+export type EventSource =
+  | 'user'
+  | 'system'
+  | 'demo'
+  | 'import:anki'
+  | 'import:remnote'
+  | 'import:retenia';
 
 // Sobre qué clase de cosa se hizo una operación.
 export type OperationEntity = 'card' | 'subject' | 'topic' | 'note' | 'inbox';

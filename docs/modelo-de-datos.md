@@ -248,6 +248,265 @@ Fase 14 (migración `0010_revision_de_materiales`, solo agrega; explicado en `do
 | `user_texts` | `id, title, text, level_estimate, known_ratio, created_at` (textos en inglés pegados por vos) | H-60 |
 | `schema_meta` | `key, value` (versión de migraciones aplicadas, fecha de la última verificación de datos) | H-04, H-73 |
 
+Fase 15 (migración `0012_importaciones`, solo agrega; explicado en `docs/decisiones.md`, sección Fase 15):
+
+- `imports`: `id, kind ('anki' | 'remnote'), file_sha256, file_name, subject_id, at, summary (JSON: tarjetas y notas nuevas y que ya estaban, repasos, sin historial), rejected (JSON con motivo), annotated (JSON)`. Cargar una exportación no deja una fila acá (así la base queda igual a la de origen).
+- `import_items`: `source_key` (único: `anki:<guid>:<número de tarjeta>` o `remnote:<ruta del documento>`) → `import_id, entity_type ('card' | 'note'), entity_id, tags (JSON, las etiquetas de Anki)`. Es la huella del origen de cada elemento (CA-124).
+- `attachments` (`id, sha256 único, name, mime, bytes, created_at`; el archivo vive en `adjuntos\<sha256>`) y `card_attachments (card_id, attachment_id)`: los audios de Anki.
+- `cards.available_only` (0 o 1): llegó «Disponible»; no entra en los repasos hasta el evento `card.activated` («Sumar a mis repasos»). `cards.origin` suma `'import'` (las tarjetas de Anki y las inversas de «::» de RemNote; las de los renglones de RemNote siguen siendo `'note'`). `card_versions.cause` suma `'import'`.
+- Las observaciones y evaluaciones de lo importado llevan `source = 'import:anki'` (o `'import:remnote'`), con su fecha real en `occurred_at`. Las copias suman el tipo `before_import` («Antes de importar»).
+- «Exportar todo»: `apuntes/<materia>/<tema>/<nota>.md` (Markdown con encabezado de datos, fórmulas como `$…# Modelo de datos
+
+Versión 7 (Fase 13): los materiales, sus unidades y bloques, los resultados de cada etapa, la cola, la cita de una tarjeta y la referencia de un extracto (ver «Materiales»). Versión 6 (Fase 12): el índice de búsqueda y lo último que abriste en el buscador (ver «3. Índice de búsqueda»). Versión 5 (Fase 09): el motor de memoria 2, los repasos con lo que decía el motor (versión 2 de su esquema), la anulación de un repaso y la versión del motor en la agenda (ver 1.1 y 1.3). Versión 4 (Fase 08): las tarjetas se ligan a sus renglones y llevan ficha (ver «Tarjetas y ejercicios»). Versión 3 (Fase 07, 29/10/2026): las materias, los temas, las notas por renglones con versiones inmutables, la Bandeja y las imágenes ya existen (ver «Organización»). Versión 2 (Fase 04, 14/10/2026): el libro mayor, la Papelera, el registro para deshacer y las copias ya existen; lo que cambió respecto de la versión 1 está marcado «(Fase 04)» y explicado en `docs/decisiones.md`. Versión 1: Fase 01, 13/10/2026.
+
+Una sola base SQLite por instalación (`retenia.db`), en modo WAL con `synchronous = FULL`, manejada solo desde `src/data` con Drizzle. Las tablas se nombran en inglés, en `snake_case`; los identificadores son UUID versión 7 en texto; los instantes van en ISO 8601 UTC y los días de estudio como `YYYY-MM-DD` calculados por `core` con el corte de las 04:00 de Buenos Aires.
+
+Cuatro reglas que no se negocian:
+
+1. **El historial solo se agrega.** Las observaciones, las evaluaciones y las operaciones (Fase 04) nunca se actualizan ni se borran: disparadores de SQLite (`BEFORE UPDATE` y `BEFORE DELETE` con `RAISE(ABORT)`) lo impiden incluso a un error de programación. Deshacer, corregir o apelar agrega una fila nueva que apunta a la anterior.
+2. **Todo estado se recalcula.** Las proyecciones (vencimientos, estados de dominio, contadores) se pueden borrar y reconstruir desde el historial y el contenido, en orden estable, y dan lo mismo. «Verificar datos» hace exactamente eso y compara (CA-016, CA-062).
+3. **El contenido se versiona.** Un apunte, una tarjeta o un ejercicio tiene una fila «cabeza» y filas de versión inmutables; editar crea una versión; «Deshacer» crea otra versión igual a la anterior.
+4. **Las migraciones solo agregan.** Tablas y columnas nuevas (con valor por defecto o nulas), índices y disparadores. Nunca `DROP`, `RENAME` ni `ALTER … DROP`. Un dato que cambia de forma se escribe en una columna nueva y se rellena desde el historial.
+
+## 1. Las tres capas del registro
+
+### 1.1 Observaciones (`observations`): lo que pasó, inmutable
+
+| Columna | Tipo | Qué es |
+|---|---|---|
+| `id` | TEXT, PK | UUID v7 (ordenable por tiempo), generado en el principal antes de guardar. |
+| `kind` | TEXT | Tipo de observación (lista cerrada abajo). |
+| `occurred_at` | TEXT | Instante en que ocurrió, ISO UTC con milisegundos. |
+| `recorded_at` | TEXT | Instante en que se guardó (puede ser después, por ejemplo al importar). |
+| `time_zone` | TEXT | Zona horaria de quien lo registró: `America/Argentina/Buenos_Aires` (Fase 04). |
+| `device_id` | TEXT | El dispositivo que lo registró (`ledger_state.device_id`) (Fase 04). |
+| `seq` | INTEGER | Número de secuencia del dispositivo, uno solo para observaciones, evaluaciones y operaciones; UNIQUE con `device_id`. Es el orden canónico (Fase 04). |
+| `subject_id` | TEXT, nulo | Materia, cuando aplica, para filtrar rápido. |
+| `payload` | TEXT (JSON) | Los datos del tipo, validados con el esquema Zod de ese `kind` y esa `schema_version`. |
+| `schema_version` | INTEGER | Versión del esquema del `payload`; los esquemas viejos se conservan para leer historial viejo. |
+| `idempotency_key` | TEXT, UNIQUE | Clave que impide registrar dos veces lo mismo (CA-018): la arma quien registra (por ejemplo `sessionId:activityId:shownAt`). |
+| `source` | TEXT | `user`, `system`, `import:anki`, `import:remnote`, `import:retenia`, `demo`. |
+
+Índices: `(kind, occurred_at)`, `(subject_id, occurred_at)`, y por entidad dentro del `payload` mediante columnas generadas para las dos consultas calientes: `card_id` y `objective_id` (columnas `GENERATED ALWAYS AS (json_extract(payload, '$.cardId')) VIRTUAL` con índice).
+
+Fase 04: existen `(kind, occurred_at)`, la columna generada `card_id` con índice `(card_id, seq)`, UNIQUE `idempotency_key` y UNIQUE (`device_id`, `seq`); `subject_id` y `objective_id` llegan agregando con sus fases.
+
+Tipos de observación (`kind`) y lo esencial de su `payload`:
+
+| `kind` | Payload | Historias |
+|---|---|---|
+| `review.graded` | `cardId, sessionId, grade ('again' \| 'hard' \| 'good'), helpLevel ('A0'…'A4'), optionsQuestion (bool), shownAt, durationMs, dueAtThen`. Versión 1 del esquema (Fase 04): `cardId, grade, helpLevel 'A0', dueAtThen` y, desde la Fase 08, `versionId` (la versión de la tarjeta que se evaluó; opcional para leer los repasos de antes); desde la Fase 09, **versión 2**: `helpLevel` de la escala entera (A0 a A4) y lo que decía el motor en el momento: `predictedRecall` (nula en una tarjeta nueva), `elapsedDays` (días de estudio desde el repaso anterior que contó; nulo en el primero), `rule` (`due` · `relearning` · `chosen` · `probe`), `engineVersion`, `parametersVersion` (`fsrs6-default`), `retention` y `fuzz`. La sesión y los tiempos llegan con su fase como versión 3. Clave de idempotencia `review:<attemptId>` (la ventana genera `attemptId` al abrir el repaso). | H-02, H-04, H-15, H-16, H-21 |
+| `schedule.adopted` | `cardId, memory` (la agenda que traía una tarjeta de una base de la Fase 03, repasada sin historial). Una sola vez por tarjeta, clave `adopt:<cardId>`, fuente `system` (Fase 04). | H-04 |
+| `review.annulled` | `cardId, reviewId` (la observación anulada; Fase 09). Clave `annul:<reviewId>`: deshacer dos veces no agrega nada | H-15, H-16 |
+| `card.meaning_changed` | `cardId, versionId` (Fase 08): «¿Cambió lo que hay que recordar?» contestada con «Sí»; la tarjeta vuelve a programarse como nueva desde ese evento y su historial anterior queda. Clave `meaning:<versionId>` | H-13 |
+| `attempt.submitted` | `activityType ('card' \| 'exercise' \| 'lesson' \| 'word' \| 'contrast' \| 'writing' \| 'dictation' \| 'probe30' \| 'simulacro'), activityId, sessionId?, answer (texto, número u opción), helpLevel, optionsQuestion, variantId?, durationMs` | H-31, H-32, H-37 a H-39, H-54, H-59, H-61, H-63 a H-65, H-67 |
+| `hint.requested` | `activityId, sessionId, level` | H-32, H-47 |
+| `confidence.declared` | `attemptId, level ('guessing' \| 'think_so' \| 'sure')` | H-55 |
+| `session.started` / `session.paused` / `session.resumed` / `session.finished` / `session.rated` | `sessionId, subjectId, plannedMinutes, activityIds[]`; `minutesActive`; `rating ('easy' \| 'fair' \| 'hard')` | H-16, H-17, H-51, H-54 |
+| `proposal.postponed` | `kind ('later' \| 'tomorrow' \| 'date'), until, cardIds[]` | H-22 |
+| `study.declared_outside` | `minutes, studyDay` | H-50 |
+| `blocker.answered` | `option` | H-52 |
+| `commitment.changed` | `days, source ('user' \| 'difficult_week' \| 'difficult_week_end')` | H-51 |
+| `unavailable.declared` | `from, to` | H-49 |
+| `goal.created` / `goal.changed` / `goal.answered` | `goalId, what, dueDate?, minutesPerDay, daysPerWeek`; `answer ('continue' \| 'adjust' \| 'pause')` | H-48, H-50 |
+| `objective.know_already` | `objectiveId` | H-34 |
+| `requirement.dismissed` | `objectiveId, requiresId` | H-35 |
+| `placement.answered` / `placement.finished` / `placement.accepted` / `placement.skipped` | `itemId, answer`; `estimatedWords, suggestedLevel, reliable` | H-58 |
+| `word.added` / `word.know_already` | `wordId, context?` | H-59, H-60 |
+| `reading.finished` / `reading.timed` / `reading.rest_known` | `textId, questionsCorrect, wordsPerMinute, untouchedWordIds[]` | H-60, H-67 |
+| `listening.finished` | `audioId, kind ('dictation' \| 'questions'), correct` | H-61 |
+| `writing.submitted` | `promptId, text, level` | H-65 |
+| `conversation.turn` | `conversationId, situationId, role, text` | H-66 |
+| `lesson.flagged` / `lesson.reviewed` | `lessonId, reason?` | H-62 |
+| `probe30.finished` | `cardIds[], correct` | H-54 |
+| `reminder.decided` | `scheduledFor, outcome ('sent' \| 'skipped' \| 'postponed' \| 'clicked'), reason` | H-53 |
+| `material.permission` | `materialId, scope` | H-40 |
+| `ai.correction_confirmed` | `evaluationId, agree` | H-46 |
+
+Lo que **no** es observación: los cambios de contenido (van como versiones), los pedidos a la IA (`ai_requests`, por su costo y su privacidad), las copias y las importaciones (tablas operativas).
+
+### 1.2 Evaluaciones (`evaluations`): versionadas, se enmiendan agregando
+
+Una evaluación dice qué resultado tuvo un intento. Se agregan versiones; la vigente es la de mayor `version` (no hay columna `superseded_by`: eso obligaría a modificar la anterior). Un disparador exige que la versión 1 no enmiende nada y que la N enmiende la N-1 del mismo intento; UNIQUE (`attempt_id`, `version`).
+
+Fase 04: cada repaso de tarjeta escribe su evaluación versión 1 (fuente `user`, veredicto `correct` para «La sabía», `partial` para «Con dudas» e `incorrect` para «No la sabía») y la agenda usa la calificación de la vigente. La tabla tiene por ahora `id, attempt_id, version, supersedes_id, verdict, source, created_at` más `time_zone`, `device_id` y `seq`; las demás columnas entran agregando en la fase que las use.
+
+| Columna | Qué es |
+|---|---|
+| `id` | UUID v7. |
+| `attempt_id` | La observación `attempt.submitted` o `review.graded` evaluada. |
+| `version` | 1, 2, 3… |
+| `supersedes_id` | La versión anterior que esta enmienda (nula en la primera). |
+| `verdict` | `correct`, `partial`, `incorrect`, `uncertain` («No pude evaluarla con seguridad.»). |
+| `units` | JSON: por unidad de idea, `covered \| partial \| missing` y la frase del intento en que se basa. |
+| `axes` | JSON (escritura): «Se entiende», «Precisión», «Adecuación». |
+| `errors` | JSON: errores detectados (texto, forma correcta, tipo, regla) para «Mis errores». |
+| `source` | `rule` (regla sin IA), `user` (vos marcaste), `ai`. |
+| `model`, `prompt_version`, `rubric_version` | Con qué se hizo (CA-181). |
+| `status` | `firm`, `provisional` (apelada, trazo punteado), `inconclusive` (14 días sin resolver). |
+| `appeal_reason` | Uno de los cuatro motivos de «Discrepo», si corresponde. |
+| `affected` | 1 cuando la referencia se marcó incorrecta y este intento no cuenta como olvido (CA-142). |
+| `created_at`, `resolves_at` | Instantes. |
+
+Índices: `(attempt_id, version)`, `(status, resolves_at)`.
+
+### 1.3 Inferencias (proyecciones): recalculables
+
+Cada proyección tiene una función pura en `core` que la calcula desde observaciones, evaluaciones y contenido, con el reloj inyectado. Se actualizan en la misma transacción que la observación que las afecta, y «Verificar datos» las reconstruye y las compara campo por campo.
+
+Orden canónico (Fase 04): el número de secuencia (`seq`), con el identificador como desempate; ya no `(occurred_at, id)`. «Restablecer fecha» y un reloj de PC atrasado hacen que la hora vaya para atrás; con la secuencia el recálculo da lo mismo que el cálculo hecho en el momento y el historial solo crece al final. La agenda de una tarjeta se recalcula en cada escritura leyendo todos sus eventos de la base, con la misma función (`projectCardMemory`) que usa «Verificar datos». Desde la Fase 09 es la versión 2 del motor: días de estudio, solo el primer intento de cada día, la ayuda, las anulaciones y la retención de la materia de la tarjeta tomada de su estado al calcular (0,90 la activa, 0,85 las demás); `card_schedule.engine_version` dice con qué versión se calculó, y al abrir la base se recalculan las de otra versión o con la retención desactualizada (y cada vez que una materia cambia de estado).
+
+| Tabla | Clave | Columnas principales | Calculada por | Historias |
+|---|---|---|---|---|
+| `card_schedule` | `card_id` | `state, stability, difficulty, due_at, last_review_at, reps, lapses, retention_target, engine_version (Fase 09), consecutive_fails, in_improve_list, scheduled_as_new_since` | `core/memory` (ts-fsrs, FSRS-6, sin pasos cortos; motor 2 desde la Fase 09) | H-02, H-15, H-20, H-36 |
+| `objective_state` | `objective_id` | `state, pending_check, count_unaided, count_aided, count_delayed, count_variants, last_unaided_day, since, prior_state` | `core/mastery` (máquina de estados de `decisiones-conciliadas.md`) | H-34, H-35, H-39, H-56 |
+| `concept_estimate` | `concept_id` | `in_favor, against` (empiezan en 1 y 1) | `core/mastery` | H-36 |
+| `word_state` | `word_id` | `understand ('unknown' \| 'seen' \| 'understood'), use ('not_used' \| 'used'), pending_check, context_sentence` | `core/languages` | H-58 a H-60 |
+| `study_days` | `study_day` | `minutes_active, attempts, counts_for_commitment, declared_outside_minutes` | `core/habits` (unión de intervalos, CA-253) | H-51, H-54 |
+| `session_current` | una fila | `session JSON, valid_until` (04:00 siguiente) | `core/session` | H-16 |
+
+Fase 10: `session_current` **no se guarda como tabla**. La sesión es la proyección de sus eventos (`session.started`, `review.graded` versión 3 con `sessionId`, `review.annulled` versión 2, `session.skipped`, `session.dropped`, `card.flagged`, `session.paused`, `session.resumed`, `session.finished`, `session.abandoned`; además `session.rated`), que `projectSession` de `core/session` recalcula al leerla; la columna generada `observations.session_id` (con índice `(session_id, seq)`) junta los de cada sesión, y vale la del día de estudio en que empezó. Tablas operativas nuevas (migración `0007_sesion_de_estudio`): `session_drafts (session_id, activity_id, text, answer_shown, updated_at)`, `doubts (id, text, card_id, session_id, created_at, resolved_at)` y `settings (key, value, updated_at)`.
+
+Fase 11 (carga en minutos): no hay tablas nuevas ni migración. Tres tipos de evento nuevos y dos campos que se suman a los que había, todo en el libro mayor: `review.postponed` (versión 1: `cardId`, `suggestedDay`, `plannedDay`, `reason` = `shortDay` | `noFit` | `manual` y, si salió de empezar una sesión, `sessionId`) es un aplazamiento y **no es de los tipos que mueven la agenda** (no está en la lista de la proyección de memoria): la agenda de ninguna tarjeta cambia al posponer; `card.activated` (versión 1: `cardId`, `batchId`) es «Sumar a mis repasos» y pone a la tarjeta nueva al principio de las nuevas; `session.started` pasa a la versión 2 y agrega `minutes` (los minutos con que se armó) y `loadPolicyVersion` (la versión de las reglas de `core/load`, hoy 1). `review.graded` versión 3 suma, opcionales, `suggestedDay` y `plannedDay`: con el día real (el de `occurredAt`) son las tres fechas de cada repaso, y solo la real alimenta al motor. Los aplazamientos que cuenta la prioridad son los de la tarjeta desde su último repaso que valió (uno anulado no reinicia la cuenta). En `settings`: `study.defaultMinutes` (el tiempo de siempre, 25), `load.backlog` (el atraso en días de cada día en que se miró, para que el freno vuelva a 1 recién con 3 días bajos) y `load.holdNewDay` (el día en que se pospuso la sesión para otro día: ese día no se agregan tarjetas nuevas). El tiempo de cada intento ya estaba (`gradedMs` de la versión 3); la estimación por repaso y por tarjeta nueva se calcula al leer, sobre los últimos 60 días o 200 intentos, y los intentos que se salen se conservan sin entrar en la cuenta.
+| `load_cache` | `subject_id` | `due_minutes, delay_days, new_allowance, estimate_per_review_s, review_count` | `core/load` | H-19 a H-21 |
+| `plan_cache` | `goal_id` | `state ('viable' \| 'tight' \| 'short'), scenarios_ok, demand_minutes, capacity_minutes, milestones JSON (rangos), bars JSON` | `core/planner` | H-48, H-49 |
+| `return_state` | `subject_id` | `days_away, tier ('normal' \| '4-13' \| '14-42' \| '>42'), plan JSON, new_cards_blocked_until` | `core/return` | H-50 |
+| `ai_usage_month` | `month` | `usd, requests, agreement_by_kind JSON` | `core/ai_cost` | H-40, H-46 |
+| `skill_level` | `(course_id, skill)` | `level, evidence_count, since` | `core/languages` | H-67 |
+| `descriptor_state` | `descriptor_id` | `state, evidence_count, last_at` | `core/languages` | H-67 |
+| `thread_minutes` | `(week, thread)` | `minutes` | `core/languages` | H-61, H-66, H-67 |
+| `milestones` | `milestone_id` | `kind, achieved_at, card_id?` (permanentes porque el historial no cambia) | `core/measures` | H-56 |
+| `error_notebook_user` | `evaluation_id, index` | `text, correct, type, topic_id, course?` | `core/measures` | H-36, H-38, H-65 |
+| `search_documents` + `search_index` (FTS5) | `doc_id` | ver sección 3 | `data/search` | H-23, H-24 |
+
+### 1.4 Operaciones (`operations`): el registro para deshacer (Fase 04)
+
+Cada alta, edición, borrado, restauración desde la Papelera y vaciado de una tarjeta. Solo se agrega (disparadores como los de las observaciones). «Deshacer» agrega una operación del tipo inverso con `undoes_id`; nunca modifica ni borra una anterior.
+
+| Columna | Qué es |
+|---|---|
+| `id` | UUID v7. |
+| `kind` | `card.create` · `card.edit` · `card.delete` · `card.restore` · `card.purge`. |
+| `entity_type`, `entity_id` | `card` y la tarjeta. |
+| `version_before_id`, `version_after_id` | Las versiones de contenido antes y después (sin clave foránea: sobreviven a vaciar la papelera). |
+| `trash_entry_id` | La entrada de la Papelera, en borrados, restauraciones y vaciados. |
+| `undoes_id` | La operación que esta deshace, si es un «Deshacer». |
+| `source` | `user`, `system` (vencimiento de la Papelera) o `demo` (siembra del ejemplo). «Actividad reciente» muestra solo `user`. |
+| `occurred_at`, `recorded_at`, `time_zone`, `device_id`, `seq` | Como en las observaciones. |
+
+Índices: UNIQUE (`device_id`, `seq`) y (`entity_type`, `entity_id`, `seq`).
+
+`ledger_state` (una fila): `device_id` (UUID v7 creado al abrir la base por primera vez) y `last_seq`, que se suma en la misma transacción que cada evento. Al restaurar una copia vieja, el dispositivo sigue y `last_seq` toma el mayor de los dos: un par (dispositivo, número) nunca se repite.
+
+## 2. Contenido con versiones inmutables
+
+Convención: la tabla «cabeza» guarda identidad, pertenencia y `current_version_id`; la tabla `*_versions` guarda cada estado del contenido con `created_at` y `cause` (`edit`, `undo`, `import`, `correction`, `ai`, `restore`). Borrar es marcar `deleted_at` y crear una entrada en `trash_entries`; a los 30 días se eliminan las versiones de contenido, nunca las observaciones que las mencionan (el historial muestra «(eliminada)»).
+
+Fase 04, tarjetas: la cabeza `cards` tiene por ahora `id, current_version_id, created_at, deleted_at` y `card_versions` tiene `id, card_id, question, answer, created_at, cause` (`edit` al crear o editar, `undo` al deshacer); las demás columnas entran agregando. Vaciar la papelera (o su vencimiento a los 30 días, que corre al abrir después de la copia automática) borra en una transacción la agenda, las versiones y la cabeza, marca `purged_at` y agrega la operación `card.purge`; las observaciones, las evaluaciones y las operaciones de esa tarjeta quedan.
+
+### Organización
+
+| Tabla | Columnas | Historias |
+|---|---|---|
+| `subjects` | `id, name, status ('active' \| 'maintenance' \| 'paused' \| 'archived'), is_course, course_id?, retention_target, created_at, deleted_at` | H-09, H-51, H-57 |
+| `topics` | `id, subject_id, name, position, created_at, deleted_at` | H-09 |
+| `topic_aliases` | `topic_id, name, since` («Otros nombres», CA-044, CA-099) | H-10, H-23 |
+| `notes` | `id, subject_id, topic_id?, title, archived_at, created_at, deleted_at` | H-10 |
+| `blocks` | `id, note_id, parent_block_id?, position (entero con reordenamiento por lotes), kind ('text' \| 'image'), current_version_id, created_at, deleted_at` | H-10, H-12 |
+| `block_versions` | `id, block_id, content (JSON del editor: texto con marcas, fórmulas como texto fuente, enlaces por id), text_plain, image_id?, card_marker (JSON: '>>' o huecos), created_at, cause` | H-10, H-12 |
+| `block_links` | `block_id, target_note_id` (enlaces por identificador, CA-374 a CA-376) | H-10 |
+| `images` | `id, sha256, mime, bytes, width, height, created_at` (el archivo vive en `imagenes\<sha256>`) | H-10, H-12, H-30 |
+| `inbox_items` | `id, text, source (JSON: materialId, pageNo, selection), created_at, moved_to_note_id, moved_at` | H-11, H-26 |
+
+Fase 07 (migraciones `0003_materias_apuntes` y `0004_apuntes_disparadores`): existen `subjects`, `topics`, `topic_aliases`, `notes`, `blocks`, `block_versions`, `block_links`, `images` e `inbox_items`, con estas diferencias respecto de la tabla de arriba (todas agregando; explicadas en `docs/decisiones.md`, sección Fase 07):
+
+- `subjects`: `id, name, status (default 'maintenance'), is_example, created_at, deleted_at`. Por ahora no hay `is_course`, `course_id` ni `retention_target` (llegan con la Fase 09 y la 28). `is_example` marca la materia «Ejemplo».
+- `topics`: `id, subject_id, name, position (orden de creación), archived_at, created_at, deleted_at`. `topic_aliases`: `(topic_id, name)` y `since`.
+- `notes`: `id, subject_id, topic_id (nulo = «Sin tema»), title (vacío = «Sin título»), archived_at, created_at, deleted_at`.
+- `blocks`: `id, note_id, parent_block_id, position (lugar entre sus hermanos), collapsed, current_version_id, created_at, deleted_at`. `kind` no existe: una imagen es un nodo adentro del renglón, no un renglón de otro tipo. `collapsed` (plegado) es del lugar y no crea versión.
+- `block_versions`: `id, block_id, content (JSON del contenido del renglón: texto, enlaces por identificador e imágenes por huella), text_plain (el texto para el buscador; lleva el texto fuente de las fórmulas), created_at, cause`. No se modifica (disparador) y solo se borra al vaciar la Papelera, con el permiso `('block', <renglón>)` de `purge_permits`. `image_id` y `card_marker` llegan con la Fase 08.
+- `block_links`: `(block_id, target_note_id)`, se rehace al guardar un renglón; es lo que usa «Mencionada en».
+- `images`: `id, sha256 (único), mime, bytes, width, height, created_at`; el archivo vive en `imagenes\<sha256>` de la carpeta de datos. Las copias de seguridad todavía no incluyen esa carpeta (queda anotado en `docs/ESTADO.md`).
+- `inbox_items`: `id, text, created_at, moved_to_note_id, moved_at, deleted_at` (sin clave foránea hacia la nota: sobrevive a que la nota se purgue).
+- `operations.detail`: JSON con lo que hace falta para deshacer (el tema de antes al mover una nota, el nombre de antes al renombrar un tema, la materia activa de antes al activar otra).
+
+### Tarjetas y ejercicios
+
+| Tabla | Columnas | Historias |
+|---|---|---|
+| `cards` | `id, subject_id, topic_id?, block_id?, material_id?, origin ('manual' \| 'note' \| 'material' \| 'ai' \| 'import' \| 'contrast' \| 'word' \| 'writing'), sibling_group_id?, inverse_of_card_id?, ai_marked, paused_at, available_only (no entra hasta «Sumar a mis repasos»), current_version_id, created_at, deleted_at` | H-02, H-12 a H-14, H-44 |
+| `card_versions` | `id, card_id, question, answer, variants (JSON), hints (JSON, hasta 3), explanation, source_cite (JSON: materialId, pageNo, quote), sheet_state ('proposed' \| 'reviewed' \| 'verified' \| 'in_review' \| 'retired'), meaning_changed (reprograma como nueva), created_at, cause` | H-13, H-18, H-33 |
+| `exercises` | `id, subject_id, topic_id?, kind ('open' \| 'numeric' \| 'options' \| 'procedure' \| 'method_choice' \| 'micro'), current_version_id, created_at, deleted_at` | H-31, H-37 a H-39 |
+| `exercise_versions` | `id, exercise_id, prompt, model_answer_units (JSON, 2 a 4), steps (JSON, con el paso clave), variant_family (JSON: plantilla y rangos), options (JSON con explicación por opción), tolerance, created_at, cause` | H-31, H-37 a H-39 |
+| `candidates` | `id, material_id, section_id, question, answer, objective_text, quote, similar_to_card_id?, defects (JSON), decision ('pending' \| 'accepted' \| 'edited' \| 'discarded'), created_at` | H-44 |
+
+Fase 08 (migración `0005_tarjetas_fichas`, todo agregando; explicado en `docs/decisiones.md`, sección Fase 08):
+
+- `cards` suma `subject_id`, `topic_id`, `note_id`, `block_id`, `cloze_id`, `kind ('qa' \| 'cloze')`, `origin ('manual' \| 'note')`, `sibling_group_id`, `inverse_of_card_id`, `paused_at` y `detached_at`. Ninguna es clave foránea: la tarjeta sobrevive a que el renglón, la nota o el tema se purguen. **La identidad de una tarjeta nunca depende de su texto**: la de pregunta y respuesta es «la del renglón» (`block_id` con `cloze_id` nulo) y la de completar es «la del hueco» (`block_id` y `cloze_id`, el identificador del hueco en el renglón). `detached_at` marca que el renglón dejó de pedirla (lo borraste o le sacaste la marca); si la marca vuelve (Ctrl+Z en el editor), se vuelve a ligar. Las hermanas de un renglón comparten `sibling_group_id` (el identificador del renglón); una tarjeta y su inversa también. La regla de no mostrarlas el mismo día se aplica en la Fase 10.
+- `card_versions` suma `question_content` y `answer_content` (JSON con imágenes y huecos ya resueltos; nulos en las tarjetas escritas a mano), `reference_answer`, `variants`, `essentials` (hasta 4), `hints` (hasta 3, en orden), `explanation`, `source_text`, `form_type ('exact' \| 'meaning')` y `sheet_state ('proposed' \| 'reviewed' \| 'verified' \| 'in_review' \| 'retired')`. Cada cambio de pregunta, respuesta o ficha agrega una versión (`cause`: `edit`, `note` si vino del renglón, `undo`); la anterior no se toca. `meaning_changed` del modelo original no existe como columna: «Sí» a «¿Cambió lo que hay que recordar?» se guarda como la observación `card.meaning_changed`, que sí tiene lugar en el orden de los eventos.
+- `block_versions.content` admite el nodo `cloze` (`{type, id, text}`); `text_plain` lleva su texto.
+- Una tarjeta nacida de un renglón se crea, se edita y se suelta dentro de la misma transacción que guarda la nota; sus operaciones son del sistema y no aparecen en «Actividad reciente». Una suelta tiene `block_id` nulo.
+
+### Materiales
+
+| Tabla | Columnas | Historias |
+|---|---|---|
+| `materials` | `id, subject_id, title, kind ('pdf' \| 'text' \| 'docx' \| 'md' \| 'web' \| 'audio'), original_sha256, original_name, size_bytes, source_url?, snapshot_at?, status ('saved' \| 'extracted' \| 'sectioned' \| 'ready' \| 'failed' \| 'cancelled' \| 'pending_network'), previous_material_id? («Agregar como nueva versión»), added_at, deleted_at` | H-25, H-26, H-28, H-61 |
+| `material_pages` | `(material_id, page_no), status ('ready' \| 'review' \| 'pending' \| 'error' \| 'excluded'), text, text_source ('pdf' \| 'ocr' \| 'corrected'), problems (JSON), width, height` | H-25, H-27 |
+| `page_corrections` | `id, material_id, page_no, before_sha256, after_text, state ('applied' \| 'conflict'), created_at` | H-27 |
+| `sections` | `id, material_id, title, from_page, to_page, word_count, position` | H-25, H-44 |
+| `transcripts` | `material_id, segments (JSON con tiempos y «[inaudible]»), created_at` | H-61 |
+
+Fase 13 (migración `0009_materiales`, solo agrega; explicado en `docs/decisiones.md`, sección Fase 13):
+
+- `materials`: `id, subject_id, title, kind ('pdf' | 'docx' | 'md' | 'text', nulo si no se llegó a saber), original_sha256, original_name, original_ext, size_bytes, error_code, unit_count, previous_material_id, version_no, pipeline_version, added_at, updated_at, deleted_at`. **El estado no es columna:** se calcula de sus tareas y sus unidades (`src/core/materials/status.ts`). Un material con `error_code` puede no tener original.
+- `material_units` reemplaza a `material_pages`: `(material_id, unit_no), status ('pending' | 'ready' | 'no_text' | 'review'), char_count, paragraph_count, width, height`. Una unidad es una página de un PDF o el documento entero de un Word, un Markdown o un texto. La Fase 14 le suma lo suyo agregando columnas.
+- `material_blocks` reemplaza a `sections`: `id, material_id, parent_id, position, type (sección, título, párrafo, lista, tabla, fórmula, figura, código, encabezado o pie), level, unit_no, raw_text, normalized_text, transformations (JSON, se pueden deshacer), locator (JSON: página, cajas de cada renglón y su lugar en el texto normalizado, ruta de títulos e índice de párrafo)`. Es una proyección: se rearma igual desde los resultados.
+- `ingest_results`: `key (huella de huella del original, unidad, etapa, herramienta, versión y parámetros), original_sha256, unit_no, stage, tool, tool_version, params, output (la salida completa, en JSON comprimido), output_sha256, created_at`. Solo se agrega (disparadores).
+- `ingest_tasks`: `id, material_id, stage, stage_order, unit_no, status ('pending' | 'running' | 'done' | 'review' | 'failed' | 'cancelled'), attempts, recoveries, runner_id, heartbeat_at, last_problem, result_key, created_at, updated_at`.
+- `card_versions.source_cite` (JSON, nula): material, huella del original, versión del material, versión de la cadena, localizador (página, cajas, cita y 40 letras de contexto de cada lado) y cita. `cards.origin` suma `'material'`. La cita pasa sola a cada versión nueva de la ficha.
+- `inbox_items.source` (JSON, nula): de qué material y página salió un extracto, con su referencia («Inferencia — capítulos 1 a 4 · página 3»).
+- El buscador suma los tipos `material` (el título y el texto que no cae en ninguna sección) y `section` (el título de la sección y lo que cuelga directo de ella), con disparadores que anotan el material cuando cambian él o sus bloques. Las tablas nuevas suman a las cantidades que guarda cada copia.
+
+Fase 14 (migración `0010_revision_de_materiales`, solo agrega; explicado en `docs/decisiones.md`, sección Fase 14):
+
+- `materials` suma `source_url` (la dirección de una página web; nula si vino de un archivo .html), `snapshot_at` (cuándo se sacó la instantánea) y `pending_network` (0 o 1: una dirección que espera conexión y todavía no tiene original). `kind` admite `'web'`.
+- `material_units` suma `excluded` («Estudiar sin estas páginas»), `text_source` (`'pdf'` u `'ocr'`), `ocr_confidence` (0 a 100) y `generation` (cuántas veces se pidió leerla de nuevo; entra en la clave de la etapa, así «Reprocesar» no reusa lo guardado).
+- `material_blocks` suma `base_text`: el texto de base de un bloque corregido (nulo si no tiene corrección; el texto de base de un bloque sin corrección es `normalized_text`).
+- `block_corrections` reemplaza a `page_corrections` (la corrección es por bloque, no por página): `id, material_id, unit_no, block_key (huella del tipo y del texto de base), before_text, previous_text (migración 0011: el texto de antes de la última vez que se guardó), after_text, state ('applied' | 'conflict'), pending_cards (JSON: las tarjetas que usan el texto y todavía no se actualizaron), created_at, updated_at`.
+- `problem_resolutions`: lo que se decidió de cada problema de la revisión: `(material_id, unit_no, problem_key) → resolution ('image' | 'ignored')`. `problem_key` es la huella del bloque, o `'unit'` si el aviso es de la página entera.
+- Una página reconocida (escaneo) deja su resultado en `ingest_results` como cualquier lectura, con la herramienta `tesseract.js` y su confianza; la instantánea de una página web queda en el resultado de su lectura (`extract`), nunca ejecutable.
+
+### Objetivos, metas y hábitos
+
+| Tabla | Columnas | Historias |
+|---|---|---|
+| `objectives` | `id, topic_id, title, kind ('understand' \| 'apply'), created_at, deleted_at` | H-34 |
+| `objective_links` | `objective_id, activity_type, activity_id` | H-34 |
+| `objective_requirements` | `objective_id, requires_objective_id, kind ('indispensable' \| 'suggested'), confirmed, dismissed_at` | H-35 |
+| `goals` | `id, subject_id, what, due_date?, minutes_per_day, days_per_week (= compromiso semanal), status ('active' \| 'paused' \| 'done'), created_at` | H-48, H-51 |
+| `availability_exceptions` | `id, from_day, to_day, created_at` («No puedo estos días») | H-49 |
+| `micro_exercises` | `id, error_type, items (JSON, 5 a 10), created_at, passed_at` | H-39 |
+| `doubts` | `id, text, context (JSON: cardId o activityId), created_at, resolved_at` | H-17, H-46 |
+
+### Operación
+
+| Tabla | Columnas | Historias |
+|---|---|---|
+| `settings` | `key, value (JSON), updated_at` | H-08, H-19, H-40, H-51, H-53 |
+| `trash_entries` | `id, entity_type, entity_id, deleted_at, expires_at, restored_at, purged_at` (`purged_at`: Fase 04) | H-05, H-06 |
+| `purge_permits` | `entity_type, entity_id` (Fase 04): el permiso para borrar las versiones de una tarjeta; se agrega y se saca dentro de la transacción de vaciar la papelera, así que fuera de ella siempre está vacía | H-06 |
+| `ai_requests` | `id, at, purpose, task, model, prompt_version, rubric_version, fragments (JSON: materialId, pageNo, sha256, chars), input_tokens, cache_write_tokens, cache_read_tokens, output_tokens, usd, status ('ok' \| 'rejected_schema' \| 'failed' \| 'pending'), related_attempt_id?` (solo se agrega) | H-40, H-41, H-43 |
+| `ai_material_permissions` | `material_id, scope ('once' \| 'always' \| 'never'), decided_at` | H-40 |
+| ~~`backups`~~ | No existe (Fase 04): las copias son archivos con su manifiesto adentro, ver «Copias» abajo | H-05, H-29, H-72, H-73 |
+| `imports` | `id, kind ('anki' \| 'remnote' \| 'retenia'), file_sha256, at, summary (JSON), rejected (JSON)` (CA-124: un archivo ya importado se reconoce por su huella) | H-29, H-30 |
+| `model_downloads` | `name, version, sha256, status, downloaded_at` | H-07 |
+| `course_item_states` | `item_id, state ('reviewed' \| 'flagged' \| 'excluded'), note, at` (tus marcas sobre el contenido del curso) | H-62, H-63 |
+| `user_texts` | `id, title, text, level_estimate, known_ratio, created_at` (textos en inglés pegados por vos) | H-60 |
+| `schema_meta` | `key, value` (versión de migraciones aplicadas, fecha de la última verificación de datos) | H-04, H-73 |
+
+, enlaces como `[[Título]]{nota=<id>}`, imágenes por archivo), `tarjetas/tarjetas-y-relaciones.json`, `historial/eventos.jsonl` (observaciones y evaluaciones), `historial/operaciones.jsonl`, `datos/contenido.jsonl` (cada fila de las demás tablas, sin las columnas calculadas), `originales/`, `imagenes/`, `adjuntos/` e `indice.json` (formato, versión, migraciones, conteos y la huella de cada archivo). Las tablas que no viajan y su motivo están en `src/data/export.ts` (`EXCLUDED_TABLES`): `card_schedule`, `search_documents`, `search_dirty`, `ledger_state` y `purge_permits`.
+
 ### Copias (Fase 04): archivos, no tabla
 
 La lista de copias sale de leer la carpeta `copias\` de la carpeta de datos, no de la base: restaurar reemplaza la base, y una base dañada (Fase 39) igual tiene que saber qué copias hay.
@@ -416,5 +675,5 @@ Toda tabla tiene al menos una historia; ninguna historia que guarde datos queda 
 - **Idempotencia.** Toda escritura de observación lleva `idempotency_key`; un duplicado se ignora en silencio (CA-018, CA-069). Desde la Fase 04 un duplicado tampoco gasta número de secuencia, ni agrega evaluación, ni toca la agenda (se busca la clave antes y se inserta con `ON CONFLICT(idempotency_key) DO NOTHING`); la misma clave de un repaso con otra tarjeta no es un duplicado sino un pedido equivocado, y se rechaza.
 - **Migraciones.** Archivos SQL generados por drizzle-kit en `src/data/migrations/`, aplicados al arrancar con el migrador de Drizzle, dentro de una transacción, después de la copia «Antes de actualizar». Una prueba estática lee cada migración y falla ante `DROP`, `RENAME`, `ALTER … DROP` o cambios de tipo. Desde la Fase 04 otra prueba estática compara cada migración que alguna vez entró al historial de git con su primer commit: una migración aplicada no se edita, no se renombra ni se borra. Cada columna nueva es nula o tiene valor por defecto; cada tabla nueva se rellena desde el historial si hace falta.
 - **Recálculo.** `verifyData()` reconstruye cada proyección en una tabla temporal con la misma función de `core` y compara con la vigente; informa «Todo en orden · 0 diferencias» o la lista de diferencias y, si pedís, reemplaza. Las funciones de `core` son deterministas: reciben el reloj, el generador de identificadores y los datos ordenados por `(occurred_at, id)` (CA-062). Cómo quedó en la Fase 04: la reconstrucción se hace en memoria (no en tablas temporales), cubre la agenda de cada tarjeta existente (también las de la Papelera) y compara campo por campo; los datos van ordenados por número de secuencia (ver 1.3). «Reparar desde el historial» reescribe, agrega o saca solo filas de `card_schedule`, en una transacción, y nunca toca eventos.
-- **Exportación.** «Exportar todo» produce un comprimido con `apuntes/` en Markdown (fórmulas como `$…$`, enlaces como `[[Título]]` con el identificador en un atributo, imágenes referenciadas por archivo), `imagenes/`, `originales/`, `tarjetas.json`, `historial.jsonl` (observaciones y evaluaciones), `indice.json` (conteos y huellas) y nunca `clave.bin` (CA-127, CA-379). «Importar exportación» en un Retenia vacío reconstruye todo y «Verificar datos» da 0 diferencias (CA-128).
+- **Exportación.** Cómo quedó en la Fase 15: ver «Fase 15» en la sección «Operación» (los nombres de adentro cambiaron a carpetas). Lo planeado: «Exportar todo» produce un comprimido con `apuntes/` en Markdown (fórmulas como `$…$`, enlaces como `[[Título]]` con el identificador en un atributo, imágenes referenciadas por archivo), `imagenes/`, `originales/`, `tarjetas.json`, `historial.jsonl` (observaciones y evaluaciones), `indice.json` (conteos y huellas) y nunca `clave.bin` (CA-127, CA-379). «Importar exportación» en un Retenia vacío reconstruye todo y «Verificar datos» da 0 diferencias (CA-128).
 - **Volumen.** 10.000 tarjetas y 200.000 repasos ocupan del orden de 150 MB con el índice trigram. Índices además de los ya dichos: `card_schedule(due_at)`, `cards(subject_id, topic_id)`, `blocks(note_id, parent_block_id, position)`, `block_links(target_note_id)`, `materials(original_sha256)`, `material_pages(material_id, status)`, `trash_entries(expires_at)`, `ai_requests(at)`.

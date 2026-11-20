@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { type FormType, SHEET_STATES, type Sheet, type SheetState } from '../core/cards';
 import type { Clock } from '../core/clock';
@@ -56,6 +56,9 @@ export interface CardRow {
   inverseOfCardId: string | null;
   pausedAt: string | null;
   detachedAt: string | null;
+  // Fase 15: llegó «Disponible» (importada sin historial) y todavía no se sumó a los repasos.
+  availableOnly: number;
+  activated: number;
   referenceAnswer: string;
   variants: string;
   essentials: string;
@@ -113,6 +116,12 @@ export function parseContent(json: string | null): InlineNode[] | null {
   }
 }
 
+// «Disponible» (Fase 15): importada sin historial, no entra a los repasos hasta «Sumar a mis
+// repasos». Una que ya se repasó (por ejemplo, desde su pantalla con «Repasar») ya no lo es.
+function isAvailableOnly(row: Pick<CardRow, 'availableOnly' | 'activated' | 'reps'>): boolean {
+  return row.availableOnly === 1 && row.activated === 0 && row.reps === 0;
+}
+
 // Mientras no se repasó, la tarjeta no tiene próximo repaso que mostrar.
 export function toCard(row: CardRow): Card {
   return {
@@ -123,6 +132,7 @@ export function toCard(row: CardRow): Card {
     kind: asKind(row.kind),
     sheetState: asSheetState(row.sheetState),
     paused: row.pausedAt !== null,
+    available: isAvailableOnly(row),
     topicId: row.topicId,
     topicName: row.topicName,
   };
@@ -153,6 +163,8 @@ export function selectCards(db: Writer) {
       inverseOfCardId: cards.inverseOfCardId,
       pausedAt: cards.pausedAt,
       detachedAt: cards.detachedAt,
+      availableOnly: cards.availableOnly,
+      activated: sql<number>`exists (select 1 from observations as activation where activation.kind = 'card.activated' and activation.card_id = ${cards.id})`,
       referenceAnswer: cardVersions.referenceAnswer,
       variants: cardVersions.variants,
       essentials: cardVersions.essentials,

@@ -5,6 +5,7 @@ import { Boton } from '../ui/Boton';
 import styles from '../ui/Content.module.css';
 import { ItemList, ListItem, ScreenFrame, Toast } from '../ui/Frame';
 import { ViewState } from '../ui/ViewStates';
+import { TransfersSection } from './TransfersSection';
 
 // Lo que dice una diferencia de «Verificar datos», sin términos técnicos.
 function describe(difference: DataDifference): string {
@@ -29,8 +30,9 @@ function describe(difference: DataDifference): string {
 
 // Ajustes › «Datos y copias»: «Verificar datos» (recalcula todo desde el historial y lo compara
 // con lo guardado), «Reparar desde el historial», «Hacer copia ahora», la lista de copias con
-// «Restaurar» y «Abrir carpeta de copias». Un pedido por vez.
-export function DataSection() {
+// «Restaurar» y «Abrir carpeta de copias». Un pedido por vez. Desde la Fase 15, además, importar
+// de Anki y de RemNote, «Exportar todo» e «Importar exportación» (TransfersSection).
+export function DataSection({ onSubjectsChanged }: { onSubjectsChanged?: () => void } = {}) {
   const [backups, setBackups] = useState<Backup[] | null>(null);
   const [differences, setDifferences] = useState<DataDifference[] | null>(null);
   const [verifyFailed, setVerifyFailed] = useState(false);
@@ -206,6 +208,12 @@ export function DataSection() {
           </ItemList>
         ) : null}
       </div>
+      <TransfersSection
+        onChanged={() => {
+          void load();
+          onSubjectsChanged?.();
+        }}
+      />
     </ScreenFrame>
   );
 }

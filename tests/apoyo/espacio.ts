@@ -16,6 +16,8 @@ export interface Space {
   // Cierra y vuelve a abrir la misma carpeta, como al cerrar y abrir Retenia. Se puede volver a
   // abrir con o sin la variación al azar de las fechas (la del uso real).
   reopen: (options?: { fuzz?: boolean }) => Workspace;
+  // Vuelve a abrir la misma carpeta mirando cada sentencia (para provocar una falla a mitad).
+  reopenWith: (options: { onStatement: (statement: string) => void }) => Workspace;
 }
 
 const folders: ReturnType<typeof tempDataFolder>[] = [];
@@ -58,6 +60,19 @@ export function openSpace({
       space.workspace.close();
       space.workspace = start(options?.fuzz ?? fuzz);
       return space.workspace;
+    },
+    reopenWith: ({ onStatement }) => {
+      space.workspace.close();
+      const workspace = openWorkspace({
+        dataDir,
+        clock,
+        appVersion: '0.0.0-prueba',
+        fuzz,
+        onStatement,
+      });
+      open.push(workspace);
+      space.workspace = workspace;
+      return workspace;
     },
   };
   return space;

@@ -106,9 +106,11 @@ function Row({
   // vuelve a aparecer, de qué tipo es, en qué estado está y de qué tema.
   const when = card.paused
     ? texts.cards.paused
-    : card.nextReviewDay
-      ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
-      : texts.cards.notReviewed;
+    : card.available
+      ? texts.cards.available
+      : card.nextReviewDay
+        ? texts.cards.nextReview(formatLongDate(card.nextReviewDay))
+        : texts.cards.notReviewed;
   const meta = [
     when,
     card.kind === 'cloze' ? texts.cards.kindCloze : texts.cards.kindQa,

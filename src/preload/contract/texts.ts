@@ -6,6 +6,19 @@ const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes
 
 const numberFormat = new Intl.NumberFormat('es-AR');
 
+// Por qué no entró algo de una importación (Fase 15): en palabras y en tono neutro.
+const IMPORT_REASONS = {
+  missingImage: 'imagen faltante',
+  missingAudio: 'audio faltante',
+  onlineImage: 'imagen en internet',
+  unsupportedImage: 'imagen en un formato que Retenia no muestra',
+  unsupportedCard: 'tipo de tarjeta que Retenia no tiene',
+  emptyCard: 'tarjeta sin texto',
+  tooLarge: 'texto demasiado largo',
+  unreadableDocument: 'documento que no se pudo leer',
+  duplicate: 'repetida en el archivo',
+} as const;
+
 // Cómo se llama una nota que no tiene título.
 const UNTITLED = 'Sin título';
 const decimalFormat = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
@@ -652,6 +665,8 @@ export const texts = {
     empty: 'Todavía no tenés tarjetas. Tocá «Nueva tarjeta» para crear la primera.',
     emptyFiltered: 'Ninguna tarjeta cumple esos filtros.',
     notReviewed: 'Todavía sin repasar',
+    // Fase 15: importada sin historial; entra a los repasos con «Sumar a mis repasos».
+    available: 'Disponible',
     nextReview: (longDate: string) => `Próximo repaso: ${longDate}`,
     paused: 'En pausa',
     review: 'Repasar',
@@ -1109,6 +1124,7 @@ export const texts = {
       auto: 'Automática',
       manual: 'Hecha por vos',
       before_restore: 'Antes de restaurar',
+      before_import: 'Antes de importar',
     },
     // La fecha y la hora de la copia, quién la hizo y cuánto ocupa.
     copyRow: (date: string, time: string, kind: string, size: string) =>
@@ -1124,6 +1140,135 @@ export const texts = {
     restoreFailed: 'No pude restaurar esa copia. Tus datos siguen como estaban.',
     openFailed: 'No pude abrir la carpeta de copias.',
     loadFailed: 'No pude cargar las copias. Probá de nuevo.',
+  },
+  // Importar de Anki y de RemNote (Fase 15, H-29). La vista previa no escribe nada; «Importar»
+  // hace primero la copia «Antes de importar».
+  imports: {
+    title: 'Traer de otros programas',
+    fromAnki: 'Importar de Anki',
+    fromRemnote: 'Importar de RemNote',
+    fromRemnoteFolder: 'Elegir una carpeta de RemNote',
+    reading: 'Leyendo el archivo…',
+    previewTitle: (fileName: string) => `Vista previa de «${fileName}»`,
+    previewLabel: 'Vista previa de la importación',
+    nothingWritten: 'Todavía no se escribió nada en Retenia.',
+    ankiSummary: (counts: { cards: { fresh: number }; reviews: number; rejected: number }) => {
+      const cards = counts.cards.fresh;
+      const reviews = counts.reviews;
+      const verb = cards === 1 ? 'Entra' : 'Entran';
+      const cardWord = cards === 1 ? 'tarjeta' : 'tarjetas';
+      const reviewWord = reviews === 1 ? 'repaso' : 'repasos';
+      return `${verb} ${numberFormat.format(cards)} ${cardWord} y ${numberFormat.format(reviews)} ${reviewWord} · Rechazadas: ${numberFormat.format(counts.rejected)}`;
+    },
+    remnoteSummary: (
+      counts: { notes: { fresh: number }; cards: { fresh: number } },
+      rejected: readonly { reason: keyof typeof IMPORT_REASONS }[],
+    ) => {
+      const notes = counts.notes.fresh;
+      const cards = counts.cards.fresh;
+      const reasons = [...new Set(rejected.map((item) => IMPORT_REASONS[item.reason]))];
+      const rejectedText =
+        rejected.length === 1
+          ? '1 rechazada'
+          : `${numberFormat.format(rejected.length)} rechazadas`;
+      return `${numberFormat.format(notes)} ${notes === 1 ? 'nota' : 'notas'}, ${numberFormat.format(cards)} ${cards === 1 ? 'tarjeta' : 'tarjetas'}, ${rejectedText}${reasons.length > 0 ? ` (${reasons.join(', ')})` : ''}`;
+    },
+    again: ({ fresh, existing }: { fresh: number; existing: number }) =>
+      `${numberFormat.format(fresh)} ${fresh === 1 ? 'nueva' : 'nuevas'} · ${numberFormat.format(existing)} ${existing === 1 ? 'ya estaba' : 'ya estaban'}`,
+    importedBefore: (date: string) => `Este archivo ya lo importaste el ${date}.`,
+    withoutHistory: 'Sin historial: entran como «Disponibles».',
+    withoutHistoryNote:
+      'No van a tus repasos hasta que las sumes con «Sumar a mis repasos», en Apuntes › Tarjetas.',
+    annotatedTitle: 'Entró distinto',
+    annotatedLine: (what: string, note: string) => `${what} · ${note}`,
+    notes: {
+      plainText: 'entró como texto común',
+      latex: 'la fórmula entró como texto',
+      unknownLink: 'enlace a un documento que no vino',
+    },
+    rejectedTitle: 'Rechazadas',
+    rejectedLabel: 'Lo que no entró',
+    rejectedLine: (what: string, reason: string) => `${what} · ${reason}`,
+    reasons: IMPORT_REASONS,
+    noneRejected: 'No hay nada rechazado.',
+    destination: 'Materia de destino',
+    newSubject: 'Nueva materia…',
+    newSubjectName: 'Nombre de la materia nueva',
+    run: 'Importar',
+    cancel: 'Cancelar',
+    nothingNew: 'No hay nada nuevo para importar.',
+    doneAnki: (cards: number, reviews: number, subject: string) =>
+      `Listo: ${cards === 1 ? 'entró 1 tarjeta' : `entraron ${numberFormat.format(cards)} tarjetas`} y ${reviews === 1 ? '1 repaso' : `${numberFormat.format(reviews)} repasos`} en «${subject}».`,
+    doneRemnote: (notes: number, cards: number, subject: string) =>
+      `Listo: ${notes === 1 ? 'entró 1 nota' : `entraron ${numberFormat.format(notes)} notas`} y ${cards === 1 ? '1 tarjeta' : `${numberFormat.format(cards)} tarjetas`} en «${subject}».`,
+    backupMade: 'Antes de escribir hice la copia «Antes de importar».',
+    failed: 'No pude importar. Tus datos siguen como estaban.',
+    problems: {
+      notAnki: 'Este archivo no es una exportación de Anki (.apkg o .colpkg).',
+      notRemnote: 'No encontré documentos de RemNote en Markdown en este archivo.',
+      tooNew:
+        'Este archivo es de una versión de Anki más nueva que Retenia todavía no lee. Exportalo otra vez desde Anki con «Support older Anki versions».',
+      damaged: 'Este archivo está dañado: no lo pude leer.',
+      unsafe: 'Este archivo tiene partes que no son seguras y no lo abrí.',
+    },
+    historyTitle: 'Importaciones',
+    historyLabel: 'Tus importaciones',
+    historyEmpty: 'Todavía no importaste nada.',
+    // Lo que entró en una importación ya hecha (sin verbo: ya pasó).
+    historyAnki: (counts: { cards: { fresh: number }; reviews: number; rejected: number }) =>
+      `${numberFormat.format(counts.cards.fresh)} ${counts.cards.fresh === 1 ? 'tarjeta' : 'tarjetas'} y ${numberFormat.format(counts.reviews)} ${counts.reviews === 1 ? 'repaso' : 'repasos'} · ${counts.rejected === 1 ? '1 rechazada' : `${numberFormat.format(counts.rejected)} rechazadas`}`,
+    historyRow: (date: string, kind: string, fileName: string, subject: string) =>
+      `${date} · ${kind} · «${fileName}» en «${subject}»`,
+    kinds: { anki: 'Anki', remnote: 'RemNote' },
+    viewRejected: 'Ver rechazadas',
+    hideRejected: 'Ocultar rechazadas',
+    saveList: 'Guardar lista',
+    listSaved: 'Lista guardada.',
+    saveListFailed: 'No pude guardar la lista. Probá de nuevo.',
+    rejectedHeader: (fileName: string, date: string) => `Rechazadas de «${fileName}» (${date})`,
+    rejectedFileName: (fileName: string) => `Rechazadas de ${fileName}.txt`,
+    fromAnkiOrigin: 'De Anki',
+    dialogAnki: 'Elegí la exportación de Anki',
+    dialogRemnote: 'Elegí la exportación de RemNote',
+    filterAnki: 'Mazo o colección de Anki',
+    filterRemnote: 'Exportación de RemNote en Markdown',
+    filterText: 'Texto',
+  },
+  // «Exportar todo» e «Importar exportación» (Fase 15, H-30).
+  exports: {
+    title: 'Tus datos, para llevar',
+    exportAll: 'Exportar todo',
+    exporting: 'Exportando…',
+    countsLine: (counts: { subjects: number; cards: number; reviews: number }) =>
+      `${numberFormat.format(counts.subjects)} ${counts.subjects === 1 ? 'materia' : 'materias'} · ${numberFormat.format(counts.cards)} ${counts.cards === 1 ? 'tarjeta' : 'tarjetas'} · ${numberFormat.format(counts.reviews)} ${counts.reviews === 1 ? 'repaso' : 'repasos'}`,
+    exported: (fileName: string, counts: string) => `Exportado en «${fileName}»: ${counts}.`,
+    exportFailed: 'No pude exportar. Tus datos siguen como estaban.',
+    // Objeción 10: un archivo de la carpeta de datos que no estaba (una imagen borrada a mano).
+    missingFiles: (count: number) =>
+      count === 1
+        ? 'Faltaba 1 archivo en la carpeta de datos de Retenia: la exportación va sin él y lo anota en «indice.json».'
+        : `Faltaban ${numberFormat.format(count)} archivos en la carpeta de datos de Retenia: la exportación va sin ellos y los anota en «indice.json».`,
+    importExport: 'Importar exportación',
+    reading: 'Revisando la exportación…',
+    notEmpty:
+      'Para cargar una exportación entera, Retenia tiene que estar vacío. Tus datos siguen como estaban.',
+    previewLine: (date: string, counts: string) => `Exportación del ${date}: ${counts}.`,
+    load: 'Cargar',
+    loading: 'Cargando…',
+    loaded: (counts: string) => `Listo: ${counts}.`,
+    loadFailed: 'No pude cargar la exportación. Tus datos siguen como estaban.',
+    problems: {
+      notExport: 'Este archivo no es una exportación de Retenia.',
+      damaged: 'Esta exportación está dañada o se modificó: no la cargué.',
+      tooNew: 'Esta exportación es de una versión más nueva de Retenia.',
+      unsafe: 'Este archivo tiene partes que no son seguras y no lo abrí.',
+      notEmpty:
+        'Para cargar una exportación entera, Retenia tiene que estar vacío. Tus datos siguen como estaban.',
+    },
+    dialogSave: 'Guardá la exportación',
+    dialogOpen: 'Elegí una exportación de Retenia',
+    fileName: (date: string) => `Retenia ${date}.zip`,
+    filter: 'Exportación de Retenia',
   },
 };
 

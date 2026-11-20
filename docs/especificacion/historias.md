@@ -743,7 +743,7 @@ Como usuario de RemNote y de Anki quiero traer mis apuntes y tarjetas con su his
   - cuando toco «Importar»,
   - entonces Retenia hace primero una copia «Antes de importar» y lo importado llega a la materia que elegí.
 
-Notas: el historial de repasos viene de Anki, que lo exporta. La exportación de RemNote trae apuntes y tarjetas; que traiga historial queda por confirmar en la Fase 15 y, si no lo trae, las tarjetas importadas se programan como nuevas y la vista previa lo dice. La importación vive en Ajustes › «Datos y copias» › «Importar de Anki o RemNote».
+Notas: el historial de repasos viene de Anki, que lo exporta. La exportación de RemNote trae apuntes y tarjetas; que traiga historial queda por confirmar en la Fase 15 y, si no lo trae, las tarjetas importadas se programan como nuevas y la vista previa lo dice. La importación vive en Ajustes › «Datos y copias» › «Importar de Anki» e «Importar de RemNote» (Fase 15: dos botones). La Fase 15 confirmó que la exportación en Markdown de RemNote no trae historial: sus tarjetas llegan «Disponibles».
 
 ## H-30 · Imprescindible · Fase 15
 

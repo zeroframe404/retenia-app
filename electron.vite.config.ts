@@ -22,6 +22,8 @@ export default defineConfig({
         input: {
           index: resolve(import.meta.dirname, 'src/main/index.ts'),
           materials: resolve(import.meta.dirname, 'src/main/workers/materials.ts'),
+          // Importar y exportar (Fase 15), en las dos variantes.
+          transfers: resolve(import.meta.dirname, 'src/main/workers/transfers.ts'),
           ...(variant === 'prueba'
             ? { voice: resolve(import.meta.dirname, 'src/main/workers/voice.ts') }
             : {}),

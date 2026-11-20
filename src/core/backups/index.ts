@@ -4,8 +4,9 @@ import { localDateTime } from '../study-day';
 // Las copias de seguridad: cuándo toca una automática, cuáles se conservan y cómo se llaman.
 
 // «auto»: la que hace Retenia al abrir. «manual»: «Hacer copia ahora». «before_restore»: la
-// que se hace sí o sí antes de restaurar otra.
-type BackupKind = 'auto' | 'manual' | 'before_restore';
+// que se hace sí o sí antes de restaurar otra. «before_import» (Fase 15): la que se hace sí o sí antes
+// de escribir una importación.
+type BackupKind = 'auto' | 'manual' | 'before_restore' | 'before_import';
 
 export interface BackupStamp {
   readonly id: string;
@@ -59,6 +60,7 @@ const KIND_SLUGS: Record<BackupKind, string> = {
   auto: 'automatica',
   manual: 'hecha-por-vos',
   before_restore: 'antes-de-restaurar',
+  before_import: 'antes-de-importar',
 };
 
 // «AAAA-MM-DD-HHMM-<tipo>-<8 caracteres>.retenia-copia»: fecha y hora de Buenos Aires, el tipo

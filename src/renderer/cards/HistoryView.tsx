@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Card, CardHistory } from '../../preload/contract/cards';
-import { formatShortDate, texts } from '../../preload/contract/texts';
+import { formatLongDate, formatShortDate, texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Content.module.css';
 import { ItemList, ListItem, ScreenFrame } from '../ui/Frame';
@@ -29,7 +29,10 @@ function rowText(entry: Entry): string {
         : texts.history.postponed(entry.plannedDay),
     );
   }
-  const row = texts.history.row(formatShortDate(entry.day), RESULTS[entry.result]);
+  // Fase 15: un repaso que vino de Anki lo dice.
+  const base = texts.history.row(formatShortDate(entry.day), RESULTS[entry.result]);
+  const row =
+    entry.origin === 'anki' ? texts.history.marked(base, texts.imports.fromAnkiOrigin) : base;
   if (entry.annulled) {
     return texts.history.marked(row, texts.history.annulled);
   }
@@ -67,6 +70,11 @@ export function HistoryView({ card, onClose }: { card: Card; onClose: () => void
     <ScreenFrame level={3} title={texts.history.title}>
       <div className={styles.stack}>
         <p className={styles.block}>{history?.question ?? card.question}</p>
+        {card.nextReviewDay ? (
+          <p className={styles.block}>
+            {texts.cards.nextReview(formatLongDate(card.nextReviewDay))}
+          </p>
+        ) : null}
         {failed ? <ViewState kind="error" phrase={texts.history.loadFailed} /> : null}
         {history !== null && history.entries.length === 0 ? (
           <ViewState kind="empty" phrase={texts.history.empty} />

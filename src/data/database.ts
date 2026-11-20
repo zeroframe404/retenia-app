@@ -13,6 +13,8 @@ import { ensureSearchIndex, flushSearchIndex } from './search-index';
 
 export interface ReteniaDatabase {
   readonly orm: BetterSQLite3Database<typeof schema>;
+  // La conexión sin Drizzle, para recorrer tablas por nombre (exportar e importar todo, Fase 15).
+  readonly raw: BetterSqlite3.Database;
   readonly file: string;
   settings(): { journalMode: string; synchronous: string; foreignKeys: boolean };
   // Una instantánea consistente de la base en un archivo nuevo (para las copias).
@@ -79,6 +81,7 @@ export function openDatabase(
   }
   return {
     orm,
+    raw: sqlite,
     file,
     settings: () => ({
       journalMode: String(sqlite.pragma('journal_mode', { simple: true })),

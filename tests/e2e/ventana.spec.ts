@@ -117,6 +117,16 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'backups.verifyData',
       'backups.repairData',
       'backups.openFolder',
+      // Importar y exportar (Fase 15).
+      'imports.choose',
+      'imports.run',
+      'imports.cancel',
+      'imports.list',
+      'imports.saveRejected',
+      'exports.all',
+      'exports.canLoad',
+      'exports.choose',
+      'exports.load',
       // El buscador (Fase 12).
       'search.query',
       'search.opened',

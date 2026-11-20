@@ -6,6 +6,7 @@ import {
 } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { DemoFirstTimeExit } from '../demo/DemoFirstTimeExit';
+import { LoadExport } from '../settings/TransfersSection';
 import { Boton } from '../ui/Boton';
 import form from '../ui/Form.module.css';
 import type { Destination } from '../ui/Frame';
@@ -111,6 +112,8 @@ export function FirstTimeScreen({
           </Boton>
         </div>
         {__VARIANTE__ === 'prueba' ? <DemoFirstTimeExit onDataChanged={onDataChanged} /> : null}
+        {/* ¿Ya usaste Retenia? Una exportación entera se carga acá, con Retenia vacío (Fase 15). */}
+        <LoadExport onLoaded={onDataChanged} />
       </form>
     </main>
   );

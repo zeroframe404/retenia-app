@@ -7,7 +7,12 @@ import type { ChannelName } from '../preload/contract';
 
 // Los canales que reemplazan la base entera. Con el tipo del contrato, un nombre mal escrito o
 // un canal renombrado no compila.
-const EXCLUSIVE_CHANNELS: ReadonlySet<string> = new Set<ChannelName>(['backups.restore']);
+// Desde la Fase 15 también importar (escribe mucho de una vez) y cargar una exportación.
+const EXCLUSIVE_CHANNELS: ReadonlySet<string> = new Set<ChannelName>([
+  'backups.restore',
+  'imports.run',
+  'exports.load',
+]);
 
 type AnyHandler = (request: never) => Promise<unknown>;
 

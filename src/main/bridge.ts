@@ -1,3 +1,5 @@
+import { writeFileSync } from 'node:fs';
+import { basename } from 'node:path';
 import type { z } from 'zod';
 import { type Clock, type Stopwatch, systemStopwatch } from '../core/clock';
 import { studyDayOf } from '../core/study-day';
@@ -14,7 +16,10 @@ import {
 } from '../preload/contract';
 import type { Backup } from '../preload/contract/backups';
 import type { fileChannels } from '../preload/contract/materials';
+import { formatShortDate, texts } from '../preload/contract/texts';
 import { createAppearanceStore } from './appearance';
+import type { Dialogs } from './imports/dialogs';
+import { createTransfersService, type TransfersService } from './imports/service';
 import type { MaterialsService } from './materials/service';
 import { createStudyTimer } from './study-timer';
 
@@ -30,6 +35,12 @@ export type FileHandlers = {
   [K in keyof FileChannels]: (
     request: z.output<FileChannels[K]['request']>,
   ) => Promise<z.input<FileChannels[K]['response']>>;
+};
+
+const CANCELLING_DIALOGS: Dialogs = {
+  chooseFile: async () => null,
+  chooseFolder: async () => null,
+  chooseSave: async () => null,
 };
 
 // Una copia tal como la ve la ventana: sin rutas ni nombres de archivo.
@@ -60,6 +71,8 @@ export function createHandlers({
   onFlushed,
   stopwatch = systemStopwatch(),
   materials,
+  transfers: givenTransfers,
+  dialogs = CANCELLING_DIALOGS,
 }: {
   clock: Clock;
   variant: Variant;
@@ -76,8 +89,18 @@ export function createHandlers({
   stopwatch?: Stopwatch;
   // Los materiales (Fase 13): la cola y su proceso de trabajo.
   materials: MaterialsService;
+  // Importar y exportar (Fase 15) y los diálogos de Windows para elegir los archivos. Sin ellos (las
+  // pruebas de otros canales), no se lee ningún archivo y todo diálogo vuelve cancelado.
+  transfers?: TransfersService;
+  dialogs?: Dialogs;
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
+  const transfers =
+    givenTransfers ??
+    createTransfersService({
+      workspace,
+      execute: () => Promise.reject(new Error('Sin proceso de trabajo para importar')),
+    });
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
   const ok = { ok: true } as const;
@@ -240,6 +263,84 @@ export function createHandlers({
       }
       return {};
     },
+    'imports.choose': async ({ kind, folder }) => {
+      const path =
+        kind === 'remnote' && folder === true
+          ? await dialogs.chooseFolder({ title: texts.imports.dialogRemnote })
+          : await dialogs.chooseFile(
+              kind === 'anki'
+                ? {
+                    title: texts.imports.dialogAnki,
+                    filters: [{ name: texts.imports.filterAnki, extensions: ['apkg', 'colpkg'] }],
+                  }
+                : {
+                    title: texts.imports.dialogRemnote,
+                    filters: [
+                      { name: texts.imports.filterRemnote, extensions: ['zip', 'md', 'markdown'] },
+                    ],
+                  },
+            );
+      if (path === null) {
+        return { outcome: 'cancelled' as const };
+      }
+      return transfers.preview({ kind, path });
+    },
+    'imports.run': async (request) => transfers.run(request),
+    'imports.cancel': async ({ previewId }) => {
+      transfers.cancel(previewId);
+      return { ok: true as const };
+    },
+    'imports.list': async () => ({ imports: transfers.list() }),
+    'imports.saveRejected': async ({ importId }) => {
+      const record = transfers.list().find((item) => item.importId === importId);
+      if (!record) {
+        throw new Error('No encontré esa importación');
+      }
+      const path = await dialogs.chooseSave({
+        title: texts.imports.saveList,
+        defaultName: texts.imports.rejectedFileName(record.fileName.replace(/\.[^.]*$/, '')),
+        filters: [{ name: texts.imports.filterText, extensions: ['txt'] }],
+      });
+      if (path === null) {
+        return { saved: false };
+      }
+      // Con su marca de UTF-8, así el Bloc de notas lo abre bien.
+      writeFileSync(
+        path,
+        `${String.fromCharCode(0xfeff)}${transfers.rejectedList(importId)}`,
+        'utf8',
+      );
+      return { saved: true };
+    },
+    'exports.all': async () => {
+      const file = await dialogs.chooseSave({
+        title: texts.exports.dialogSave,
+        defaultName: texts.exports.fileName(
+          formatShortDate(studyDayOf(clock.now())).replaceAll('/', '-'),
+        ),
+        filters: [{ name: texts.exports.filter, extensions: ['zip'] }],
+      });
+      if (file === null) {
+        return { outcome: 'cancelled' as const };
+      }
+      const { counts, missing } = await transfers.exportAll({ file });
+      return { outcome: 'exported' as const, fileName: basename(file), counts, missing };
+    },
+    'exports.canLoad': async () => ({ empty: transfers.isEmpty() }),
+    'exports.choose': async () => {
+      if (!transfers.isEmpty()) {
+        return { outcome: 'problem' as const, problem: 'notEmpty' as const };
+      }
+      const path = await dialogs.chooseFile({
+        title: texts.exports.dialogOpen,
+        filters: [{ name: texts.exports.filter, extensions: ['zip'] }],
+      });
+      if (path === null) {
+        return { outcome: 'cancelled' as const };
+      }
+      return transfers.previewExport({ path });
+    },
+    'exports.load': async (request) => transfers.loadExport(request),
     'backups.openFolder': async () => {
       const problem = await openFolder(workspace.copiesFolder());
       if (problem !== '') {

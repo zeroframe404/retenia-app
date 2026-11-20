@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13 y fase-14.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14 y fase-15.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -936,6 +936,64 @@ async function phase14(page) {
   await shoot(page, '11-pendiente-sin-conexion');
 }
 
+// Fase 15: importar de Anki y de RemNote (la vista previa, el resultado con la lista de rechazadas),
+// «Exportar todo» y la pantalla de la primera vez con «Importar exportación». Los diálogos de Windows
+// se reemplazan en el proceso principal para que devuelvan los archivos de ejemplo.
+async function phase15(page, app) {
+  await page.setViewportSize({ width: 1100, height: 1600 });
+  const samples = join(ROOT, 'datos-de-ejemplo');
+  const answer = (chosen) =>
+    app.evaluate(({ dialog }, target) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [target] });
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath: target });
+    }, chosen);
+  await goTo(page, 'Ajustes');
+  const preview = page.getByRole('region', { name: 'Vista previa de la importación' });
+  await answer(join(samples, 'mazo-demo.apkg'));
+  await page.getByRole('button', { name: 'Importar de Anki' }).click();
+  await preview
+    .getByText('Entran 3 tarjetas y 5 repasos · Rechazadas: 0')
+    .waitFor({ timeout: 30_000 });
+  await preview.getByLabel('Materia de destino').selectOption({ label: 'Historia argentina' });
+  await preview.scrollIntoViewIfNeeded();
+  await shoot(page, '1-vista-previa-anki');
+  await preview.getByRole('button', { name: 'Importar' }).click();
+  await page.getByText(/^Listo: entraron 3 tarjetas/).waitFor({ timeout: 30_000 });
+  await answer(join(samples, 'mazo-demo.apkg'));
+  await page.getByRole('button', { name: 'Importar de Anki' }).click();
+  await preview.getByText('0 nuevas · 3 ya estaban').waitFor({ timeout: 30_000 });
+  await preview.scrollIntoViewIfNeeded();
+  await shoot(page, '2-segunda-vez');
+  await preview.getByRole('button', { name: 'Cancelar' }).click();
+  await answer(join(samples, 'remnote-demo.zip'));
+  await page.getByRole('button', { name: 'Importar de RemNote' }).click();
+  await preview
+    .getByText('12 notas, 8 tarjetas, 1 rechazada (imagen faltante)')
+    .waitFor({ timeout: 30_000 });
+  await preview.getByLabel('Materia de destino').selectOption({ label: 'Historia argentina' });
+  await preview.scrollIntoViewIfNeeded();
+  await shoot(page, '3-vista-previa-remnote');
+  await preview.getByRole('button', { name: 'Importar' }).click();
+  await page.getByText(/^Listo: entraron 12 notas/).waitFor({ timeout: 30_000 });
+  await page.getByRole('list', { name: 'Lo que no entró' }).scrollIntoViewIfNeeded();
+  await shoot(page, '4-importaciones-y-rechazadas');
+  const exported = join(dataDir, '..', `retenia-capturas-exportacion-${process.pid}.zip`);
+  await answer(exported);
+  await page.getByRole('button', { name: 'Exportar todo' }).click();
+  await page.getByText(/^Exportado en /).waitFor({ timeout: 60_000 });
+  await page.getByText(/^Exportado en /).scrollIntoViewIfNeeded();
+  await shoot(page, '5-exportado');
+  await page.getByRole('button', { name: 'Empezar como la primera vez' }).click();
+  await page.getByRole('button', { name: 'Importar exportación' }).waitFor({ timeout: 30_000 });
+  await answer(exported);
+  await page.getByRole('button', { name: 'Importar exportación' }).click();
+  await page.getByRole('button', { name: 'Cargar' }).waitFor({ timeout: 60_000 });
+  await shoot(page, '6-primera-vez-importar-exportacion');
+  rmSync(exported, { force: true });
+  // Las tarjetas «Disponibles» que trajo RemNote, en Apuntes › Tarjetas de «Historia argentina».
+  await page.getByRole('button', { name: 'Volver al elenco' }).click();
+}
+
 let { app, page } = await launch(
   {},
   name !== 'fase-06' &&
@@ -944,10 +1002,13 @@ let { app, page } = await launch(
     name !== 'fase-11' &&
     name !== 'fase-12' &&
     name !== 'fase-13' &&
-    name !== 'fase-14',
+    name !== 'fase-14' &&
+    name !== 'fase-15',
 );
 try {
-  if (name === 'fase-14') {
+  if (name === 'fase-15') {
+    await phase15(page, app);
+  } else if (name === 'fase-14') {
     await phase14(page);
   } else if (name === 'fase-13') {
     await phase13(page);

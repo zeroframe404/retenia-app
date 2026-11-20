@@ -2,6 +2,7 @@ import { join, resolve } from 'node:path';
 import {
   app,
   BrowserWindow,
+  dialog,
   net as electronNet,
   ipcMain,
   Menu,
@@ -27,6 +28,8 @@ import { createDemoDate } from './demo/clock';
 import { prepareLabSwitches, samplesDirectory, startLab } from './demo/lab-setup';
 import { createDemoWorkspace } from './demo/switcher';
 import { createGate, gateHandlers } from './gate';
+import { electronDialogs } from './imports/dialogs';
+import { startTransfers } from './imports/electron';
 import {
   handleOriginalProtocol,
   registerOriginalScheme,
@@ -197,8 +200,11 @@ function start(): void {
       }
     },
   });
+  // Importar y exportar (Fase 15): su propio proceso aislado.
+  const transfers = startTransfers({ workspace, clock });
   app.on('before-quit', () => {
     void materials.stop();
+    void transfers.stop();
   });
   handleOriginalProtocol(workspace);
 
@@ -211,6 +217,8 @@ function start(): void {
     openFolder: (path) => shell.openPath(path),
     onFlushed: () => flushDone?.(),
     materials: materials.service,
+    transfers: transfers.service,
+    dialogs: electronDialogs(dialog, () => mainWindow),
     onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
     zoom: (direction) => {
       const contents = mainWindow?.webContents;
@@ -236,7 +244,7 @@ function start(): void {
   registry = { ...registry, ...fileChannels };
   // Mientras se restaura una copia o se cambian los datos de la demostración, la cola de los
   // materiales se frena (la base se cierra y se reemplaza) y sigue después.
-  for (const name of ['backups.restore', ...exclusive]) {
+  for (const name of ['backups.restore', 'imports.run', 'exports.load', ...exclusive]) {
     const original = handlers[name];
     if (original) {
       handlers[name] = async (request: never) => {

@@ -472,6 +472,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           {destination === 'settings' && settingsView === 'settings' ? (
             <SettingsScreen
               focusTitle={navigated}
+              onSubjectsChanged={reloadShared}
               demo={
                 __VARIANTE__ === 'prueba' ? (
                   <DemoSection

@@ -1,0 +1,35 @@
+/* La vista previa de una importación (Fase 15): un recuadro con lo que entra, lo que ya estaba, lo
+   anotado y lo rechazado, y abajo la materia de destino y los botones. */
+.preview {
+  display: grid;
+  gap: var(--espacio-12);
+  min-width: 0;
+  padding: var(--espacio-16) var(--espacio-24);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+}
+
+.preview p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.title {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+  overflow-wrap: anywhere;
+}
+
+.summary {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.note {
+  color: var(--color-tinta-suave);
+}
+
+.subtitle {
+  margin: var(--espacio-4) 0 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
