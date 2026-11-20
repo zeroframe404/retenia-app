@@ -91,7 +91,7 @@ Yo hice todas estas pruebas (menos la libre) contra el programa de prueba armado
 - Hacé: «Agregar material» → pegá la dirección https://es.wikipedia.org/wiki/Mediana_(estadística). Cuando esté «Listo», desconectá internet y abrila.
 - Tenés que ver: se lee completa sin conexión, con su dirección y su fecha. Reconectá al terminar.
 - Aclaración: «Agregar material» → «Dirección web» → pegá la dirección → «Agregar» (también sirve pegarla en «Pegar texto»). Tocá el material → «Leer el original».
-- Lo que vi: llegó a «Listo» en unos segundos; con «Simular sin conexión» se leyó entera: 76 bloques, unas 2.300 palabras, «Instantánea de https://es.wikipedia.org/wiki/Mediana_(estadística) · guardada el 15/03/2027».
+- Lo que vi: llegó a «Listo» en unos segundos; con «Simular sin conexión» se leyó entera: 75 bloques, unas 2.300 palabras, «Instantánea de https://es.wikipedia.org/wiki/Mediana_(estadística) · guardada el 15/03/2027».
 
 ## M14.9 · Sin conexión · CA-121
 
