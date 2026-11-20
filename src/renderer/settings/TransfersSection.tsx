@@ -405,11 +405,11 @@ export function TransfersSection({ onChanged }: { onChanged: () => void }) {
           result.outcome === 'cancelled'
             ? null
             : {
-                tone: 'success',
-                text: texts.exports.exported(
+                tone: result.missing > 0 ? 'attention' : 'success',
+                text: `${texts.exports.exported(
                   result.fileName,
                   texts.exports.countsLine(result.counts),
-                ),
+                )}${result.missing > 0 ? ` ${texts.exports.missingFiles(result.missing)}` : ''}`,
               },
         );
       } catch {

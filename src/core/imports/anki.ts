@@ -5,6 +5,7 @@ import {
   excerpt,
   type ImportPackage,
   MAX_TEXT,
+  MAX_WHAT,
   type PackageCard,
   type PackageContent,
   type PackageMedia,
@@ -235,6 +236,7 @@ export function buildAnkiPackage(
     }
   }
   const cards: PackageCard[] = [];
+  const seenKeys = new Set<string>();
   const rejected: RejectedItem[] = [];
   const rejectedBy: string[] = [];
   const annotated: AnnotatedItem[] = [];
@@ -249,9 +251,22 @@ export function buildAnkiPackage(
     const note = notes.get(card.nid);
     const type = note ? notetypes.get(note.mid) : undefined;
     if (!note || !type) {
+      // Una tarjeta sin su nota o sin su tipo de nota (una colección dañada): no entra, y se dice.
+      rejected.push({ what: '(tarjeta sin su nota)', reason: 'unsupportedCard' });
+      rejectedBy.push('');
       continue;
     }
     const key = `anki:${note.guid}:${card.ord}`;
+    if (seenKeys.has(key)) {
+      // Dos notas con el mismo identificador de Anki: entra la primera.
+      rejected.push({
+        what: excerpt(htmlToPlain(note.fields[0] ?? ''), MAX_WHAT) || '(tarjeta sin texto)',
+        reason: 'duplicate',
+      });
+      rejectedBy.push('');
+      continue;
+    }
+    seenKeys.add(key);
     const reject = (what: string, reason: RejectedItem['reason']) => {
       rejected.push({ what, reason });
       rejectedBy.push(key);
@@ -361,6 +376,11 @@ export function buildAnkiPackage(
       suspended: card.queue === -1,
       tags: note.tags,
       audio,
+      extra: unusedFields(
+        type.fields,
+        fields,
+        isCloze ? [template.qfmt] : [template.qfmt, template.afmt],
+      ),
     });
   }
   return {
@@ -368,10 +388,38 @@ export function buildAnkiPackage(
     cards,
     notes: [],
     media: [...used.values()],
-    rejected,
+    rejected: rejected.map((item) => ({ ...item, what: excerpt(item.what, MAX_WHAT) })),
     rejectedBy,
-    annotated,
+    annotated: annotated.map((item) => ({ ...item, what: excerpt(item.what, MAX_WHAT) })),
     annotatedBy,
     skippedReviews,
   };
+}
+
+// Los campos con texto que la plantilla no muestra (en una cloze, todos menos el del hueco): no se
+// pierden, van a la explicación de la ficha como «Campo: texto».
+function unusedFields(
+  names: readonly string[],
+  fields: Readonly<Record<string, string>>,
+  templates: readonly string[],
+): string {
+  const shown = new Set<string>();
+  for (const template of templates) {
+    for (const match of template.matchAll(/\{\{([^{}]+)\}\}/g)) {
+      const name =
+        (match[1] ?? '')
+          .replace(/^[#^/]/, '')
+          .split(':')
+          .pop()
+          ?.trim() ?? '';
+      shown.add(name);
+    }
+  }
+  return names
+    .filter((name) => !shown.has(name))
+    .map((name) => [name, htmlToPlain(fields[name] ?? '')] as const)
+    .filter(([, value]) => value !== '')
+    .map(([name, value]) => `${name}: ${value}`)
+    .join('\n')
+    .slice(0, MAX_TEXT);
 }

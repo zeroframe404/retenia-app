@@ -323,8 +323,8 @@ export function createHandlers({
       if (file === null) {
         return { outcome: 'cancelled' as const };
       }
-      const { counts } = await transfers.exportAll({ file });
-      return { outcome: 'exported' as const, fileName: basename(file), counts };
+      const { counts, missing } = await transfers.exportAll({ file });
+      return { outcome: 'exported' as const, fileName: basename(file), counts, missing };
     },
     'exports.canLoad': async () => ({ empty: transfers.isEmpty() }),
     'exports.choose': async () => {

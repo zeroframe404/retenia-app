@@ -471,6 +471,7 @@ function writeCard(
       answerContent: hasImages ? JSON.stringify(answer) : null,
       createdAt: card.createdAt,
       cause: 'import',
+      explanation: card.extra,
     })
     .run();
   recomputeCardSchedule(tx, cardId);

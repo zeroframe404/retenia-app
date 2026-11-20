@@ -13,6 +13,7 @@ const REJECT_REASONS = [
   'emptyCard',
   'tooLarge',
   'unreadableDocument',
+  'duplicate',
 ] as const;
 const ANNOTATIONS = ['plainText', 'latex', 'unknownLink'] as const;
 const MAX_ITEMS = 200_000;
@@ -123,6 +124,8 @@ export const exportsAllResponse = z.discriminatedUnion('outcome', [
     outcome: z.literal('exported'),
     fileName: z.string(),
     counts: exportCountsSchema,
+    // Los archivos que no estaban en la carpeta de datos y no viajaron.
+    missing: z.number().int().min(0),
   }),
 ]);
 

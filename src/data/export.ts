@@ -185,6 +185,7 @@ export function stageExport(
 ): StagedExport {
   const raw = db.raw;
   const files: ExportFile[] = [];
+  const missing: string[] = [];
   const entries: { zipPath: string; from: string }[] = [];
   mkdirSync(staging, { recursive: true });
   const read = raw.transaction(() => {
@@ -353,6 +354,7 @@ export function stageExport(
     // Los archivos de la carpeta de datos, con la huella que ya tienen por nombre.
     const add = (zipPath: string, from: string, sha: string, kind: ExportFile['kind']) => {
       if (!existsSync(from)) {
+        missing.push(zipPath);
         return;
       }
       files.push({ path: zipPath, sha256: sha, bytes: statSync(from).size, kind });
@@ -404,6 +406,7 @@ export function stageExport(
     migrations: migrationIds(),
     counts,
     files,
+    ...(missing.length > 0 ? { missing } : {}),
   };
   writeFileSync(join(staging, 'indice.json'), `${JSON.stringify(index, null, 2)}\n`);
   entries.unshift({ zipPath: 'indice.json', from: join(staging, 'indice.json') });
@@ -429,6 +432,9 @@ export function loadStagedExport(
 ): ExportCounts {
   if (!isEmptyDatabase(db)) {
     throw new ExportNotLoadableError('la base no está vacía');
+  }
+  if (!isSafeStagedExport(staging)) {
+    throw new ExportNotLoadableError('un dato que no es de Retenia');
   }
   const raw = db.raw;
   // Los archivos, a su lugar.
@@ -505,6 +511,42 @@ export function loadStagedExport(
     repairData({ orm: tx });
   });
   return exportCounts(db);
+}
+
+const SHA = /^[0-9a-f]{64}$/;
+// Las mismas extensiones con que Retenia guarda un original (src/main/materials/originals.ts).
+const ORIGINAL_EXTENSION = /^(pdf|docx|md|txt|html)?$/;
+
+// Antes de copiar un solo archivo (objeción 1 del revisor): cada renglón es de una tabla de Retenia,
+// y lo que después se usa para armar una ruta (la huella y la extensión de un original, la huella de
+// una imagen o un audio) tiene la forma de siempre. Una exportación armada a mano para escribir fuera
+// de la carpeta de datos no pasa.
+export function isSafeStagedExport(staging: string): boolean {
+  try {
+    for (const line of readLines(join(staging, 'datos/contenido.jsonl'))) {
+      if (line.tabla === 'materials') {
+        const sha = line.original_sha256;
+        const ext = line.original_ext;
+        if (
+          (sha !== null && sha !== undefined && (typeof sha !== 'string' || !SHA.test(sha))) ||
+          (ext !== null &&
+            ext !== undefined &&
+            (typeof ext !== 'string' || !ORIGINAL_EXTENSION.test(ext)))
+        ) {
+          return false;
+        }
+      }
+      if (
+        (line.tabla === 'images' || line.tabla === 'attachments') &&
+        (typeof line.sha256 !== 'string' || !SHA.test(line.sha256))
+      ) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function* readLines(file: string): Generator<Row & { tabla: string }> {

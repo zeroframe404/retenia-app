@@ -49,6 +49,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.exports.previewLine': ['15/03/2027', '3 materias · 215 tarjetas · 1.204 repasos'],
   'texts.exports.loaded': ['3 materias · 215 tarjetas · 1.204 repasos'],
   'texts.exports.fileName': ['15-03-2027'],
+  'texts.exports.missingFiles': [1],
   'texts.study.nothingDue': ['Estadística básica'],
   'texts.study.progress': [3, 10],
   'texts.study.progressLabel': [3, 10],

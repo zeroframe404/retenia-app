@@ -128,7 +128,13 @@ export async function extractZip(
               : join(outDir, `e${count}`)
             : null;
           if (target) {
-            mkdirSync(dirname(target), { recursive: true });
+            try {
+              mkdirSync(dirname(target), { recursive: true });
+            } catch {
+              stream.destroy();
+              fail(new UnsafeZipError(`una carpeta que choca con un archivo: ${name}`));
+              return;
+            }
           }
           const sink = target ? createWriteStream(target) : null;
           let stopped = false;

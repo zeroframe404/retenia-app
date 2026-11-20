@@ -158,10 +158,14 @@ async function readAnki(task: {
   if (!collectionEntry) {
     return { ok: false, problem: 'damaged' };
   }
+  // Lo que queda para descomprimir: el tope cuenta la colección y todos los medios juntos.
+  let budget = limits.maxBytes;
   let collectionFile = collectionEntry;
   if (version === 3) {
     collectionFile = join(task.outDir, 'coleccion.db');
-    writeFileSync(collectionFile, decompress(readFileSync(collectionEntry), limits.maxBytes));
+    const decompressed = decompress(readFileSync(collectionEntry), limits.maxBytes);
+    budget -= decompressed.length;
+    writeFileSync(collectionFile, decompressed);
   }
   const collection = readAnkiCollection(collectionFile);
 
@@ -209,7 +213,11 @@ async function readAnki(task: {
       return;
     }
     const raw = readFileSync(entry);
-    const bytes = version === 3 ? decompress(raw, limits.maxBytes) : raw;
+    if (budget <= 0) {
+      throw new UnsafeZipError('demasiado contenido descomprimido');
+    }
+    const bytes = version === 3 ? decompress(raw, budget) : raw;
+    budget -= bytes.length;
     media.set(name, describeMedia(bytes, name, mediaDir));
   });
   return {

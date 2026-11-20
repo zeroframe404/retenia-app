@@ -8,6 +8,7 @@ import {
 } from '../../core/imports/markdown';
 import { type ImportPackage, importPackageSchema } from '../../core/imports/package';
 import { localDateTime } from '../../core/study-day';
+import { isSafeStagedExport } from '../../data/export';
 import { newId } from '../../data/ids';
 import type { ImportDestination, ImportRecord } from '../../data/imports';
 import { migrationIds } from '../../data/migrations';
@@ -43,7 +44,10 @@ export interface TransfersService {
   list(): ImportRecordView[];
   // «Guardar lista»: lo rechazado de una importación, en texto.
   rejectedList(importId: string): string;
-  exportAll(input: { file: string }): Promise<{ file: string; counts: ExportCountsView }>;
+  // `missing`: cuántos archivos de la carpeta de datos no estaban y no viajaron.
+  exportAll(input: {
+    file: string;
+  }): Promise<{ file: string; counts: ExportCountsView; missing: number }>;
   previewExport(input: { path: string }): Promise<ExportPreviewOutcome>;
   loadExport(input: { previewId: string }): Promise<{ counts: ExportCountsView }>;
   isEmpty(): boolean;
@@ -267,7 +271,7 @@ export function createTransfersService({
         await execute({ kind: 'writeZip', entries: staged.entries, out: partial });
         rmSync(file, { force: true });
         renameSync(partial, file);
-        return { file, counts: staged.index.counts };
+        return { file, counts: staged.index.counts, missing: staged.index.missing?.length ?? 0 };
       } finally {
         rmSync(partial, { force: true });
         remove(staging);
@@ -293,6 +297,10 @@ export function createTransfersService({
       if (!parsed.success) {
         remove(folder);
         return { outcome: 'problem', problem: 'notExport' };
+      }
+      if (!isSafeStagedExport(folder)) {
+        remove(folder);
+        return { outcome: 'problem', problem: 'damaged' };
       }
       const known = new Set(migrationIds());
       if (

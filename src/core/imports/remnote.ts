@@ -3,7 +3,9 @@ import { decodeEntities, htmlToPlain, removeDangerous } from './html';
 import {
   type AnnotatedItem,
   baseName,
+  excerpt,
   type ImportPackage,
+  MAX_WHAT,
   type PackageBlock,
   type PackageContent,
   type PackageMedia,
@@ -306,7 +308,16 @@ function parseDocument(doc: RemnoteDocument, context: Context): PackageBlock[] {
       stack.pop();
     }
     const key = `b${blocks.length + 1}`;
-    const { content, inverse } = blockOf(body, context);
+    // Lo que está entre ``` es código: entra tal cual, como texto común, sin tarjetas (objeción 3).
+    const { content, inverse } = fence
+      ? {
+          content:
+            body.trim() === ''
+              ? []
+              : [{ type: 'text' as const, text: asPlainText(body.trimEnd()) }],
+          inverse: false,
+        }
+      : blockOf(body, context);
     blocks.push({ key, parentKey: stack.at(-1)?.key ?? null, content, inverse });
     if (item || indent > 0) {
       stack.push({ indent, key });
@@ -372,9 +383,9 @@ export function buildRemnotePackage(
     cards: [],
     notes,
     media: [...used.values()],
-    rejected,
+    rejected: rejected.map((item) => ({ ...item, what: excerpt(item.what, MAX_WHAT) })),
     rejectedBy,
-    annotated,
+    annotated: annotated.map((item) => ({ ...item, what: excerpt(item.what, MAX_WHAT) })),
     annotatedBy,
     skippedReviews: 0,
   };

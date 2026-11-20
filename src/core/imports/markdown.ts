@@ -135,5 +135,7 @@ export const exportIndexSchema = z.strictObject({
   migrations: z.array(z.string().regex(/^\d{4}_[a-z_]+$/)).max(1000),
   counts: exportCountsSchema,
   files: z.array(exportFileSchema).max(500_000),
+  // Los archivos que tendrían que haber viajado y no estaban en la carpeta de datos (objeción 10).
+  missing: z.array(z.string().max(500)).max(500_000).optional(),
 });
 export type ExportIndex = z.output<typeof exportIndexSchema>;

@@ -16,6 +16,7 @@ const IMPORT_REASONS = {
   emptyCard: 'tarjeta sin texto',
   tooLarge: 'texto demasiado largo',
   unreadableDocument: 'documento que no se pudo leer',
+  duplicate: 'repetida en el archivo',
 } as const;
 
 // Cómo se llama una nota que no tiene título.
@@ -1242,6 +1243,11 @@ export const texts = {
       `${numberFormat.format(counts.subjects)} ${counts.subjects === 1 ? 'materia' : 'materias'} · ${numberFormat.format(counts.cards)} ${counts.cards === 1 ? 'tarjeta' : 'tarjetas'} · ${numberFormat.format(counts.reviews)} ${counts.reviews === 1 ? 'repaso' : 'repasos'}`,
     exported: (fileName: string, counts: string) => `Exportado en «${fileName}»: ${counts}.`,
     exportFailed: 'No pude exportar. Tus datos siguen como estaban.',
+    // Objeción 10: un archivo de la carpeta de datos que no estaba (una imagen borrada a mano).
+    missingFiles: (count: number) =>
+      count === 1
+        ? 'Faltaba 1 archivo en la carpeta de datos de Retenia: la exportación va sin él y lo anota en «indice.json».'
+        : `Faltaban ${numberFormat.format(count)} archivos en la carpeta de datos de Retenia: la exportación va sin ellos y los anota en «indice.json».`,
     importExport: 'Importar exportación',
     reading: 'Revisando la exportación…',
     notEmpty:

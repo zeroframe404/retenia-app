@@ -160,7 +160,7 @@ describe('colecciones de Anki trampa', () => {
     });
   });
 
-  it('[CA-122] los disparadores de la colección nunca corren: la base se abre de solo lectura y sin confiar en su esquema', async () => {
+  it('[CA-122] una colección con disparadores y vistas de más se lee igual y no escribe nada afuera (que se abre de solo lectura lo prueba «leer la colección no la cambia»)', async () => {
     const space = openSpace({ withCast: true });
     const outside = outsideFolder();
     const target = join(outside, 'escrito-por-el-mazo.db').replaceAll("'", "''");

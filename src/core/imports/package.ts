@@ -17,6 +17,7 @@ const REJECT_REASONS = [
   'emptyCard',
   'tooLarge',
   'unreadableDocument',
+  'duplicate',
 ] as const;
 
 // Lo que entró, pero distinto de como venía (se anota).
@@ -72,6 +73,8 @@ const cardSchema = z.strictObject({
   suspended: z.boolean(),
   tags: z.array(z.string().max(MAX_TITLE)).max(200),
   audio: z.array(SHA).max(50),
+  // Los campos de la nota que la plantilla no muestra («Extra: …»): van a la explicación de la ficha.
+  extra: z.string().max(MAX_TEXT),
 });
 export type PackageCard = z.output<typeof cardSchema>;
 
@@ -130,6 +133,10 @@ export const importPackageSchema = z.strictObject({
   skippedReviews: z.number().int().min(0),
 });
 export type ImportPackage = z.output<typeof importPackageSchema>;
+
+// Lo más largo que puede decir un rechazo o una anotación (objeción 2: un renglón larguísimo no puede
+// tumbar la importación entera).
+export const MAX_WHAT = 200;
 
 // Un texto corto para nombrar algo en la lista de rechazadas.
 export function excerpt(text: string, length = 80): string {

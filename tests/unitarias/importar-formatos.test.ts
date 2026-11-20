@@ -173,7 +173,9 @@ describe('variantes del Markdown de RemNote', () => {
       [{ type: 'text', text: 'uno' }],
       [{ type: 'text', text: 'dos' }],
       [{ type: 'text', text: 'cita' }],
-      [{ type: 'text', text: 'codigo >> x' }],
+      // El código entra como texto común, sin tarjeta (objeción 3 del revisor): con el separador
+      // invisible entre los dos «>».
+      [{ type: 'text', text: `codigo >${String.fromCharCode(0x2060)}> x` }],
     ]);
   });
 
@@ -297,6 +299,8 @@ describe('variantes de las plantillas de Anki', () => {
     expect(pkg.annotated).toEqual([{ what: '¿Q? [latex]x[/latex]', note: 'latex' }]);
     expect(pkg.rejected.map((item) => item.reason).sort()).toEqual([
       'missingAudio',
+      // La que no tiene plantilla y (objeción 5 del revisor) la que no tiene su nota.
+      'unsupportedCard',
       'unsupportedCard',
       'unsupportedImage',
     ]);
