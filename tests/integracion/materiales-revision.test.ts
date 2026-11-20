@@ -154,7 +154,7 @@ describe('reconocer un escaneo', () => {
     expect(createHash('sha256').update(readFileSync(original)).digest('hex')).toBe(before);
   });
 
-  it('[CA-114] un reconocimiento con confianza baja deja la página en «Con problemas», no en «Listo»', async () => {
+  it('[CA-114] (simulado) un reconocimiento con confianza baja deja la página en «Con problemas», no en «Listo»', async () => {
     const space = openSpace();
     const { opened, materialId } = await processed(space, {
       execute: async (task: MaterialsTask) => {
@@ -315,7 +315,7 @@ describe('la corrección sobrevive', () => {
     ]);
   });
 
-  it('[CA-116] si el texto de base cambió queda «En conflicto» con las dos versiones y se puede decidir', async () => {
+  it('[CA-116] (simulado) si el texto de base cambió queda «En conflicto» con las dos versiones y se puede decidir', async () => {
     const space = openSpace();
     let alter = false;
     const { opened, materialId } = await processed(space, {
@@ -364,7 +364,7 @@ describe('la corrección sobrevive', () => {
     ).toBe(mine);
   });
 
-  it('[CA-116] «Usar el texto nuevo» descarta la corrección en conflicto', async () => {
+  it('[CA-116] (simulado) «Usar el texto nuevo» descarta la corrección en conflicto', async () => {
     const space = openSpace();
     let alter = false;
     const { opened, materialId } = await processed(space, {
@@ -561,7 +561,7 @@ describe('la estructura de un escaneo reconocido', () => {
 });
 
 describe('corregir mientras una página se vuelve a leer', () => {
-  it('[CA-116] una corrección hecha mientras otra página se reprocesa no falla y queda aplicada cuando termina', async () => {
+  it('[CA-116] (simulado) una corrección hecha mientras otra página se reprocesa no falla y queda aplicada cuando termina', async () => {
     const space = openSpace();
     let release: () => void = () => undefined;
     let hold: Promise<void> | null = null;

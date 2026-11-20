@@ -158,3 +158,22 @@ describe('servir un original', () => {
     expect(reads).toHaveLength(1);
   });
 });
+
+describe('el HTML de una página web guardada (Fase 14)', () => {
+  it('[CA-120] nunca se sirve a la ventana: lo que se ve es la instantánea saneada', () => {
+    const data = tempDataFolder();
+    folders.push(data);
+    mkdirSync(join(data.folder, 'originales'));
+    writeFileSync(
+      join(data.folder, 'originales', `${SHA}.html`),
+      '<html><script>1</script></html>',
+    );
+    expect(
+      resolveOriginal(
+        `retenia-original://${MATERIAL}`,
+        () => ({ sha256: SHA, ext: 'html' }),
+        data.folder,
+      ),
+    ).toBeNull();
+  });
+});
