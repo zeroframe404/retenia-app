@@ -148,9 +148,9 @@ describe('la Revisión', () => {
     const map = screen.getByRole('list', { name: 'Páginas del material' });
     const cells = within(map).getAllByRole('button');
     expect(cells).toHaveLength(12);
-    expect(within(map).getByRole('button', { name: 'Página 7: Revisar' })).toBeTruthy();
-    expect(within(map).getByRole('button', { name: 'Página 9: Pendiente' })).toBeTruthy();
-    expect(within(map).getByRole('button', { name: 'Página 1: Lista' })).toBeTruthy();
+    expect(within(map).getByRole('button', { name: 'Página 7 Revisar' })).toBeTruthy();
+    expect(within(map).getByRole('button', { name: 'Página 9 Pendiente' })).toBeTruthy();
+    expect(within(map).getByRole('button', { name: 'Página 1 Lista' })).toBeTruthy();
     expect(screen.getByText('9 de 12 páginas listas · 2 para revisar · 1 pendiente')).toBeTruthy();
   });
 
@@ -159,10 +159,10 @@ describe('la Revisión', () => {
     // La página 9 queda excluida desde su bloque de «No extraído».
     await user.click(screen.getByRole('button', { name: 'Estudiar sin estas páginas' }));
     await user.click(await screen.findByRole('button', { name: 'Mapa de cobertura' }));
-    expect(await screen.findByRole('button', { name: 'Página 9: Excluida' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Página 9 Excluida' })).toBeTruthy();
     expect(screen.getByText(/1 excluida/)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Volver a incluir esta página' }));
-    expect(await screen.findByRole('button', { name: 'Página 9: Pendiente' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Página 9 Pendiente' })).toBeTruthy();
   });
 });
 

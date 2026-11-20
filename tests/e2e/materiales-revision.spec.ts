@@ -82,7 +82,7 @@ test('[CA-114] «Intentar reconocimiento» en la página 9: sale de «No extraí
     SLOW,
   );
   await page.getByRole('button', { name: 'Mapa de cobertura' }).click();
-  await page.getByRole('button', { name: /^Página 9:/ }).click();
+  await page.getByRole('button', { name: /^Página 9 / }).click();
   await expect(page.getByText(/hipótesis nula/).first()).toBeVisible(SLOW);
 });
 
@@ -133,17 +133,13 @@ test('[CA-117] [CA-118] el mapa de cobertura: doce casillas con color y palabra,
   await expect(
     page.getByText('9 de 12 páginas listas · 2 para revisar · 1 pendiente'),
   ).toBeVisible();
-  await map.getByRole('button', { name: 'Página 12: Lista' }).click();
+  await map.getByRole('button', { name: 'Página 12 Lista' }).click();
   await page.getByRole('button', { name: 'Estudiar sin estas páginas' }).click();
-  await page
-    .getByRole('button', { name: 'Volver al material' })
-    .click()
-    .catch(() => undefined);
-  await toMaterials(page);
-  await page.getByRole('button', { name: /Inferencia/ }).click();
-  await page.getByRole('button', { name: 'Revisión' }).click();
+  // La página 12 aparece «Excluida» en la barra del visor; se vuelve a la lista y a la revisión.
+  await expect(page.getByText('Excluida').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Volver a la revisión' }).click();
   await page.getByRole('button', { name: 'Mapa de cobertura' }).click();
-  await expect(page.getByRole('button', { name: 'Página 12: Excluida' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Página 12 Excluida' })).toBeVisible();
 });
 
 test('[CA-119] una página web desde «pagina.html»: el texto principal, limpio, con la fecha de guardado', async ({

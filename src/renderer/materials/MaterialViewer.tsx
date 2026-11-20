@@ -110,6 +110,7 @@ export function MaterialViewer({
   materialId,
   target,
   onBack,
+  backLabel,
   onInboxCount,
   onChanged,
   refreshKey,
@@ -117,6 +118,7 @@ export function MaterialViewer({
   materialId: string;
   target: OpenTarget | null;
   onBack: () => void;
+  backLabel?: string | undefined;
   onInboxCount?: ((count: number) => void) | undefined;
   // Se excluyó o se volvió a leer una página: la lista de materiales se vuelve a pedir.
   onChanged?: (() => void) | undefined;
@@ -314,7 +316,7 @@ export function MaterialViewer({
     <section className={styles.viewer} aria-label={detail.title}>
       <div className={styles.viewerHeader}>
         <Boton variant="quiet" onClick={onBack}>
-          {texts.materials.back}
+          {backLabel ?? texts.materials.back}
         </Boton>
         {isPdf ? (
           <div className={styles.pager}>

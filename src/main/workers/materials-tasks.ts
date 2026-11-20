@@ -59,13 +59,22 @@ async function ocrExtraction(file: string, unit: number, workDir: string) {
   ) ?? { x: 0, y: 0, width: layer.width, height: layer.height };
   const scaleX = image ? box.width / image.width : 1;
   const scaleY = image ? box.height / image.height : 1;
+  // La altura de letra que mide tesseract varía un poco de un renglón a otro del mismo párrafo: lo
+  // que está cerca de la altura del texto común se toma como esa altura, así la estructura no
+  // confunde un renglón con un título.
+  const heights = recognized.lines.map((line) => line.rowHeight * scaleY).sort((a, b) => a - b);
+  const body = heights[Math.floor(heights.length / 2)] ?? 1;
+  const sizeOf = (rowHeight: number) => {
+    const height = rowHeight * scaleY;
+    return Math.max(1, Math.round(Math.abs(height - body) / body < 0.2 ? body : height));
+  };
   const items = recognized.lines.map((line) => ({
     text: line.text,
     x: box.x + line.x0 * scaleX,
     y: box.y + line.y0 * scaleY,
     width: Math.max(1, (line.x1 - line.x0) * scaleX),
     height: Math.max(1, (line.y1 - line.y0) * scaleY),
-    size: Math.max(1, Math.round(line.rowHeight * scaleY)),
+    size: sizeOf(line.rowHeight),
     bold: false,
     fontFamily: '',
     fontName: '',

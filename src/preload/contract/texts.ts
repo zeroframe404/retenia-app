@@ -386,6 +386,7 @@ export const texts = {
       open: 'Revisión',
       title: 'Revisión',
       back: 'Volver al material',
+      backToReview: 'Volver a la revisión',
       ready: 'Listo',
       readySections: (count: number) => (count === 1 ? '1 sección' : `${count} secciones`),
       problems: 'Con problemas',
@@ -460,7 +461,6 @@ export const texts = {
         error: 'Error',
         excluded: 'Excluida',
       },
-      cell: (page: number, word: string) => `Página ${page}: ${word}`,
       summary: (counts: {
         total: number;
         ready: number;

@@ -102,7 +102,6 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.materials.review.derivedAsk': [2],
   'texts.materials.review.derivedUpdate': [2],
   'texts.materials.review.derivedUpdated': [2],
-  'texts.materials.coverage.cell': [7, 'Revisar'],
   'texts.materials.coverage.summary': [
     { total: 12, ready: 9, review: 2, pending: 1, error: 0, excluded: 0 },
   ],

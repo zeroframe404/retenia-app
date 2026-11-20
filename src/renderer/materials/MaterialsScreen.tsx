@@ -47,9 +47,12 @@ export function MaterialsScreen({
 }) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<{ materialId: string; target: OpenTarget | null } | null>(
-    null,
-  );
+  const [viewing, setViewing] = useState<{
+    materialId: string;
+    target: OpenTarget | null;
+    // Se abrió desde la revisión: «Volver» lleva de vuelta a ella.
+    fromReview?: boolean;
+  } | null>(null);
   // La revisión de un material (Fase 14): se abre desde el detalle y vuelve a él.
   const [reviewing, setReviewing] = useState<string | null>(null);
   const [adding, setAdding] = useState<AddMode | null>(null);
@@ -199,6 +202,7 @@ export function MaterialsScreen({
             target={viewing.target}
             refreshKey={progress}
             onBack={() => setViewing(null)}
+            backLabel={viewing.fromReview ? texts.materials.review.backToReview : undefined}
             onInboxCount={onInboxCount}
             onChanged={() => void load()}
           />
@@ -207,7 +211,7 @@ export function MaterialsScreen({
             materialId={reviewing}
             refreshKey={progress}
             onBack={() => setReviewing(null)}
-            onRead={(target) => setViewing({ materialId: reviewing, target })}
+            onRead={(target) => setViewing({ materialId: reviewing, target, fromReview: true })}
             onChanged={() => void load()}
           />
         ) : (

@@ -542,3 +542,16 @@ describe('con el elenco de ejemplo', () => {
     );
   });
 });
+
+describe('la estructura de un escaneo reconocido', () => {
+  it('[CA-114] el texto reconocido de la página 9 queda en párrafos: solo su título y su subtítulo son secciones', async () => {
+    const space = openSpace();
+    const { opened, materialId } = await processed(space);
+    opened.service.ocrPage({ materialId, unit: 9 });
+    await opened.service.whenIdle();
+    const blocks = space.workspace.materials.blocks(materialId).filter((row) => row.unitNo === 9);
+    const sections = blocks.filter((row) => row.type === 'section');
+    expect(sections.length).toBeLessThanOrEqual(2);
+    expect(blocks.filter((row) => row.type === 'paragraph').length).toBeGreaterThanOrEqual(3);
+  });
+});
