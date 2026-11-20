@@ -20,7 +20,8 @@ import {
 
 // Comprimidos y colecciones maliciosos (H-29, no-funcionales.md): nada de lo que trae un archivo
 // importado se ejecuta ni escribe fuera de la carpeta de trabajo; lo que no es seguro se rechaza
-// entero, con su motivo, antes de la vista previa, y la base no cambia.
+// entero, con su motivo, antes de la vista previa, y la base no cambia. Parten de una base vacía:
+// alcanza para ver que no se escribe nada, y así corren rápido.
 
 afterEach(() => {
   closeSpaces();
@@ -53,7 +54,7 @@ describe('comprimidos trampa', () => {
   ] as const) {
     for (const kind of ['anki', 'remnote'] as const) {
       it(`[CA-123] ${kind}: un nombre ${label} se rechaza entero y no escribe nada en ningún lado`, async () => {
-        const space = openSpace({ withCast: true });
+        const space = openSpace();
         const file = writeOutside(`trampa-${kind}.zip`, withEntry(kind, name));
         const around = dirname(dirname(file));
         const before = dumpTables(space.file);
@@ -72,7 +73,7 @@ describe('comprimidos trampa', () => {
   }
 
   it('[CA-123] dos entradas con el mismo nombre se rechazan', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const files = demoRemnoteFiles();
     const twice = zip([...files, files[0] ?? { name: 'a.md', data: Buffer.from('x') }]);
     expect(
@@ -91,7 +92,7 @@ describe('comprimidos trampa', () => {
   });
 
   it('[CA-123] demasiadas entradas se rechazan', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     // Con un tope chico (100), para no armar un comprimido de 20.001 entradas en cada corrida.
     const many = Array.from({ length: 101 }, (_, index) => ({
       name: `muchos/${index}.md`,
@@ -109,7 +110,7 @@ describe('comprimidos trampa', () => {
   });
 
   it('[CA-122] una bomba (muy poco comprimido que se vuelve enorme) se corta al leer y se rechaza', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const bomb = zip([{ name: 'collection.anki21', data: Buffer.alloc(30 * 1024 * 1024) }]);
     expect(
       await openTransfers(space, { maxBytes: 20 * 1024 * 1024 }).preview({
@@ -123,7 +124,7 @@ describe('comprimidos trampa', () => {
   }, 60_000);
 
   it('[CA-122] algo que no es un comprimido no es una exportación de Anki', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     expect(
       await openTransfers(space).preview({ kind: 'anki', path: writeOutside('no.apkg', 'hola') }),
     ).toEqual({
@@ -135,7 +136,7 @@ describe('comprimidos trampa', () => {
 
 describe('colecciones de Anki trampa', () => {
   it('[CA-122] una colección que no es una base SQLite se rechaza como dañada', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const file = writeOutside(
       'rota.apkg',
       zip([{ name: 'collection.anki21', data: Buffer.from('no soy una base') }]),
@@ -147,7 +148,7 @@ describe('colecciones de Anki trampa', () => {
   });
 
   it('[CA-122] si «notes» es una vista y no una tabla, se rechaza como dañada', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const deck = demoDeck({
       format: 'legacy2',
       extraSql: [
@@ -167,7 +168,7 @@ describe('colecciones de Anki trampa', () => {
   });
 
   it('[CA-122] una colección con disparadores y vistas de más se lee igual y no escribe nada afuera (que se abre de solo lectura lo prueba «leer la colección no la cambia»)', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const outside = outsideFolder();
     const target = join(outside, 'escrito-por-el-mazo.db').replaceAll("'", "''");
     const deck = demoDeck({
@@ -187,7 +188,7 @@ describe('colecciones de Anki trampa', () => {
   });
 
   it('[CA-122] un medio con un nombre que sale de la carpeta no escribe fuera de ella', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const outside = outsideFolder();
     const deck = demoDeck({ format: 'legacy2' });
     deck.media = [{ name: '../../escapado.png', data: Buffer.from('x') }];
@@ -201,7 +202,7 @@ describe('colecciones de Anki trampa', () => {
   });
 
   it('[CA-122] un campo gigante se rechaza con su motivo y lo demás entra', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const deck = demoDeck();
     deck.notes.push({
       id: 9,
@@ -221,7 +222,7 @@ describe('colecciones de Anki trampa', () => {
   });
 
   it('[CA-122] el HTML de un campo es dato: un script queda afuera y nada se ejecuta', async () => {
-    const space = openSpace({ withCast: true });
+    const space = openSpace();
     const deck = demoDeck();
     const first = deck.notes[0];
     if (first) {
