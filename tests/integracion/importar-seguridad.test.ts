@@ -1,6 +1,7 @@
 import { readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_ZIP_LIMITS } from '../../src/main/workers/zip-reader';
 import {
   ankiPackage,
   demoDeck,
@@ -85,14 +86,19 @@ describe('comprimidos trampa', () => {
     });
   });
 
+  it('[CA-123] el tope de verdad es de 20.000 entradas por comprimido', () => {
+    expect(DEFAULT_ZIP_LIMITS.maxEntries).toBe(20_000);
+  });
+
   it('[CA-123] demasiadas entradas se rechazan', async () => {
     const space = openSpace({ withCast: true });
-    const many = Array.from({ length: 20_001 }, (_, index) => ({
+    // Con un tope chico (100), para no armar un comprimido de 20.001 entradas en cada corrida.
+    const many = Array.from({ length: 101 }, (_, index) => ({
       name: `muchos/${index}.md`,
       data: Buffer.from('- x\n'),
     }));
     expect(
-      await openTransfers(space).preview({
+      await openTransfers(space, { maxEntries: 100 }).preview({
         kind: 'remnote',
         path: writeOutside('muchos.zip', zip(many)),
       }),

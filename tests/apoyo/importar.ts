@@ -36,13 +36,20 @@ export function removeOutsideFolders(): void {
 // más de un gigabyte.
 export function openTransfers(
   space: Pick<Space, 'workspace' | 'clock'>,
-  { maxBytes }: { maxBytes?: number } = {},
+  { maxBytes, maxEntries }: { maxBytes?: number; maxEntries?: number } = {},
 ): TransfersService {
   return createTransfersService({
     workspace: space.workspace,
     clock: space.clock,
     execute: (task) => runTransferTask(task),
-    ...(maxBytes === undefined ? {} : { limits: { maxBytes } }),
+    ...(maxBytes === undefined && maxEntries === undefined
+      ? {}
+      : {
+          limits: {
+            ...(maxBytes === undefined ? {} : { maxBytes }),
+            ...(maxEntries === undefined ? {} : { maxEntries }),
+          },
+        }),
   });
 }
 

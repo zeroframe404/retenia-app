@@ -34,7 +34,10 @@ import {
 // el comprimido de «Exportar todo» y revisar el de «Importar exportación». Corre sin red, con tope
 // de memoria y de tiempo; lo que viene en los archivos es dato, nunca instrucción.
 
-const limitsSchema = z.strictObject({ maxBytes: z.number().int().positive().optional() });
+const limitsSchema = z.strictObject({
+  maxBytes: z.number().int().positive().optional(),
+  maxEntries: z.number().int().positive().optional(),
+});
 
 const transferTask = z.discriminatedUnion('kind', [
   z.strictObject({
@@ -74,7 +77,16 @@ const ANKI_VERSIONS = {
   3: 'collection.anki21b',
 } as const;
 
-function zipLimits(limits?: { maxBytes?: number | undefined }): ZipLimits {
+function zipLimits(limits?: {
+  maxBytes?: number | undefined;
+  maxEntries?: number | undefined;
+}): ZipLimits {
+  if (limits?.maxEntries !== undefined) {
+    return {
+      maxEntries: limits.maxEntries,
+      maxBytes: limits.maxBytes ?? DEFAULT_ZIP_LIMITS.maxBytes,
+    };
+  }
   return limits?.maxBytes === undefined
     ? DEFAULT_ZIP_LIMITS
     : { ...DEFAULT_ZIP_LIMITS, maxBytes: limits.maxBytes };

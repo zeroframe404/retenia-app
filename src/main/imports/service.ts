@@ -104,7 +104,8 @@ export function createTransfersService({
   clock?: Clock;
   // Corre una tarea en el proceso aislado (en las pruebas, en el mismo proceso).
   execute: (task: unknown) => Promise<unknown>;
-  limits?: { maxBytes: number };
+  // Topes más chicos, solo para las pruebas (lo que se descomprime y cuántas entradas).
+  limits?: { maxBytes?: number; maxEntries?: number };
 }): TransfersService {
   const pending = new Map<string, PendingImport>();
   const pendingExports = new Map<string, PendingExport>();
@@ -149,7 +150,7 @@ export function createTransfersService({
     rejected: record.plan.rejected,
     annotated: record.plan.annotated,
   });
-  const limitsTask = limits ? { limits: { maxBytes: limits.maxBytes } } : {};
+  const limitsTask = limits ? { limits } : {};
 
   return {
     async preview({ kind, path }) {
