@@ -93,6 +93,18 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.materials.pageImage': [2],
   'texts.materials.pageReference': ['Inferencia — capítulos 1 a 4', 2],
   'texts.materials.sectionReference': ['notas', 'Dispersión'],
+  'texts.materials.snapshot.savedOn': [
+    'https://es.wikipedia.org/wiki/Mediana_(estadística)',
+    '15/03/2027',
+  ],
+  'texts.materials.review.readySections': [3],
+  'texts.materials.review.pageLabel': [7],
+  'texts.materials.review.derivedAsk': [2],
+  'texts.materials.review.derivedUpdate': [2],
+  'texts.materials.review.derivedUpdated': [2],
+  'texts.materials.coverage.summary': [
+    { total: 12, ready: 9, review: 2, pending: 1, error: 0, excluded: 0 },
+  ],
   'texts.notes.topics.withCount': ['Media y dispersión', 2],
   'texts.notes.topics.detailsTitle': ['Regresión'],
   'texts.notes.topics.notesCount': [3],

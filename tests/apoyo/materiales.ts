@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path';
 import type { Clock, Stopwatch } from '../../src/core/clock';
 import type { Workspace } from '../../src/data/workspace';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
+import type { NetGate } from '../../src/main/net-gate';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
 import type { Space } from './espacio';
@@ -59,13 +60,16 @@ export function openMaterials(
     timeouts,
     stopwatch,
     interrupt,
+    net,
   }: {
     execute?: (task: MaterialsTask) => Promise<unknown>;
     runnerId?: string;
-    timeouts?: Partial<Record<'validate' | 'extract' | 'document', number>>;
+    timeouts?: Partial<Record<'validate' | 'extract' | 'document' | 'ocr', number>>;
     stopwatch?: Stopwatch;
     // Cómo se corta la tarea en curso (en Retenia, el supervisor corta el proceso de trabajo).
     interrupt?: () => void;
+    // La puerta hacia internet (Fase 14): por defecto, la real; las pruebas de páginas web la reemplazan.
+    net?: NetGate;
   } = {},
 ): OpenMaterials {
   const executed: string[] = [];
@@ -82,6 +86,7 @@ export function openMaterials(
     ...(timeouts ? { timeouts } : {}),
     ...(stopwatch ? { stopwatch } : {}),
     ...(interrupt ? { interrupt } : {}),
+    ...(net ? { net } : {}),
   });
   return { service, executed, events };
 }

@@ -65,10 +65,18 @@ describe('el tipo sale del contenido', () => {
       ok: false,
       problem: 'unsupported',
     });
-    expect(of(bytes('<!doctype html>\n<html><body>Hola</body></html>'), 'pagina.html')).toEqual({
-      ok: false,
-      problem: 'unsupported',
+  });
+
+  // Fase 14 (H-28, CA-119): una página web guardada como .html ya es un tipo que se lee.
+  it('[CA-119] una página web (.html) es de tipo «web», por su contenido y no por su nombre', () => {
+    const html = bytes('<!doctype html>\n<html><body>Hola</body></html>');
+    expect(of(html, 'pagina.html')).toEqual({ ok: true, kind: 'web' });
+    expect(of(html, 'pagina.txt')).toEqual({ ok: true, kind: 'web' });
+    expect(of(bytes('  <HTML lang="es"><head></head></HTML>'), 'x.dat')).toEqual({
+      ok: true,
+      kind: 'web',
     });
+    expect(extensionFor('web')).toBe('html');
   });
 
   it('una foto con nombre de PDF es un PDF que no se puede leer', () => {

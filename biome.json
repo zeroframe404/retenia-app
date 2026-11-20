@@ -9,7 +9,8 @@
       "!**/out",
       "!**/.cache",
       "!**/datos-locales",
-      "!**/src/data/migrations/meta"
+      "!**/src/data/migrations/meta",
+      "!**/datos-de-ejemplo/trampa-script.html"
     ]
   },
   "formatter": {

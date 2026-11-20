@@ -167,6 +167,8 @@ describe('«Hacer copia ahora»', () => {
       '0007_sesion_de_estudio',
       '0008_busqueda',
       '0009_materiales',
+      '0010_revision_de_materiales',
+      '0011_previous_text_de_correcciones',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12 y fase-13.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13 y fase-14.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -857,6 +857,85 @@ async function phase13(page) {
   await shoot(page, '11-sesion-original');
 }
 
+// Fase 14: la Revisión (los tres bloques), la corrección con sus tarjetas, el mapa de cobertura,
+// el escaneo reconocido, páginas excluidas y una página web con su instantánea y sin conexión.
+/** @param {import('@playwright/test').Page} page */
+async function phase14(page) {
+  // Una ventana alta, para que las pantallas largas (la revisión) entren enteras en la captura.
+  await page.setViewportSize({ width: 1100, height: 1500 });
+  const samples = join(ROOT, 'datos-de-ejemplo');
+  const main = page.getByRole('main');
+  await goToDestination(page, 'Materiales');
+  const inference = main.getByRole('button', { name: /Inferencia/ });
+  await inference.filter({ hasText: 'Listo' }).waitFor({ timeout: 90_000 });
+  await inference.click();
+  await page.getByRole('button', { name: 'Revisión' }).click();
+  await page.getByRole('heading', { name: 'Con problemas (2)' }).waitFor();
+  await shoot(page, '1-revision');
+  // Corregir la tabla de la página 7.
+  const table = page
+    .getByRole('region', { name: /Con problemas/ })
+    .getByRole('listitem')
+    .first();
+  await table.getByRole('button', { name: 'Corregir texto' }).click();
+  const field = table.getByRole('textbox', { name: 'Texto corregido' });
+  await field.fill((await field.inputValue()).replace('2,228', '2,229'));
+  await shoot(page, '2-corregir-texto');
+  await table.getByRole('button', { name: 'Guardar corrección' }).click();
+  await page.getByText('2 tarjetas usan este texto. ¿Actualizarlas?').waitFor();
+  await shoot(page, '3-tarjetas-que-usan-el-texto');
+  await page.getByRole('button', { name: 'Ahora no' }).click();
+  // El mapa de cobertura.
+  await page.getByRole('button', { name: 'Mapa de cobertura' }).click();
+  await shoot(page, '4-mapa-de-cobertura');
+  // El escaneo de la página 9, reconocido.
+  await page.getByRole('button', { name: 'Intentar reconocimiento' }).click();
+  await page
+    .getByRole('region', { name: 'No extraído' })
+    .getByText('Nada por acá.')
+    .waitFor({ timeout: 90_000 });
+  await shoot(page, '5-pagina-9-reconocida');
+  // La página 12, excluida.
+  await page.getByRole('button', { name: 'Página 12 Lista' }).click();
+  await page.getByRole('button', { name: 'Estudiar sin estas páginas' }).waitFor();
+  await shoot(page, '6-visor-con-barra-de-pagina');
+  await page.getByRole('button', { name: 'Estudiar sin estas páginas' }).click();
+  await page.getByText('Excluida').first().waitFor();
+  await shoot(page, '7-pagina-excluida');
+  // Una página web desde un archivo, con su instantánea.
+  await page.getByRole('button', { name: 'Volver a la revisión' }).click();
+  await page.getByRole('button', { name: 'Volver al material' }).click();
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Agregar material' });
+  await dialog.getByRole('button', { name: 'Dirección web' }).click();
+  await shoot(page, '8-agregar-direccion-web');
+  await dialog.getByRole('button', { name: 'Elegir archivo' }).click();
+  await dialog.getByLabel('Elegir archivo').setInputFiles(join(samples, 'pagina.html'));
+  const web = main.getByRole('button', { name: /teorema central/ });
+  await web.filter({ hasText: 'Listo' }).waitFor({ timeout: 60_000 });
+  await web.click();
+  await shoot(page, '9-pagina-web');
+  await page.getByRole('button', { name: 'Leer el original' }).click();
+  await page.getByRole('button', { name: 'Instantánea' }).click();
+  await page.locator('iframe').waitFor();
+  await shoot(page, '10-instantanea');
+  // Sin conexión: una dirección queda pendiente.
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('checkbox', { name: 'Simular sin conexión' }).check();
+  await goToDestination(page, 'Materiales');
+  await page.getByRole('button', { name: 'Agregar material' }).click();
+  const second = page.getByRole('dialog', { name: 'Agregar material' });
+  await second.getByRole('button', { name: 'Dirección web' }).click();
+  await second
+    .getByRole('textbox', { name: 'Dirección de la página' })
+    .fill('https://es.wikipedia.org/wiki/Mediana_(estadística)');
+  await second.getByRole('button', { name: 'Agregar' }).click();
+  const pending = main.getByRole('button', { name: /wikipedia/ });
+  await pending.filter({ hasText: 'Pendiente' }).waitFor({ timeout: 30_000 });
+  await pending.click();
+  await shoot(page, '11-pendiente-sin-conexion');
+}
+
 let { app, page } = await launch(
   {},
   name !== 'fase-06' &&
@@ -864,10 +943,13 @@ let { app, page } = await launch(
     name !== 'fase-10' &&
     name !== 'fase-11' &&
     name !== 'fase-12' &&
-    name !== 'fase-13',
+    name !== 'fase-13' &&
+    name !== 'fase-14',
 );
 try {
-  if (name === 'fase-13') {
+  if (name === 'fase-14') {
+    await phase14(page);
+  } else if (name === 'fase-13') {
     await phase13(page);
   } else if (name === 'fase-12') {
     await phase12(page);

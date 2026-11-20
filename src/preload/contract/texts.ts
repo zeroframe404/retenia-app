@@ -33,6 +33,15 @@ function lateDays(days: number): string {
   return `${decimalFormat.format(shown)} ${shown === 1 ? 'día' : 'días'}`;
 }
 
+// La dirección de una página como se lee (sin los %C3%AD de las letras con tilde).
+const readable = (address: string) => {
+  try {
+    return decodeURI(address);
+  } catch {
+    return address;
+  }
+};
+
 export const texts = {
   appName: 'Retenia',
   appNameTest: 'Retenia (prueba)',
@@ -310,6 +319,7 @@ export const texts = {
       partial: 'Parcialmente procesado',
       review: 'Requiere revisión',
       error: 'Error',
+      pendingNetwork: 'Pendiente: se descarga cuando haya conexión',
     },
     partialDetail: (read: number, total: number) => `Leímos ${read} de ${total} páginas`,
     version: (number: number) => `versión ${number}`,
@@ -331,6 +341,11 @@ export const texts = {
       empty: 'Este archivo está vacío',
       tooLarge: 'Este archivo es demasiado grande',
       copyFailed: 'No pudimos guardar una copia de este archivo',
+      webBlocked:
+        'Esta página pide iniciar sesión o pagar. Retenia no se salta eso: pegá el texto o elegí un archivo.',
+      webNotPage: 'Esta dirección no es una página web que Retenia pueda guardar.',
+      webEmpty: 'Esta página no tiene texto que guardar.',
+      webUnreachable: 'No pudimos bajar esta página: no existe o no responde.',
     },
     duplicate: (name: string, date: string) => `Parece que ya agregaste “${name}” el ${date}`,
     openExisting: 'Abrir el existente',
@@ -362,6 +377,134 @@ export const texts = {
     notFound: 'No encontramos esta cita en el original',
     pageReference: (title: string, page: number) => `${title} · página ${page}`,
     sectionReference: (title: string, section: string) => `${title} · ${section}`,
+    // Páginas web (Fase 14).
+    addWebAddress: 'Dirección web',
+    webAddressLabel: 'Dirección de la página',
+    webAddressInvalid: 'Pegá una dirección que empiece con http:// o https://.',
+    snapshot: {
+      view: 'Instantánea',
+      text: 'Texto',
+      frameLabel: 'Instantánea de la página guardada',
+      savedOn: (address: string | null, date: string) =>
+        address
+          ? `Instantánea de ${readable(address)} · guardada el ${date}`
+          : `Instantánea guardada el ${date}`,
+    },
+    // «Revisión» de un material (Fase 14).
+    review: {
+      open: 'Revisión',
+      title: 'Revisión',
+      back: 'Volver al material',
+      backToReview: 'Volver a la revisión',
+      ready: 'Listo',
+      readySections: (count: number) => (count === 1 ? '1 sección' : `${count} secciones`),
+      problems: 'Con problemas',
+      notExtracted: 'No extraído',
+      excluded: 'Excluidas',
+      nothingHere: 'Nada por acá.',
+      pageLabel: (page: number) => `Página ${page}`,
+      signals: {
+        possibleTable: 'Posible tabla',
+        possibleFormula: 'Posible fórmula',
+        anomalousChars: 'Posibles caracteres raros',
+        lowCoverage: 'Posible texto faltante',
+        lowConfidence: 'Reconocimiento dudoso',
+      },
+      actions: {
+        viewOriginal: 'Ver original',
+        correctText: 'Corregir texto',
+        markAsImage: 'Marcar como imagen',
+        ignore: 'Ignorar',
+        recognize: 'Intentar reconocimiento',
+        studyWithout: 'Estudiar sin estas páginas',
+        reprocess: 'Reprocesar esta página',
+        includeAgain: 'Volver a incluir esta página',
+        undo: 'Deshacer',
+      },
+      resolutions: {
+        corrected: 'Corregido',
+        image: 'Marcado como imagen',
+        ignored: 'Ignorado',
+        conflict: 'En conflicto',
+      },
+      reasons: {
+        none: 'Sin texto: parece un escaneo.',
+        sparse: 'Casi sin texto para el tamaño de la página.',
+        pending: 'Todavía se está leyendo.',
+        error: 'No se pudo leer esta página.',
+      },
+      recognizing: 'Reconociendo el texto…',
+      originalText: 'Texto original',
+      correctedText: 'Texto corregido',
+      saveCorrection: 'Guardar corrección',
+      cancelCorrection: 'Cancelar',
+      savedCorrection: 'Corrección guardada. El original no cambió.',
+      derivedAsk: (count: number) =>
+        count === 1
+          ? '1 tarjeta usa este texto. ¿Actualizarla?'
+          : `${count} tarjetas usan este texto. ¿Actualizarlas?`,
+      derivedUpdate: (count: number) => (count === 1 ? 'Actualizarla' : 'Actualizarlas'),
+      derivedLater: 'Ahora no',
+      derivedUpdated: (count: number) =>
+        count === 1 ? 'Actualicé 1 tarjeta.' : `Actualicé ${count} tarjetas.`,
+      conflict: {
+        explain: 'El texto de base de esta página cambió después de tu corrección.',
+        mine: 'Tu corrección',
+        current: 'Texto nuevo de la página',
+        keepMine: 'Mantener mi corrección',
+        useNew: 'Usar el texto nuevo',
+      },
+      readFirst: 'Leer la sección 1',
+      readAll: 'Leer el material',
+      stagesLabel: 'Etapas de este material',
+    },
+    // El mapa de cobertura: cada página con color y palabra, y el resumen.
+    coverage: {
+      open: 'Mapa de cobertura',
+      close: 'Cerrar el mapa',
+      label: 'Páginas del material',
+      words: {
+        ready: 'Lista',
+        review: 'Revisar',
+        pending: 'Pendiente',
+        error: 'Error',
+        excluded: 'Excluida',
+      },
+      summary: (counts: {
+        total: number;
+        ready: number;
+        review: number;
+        pending: number;
+        error: number;
+        excluded: number;
+      }) => {
+        const parts = [
+          `${counts.ready} de ${counts.total} ${counts.total === 1 ? 'página lista' : 'páginas listas'}`,
+        ];
+        if (counts.review > 0) {
+          parts.push(`${counts.review} para revisar`);
+        }
+        if (counts.pending > 0) {
+          parts.push(counts.pending === 1 ? '1 pendiente' : `${counts.pending} pendientes`);
+        }
+        if (counts.error > 0) {
+          parts.push(`${counts.error} con error`);
+        }
+        if (counts.excluded > 0) {
+          parts.push(counts.excluded === 1 ? '1 excluida' : `${counts.excluded} excluidas`);
+        }
+        return parts.join(' · ');
+      },
+      sectionsLabel: 'Estado por sección',
+    },
+    sectionStates: {
+      ready: 'Lista',
+      processing: 'En proceso',
+      problems: 'Con problemas',
+      excluded: 'Excluida',
+    },
+    // La tarjeta cuya fuente se corrigió (aviso discreto en la sesión).
+    sourceChanged: 'El origen cambió',
   },
   // Ajustes › «Apariencia».
   appearance: {

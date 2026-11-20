@@ -4,7 +4,7 @@ import { decodeText, looksLikeMarkdown } from './text';
 // CA-108). La extensión solo sirve para una cosa: si el nombre dice PDF o Word y el contenido no
 // lo es, el archivo miente y se rechaza.
 
-export type MaterialKind = 'pdf' | 'docx' | 'md' | 'text';
+export type MaterialKind = 'pdf' | 'docx' | 'md' | 'text' | 'web';
 
 type IdentifyProblem = 'empty' | 'unsupported' | 'notPdf' | 'notWord';
 
@@ -112,8 +112,12 @@ export function identifyContent({
     return { ok: false, problem: 'unsupported' };
   }
   const text = decodeText(head, { partial: size > head.length });
-  if (text === null || isHtml(text)) {
+  if (text === null) {
     return { ok: false, problem: 'unsupported' };
+  }
+  // Una página web (H-28): el tipo sale de lo que tiene adentro, no del nombre.
+  if (isHtml(text)) {
+    return { ok: true, kind: 'web' };
   }
   // Un archivo chico que solo tiene espacios y renglones vacíos está vacío.
   if (size <= head.length && text.trim() === '') {
@@ -126,6 +130,6 @@ export function identifyContent({
 }
 
 // La extensión con que se guarda el original de cada tipo.
-export function extensionFor(kind: MaterialKind): 'pdf' | 'docx' | 'md' | 'txt' {
-  return kind === 'text' ? 'txt' : kind;
+export function extensionFor(kind: MaterialKind): 'pdf' | 'docx' | 'md' | 'txt' | 'html' {
+  return kind === 'text' ? 'txt' : kind === 'web' ? 'html' : kind;
 }

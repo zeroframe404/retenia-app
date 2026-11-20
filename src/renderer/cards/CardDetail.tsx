@@ -160,6 +160,9 @@ export function CardDetailView({
           {sheet.source === '' ? null : <li>{texts.cards.sourceLine(sheet.source)}</li>}
         </ul>
         {card.cite ? <blockquote className={styles.citeQuote}>{card.cite.quote}</blockquote> : null}
+        {card.cite?.changed ? (
+          <BannerEstado tone="info">{texts.materials.sourceChanged}</BannerEstado>
+        ) : null}
         {card.cite?.status === 'relocate' ? (
           <BannerEstado tone="pending">{texts.materials.relocate}</BannerEstado>
         ) : null}

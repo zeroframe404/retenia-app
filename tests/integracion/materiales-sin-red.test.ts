@@ -90,6 +90,60 @@ describe('sin red', () => {
     }
   });
 
+  // Fase 14 (CA-120): jsdom (que usan readability y DOMPurify para guardar páginas web) carga
+  // undici, que pide módulos de red para existir. El guardián deja pasar solo esos pedidos de
+  // undici; los módulos siguen sin poder conectarse a nada.
+  it('[CA-120] jsdom carga dentro del proceso guardado y, aun así, nada puede conectarse', async () => {
+    const calls: string[] = [];
+    const server = createServer((request, response) => {
+      calls.push(request.url ?? '');
+      response.end();
+    });
+    server.on('connection', () => calls.push('conexión'));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const { port } = server.address() as AddressInfo;
+      const href = (file: string) => new URL(`file:///${file.replaceAll('\\', '/')}`).href;
+      const jsdom = href(join(ROOT, 'node_modules', 'jsdom', 'lib', 'api.js'));
+      const script = `
+        await import(${JSON.stringify(href(GUARD))});
+        const results = {};
+        const attempt = async (name, work) => {
+          try { await work(); results[name] = 'conectó'; } catch { results[name] = 'bloqueado'; }
+        };
+        const { JSDOM } = await import(${JSON.stringify(jsdom)});
+        results.jsdom = new JSDOM('<p>hola</p>').window.document.body.textContent;
+        const url = 'http://127.0.0.1:${port}/robo';
+        await attempt('fetch', () => fetch(url));
+        await attempt('http', async () => { const http = await import('node:http'); await new Promise((ok, ko) => http.get(url, ok).on('error', ko)); });
+        await attempt('net', async () => { const net = await import('node:net'); await new Promise((ok, ko) => net.connect(${port}, '127.0.0.1', ok).on('error', ko)); });
+        await attempt('jsdom con recursos', async () => { await JSDOM.fromURL(url); });
+        process.stdout.write(JSON.stringify(results));
+      `;
+      const output = await new Promise<string>((resolve) => {
+        const running = spawn(process.execPath, ['--input-type=module', '-e', script], {
+          env: cleanEnv(),
+          windowsHide: true,
+        });
+        let stdout = '';
+        running.stdout.on('data', (chunk) => {
+          stdout += chunk;
+        });
+        running.on('close', () => resolve(stdout));
+      });
+      expect(JSON.parse(output)).toEqual({
+        jsdom: 'hola',
+        fetch: 'bloqueado',
+        http: 'bloqueado',
+        net: 'bloqueado',
+        'jsdom con recursos': 'bloqueado',
+      });
+      expect(calls).toEqual([]);
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
   it('el guardián es lo primero que carga el proceso de materiales', () => {
     const entry = readFileSync(join(ROOT, 'src', 'main', 'workers', 'materials.ts'), 'utf8');
     const firstImport = entry.split('\n').find((line) => line.startsWith('import'));

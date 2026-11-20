@@ -197,6 +197,8 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0007_sesion_de_estudio' },
       { id: '0008_busqueda' },
       { id: '0009_materiales' },
+      { id: '0010_revision_de_materiales' },
+      { id: '0011_previous_text_de_correcciones' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([

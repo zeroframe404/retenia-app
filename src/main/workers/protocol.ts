@@ -22,7 +22,7 @@ export const voiceTask = z.discriminatedUnion('kind', [
 ]);
 
 // La cadena de los materiales (Fase 13): las piezas que viajan entre etapas.
-const format = z.enum(['pdf', 'docx', 'md', 'text']);
+const format = z.enum(['pdf', 'docx', 'md', 'text', 'web']);
 const boxSchema = z.strictObject({
   page: z.number().int().positive(),
   x: z.number(),
@@ -69,6 +69,8 @@ const pdfExtractSchema = z.strictObject({
   images: z.array(
     z.strictObject({ x: z.number(), y: z.number(), width: z.number(), height: z.number() }),
   ),
+  // Fase 14: la página salió de un reconocimiento (tesseract.js) y con qué confianza (0 a 100).
+  ocr: z.strictObject({ confidence: z.number() }).optional(),
 });
 const outlineSchema = z.array(
   z.strictObject({
@@ -104,6 +106,10 @@ export const materialsTask = z.discriminatedUnion('kind', [
     format,
     file: folder,
     unit: z.number().int().positive(),
+    // Fase 14: reconocer el escaneo en lugar de leer la capa de texto (con la carpeta de trabajo
+    // donde tesseract.js deja los datos de idioma).
+    ocr: z.boolean().optional(),
+    workDir: folder.optional(),
   }),
   // La estructura: de lo extraído, los bloques con su tipo.
   z.strictObject({
@@ -130,7 +136,13 @@ export const validateResult = z.union([
     outline: outlineSchema,
   }),
   z.strictObject({
-    unreadable: z.enum(['pdfUnreadable', 'wordUnreadable', 'textUnreadable', 'unsupported']),
+    unreadable: z.enum([
+      'pdfUnreadable',
+      'wordUnreadable',
+      'textUnreadable',
+      'unsupported',
+      'tooLarge',
+    ]),
   }),
 ]);
 export const extractResult = z.union([
@@ -140,6 +152,14 @@ export const extractResult = z.union([
     drafts: z.array(draftSchema),
     tool: z.unknown(),
   }),
+  // Una página web: sus bloques y la instantánea saneada (o que no tiene texto que guardar).
+  z.strictObject({
+    format: z.literal('web'),
+    drafts: z.array(draftSchema),
+    snapshot: z.strictObject({ title: z.string(), html: z.string() }),
+    tool: z.unknown(),
+  }),
+  z.strictObject({ format: z.literal('web'), unreadable: z.literal('webEmpty') }),
 ]);
 export const structureResult = z.strictObject({ drafts: z.array(draftSchema) });
 export const normalizeResult = z.strictObject({
@@ -178,6 +198,11 @@ export const TOOLS = {
   docx: { tool: 'mammoth', toolVersion: '1.13.0' },
   md: { tool: 'retenia-markdown', toolVersion: '1' },
   text: { tool: 'retenia-texto', toolVersion: '1' },
+  web: {
+    tool: 'retenia-web',
+    toolVersion: 'readability-0.6.0+dompurify-3.4.17+jsdom-30.1.2+1',
+  },
+  ocr: { tool: 'tesseract.js', toolVersion: '7.0.0' },
   structure: { tool: 'retenia-estructura', toolVersion: '1' },
   normalize: { tool: 'retenia-normalizacion', toolVersion: '1' },
 } as const;

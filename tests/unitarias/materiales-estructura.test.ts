@@ -328,3 +328,65 @@ describe('[CA-107] Word: títulos por estilo', () => {
     ]);
   });
 });
+
+describe('una página reconocida (escaneo) dentro de un PDF', () => {
+  const textPage = page(1, [
+    item('Capítulo 1 · Población', 80, { size: 17, bold: true }),
+    item('La estadística trabaja casi siempre con información incompleta.', 120),
+    item('Ese conjunto completo se llama población y casi nunca se conoce.', 136.5),
+    item('El muestreo al azar es la herramienta que hace posible lo demás.', 170),
+  ]);
+
+  const moreText = page(3, [
+    item(
+      'Un estimador es una regla para calcular un estadístico que se usa en lugar de un parámetro.',
+      120,
+    ),
+    item(
+      'La media muestral cumple las dos condiciones cuando la muestra es al azar y es grande.',
+      136.5,
+    ),
+    item(
+      'Una imagen útil es la de los tiros al blanco: sesgo y variabilidad son cosas distintas.',
+      170,
+    ),
+    item(
+      'Queremos un tirador sin sesgo y con poca variabilidad, es decir, que tire cerca del centro.',
+      186.5,
+    ),
+  ]);
+
+  // La letra de un escaneo no se mide igual que la de un PDF con texto: sus renglones son un poco
+  // más altos, aunque sean el cuerpo del texto.
+  const scanned = {
+    ...page(4, [
+      item('Capítulo 4 · Pruebas de hipótesis', 80, { size: 20, family: '' }),
+      item('Una prueba de hipótesis es una forma ordenada de decidir si los datos', 140, {
+        size: 14,
+        family: '',
+      }),
+      item('de una muestra alcanzan para dudar de una afirmación.', 158, { size: 14, family: '' }),
+      item('La afirmación que se pone a prueba se llama hipótesis nula.', 200, {
+        size: 14,
+        family: '',
+      }),
+      item('Suele decir que no hay efecto o que no hay diferencia.', 218, { size: 14, family: '' }),
+    ]),
+    ocr: { confidence: 93 },
+  };
+
+  it('[CA-114] sus renglones del cuerpo son párrafos y solo su título es sección', () => {
+    const blocks = structurePdf([textPage, moreText, scanned], []);
+    const onScan = blocks.filter((block) => block.unit === 4);
+    expect(onScan.filter((block) => block.type === 'section')).toHaveLength(1);
+    expect(onScan.filter((block) => block.type === 'paragraph').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('[CA-114] sin la marca de reconocimiento, la misma página sí se leería con títulos de más', () => {
+    const { ocr: _ocr, ...plain } = scanned;
+    const blocks = structurePdf([textPage, moreText, plain], []);
+    expect(
+      blocks.filter((block) => block.unit === 4 && block.type === 'section').length,
+    ).toBeGreaterThan(1);
+  });
+});

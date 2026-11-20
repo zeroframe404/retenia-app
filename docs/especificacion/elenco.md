@@ -63,7 +63,7 @@ Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para l
 
 ## Materiales
 
-- **«Inferencia — capítulos 1 a 4.pdf»**, 12 páginas. Página 7: una tabla, con texto mal leído usado por 2 tarjetas. Página 9: escaneo sin texto. Página 11: una fórmula mal leída. Sección 1: unas 600 palabras. Cobertura: 9 listas · 2 para revisar · 1 pendiente. Nunca enviado a la IA (CA-172). Agregado el lunes 08/03/2027 (Fase 13); se lee solo al abrir Retenia.
+- **«Inferencia — capítulos 1 a 4.pdf»**, 12 páginas. Página 7: una tabla, con texto mal leído usado por 2 tarjetas (desde la Fase 14, las del valor crítico z al 95 % y al 90 %, que citan la fila «infinito» de la tabla). Página 9: escaneo sin texto. Página 11: una fórmula mal leída. Sección 1: unas 600 palabras. Cobertura: 9 listas · 2 para revisar · 1 pendiente. Nunca enviado a la IA (CA-172). Agregado el lunes 08/03/2027 (Fase 13); se lee solo al abrir Retenia.
 - **«Apunte 3.pdf»**, agregado el 12/03/2027 (CA-106).
 
 ## Historia argentina

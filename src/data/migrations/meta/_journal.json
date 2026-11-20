@@ -71,6 +71,20 @@
       "when": 1795135427666,
       "tag": "0009_materiales",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1795173515048,
+      "tag": "0010_revision_de_materiales",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1795176433239,
+      "tag": "0011_previous_text_de_correcciones",
+      "breakpoints": true
     }
   ]
 }

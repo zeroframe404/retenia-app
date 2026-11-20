@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { blocksFromDocx } from '../../core/materials/docx-tree';
 import { normalizeDocument } from '../../core/materials/normalize';
 import { structurePdf } from '../../core/materials/structure';
 import { decodeText, readMarkdown, readPlainText } from '../../core/materials/text';
+import { MAX_WEB_BYTES } from '../../core/materials/web-address';
 import { checkDocx, readDocx } from '../../ingest/docx';
 import {
   extractPdfPage,
@@ -37,6 +39,80 @@ async function pdfOf(file: string): Promise<OpenPdf> {
   }
 }
 
+// Reconocer una página escaneada (Fase 14): se dibuja su imagen más grande, tesseract.js lee cada
+// renglón con su caja y todo vuelve con la forma de una página de PDF con texto, así la cadena de
+// después (estructura, normalización, bloques) es la misma. La confianza viaja aparte.
+async function ocrExtraction(file: string, unit: number, workDir: string) {
+  const data = new Uint8Array(await readFile(file));
+  const layer = await extractPdfPage(await pdfOf(file), unit);
+  const image = await pdfPageImage(data, unit);
+  const { recognizeLines } = await import('../../ingest/ocr');
+  const recognized = image
+    ? await recognizeLines(image, { workDir })
+    : { text: '', confidence: 0, lines: [] };
+  const box = layer.images.reduce<{ x: number; y: number; width: number; height: number } | null>(
+    (largest, candidate) =>
+      !largest || candidate.width * candidate.height > largest.width * largest.height
+        ? candidate
+        : largest,
+    null,
+  ) ?? { x: 0, y: 0, width: layer.width, height: layer.height };
+  const scaleX = image ? box.width / image.width : 1;
+  const scaleY = image ? box.height / image.height : 1;
+  // La altura de letra que mide tesseract varía un poco de un renglón a otro del mismo párrafo: lo
+  // que está cerca de la altura del texto común se toma como esa altura, así la estructura no
+  // confunde un renglón con un título.
+  const heights = recognized.lines.map((line) => line.rowHeight * scaleY).sort((a, b) => a - b);
+  const body = heights[Math.floor(heights.length / 2)] ?? 1;
+  const sizeOf = (rowHeight: number) => {
+    const height = rowHeight * scaleY;
+    return Math.max(1, Math.round(Math.abs(height - body) / body < 0.2 ? body : height));
+  };
+  const items = recognized.lines.map((line) => ({
+    text: line.text,
+    x: box.x + line.x0 * scaleX,
+    y: box.y + line.y0 * scaleY,
+    width: Math.max(1, (line.x1 - line.x0) * scaleX),
+    height: Math.max(1, (line.y1 - line.y0) * scaleY),
+    size: sizeOf(line.rowHeight),
+    bold: false,
+    fontFamily: '',
+    fontName: '',
+  }));
+  return {
+    format: 'pdf' as const,
+    page: {
+      page: unit,
+      width: layer.width,
+      height: layer.height,
+      items,
+      images: [],
+      ocr: { confidence: Math.max(0, Math.min(100, recognized.confidence)) },
+    },
+    tool: { text: recognized.text, confidence: recognized.confidence, lines: recognized.lines },
+  };
+}
+
+// Una página web guardada (Fase 14): el contenido principal, saneado, con sus bloques.
+async function readWeb(file: string) {
+  const bytes = new Uint8Array(await readFile(file));
+  const html = decodeText(bytes);
+  if (html === null) {
+    throw new Error('La página dejó de ser legible');
+  }
+  const { snapshotWeb } = await import('../../ingest/web');
+  const snapshot = snapshotWeb(html);
+  if (!snapshot) {
+    return { format: 'web' as const, unreadable: 'webEmpty' as const };
+  }
+  return {
+    format: 'web' as const,
+    drafts: snapshot.drafts,
+    snapshot: { title: snapshot.title, html: snapshot.html },
+    tool: { title: snapshot.title },
+  };
+}
+
 async function readFlow(format: 'docx' | 'md' | 'text', file: string) {
   const data = await readFile(file);
   if (format === 'docx') {
@@ -57,13 +133,8 @@ export async function runMaterialsTask(raw: unknown): Promise<unknown> {
       return readPdfPage(new Uint8Array(await readFile(task.file)), task.page);
     case 'ocrPdfPage': {
       const image = await pdfPageImage(new Uint8Array(await readFile(task.file)), task.page);
-      // El reconocimiento de escaneos (tesseract.js) se carga recién acá y solo en la variante de
-      // prueba (el Laboratorio): la versión real todavía no lo trae (llega con la Fase 14), ni
-      // siquiera compilado.
-      const { recognize } =
-        __VARIANTE__ === 'prueba'
-          ? await import('../../ingest/ocr')
-          : { recognize: (): Promise<string> => Promise.reject(new Error('Sin escaneos todavía')) };
+      // El reconocimiento de escaneos (tesseract.js) se carga recién acá.
+      const { recognize } = await import('../../ingest/ocr');
       return { text: image ? await recognize(image, { workDir: task.workDir }) : '' };
     }
     case 'validate': {
@@ -88,16 +159,26 @@ export async function runMaterialsTask(raw: unknown): Promise<unknown> {
         }
         return { units: [{ unit: 1, width: null, height: null }], outline: [] };
       }
-      const text = decodeText(new Uint8Array(await readFile(task.file)));
+      const bytes = new Uint8Array(await readFile(task.file));
+      if (task.format === 'web' && bytes.length > MAX_WEB_BYTES) {
+        return { unreadable: 'tooLarge' };
+      }
+      const text = decodeText(bytes);
       return text === null
         ? { unreadable: 'textUnreadable' }
         : { units: [{ unit: 1, width: null, height: null }], outline: [] };
     }
     case 'extract': {
       if (task.format === 'pdf') {
+        if (task.ocr) {
+          return ocrExtraction(task.file, task.unit, task.workDir ?? tmpdir());
+        }
         const extraction = await extractPdfPage(await pdfOf(task.file), task.unit);
         const { tool, ...page } = extraction;
         return { format: 'pdf', page: { page: task.unit, ...page }, tool };
+      }
+      if (task.format === 'web') {
+        return readWeb(task.file);
       }
       return { format: task.format, ...(await readFlow(task.format, task.file)) };
     }

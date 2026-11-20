@@ -383,3 +383,10 @@
   flex-wrap: wrap;
   gap: var(--espacio-12);
 }
+
+/* «El origen cambió»: un aviso discreto, sin color de alarma y sin bloquear nada (Fase 14). */
+.sourceChanged {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}

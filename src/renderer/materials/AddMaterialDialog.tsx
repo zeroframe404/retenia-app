@@ -9,7 +9,7 @@ import { Dialog } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import styles from './Materials.module.css';
 
-export type AddMode = 'files' | 'paste';
+export type AddMode = 'files' | 'paste' | 'web';
 
 // «Agregar material» (H-25): arrastrar archivos, «Elegir archivo» o «Pegar texto». La materia
 // activa viene preseleccionada y «Más opciones» (el título) queda plegado.
@@ -32,6 +32,7 @@ export function AddMaterialDialog({
   const [more, setMore] = useState(false);
   const [title, setTitle] = useState('');
   const [text, setText] = useState('');
+  const [address, setAddress] = useState('');
   const [busy, setBusy] = useState(false);
   // Por qué no se pudo agregar lo elegido (null: nada que decir).
   const [failed, setFailed] = useState<string | null>(null);
@@ -59,8 +60,32 @@ export function AddMaterialDialog({
     }
   }
 
+  async function addAddress(raw: string) {
+    if (raw.trim() === '' || busy) {
+      return;
+    }
+    setBusy(true);
+    setFailed(null);
+    try {
+      const result = await window.retenia['materials.addUrl']({
+        subjectId,
+        address: raw.trim(),
+        title: title.trim() || undefined,
+      });
+      onAdded([result]);
+    } catch {
+      setFailed(texts.materials.webAddressInvalid);
+      setBusy(false);
+    }
+  }
+
   async function addText() {
     if (text.trim() === '' || busy) {
+      return;
+    }
+    // Una dirección pegada como texto es una página web, no un texto de estudio.
+    if (/^https?:\/\/\S+$/iu.test(text.trim())) {
+      await addAddress(text);
       return;
     }
     setBusy(true);
@@ -132,8 +157,27 @@ export function AddMaterialDialog({
                 <span>{texts.materials.chooseFile}</span>
               </label>
               <Boton onClick={() => setMode('paste')}>{texts.materials.pasteText}</Boton>
+              <Boton onClick={() => setMode('web')}>{texts.materials.addWebAddress}</Boton>
             </div>
           </fieldset>
+        ) : mode === 'web' ? (
+          <div className={form.field}>
+            <label htmlFor={`${ids}-direccion`}>{texts.materials.webAddressLabel}</label>
+            <input
+              id={`${ids}-direccion`}
+              type="text"
+              inputMode="url"
+              value={address}
+              maxLength={2048}
+              ref={(element) => element?.focus()}
+              onChange={(event) => setAddress(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  void addAddress(address);
+                }
+              }}
+            />
+          </div>
         ) : (
           <div className={form.field}>
             <label htmlFor={`${ids}-texto`}>{texts.materials.textLabel}</label>
@@ -173,6 +217,14 @@ export function AddMaterialDialog({
         {mode === 'paste' ? (
           <div className={styles.actions}>
             <Boton variant="primary" busy={busy} onClick={() => void addText()}>
+              {texts.materials.addText}
+            </Boton>
+            <Boton onClick={() => setMode('files')}>{texts.materials.chooseFile}</Boton>
+          </div>
+        ) : null}
+        {mode === 'web' ? (
+          <div className={styles.actions}>
+            <Boton variant="primary" busy={busy} onClick={() => void addAddress(address)}>
               {texts.materials.addText}
             </Boton>
             <Boton onClick={() => setMode('files')}>{texts.materials.chooseFile}</Boton>

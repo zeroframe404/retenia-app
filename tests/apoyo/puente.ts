@@ -8,6 +8,7 @@ import {
   type Variant,
 } from '../../src/main/bridge';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
+import type { NetGate } from '../../src/main/net-gate';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
 import { buildApi, type Invoke } from '../../src/preload/api';
@@ -49,7 +50,10 @@ export function openBridge({
   stopwatch,
   withCast = false,
   holdExtraction,
+  net,
 }: {
+  // La puerta hacia internet (Fase 14): la de las pruebas de páginas web.
+  net?: NetGate;
   // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez).
   withCast?: boolean;
   clock?: Clock;
@@ -82,6 +86,7 @@ export function openBridge({
     },
     // Con el elenco, los materiales sembrados quedan «Recibido»: las pruebas que lo usan no los leen.
     autoStart: !withCast,
+    ...(net ? { net } : {}),
   });
   const opened: string[] = [];
   const handlers = createHandlers({

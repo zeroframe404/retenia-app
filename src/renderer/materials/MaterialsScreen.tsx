@@ -10,6 +10,7 @@ import { AddMaterialDialog, type AddMode } from './AddMaterialDialog';
 import { isCancelled, isWorking, partialText, problemText, stagesOf, stateText } from './describe';
 import styles from './Materials.module.css';
 import { MaterialViewer, type OpenTarget } from './MaterialViewer';
+import { ReviewView } from './ReviewView';
 
 // Materiales (H-25): la lista de los materiales de la materia que mirás, cada uno con su estado
 // («Recibido», «Procesando n de N», «Listo», «Parcialmente procesado», «Requiere revisión»,
@@ -46,9 +47,14 @@ export function MaterialsScreen({
 }) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<{ materialId: string; target: OpenTarget | null } | null>(
-    null,
-  );
+  const [viewing, setViewing] = useState<{
+    materialId: string;
+    target: OpenTarget | null;
+    // Se abrió desde la revisión: «Volver» lleva de vuelta a ella.
+    fromReview?: boolean;
+  } | null>(null);
+  // La revisión de un material (Fase 14): se abre desde el detalle y vuelve a él.
+  const [reviewing, setReviewing] = useState<string | null>(null);
   const [adding, setAdding] = useState<AddMode | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
   const [progress, setProgress] = useState(0);
@@ -179,7 +185,7 @@ export function MaterialsScreen({
         title={texts.nav.materials}
         focusTitle={focusTitle}
         actions={
-          viewing ? null : (
+          viewing || reviewing ? null : (
             <Boton variant="primary" onClick={() => setAdding('files')}>
               {texts.materials.add}
             </Boton>
@@ -196,7 +202,17 @@ export function MaterialsScreen({
             target={viewing.target}
             refreshKey={progress}
             onBack={() => setViewing(null)}
+            backLabel={viewing.fromReview ? texts.materials.review.backToReview : undefined}
             onInboxCount={onInboxCount}
+            onChanged={() => void load()}
+          />
+        ) : reviewing ? (
+          <ReviewView
+            materialId={reviewing}
+            refreshKey={progress}
+            onBack={() => setReviewing(null)}
+            onRead={(target) => setViewing({ materialId: reviewing, target, fromReview: true })}
+            onChanged={() => void load()}
           />
         ) : (
           <div className={styles.layout}>
@@ -234,6 +250,7 @@ export function MaterialsScreen({
               <MaterialDetailPanel
                 material={selected}
                 onRead={() => setViewing({ materialId: selected.id, target: null })}
+                onReview={() => setReviewing(selected.id)}
                 onCancel={() => void act('materials.cancel', selected.id)}
                 onResume={() => void act('materials.resume', selected.id)}
                 onChooseAnother={() => setAdding('files')}
@@ -281,6 +298,7 @@ export function MaterialsScreen({
 function MaterialDetailPanel({
   material,
   onRead,
+  onReview,
   onCancel,
   onResume,
   onChooseAnother,
@@ -289,6 +307,7 @@ function MaterialDetailPanel({
 }: {
   material: MaterialSummary;
   onRead: () => void;
+  onReview: () => void;
   onCancel: () => void;
   onResume: () => void;
   onChooseAnother: () => void;
@@ -297,10 +316,21 @@ function MaterialDetailPanel({
 }) {
   const problem = problemText(material.state);
   const partial = partialText(material.state);
+  const waiting = material.state.kind === 'pendingNetwork';
   return (
     <section className={styles.detail} aria-label={material.title}>
       <h3 className={styles.detailTitle}>{material.title}</h3>
-      {problem ? (
+      {waiting ? (
+        <>
+          <BannerEstado tone="pending">{texts.materials.states.pendingNetwork}</BannerEstado>
+          {material.sourceUrl ? <p className={styles.webInfo}>{material.sourceUrl}</p> : null}
+          <div className={styles.actions}>
+            <Boton variant="quiet" onClick={onDismiss}>
+              {texts.materials.dismiss}
+            </Boton>
+          </div>
+        </>
+      ) : problem ? (
         <>
           <BannerEstado tone="info">{problem}</BannerEstado>
           <div className={styles.actions}>
@@ -315,8 +345,17 @@ function MaterialDetailPanel({
         <>
           <EtapasProcesamiento stages={stagesOf(material)} />
           {partial ? <p className={styles.partial}>{partial}</p> : null}
+          {material.kind === 'web' ? (
+            <p className={styles.webInfo}>
+              {texts.materials.snapshot.savedOn(
+                material.sourceUrl,
+                material.snapshotDay ? formatShortDate(material.snapshotDay) : '',
+              )}
+            </p>
+          ) : null}
           <div className={styles.actions}>
             <Boton onClick={onRead}>{texts.materials.readOriginal}</Boton>
+            <Boton onClick={onReview}>{texts.materials.review.open}</Boton>
             {isWorking(material.state) ? (
               <Boton onClick={onCancel}>{texts.materials.cancel}</Boton>
             ) : null}

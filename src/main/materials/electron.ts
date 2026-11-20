@@ -3,6 +3,7 @@ import { app, powerMonitor, protocol, utilityProcess } from 'electron';
 import type { Clock } from '../../core/clock';
 import type { Workspace } from '../../data/workspace';
 import type { MaterialEvent } from '../../preload/contract/events';
+import type { NetGate } from '../net-gate';
 import { createWorkerClient, type WorkerProcess } from '../supervisor';
 import { ORIGINAL_SCHEME, serveOriginal } from './original-protocol';
 import { isOriginalExtension } from './originals';
@@ -39,10 +40,12 @@ export function startMaterials({
   clock,
   slow,
   send,
+  net,
 }: {
   workspace: Workspace;
   clock: Clock;
   slow?: () => boolean;
+  net: NetGate;
   send: (event: MaterialEvent) => void;
 }): { service: MaterialsService; begin: () => void; stop: () => Promise<void> } {
   const here = import.meta.dirname;
@@ -65,6 +68,7 @@ export function startMaterials({
     clock,
     execute: (task, timeoutMs) => worker.request(task, timeoutMs),
     emit: send,
+    net,
     ...(slow ? { slow } : {}),
     autoStart: false,
     interrupt: () => worker.interrupt?.('crashed'),

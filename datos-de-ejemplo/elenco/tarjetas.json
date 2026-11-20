@@ -401,12 +401,20 @@
             {
               "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 95 %?",
               "p": "d",
-              "a": "1,96."
+              "a": "1,96.",
+              "cita": {
+                "pagina": 7,
+                "texto": "infinito\t1,645\t1,960\t2,576"
+              }
             },
             {
               "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 90 %?",
               "p": "s",
-              "a": "1,645."
+              "a": "1,645.",
+              "cita": {
+                "pagina": 7,
+                "texto": "infinito\t1,645\t1,960\t2,576"
+              }
             },
             {
               "q": "¿Qué valor crítico z corresponde a un nivel de confianza del 99 %?",

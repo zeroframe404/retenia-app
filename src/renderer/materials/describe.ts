@@ -22,6 +22,8 @@ export function stateText(state: MaterialStateView): string {
       return texts.materials.states.review;
     case 'error':
       return texts.materials.states.error;
+    case 'pendingNetwork':
+      return texts.materials.states.pendingNetwork;
   }
 }
 
@@ -45,7 +47,7 @@ function stageText(stage: StageItem): string {
   }
 }
 
-export function stagesOf(material: MaterialSummary): Stage[] {
+export function stagesOf(material: Pick<MaterialSummary, 'stages'>): Stage[] {
   return material.stages.map((stage) => ({ text: stageText(stage), status: stage.status }));
 }
 

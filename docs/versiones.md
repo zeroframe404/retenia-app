@@ -45,9 +45,9 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | tesseract.js, tesseract.js-core | 7.0.0 | 13/10/2026 | Apache-2.0 | Reconocimiento de escaneos en WebAssembly, sin internet con datos locales; hilos de trabajo en Node. Comprobado en la Fase 05: en Node carga siempre el núcleo completo (un error de la 7.0.0), así que viaja ese; su script de instalación (un aviso de donaciones) queda denegado. |
 | @tesseract.js-data/eng, @tesseract.js-data/spa | 1.0.0 | 17/10/2026 | MIT | Los datos de inglés y español que tesseract.js usa por defecto (versión entera comprimida, 2,9 y 2,1 MB), del mismo proyecto (naptha/tessdata). Publicados en 2023: son datos que no cambian. Van en el instalador (tu pedido de la Fase 05), no en la descarga única. |
 | mammoth | 1.13.0 | 13/10/2026 | BSD-2-Clause | Word a texto con títulos, activo. Instalado en la Fase 13 (19/11/2026). |
-| @mozilla/readability | 0.6.0 | 13/10/2026 | Apache-2.0 | Extrae el texto principal de una página web; es el de Firefox. |
-| jsdom | 30.1.2 | 13/10/2026 | MIT | DOM en Node para readability y DOMPurify; también entorno de las pruebas de componentes. |
-| dompurify | 3.4.17 | 13/10/2026 | MPL-2.0 o Apache-2.0 | Sanea el HTML de las instantáneas web; documentado con jsdom. |
+| @mozilla/readability | 0.6.0 | 13/10/2026 | Apache-2.0 | Extrae el texto principal de una página web; es el de Firefox. Instalado en la Fase 14 (20/11/2026): repositorio oficial de Mozilla (`mozilla/readability`), publicado desde 2015. |
+| jsdom | 30.1.2 | 13/10/2026 | MIT | DOM en Node para readability y DOMPurify; también entorno de las pruebas de componentes. Desde la Fase 14 (20/11/2026) viaja con el programa (pasó de desarrollo a dependencia) porque el proceso de materiales lo usa para leer páginas web; se carga con el guardián sin red (excepción de `undici`: `docs/decisiones.md`, Fase 14). |
+| dompurify | 3.4.17 | 13/10/2026 | MPL-2.0 o Apache-2.0 | Sanea el HTML de las instantáneas web; documentado con jsdom. Instalado en la Fase 14 (20/11/2026): repositorio oficial de Cure53 (`cure53/DOMPurify`), publicado desde 2014. Salió la 3.4.18 el 14/11/2026: se queda la verificada. |
 | yauzl | 3.4.0 | 13/10/2026 | MIT | Lee comprimidos por partes y rechaza nombres con `..`, rutas absolutas y barras invertidas. Instalado en la Fase 13 (19/11/2026), con `@types/yauzl` 3.4.0 para desarrollo. |
 | yazl | 3.3.1 | 13/10/2026 | MIT | Escribe comprimidos por partes (exportaciones y copias). |
 | **Voz** | | | | |

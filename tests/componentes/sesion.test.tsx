@@ -306,3 +306,54 @@ describe('la fuente desde la sesión (Fase 13)', () => {
     expect(progress()).toBeTruthy();
   });
 });
+
+describe('una fuente corregida desde la sesión (Fase 14)', () => {
+  it('[CA-115] una tarjeta cuyo origen se corrigió y no se actualizó muestra el aviso discreto «El origen cambió» sin bloquear nada', async () => {
+    const opened = openWindow();
+    const { api, bridge, user } = opened;
+    const subject = await api['subjects.create']({ name: 'Estadística básica', makeActive: true });
+    const quote = 'El desvío estándar mide cuánto se alejan los datos de la media.';
+    const added = await api['materials.addText']({
+      subjectId: subject.id,
+      text: `Dispersión\n\n${quote}`,
+    });
+    if (added.outcome !== 'added') {
+      throw new Error('no se agregó');
+    }
+    await bridge.materials.whenIdle();
+    const page = await api['materials.page']({ materialId: added.materialId, unit: 1 });
+    const block = page.blocks.find((each) => each.text === quote);
+    await api['materials.createCard']({
+      materialId: added.materialId,
+      selection: {
+        from: { blockId: block?.id ?? '', offset: 0 },
+        to: { blockId: block?.id ?? '', offset: quote.length },
+      },
+      question: '¿Qué mide el desvío?',
+      answer: 'Cuánto se alejan los datos de la media.',
+    });
+    // Se corrige el texto del material y se elige no actualizar la tarjeta.
+    const { correctionId } = await api['materials.correctText']({
+      materialId: added.materialId,
+      blockId: block?.id ?? '',
+      text: quote.replace('media', 'mediana'),
+    });
+    await api['materials.updateDerived']({ correctionId, update: false });
+    render(<App />);
+    await waitFor(
+      () =>
+        expect(screen.getByRole('button', { name: 'Empezar' }).hasAttribute('disabled')).toBe(
+          false,
+        ),
+      SLOW,
+    );
+    await user.click(screen.getByRole('button', { name: 'Empezar' }));
+    await screen.findByText('¿Qué mide el desvío?', {}, SLOW);
+    expect(screen.queryByText('El origen cambió')).toBeNull();
+    await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }));
+    const notice = await screen.findByText('El origen cambió', {}, SLOW);
+    // Un aviso aparte, no una alerta: no bloquea y la tarjeta se puede calificar igual.
+    expect(notice.closest('[role="alert"]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'La sabía' })).toBeTruthy();
+  });
+});

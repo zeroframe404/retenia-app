@@ -5,6 +5,7 @@ import type { Clock } from '../../src/core/clock';
 import { handleMessage } from '../../src/main/bridge';
 import { createDemoHandlers } from '../../src/main/demo';
 import { createDemoDate } from '../../src/main/demo/clock';
+import type { NetGate } from '../../src/main/net-gate';
 import { buildApi } from '../../src/preload/api';
 import { demoChannels } from '../../src/preload/contract/demo';
 import { sample } from '../apoyo/materiales';
@@ -21,13 +22,15 @@ export function openWindow(
   {
     withCast = false,
     holdExtraction,
-  }: { withCast?: boolean; holdExtraction?: () => Promise<void> } = {},
+    net,
+  }: { withCast?: boolean; holdExtraction?: () => Promise<void>; net?: NetGate } = {},
 ) {
   vi.stubGlobal('__VARIANTE__', variant);
   const bridge = openBridge({
     ...(clock === undefined ? {} : { clock }),
     withCast,
     ...(holdExtraction ? { holdExtraction } : {}),
+    ...(net ? { net } : {}),
   });
   bridges.push(bridge);
   // El puente de archivos (simulado): en jsdom un archivo elegido no tiene ruta en el disco, así

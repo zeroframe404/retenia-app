@@ -24,6 +24,8 @@ export interface PdfPageExtract {
   items: PdfTextItem[];
   // Las cajas de las imágenes de la página.
   images: { x: number; y: number; width: number; height: number }[];
+  // La página salió de un reconocimiento de escaneo (Fase 14), con su confianza.
+  ocr?: { confidence: number } | undefined;
 }
 
 export interface OutlineEntry {
@@ -175,17 +177,32 @@ export function structurePdf(
   outline: readonly OutlineEntry[],
 ): BlockDraft[] {
   const perPage = pages.map((page) => ({ page, lines: linesOf(page) }));
-  const allLines = perPage.flatMap((entry) => entry.lines);
+  // El cuerpo del documento sale de sus páginas con texto; las reconocidas (escaneos) se miden con
+  // su propia letra, que no es la misma escala, y se llevan a la del cuerpo.
+  const withText = perPage.filter((entry) => !entry.page.ocr).flatMap((entry) => entry.lines);
+  const reference = withText.length > 0 ? withText : perPage.flatMap((entry) => entry.lines);
   const bodySize =
     majority(
-      allLines.map((line) => round(line.size)),
-      allLines.map((line) => line.text.length),
+      reference.map((line) => round(line.size)),
+      reference.map((line) => line.text.length),
     ) ?? 11;
   const bodyFamily =
     majority(
-      allLines.map((line) => line.family),
-      allLines.map((line) => line.text.length),
+      reference.map((line) => line.family),
+      reference.map((line) => line.text.length),
     ) ?? '';
+  for (const entry of perPage.filter((candidate) => candidate.page.ocr)) {
+    const own =
+      majority(
+        entry.lines.map((line) => round(line.size)),
+        entry.lines.map((line) => line.text.length),
+      ) ?? bodySize;
+    for (const line of entry.lines) {
+      line.size = round((line.size * bodySize) / own);
+      line.family = bodyFamily;
+    }
+  }
+  const allLines = perPage.flatMap((entry) => entry.lines);
 
   // Lo que se repite arriba o abajo de dos páginas o más.
   const marginCounts = new Map<string, number>();

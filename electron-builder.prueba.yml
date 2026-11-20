@@ -26,12 +26,15 @@ files:
   - "!node_modules/pdfjs-dist/{webpack.mjs,legacy/webpack.mjs,README.md,CODE_OF_CONDUCT.md}"
   - "!node_modules/@napi-rs/**"
   # tesseract.js usa el fetch de Node: su respaldo node-fetch y lo que arrastra no hacen falta.
-  - "!node_modules/{node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall}/**"
+  - "!node_modules/{node-fetch,opencollective-postinstall}/**"
   # Lo que tesseract.js usa solo en el navegador.
   - "!node_modules/{zlibjs,idb-keyval}/**"
   # De tesseract.js-core, solo los núcleos que carga en Node: tesseract.js 7.0.0 elige siempre
   # el completo (no el «solo LSTM») sin importar el modo pedido. De los idiomas, solo la versión
   # entera comprimida que usa (no la grande).
+  # De tesseract.js no hacen falta su documentación, sus ejemplos ni sus herramientas de desarrollo.
+  - "!node_modules/tesseract.js/{docs,examples,scripts,karma.conf.js}/**"
+  - "!node_modules/tesseract.js/karma.conf.js"
   - "!node_modules/tesseract.js-core/*.wasm.js"
   - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}-lstm.{js,wasm}"
   - "!node_modules/@tesseract.js-data/*/4.0.0/**"
@@ -62,6 +65,10 @@ extraResources:
     to: "datos-de-ejemplo/resumen.docx"
   - from: "datos-de-ejemplo/no-es-un-pdf.pdf"
     to: "datos-de-ejemplo/no-es-un-pdf.pdf"
+  - from: "datos-de-ejemplo/pagina.html"
+    to: "datos-de-ejemplo/pagina.html"
+  - from: "datos-de-ejemplo/trampa-script.html"
+    to: "datos-de-ejemplo/trampa-script.html"
 npmRebuild: false
 compression: normal
 artifactName: Retenia-prueba-instalador-${version}.${ext}

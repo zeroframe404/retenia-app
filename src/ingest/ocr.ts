@@ -28,10 +28,7 @@ function toPgm(image: GrayImage): Uint8Array {
   return file;
 }
 
-export async function recognize(
-  image: GrayImage,
-  { workDir }: { workDir: string },
-): Promise<string> {
+async function createWorker(workDir: string) {
   const languages = join(workDir, 'idiomas');
   mkdirSync(languages, { recursive: true });
   // Se copia a un archivo aparte y se renombra al final; uno que quedó a medias (un corte, el
@@ -44,14 +41,77 @@ export async function recognize(
       renameSync(`${target}.parcial`, target);
     }
   }
-  const worker = await Tesseract.createWorker([...LANGUAGES], Tesseract.OEM.LSTM_ONLY, {
+  return Tesseract.createWorker([...LANGUAGES], Tesseract.OEM.LSTM_ONLY, {
     langPath: languages,
     cacheMethod: 'none',
     gzip: true,
   });
+}
+
+export async function recognize(
+  image: GrayImage,
+  { workDir }: { workDir: string },
+): Promise<string> {
+  const worker = await createWorker(workDir);
   try {
     const { data } = await worker.recognize(Buffer.from(toPgm(image)));
     return data.text.trim();
+  } finally {
+    await worker.terminate();
+  }
+}
+
+interface RecognizedLine {
+  text: string;
+  // De 0 a 100.
+  confidence: number;
+  // En puntos de la imagen.
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  // La altura de la letra, que sirve para distinguir un título del texto.
+  rowHeight: number;
+}
+
+export interface Recognized {
+  text: string;
+  confidence: number;
+  lines: RecognizedLine[];
+}
+
+// Lo mismo, con cada renglón, su caja y su confianza (la lectura de materiales, Fase 14).
+export async function recognizeLines(
+  image: GrayImage,
+  { workDir }: { workDir: string },
+): Promise<Recognized> {
+  const worker = await createWorker(workDir);
+  try {
+    const { data } = await worker.recognize(
+      Buffer.from(toPgm(image)),
+      {},
+      { text: true, blocks: true },
+    );
+    const lines: RecognizedLine[] = [];
+    for (const block of data.blocks ?? []) {
+      for (const paragraph of block.paragraphs) {
+        for (const line of paragraph.lines) {
+          const text = line.text.replace(/\s+/gu, ' ').trim();
+          if (text !== '') {
+            lines.push({
+              text,
+              confidence: line.confidence,
+              x0: line.bbox.x0,
+              y0: line.bbox.y0,
+              x1: line.bbox.x1,
+              y1: line.bbox.y1,
+              rowHeight: line.rowAttributes?.rowHeight ?? line.bbox.y1 - line.bbox.y0,
+            });
+          }
+        }
+      }
+    }
+    return { text: data.text.trim(), confidence: data.confidence, lines };
   } finally {
     await worker.terminate();
   }
