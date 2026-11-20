@@ -31,11 +31,11 @@ export interface OpenTarget {
 
 const A4 = { width: 595, height: 842 };
 
-// El documento de la instantánea: el fragmento saneado dentro de una página con una política que
-// no deja cargar ni ejecutar nada (la propia política de la ventana ya lo impide; esta es la
-// segunda barrera), y solo estilos propios.
+// El documento de la instantánea: el fragmento saneado en una página con una política que no deja
+// cargar ni ejecutar nada. Hereda además la de la ventana (sin estilos propios, sin scripts), así que
+// se ve con el estilo común del navegador: lo que importa es el texto.
 function snapshotDocument(fragment: string): string {
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;padding:16px;font:16px/1.6 system-ui,sans-serif;color:CanvasText;background:Canvas}table{border-collapse:collapse}td,th{border:1px solid GrayText;padding:4px 8px}pre{white-space:pre-wrap}</style></head><body>${fragment}</body></html>`;
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'"></head><body>${fragment}</body></html>`;
 }
 const HIDDEN: readonly MaterialBlockView['type'][] = ['header', 'footer'];
 

@@ -265,10 +265,13 @@ describe('lo que depende de un texto corregido', () => {
       text: table.normalizedText.replace('2,228', '2,229'),
     });
     expect(opened.service.sourceChange({ cardId })).toEqual({ changed: true });
+    // La ficha y la sesión lo leen de la cita: «el origen cambió».
+    expect(space.workspace.cards.get({ cardId }).cite?.changed).toBe(true);
 
     expect(opened.service.updateDerived({ correctionId, update: true })).toEqual({ updated: 1 });
 
     expect(opened.service.sourceChange({ cardId })).toEqual({ changed: false });
+    expect(space.workspace.cards.get({ cardId }).cite?.changed).toBe(false);
     const opens = opened.service.open({ materialId, cardId });
     expect(opens.notFound).toBe(false);
     expect(opens.unit).toBe(7);
@@ -286,6 +289,7 @@ describe('lo que depende de un texto corregido', () => {
     });
     expect(opened.service.updateDerived({ correctionId, update: false })).toEqual({ updated: 0 });
     expect(opened.service.sourceChange({ cardId })).toEqual({ changed: true });
+    expect(space.workspace.cards.get({ cardId }).cite?.changed).toBe(true);
     // La tarjeta sigue siendo la misma: ni su pregunta ni su respuesta se tocaron.
     expect(
       readRows(space.file, "SELECT count(*) AS n FROM observations WHERE kind = 'card.edited'"),

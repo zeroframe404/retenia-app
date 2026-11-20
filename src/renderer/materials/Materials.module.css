@@ -588,3 +588,7 @@
   border: var(--trazo-lleno) var(--color-linea);
   border-radius: var(--radio-8);
 }
+
+.textColumn[hidden] {
+  display: none;
+}

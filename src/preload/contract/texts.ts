@@ -33,6 +33,15 @@ function lateDays(days: number): string {
   return `${decimalFormat.format(shown)} ${shown === 1 ? 'día' : 'días'}`;
 }
 
+// La dirección de una página como se lee (sin los %C3%AD de las letras con tilde).
+const readable = (address: string) => {
+  try {
+    return decodeURI(address);
+  } catch {
+    return address;
+  }
+};
+
 export const texts = {
   appName: 'Retenia',
   appNameTest: 'Retenia (prueba)',
@@ -378,7 +387,7 @@ export const texts = {
       frameLabel: 'Instantánea de la página guardada',
       savedOn: (address: string | null, date: string) =>
         address
-          ? `Instantánea de ${address} · guardada el ${date}`
+          ? `Instantánea de ${readable(address)} · guardada el ${date}`
           : `Instantánea guardada el ${date}`,
     },
     // «Revisión» de un material (Fase 14).

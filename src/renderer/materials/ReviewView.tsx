@@ -264,6 +264,7 @@ export function ReviewView({
                     type="button"
                     className={styles.cell}
                     data-word={entry.word}
+                    aria-label={`${t.pageLabel(entry.unit)} ${word}`}
                     onClick={() => onRead({ unit: entry.unit })}
                   >
                     <span className={styles.cellNumber}>{t.pageLabel(entry.unit)}</span>

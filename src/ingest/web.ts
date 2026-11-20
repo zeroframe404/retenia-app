@@ -94,6 +94,9 @@ const NOT_CONTENT =
   'script,style,noscript,template,link,meta,iframe,object,embed,form,input,button,select,textarea,svg,canvas,audio,video,dialog,[hidden]';
 // Menos que esto no es un artículo: puede ser un menú o un cartel.
 const MIN_ARTICLE_CHARS = 40;
+// Lo que se saca siempre, también antes de elegir el artículo: los «[editar]» de Wikipedia, lo que no
+// se imprime y los índices y cuadros de navegación.
+const ALWAYS_NOISE = '.mw-editsection,.noprint,.navbox,.toc,#toc';
 const NOISE =
   'nav,aside,header,footer,.navbox,.mw-editsection,.noprint,.toc,#toc,.sidebar,.advertisement,.ad';
 
@@ -223,7 +226,7 @@ function draftsOf(root: DomElement): BlockDraft[] {
 
 function cleaned(html: string): { document: DomDocument; title: string } {
   const document = documentOf(html);
-  for (const node of Array.from(document.querySelectorAll(NOT_CONTENT))) {
+  for (const node of Array.from(document.querySelectorAll(`${NOT_CONTENT},${ALWAYS_NOISE}`))) {
     node.remove();
   }
   return { document, title: collapse(document.title) };
