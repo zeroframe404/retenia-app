@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path';
-import { app, Notification, net, shell, systemPreferences, utilityProcess } from 'electron';
+import { app, Notification, shell, systemPreferences, utilityProcess } from 'electron';
 import { systemStopwatch } from '../../core/clock';
+import type { NetGate } from '../net-gate';
 import { createNotifier } from '../notifications';
 import { createWorkerClient } from '../supervisor';
 import { MODEL_FILES, MODELS_ORIGIN } from '../voice-models/manifest';
@@ -39,9 +40,11 @@ export function prepareLabSwitches(): void {
 export function startLab({
   dataDir,
   bringToFront,
+  gate,
 }: {
   dataDir: string;
   bringToFront: () => void;
+  gate: NetGate;
 }): { handlers: LabHandlers; stop: () => void } {
   const here = import.meta.dirname;
   const worker = (file: string, serviceName: string) =>
@@ -56,7 +59,7 @@ export function startLab({
       : join(dataDir, 'modelos'),
     files: MODEL_FILES,
     origin: process.env.RETENIA_MODELOS_ORIGEN ?? MODELS_ORIGIN,
-    fetch: (url, init) => net.fetch(url, init),
+    fetch: (url, init) => gate.fetch(String(url), init),
   });
   const samplePdf = join(samplesDirectory(), SAMPLE_PDF);
   const handlers = createLabHandlers({
@@ -66,6 +69,7 @@ export function startLab({
     models,
     voice,
     materials,
+    net: gate,
     notifier: createNotifier({
       create: (options) => new Notification(options),
       bringToFront,

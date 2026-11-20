@@ -7,7 +7,7 @@ import type {
   MaterialPage,
   MaterialSelection,
 } from '../../preload/contract/materials';
-import { texts } from '../../preload/contract/texts';
+import { formatShortDate, texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import { Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -25,9 +25,18 @@ export interface OpenTarget {
   cardId?: string;
   blockId?: string;
   text?: string;
+  // Abrir en esta página (la de un problema de la revisión, una casilla del mapa).
+  unit?: number;
 }
 
 const A4 = { width: 595, height: 842 };
+
+// El documento de la instantánea: el fragmento saneado dentro de una página con una política que
+// no deja cargar ni ejecutar nada (la propia política de la ventana ya lo impide; esta es la
+// segunda barrera), y solo estilos propios.
+function snapshotDocument(fragment: string): string {
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;padding:16px;font:16px/1.6 system-ui,sans-serif;color:CanvasText;background:Canvas}table{border-collapse:collapse}td,th{border:1px solid GrayText;padding:4px 8px}pre{white-space:pre-wrap}</style></head><body>${fragment}</body></html>`;
+}
 const HIDDEN: readonly MaterialBlockView['type'][] = ['header', 'footer'];
 
 interface Picked {
@@ -102,12 +111,15 @@ export function MaterialViewer({
   target,
   onBack,
   onInboxCount,
+  onChanged,
   refreshKey,
 }: {
   materialId: string;
   target: OpenTarget | null;
   onBack: () => void;
   onInboxCount?: ((count: number) => void) | undefined;
+  // Se excluyó o se volvió a leer una página: la lista de materiales se vuelve a pedir.
+  onChanged?: (() => void) | undefined;
   // Cambia cuando el material avanza (un aviso del principal): se vuelve a pedir la página.
   refreshKey: number;
 }) {
@@ -122,6 +134,13 @@ export function MaterialViewer({
   const [toast, setToast] = useState('');
   // Las páginas del original, contadas al abrirlo: sirve mientras Retenia todavía no lo leyó.
   const [pagesInFile, setPagesInFile] = useState(0);
+  // Una página web se ve como texto o como la instantánea guardada (Fase 14).
+  const [asSnapshot, setAsSnapshot] = useState(false);
+  const [snapshot, setSnapshot] = useState<{
+    html: string;
+    address: string | null;
+    savedDay: string;
+  } | null>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const isPdf = detail?.kind === 'pdf';
   const bytes = useOriginal(materialId, isPdf);
@@ -133,7 +152,7 @@ export function MaterialViewer({
       try {
         const found = await window.retenia['materials.get']({ materialId });
         let start = 1;
-        if (target && (target.cardId || target.blockId || target.text)) {
+        if (target && (target.cardId || target.blockId || target.text || target.unit)) {
           const open = await window.retenia['materials.open']({ materialId, ...target });
           if (alive) {
             setOpened(open);
@@ -218,6 +237,46 @@ export function MaterialViewer({
     );
   };
 
+  const isWeb = detail?.kind === 'web';
+  useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+    let alive = true;
+    window.retenia['materials.snapshot']({ materialId }).then(
+      (found) => {
+        if (alive) {
+          setSnapshot(found);
+        }
+      },
+      (error: unknown) => {
+        console.error('La ventana no pudo leer la instantánea por el puente', error);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [materialId, isWeb]);
+
+  // Reprocesar una página o dejarla afuera de lo que se estudia (Fase 14).
+  async function pageAction(action: 'reprocess' | 'exclude' | 'include', current: number) {
+    try {
+      if (action === 'reprocess') {
+        await window.retenia['materials.reprocessPage']({ materialId, unit: current });
+      } else {
+        await window.retenia['materials.excludePages']({
+          materialId,
+          units: [current],
+          excluded: action === 'exclude',
+        });
+      }
+      onChanged?.();
+      await loadPage(current);
+    } catch (error: unknown) {
+      console.error('La ventana no pudo cambiar la página por el puente', error);
+    }
+  }
+
   async function saveExcerpt() {
     if (!picked) {
       return;
@@ -268,7 +327,39 @@ export function MaterialViewer({
             </Boton>
           </div>
         ) : null}
+        {isWeb ? (
+          <div className={styles.pager}>
+            <Boton aria-pressed={!asSnapshot} onClick={() => setAsSnapshot(false)}>
+              {texts.materials.snapshot.text}
+            </Boton>
+            <Boton aria-pressed={asSnapshot} onClick={() => setAsSnapshot(true)}>
+              {texts.materials.snapshot.view}
+            </Boton>
+          </div>
+        ) : null}
       </div>
+      {isWeb && snapshot ? (
+        <p className={styles.webInfo}>
+          {texts.materials.snapshot.savedOn(snapshot.address, formatShortDate(snapshot.savedDay))}
+        </p>
+      ) : null}
+      {isPdf && page ? (
+        <div className={styles.pageToolbar}>
+          {page.excluded ? (
+            <span className={styles.chip} data-state="excluded">
+              {texts.materials.coverage.words.excluded}
+            </span>
+          ) : null}
+          <Boton onClick={() => void pageAction('reprocess', unit)}>
+            {texts.materials.review.actions.reprocess}
+          </Boton>
+          <Boton onClick={() => void pageAction(page.excluded ? 'include' : 'exclude', unit)}>
+            {page.excluded
+              ? texts.materials.review.actions.includeAgain
+              : texts.materials.review.actions.studyWithout}
+          </Boton>
+        </div>
+      ) : null}
       {opened?.notFound ? (
         <BannerEstado tone="pending">{texts.materials.notFound}</BannerEstado>
       ) : null}
@@ -288,7 +379,17 @@ export function MaterialViewer({
             />
           </div>
         ) : null}
-        <div className={styles.textColumn}>
+        {isWeb && asSnapshot && snapshot ? (
+          <iframe
+            className={styles.snapshotFrame}
+            title={texts.materials.snapshot.frameLabel}
+            // Sin permisos de ningún tipo: ni scripts, ni formularios, ni mismo origen.
+            sandbox=""
+            referrerPolicy="no-referrer"
+            srcDoc={snapshotDocument(snapshot.html)}
+          />
+        ) : null}
+        <div className={styles.textColumn} hidden={isWeb && asSnapshot}>
           {picked ? (
             <div className={styles.selectionActions}>
               <Boton onClick={() => setCreating(true)}>{texts.materials.createCard}</Boton>

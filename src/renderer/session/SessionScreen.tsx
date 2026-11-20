@@ -69,9 +69,12 @@ export function SessionScreen({
   // Si la tarjeta salió de un material, después de mostrar la respuesta se puede ver el original
   // (antes no: la cita puede decir la respuesta).
   const [citedMaterial, setCitedMaterial] = useState<string | null>(null);
+  // «El origen cambió»: el texto del material se corrigió y esta tarjeta no se actualizó.
+  const [sourceChanged, setSourceChanged] = useState(false);
   const cardId = current?.cardId ?? null;
   useEffect(() => {
     setCitedMaterial(null);
+    setSourceChanged(false);
     if (!answerShown || cardId === null || !onOpenOriginal) {
       return;
     }
@@ -80,6 +83,7 @@ export function SessionScreen({
       .then((card) => {
         if (alive) {
           setCitedMaterial(card.cite?.materialId ?? null);
+          setSourceChanged(card.cite?.changed === true);
         }
       })
       .catch(() => undefined);
@@ -425,6 +429,11 @@ export function SessionScreen({
                   <div className={styles.side}>
                     <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
                     <CardFace content={current.card.answerContent} />
+                    {sourceChanged ? (
+                      <p className={styles.sourceChanged} role="note">
+                        {texts.materials.sourceChanged}
+                      </p>
+                    ) : null}
                     {citedMaterial && onOpenOriginal ? (
                       <Boton
                         variant="quiet"

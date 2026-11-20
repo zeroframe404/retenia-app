@@ -63,7 +63,7 @@ export function applyCorrections(
   return { texts, outcomes };
 }
 
-export type DiffKind = 'figure' | 'sign' | 'unit' | 'text';
+type DiffKind = 'figure' | 'sign' | 'unit' | 'text';
 
 export interface DiffSegment {
   text: string;

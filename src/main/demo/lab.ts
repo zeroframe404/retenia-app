@@ -6,6 +6,7 @@ import { locatePhrase } from '../../core/highlight';
 import { heardText } from '../../core/speech';
 import { demoTexts } from '../../preload/contract/demo-texts';
 import type { labChannels } from '../../preload/contract/lab';
+import { createNetGate, type NetGate } from '../net-gate';
 import type { Notifier } from '../notifications';
 import { type WorkerClient, WorkerProblem } from '../supervisor';
 import { type ModelStore, ModelsError, type ModelsProblem } from '../voice-models/store';
@@ -33,6 +34,8 @@ export interface LabDeps {
   voice: WorkerClient;
   materials: WorkerClient;
   notifier: Notifier;
+  // La puerta hacia internet de todo Retenia: «Simular sin conexión» la cierra.
+  net?: NetGate;
   microphoneAccess: () => 'granted' | 'denied';
   openMicrophoneSettings: () => Promise<void>;
 }
@@ -65,9 +68,10 @@ export function microphoneAccess(
 const voiceProblem = (error: unknown) =>
   error instanceof WorkerProblem && error.problem === 'noModels' ? 'noModels' : 'failed';
 
-export function createLabHandlers(deps: LabDeps): LabHandlers {
+export function createLabHandlers(given: LabDeps): LabHandlers {
+  const net = given.net ?? createNetGate();
+  const deps = given;
   const state = {
-    offline: false,
     downloading: false,
     progress: { doneBytes: 0, totalBytes: 0 },
     problem: null as ModelsProblem | null,
@@ -105,10 +109,10 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
   };
 
   return {
-    'demo.connection': async () => ({ offline: state.offline }),
+    'demo.connection': async () => ({ offline: net.isOffline() }),
     'demo.setConnection': async ({ offline }) => {
-      state.offline = offline;
-      return { offline };
+      net.setOffline(offline);
+      return { offline: net.isOffline() };
     },
     'demo.lab.modelsStatus': async () => modelsStatus(),
     'demo.lab.downloadModels': async () => {
@@ -118,7 +122,7 @@ export function createLabHandlers(deps: LabDeps): LabHandlers {
         state.progress = deps.models.status();
         deps.models
           .download({
-            offline: state.offline,
+            offline: net.isOffline(),
             onProgress: (progress) => {
               state.progress = progress;
             },

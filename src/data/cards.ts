@@ -275,7 +275,7 @@ function detailOf(db: Writer, row: CardRow): CardDetail {
     linked: row.origin === 'note' && canOpenNote,
     detached: row.detachedAt !== null,
     hasHistory: hasHistoryOf(db, row.id),
-    cite: describeCite(db, row.sourceCite),
+    cite: describeCite(db, row.sourceCite, row.id),
   };
 }
 

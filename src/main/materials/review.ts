@@ -102,7 +102,7 @@ const resolutionOf = (
 
 // Los problemas de un material: uno por cada bloque con señal y uno por cada página con una señal
 // propia (poco texto para su tamaño, reconocimiento dudoso). Un problema resuelto sigue en la lista.
-export function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
+function problemsOf({ units, blocks, corrections, resolutions }: ReviewInput) {
   const infos = infosOf(blocks);
   const byUnit = new Map(units.map((unit) => [unit.unitNo, unit]));
   const problems = new Map<string, ReviewProblem>();

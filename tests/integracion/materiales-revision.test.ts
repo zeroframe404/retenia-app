@@ -509,3 +509,36 @@ describe('estudiar sin estas páginas', () => {
     expect(table.id).not.toBe(formula.id);
   });
 });
+
+describe('con el elenco de ejemplo', () => {
+  it('[CA-115] la tabla de la página 7 la usan 2 tarjetas del elenco: «2 tarjetas usan este texto. ¿Actualizarlas?»', async () => {
+    const space = openSpace({ withCast: true });
+    const opened = openMaterials(space);
+    await opened.service.whenIdle();
+    const subject = space.workspace.subjects
+      .list()
+      .subjects.find((entry) => entry.name === 'Estadística básica');
+    const material = opened.service
+      .list({ subjectId: subject?.id ?? '' })
+      .materials.find((entry) => entry.originalName === INFERENCE);
+    if (!material) {
+      throw new Error('el elenco no trae el PDF');
+    }
+    const review = opened.service.review({ materialId: material.id });
+    expect(review.problems.map((problem) => problem.unit)).toEqual([7, 11]);
+    expect(review.notExtracted.map((entry) => entry.unit)).toEqual([9]);
+    expect(texts.materials.coverage.summary(review.coverage.summary)).toBe(
+      '9 de 12 páginas listas · 2 para revisar · 1 pendiente',
+    );
+    const table = blockOf(space, material.id, 'table', 7);
+    const result = opened.service.correctText({
+      materialId: material.id,
+      blockId: table.id,
+      text: table.normalizedText.replace('2,228', '2,229'),
+    });
+    expect(result.cards).toHaveLength(2);
+    expect(texts.materials.review.derivedAsk(result.cards.length)).toBe(
+      '2 tarjetas usan este texto. ¿Actualizarlas?',
+    );
+  });
+});

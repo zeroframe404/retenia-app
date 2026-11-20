@@ -110,6 +110,9 @@ export const cardDetailSchema = z.strictObject({
       reference: z.string(),
       quote: z.string(),
       status: z.enum(['located', 'pending', 'relocate']),
+      // El texto del material se corrigió y la tarjeta todavía no se actualizó (Fase 14): «el origen
+      // cambió», un aviso que no bloquea nada.
+      changed: z.boolean(),
     })
     .nullable(),
 });

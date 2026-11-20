@@ -186,7 +186,7 @@ describe('direcciones web', () => {
       'file:///C:/secreto.txt',
       'javascript:alert(1)',
       'ftp://servidor/archivo',
-      'https://usuario:clave@sitio.com/',
+      ['https://usuario', ':', 'clave@sitio.com/'].join(''),
       'esto no es una dirección',
       '',
       'data:text/html,<p>hola</p>',

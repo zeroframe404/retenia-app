@@ -16,8 +16,19 @@ files:
   - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
   - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"
   - "!node_modules/better-sqlite3/prebuilds/win32-arm64.node"
-  # La voz y los escaneos todavía no los usa la versión real: llegan con sus fases (14 y 28).
-  - "!node_modules/{sherpa-onnx-node,sherpa-onnx-win-x64,tesseract.js,tesseract.js-core,@tesseract.js-data,@napi-rs,bmp-js,idb-keyval,is-url,node-fetch,whatwg-url,tr46,punycode,webidl-conversions,@exodus,opencollective-postinstall,regenerator-runtime,wasm-feature-detect,zlibjs}/**"
+  # La voz todavía no la usa la versión real: llega con su fase (28). Los escaneos sí (Fase 14):
+  # tesseract.js con los datos de español e inglés, como en la versión de prueba.
+  - "!node_modules/{sherpa-onnx-node,sherpa-onnx-win-x64,@napi-rs}/**"
+  # tesseract.js usa el fetch de Node: su respaldo node-fetch y lo que arrastra no hacen falta
+  # (lo que usa jsdom —whatwg-url, tr46, punycode, webidl-conversions, @exodus/bytes— se queda).
+  - "!node_modules/{node-fetch,opencollective-postinstall}/**"
+  # Lo que tesseract.js usa solo en el navegador.
+  - "!node_modules/{zlibjs,idb-keyval}/**"
+  # De tesseract.js-core, solo los núcleos que carga en Node (el completo); de los idiomas, solo la
+  # versión entera comprimida que usa (no la grande).
+  - "!node_modules/tesseract.js-core/*.wasm.js"
+  - "!node_modules/tesseract.js-core/tesseract-core{,-simd,-relaxedsimd}-lstm.{js,wasm}"
+  - "!node_modules/@tesseract.js-data/*/4.0.0/**"
   # Los materiales (Fase 13): de pdf.js viaja solo lo que usa el proceso de materiales (la ventana
   # lleva su parte adentro de su propio archivo), sin el lienzo nativo, que no se usa. mammoth y
   # yauzl viajan enteros.
@@ -32,8 +43,14 @@ files:
 extraMetadata:
   main: out/real/main/index.js
 asar: true
+# Fuera del asar: el módulo nativo de la base y tesseract.js, que corre en hilos de Node que leen
+# sus archivos del disco, con los datos de español e inglés que vienen en el instalador.
 asarUnpack:
   - node_modules/better-sqlite3/**
+  - node_modules/tesseract.js/**
+  - node_modules/tesseract.js-core/**
+  - node_modules/@tesseract.js-data/**
+  - node_modules/{wasm-feature-detect,regenerator-runtime,is-url,bmp-js}/**
 npmRebuild: false
 compression: normal
 artifactName: Retenia-instalador-${version}.${ext}

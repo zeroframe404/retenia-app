@@ -276,7 +276,6 @@ const signalKind = z.enum([
   'possibleFormula',
   'lowConfidence',
 ]);
-export type SignalView = z.output<typeof signalKind>;
 
 const diffSegment = z.strictObject({
   text: z.string(),

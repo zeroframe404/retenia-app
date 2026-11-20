@@ -423,6 +423,7 @@ describe('[CA-110] la fuente anclada', () => {
       reference: 'Inferencia — capítulos 1 a 4 · página 2',
       quote: sentence,
       status: 'located',
+      changed: false,
     });
     const opened = service.open({ materialId, cardId });
     expect(opened).toMatchObject({ unit: 2, notFound: false, blockId: block.id });

@@ -61,7 +61,7 @@ export async function recognize(
   }
 }
 
-export interface RecognizedLine {
+interface RecognizedLine {
   text: string;
   // De 0 a 100.
   confidence: number;

@@ -1,5 +1,14 @@
 import { join, resolve } from 'node:path';
-import { app, BrowserWindow, ipcMain, Menu, nativeTheme, session, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  net as electronNet,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  session,
+  shell,
+} from 'electron';
 import { systemClock } from '../core/clock';
 import { effectiveTheme, PAPER_COLOR, type ThemeChoice } from '../core/theme';
 import { zoomStep } from '../core/zoom';
@@ -24,6 +33,7 @@ import {
   startMaterials,
 } from './materials/electron';
 import { fuzzForVariant } from './memory-options';
+import { createNetGate } from './net-gate';
 
 const variant: Variant = __VARIANTE__;
 const isTest = __VARIANTE__ === 'prueba';
@@ -170,9 +180,15 @@ function start(): void {
 
   // Los materiales (Fase 13): la cola, su proceso de trabajo y el protocolo del original. El avance
   // le llega a la ventana por avisos.
+  // Toda salida a internet de Retenia pasa por esta puerta (con «Simular sin conexión» falla).
+  const netGate = createNetGate({
+    fetchImpl: (url, init) => electronNet.fetch(url, init),
+    systemOnline: () => electronNet.isOnline(),
+  });
   const materials = startMaterials({
     workspace,
     clock,
+    net: netGate,
     ...(demo ? { slow: () => demo.slowProcessing() } : {}),
     send: (event) => {
       const contents = mainWindow?.webContents;
@@ -209,7 +225,7 @@ function start(): void {
   let registry: Registry = channels;
   let exclusive: readonly string[] = [];
   if (__VARIANTE__ === 'prueba' && demo && demoData) {
-    const lab = startLab({ dataDir, bringToFront });
+    const lab = startLab({ dataDir, bringToFront, gate: netGate });
     app.on('quit', lab.stop);
     handlers = { ...handlers, ...createDemoHandlers(demo, demoData), ...lab.handlers };
     registry = { ...channels, ...demoChannels(), ...labChannels() };

@@ -8,6 +8,7 @@
   "include": [
     "tests/componentes/**/*.ts",
     "tests/componentes/**/*.tsx",
-    "src/renderer/globals.d.ts"
+    "src/renderer/globals.d.ts",
+    "src/main/workers/*.d.ts"
   ]
 }

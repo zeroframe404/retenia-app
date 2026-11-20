@@ -1207,11 +1207,13 @@ export function blockInputs(rows: readonly BlockRow[]) {
 export function describeCite(
   db: Writer,
   stored: string | null,
+  cardId: string | null = null,
 ): {
   materialId: string;
   reference: string;
   quote: string;
   status: 'located' | 'pending' | 'relocate';
+  changed: boolean;
 } | null {
   if (stored === null) {
     return null;
@@ -1231,7 +1233,15 @@ export function describeCite(
     cite.locator.boxes?.[0]?.page ?? cite.locator.page,
     cite.locator.headingPath,
   );
-  const base = { materialId: cite.materialId, reference, quote: cite.quote };
+  const changed =
+    cardId !== null &&
+    db
+      .select({ pendingCards: blockCorrections.pendingCards })
+      .from(blockCorrections)
+      .where(like(blockCorrections.pendingCards, `%"${cardId}"%`))
+      .all()
+      .some((row) => (JSON.parse(row.pendingCards) as string[]).includes(cardId));
+  const base = { materialId: cite.materialId, reference, quote: cite.quote, changed };
   if (!material || material.deletedAt !== null) {
     return { ...base, status: 'relocate' };
   }

@@ -95,10 +95,13 @@ describe('piezas del Laboratorio en los instaladores (Fase 05)', () => {
     expect(real.text).not.toContain('datos-de-ejemplo');
   });
 
+  // Fase 14: la versión real ya lleva tesseract.js (con los datos de español e inglés) para leer
+  // escaneos; la voz (sherpa-onnx) sigue siendo de la versión de prueba hasta la Fase 28.
   it('la versión de uso real no lleva las piezas del Laboratorio', () => {
-    for (const name of ['sherpa-onnx', 'tesseract', 'pdfjs-dist']) {
+    for (const name of ['sherpa-onnx', 'pdfjs-dist']) {
       expect(unpacked(real.text).join('\n')).not.toContain(name);
     }
+    expect(unpacked(real.text).join('\n')).toContain('tesseract');
     expect(real.text).toContain('"!node_modules/{sherpa-onnx-node,sherpa-onnx-win-x64');
   });
 });

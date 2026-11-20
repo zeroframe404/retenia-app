@@ -352,3 +352,239 @@
   max-width: 100%;
   overflow: hidden;
 }
+
+/* Revisión de un material (Fase 14): tres bloques, el mapa de cobertura y el editor de
+   correcciones. El estado siempre lleva palabra además de color, y ningún aviso va en rojo. */
+.review {
+  display: grid;
+  gap: var(--espacio-16);
+  min-width: 0;
+}
+
+.group {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+}
+
+.blockHeading {
+  margin: 0;
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  text-transform: uppercase;
+  color: var(--color-tinta-suave);
+}
+
+.miniHeading {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  font-weight: 600;
+  color: var(--color-tinta-suave);
+}
+
+.problemList {
+  display: grid;
+  gap: var(--espacio-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.problem {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-12);
+  background: var(--color-papel);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.problem[data-resolution="corrected"],
+.problem[data-resolution="image"],
+.problem[data-resolution="ignored"] {
+  border-style: dashed;
+}
+
+.problem[data-resolution="conflict"] {
+  border-color: var(--color-parcial);
+}
+
+.problemHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+}
+
+.pageTag {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.chip {
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-pequeno);
+  color: var(--color-parcial);
+  background: var(--color-parcial-suave);
+  border-radius: var(--radio-pildora);
+}
+
+.chip[data-state="ready"],
+.chip[data-state="resolved"] {
+  color: var(--color-correcta);
+  background: var(--color-correcta-suave);
+}
+
+.chip[data-state="excluded"],
+.chip[data-state="processing"] {
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie-hundida);
+}
+
+.excerpt {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  overflow-wrap: anywhere;
+}
+
+.editor,
+.conflict,
+.derived {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.rawText {
+  margin: 0;
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-codigo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border-radius: var(--radio-8);
+}
+
+.compare {
+  margin: 0;
+  font: var(--tipo-codigo);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.changed {
+  color: var(--color-tinta);
+  background: var(--color-parcial-suave);
+  border-bottom: var(--trazo-lleno) var(--color-parcial);
+}
+
+.coverage {
+  display: grid;
+  gap: var(--espacio-12);
+  padding: var(--espacio-16);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-14);
+}
+
+.coverageSummary {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  gap: var(--espacio-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cell {
+  display: grid;
+  gap: 0;
+  justify-items: center;
+  width: 100%;
+  min-height: var(--alto-control);
+  padding: var(--espacio-8);
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.cellNumber {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.cellWord {
+  font: var(--tipo-pequeno);
+}
+
+.cell[data-word="ready"] {
+  background: var(--color-correcta-suave);
+  border-color: var(--color-correcta);
+}
+
+.cell[data-word="review"] {
+  background: var(--color-parcial-suave);
+  border-color: var(--color-parcial);
+}
+
+.cell[data-word="pending"] {
+  border-style: dashed;
+}
+
+.cell[data-word="error"] {
+  background: var(--color-atencion-suave);
+  border-color: var(--color-atencion);
+}
+
+.cell[data-word="excluded"] {
+  color: var(--color-tinta-suave);
+  border-style: dotted;
+}
+
+.sectionStates {
+  display: grid;
+  gap: var(--espacio-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sectionState {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--espacio-8);
+  font: var(--tipo-pequeno);
+}
+
+/* La barra de la página en el visor (Fase 14) y la instantánea de una página web. */
+.pageToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8);
+}
+
+.webInfo {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  overflow-wrap: anywhere;
+}
+
+.snapshotFrame {
+  width: 100%;
+  min-height: 24rem;
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
