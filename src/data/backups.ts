@@ -63,13 +63,18 @@ const COUNTED_TABLES = [
   'material_blocks',
   'ingest_results',
   'ingest_tasks',
+  // Importar y exportar (Fase 15).
+  'imports',
+  'import_items',
+  'attachments',
+  'card_attachments',
 ];
 
 const manifestSchema = z.strictObject({
   format: z.literal('retenia-copia'),
   formatVersion: z.literal(1),
   id: z.uuid(),
-  kind: z.enum(['auto', 'manual', 'before_restore']),
+  kind: z.enum(['auto', 'manual', 'before_restore', 'before_import']),
   createdAt: z.iso.datetime(),
   timeZone: z.string(),
   appVersion: z.string(),

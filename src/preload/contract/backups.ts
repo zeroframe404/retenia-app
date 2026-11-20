@@ -10,7 +10,7 @@ const backupSchema = z.discriminatedUnion('readable', [
   z.strictObject({
     readable: z.literal(true),
     id: z.uuid(),
-    kind: z.enum(['auto', 'manual', 'before_restore']),
+    kind: z.enum(['auto', 'manual', 'before_restore', 'before_import']),
     day,
     time,
     sizeBytes,

@@ -63,6 +63,8 @@ export interface HistoryEvent {
   readonly skipped: 'sameDay' | 'earlier' | null;
   // Si llegó al motor (Fase 10: la regla de los 4 fallos seguidos cuenta solo estos).
   readonly counted: boolean;
+  // Fase 15: «anki» si el repaso se importó de Anki.
+  readonly origin: 'anki' | null;
 }
 
 // Los eventos que mueven la agenda, con la calificación de la evaluación vigente de cada repaso.
@@ -191,14 +193,17 @@ function cardTrace(db: Writer, cardId: string): MemoryTrace {
 export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
   const events = cardEvents(db, cardId);
   const steps = new Map(cardTrace(db, cardId).steps.map((step) => [step.id, step]));
-  const occurredAt = new Map(
-    db
-      .select({ id: observations.id, occurredAt: observations.occurredAt })
-      .from(observations)
-      .where(eq(observations.cardId, cardId))
-      .all()
-      .map((row) => [row.id, new Date(row.occurredAt)]),
-  );
+  const rows = db
+    .select({
+      id: observations.id,
+      occurredAt: observations.occurredAt,
+      source: observations.source,
+    })
+    .from(observations)
+    .where(eq(observations.cardId, cardId))
+    .all();
+  const occurredAt = new Map(rows.map((row) => [row.id, new Date(row.occurredAt)]));
+  const fromAnki = new Set(rows.filter((row) => row.source === 'import:anki').map((row) => row.id));
   return events
     .flatMap((event): HistoryEvent[] => {
       const at = occurredAt.get(event.id) ?? new Date(0);
@@ -216,6 +221,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
             annulled: false,
             skipped: null,
             counted: false,
+            origin: null,
           },
         ];
       }
@@ -230,6 +236,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
           annulled: step?.reason === 'annulled',
           skipped: step?.reason === 'sameDay' || step?.reason === 'earlier' ? step.reason : null,
           counted: step?.counted === true,
+          origin: fromAnki.has(event.id) ? ('anki' as const) : null,
         },
       ];
     })
@@ -243,6 +250,7 @@ export function cardHistory(db: Writer, cardId: string): HistoryEvent[] {
         annulled: false,
         skipped: null,
         counted: false,
+        origin: null,
       })),
     )
     .sort((a, b) => a.seq - b.seq);

@@ -111,9 +111,15 @@ describe('las tarjetas', () => {
   });
 
   it('[CA-123] lo que no se puede interpretar entra como texto común y se anota', () => {
+    // En Retenia todo renglón con «>>» es una tarjeta: para que quede como texto común, entre los dos
+    // «>» va un separador invisible (U+2060). Se ve igual y no pide ninguna tarjeta.
+    const visible = (value: string) => value.replaceAll('⁠', '');
     for (const text of ['- Miembros >>>\n', '- Junta >>- Gobierno\n', '- Elegí ==A) Saavedra\n']) {
       const pkg = one(text);
-      expect(pkg.notes[0]?.blocks[0]?.content).toEqual([{ type: 'text', text: text.slice(2, -1) }]);
+      const [node] = pkg.notes[0]?.blocks[0]?.content ?? [];
+      expect(node?.type).toBe('text');
+      expect(node?.type === 'text' && visible(node.text)).toBe(text.slice(2, -1));
+      expect(node?.type === 'text' && node.text.includes('>>')).toBe(false);
       expect(pkg.annotated).toEqual([{ what: text.slice(2, -1), note: 'plainText' }]);
       expect(planImport(pkg, new Set()).cards.fresh).toBe(0);
     }

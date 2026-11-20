@@ -10,6 +10,7 @@ import {
 import { join } from 'node:path';
 import { BACKUP_EXTENSION, isAutomaticBackupDue } from '../core/backups';
 import type { Clock } from '../core/clock';
+import type { ExportCounts, ExportIndex } from '../core/imports/markdown';
 import type { DataDifference } from '../preload/contract/backups';
 import { type ActivityStore, createActivityStore } from './activity';
 import {
@@ -26,8 +27,16 @@ import {
 import { type CardsStore, createCardsStore } from './cards';
 import { openDatabase } from './database';
 import { createDoubtsStore, type DoubtsStore } from './doubts';
+import {
+  exportCounts,
+  isEmptyDatabase,
+  loadStagedExport,
+  type StagedExport,
+  stageExport,
+} from './export';
 import { newId } from './ids';
 import { createImagesStore, type ImagesStore } from './images';
+import { createImportsStore, type ImportsStore } from './imports';
 import { createInboxStore, type InboxStore } from './inbox';
 import { continueSequence, readLedgerState } from './ledger';
 import { createMaterialsStore, type MaterialsStore } from './materials';
@@ -63,6 +72,15 @@ export interface Workspace {
   readonly search: SearchStore;
   // Los materiales (Fase 13). Los originales viven en `originales` de la carpeta de datos.
   readonly materials: MaterialsStore;
+  // Importar de Anki y de RemNote (Fase 15).
+  readonly imports: ImportsStore;
+  // «Exportar todo»: arma los archivos de datos en la carpeta `staging` y dice qué va al comprimido.
+  stageExport(staging: string): StagedExport;
+  exportCounts(): ExportCounts;
+  // Sin materias, tarjetas, notas, materiales ni historial: se puede cargar una exportación.
+  isEmpty(): boolean;
+  // «Importar exportación» en un Retenia vacío, desde una exportación ya revisada.
+  loadExport(input: { staging: string; index: ExportIndex }): ExportCounts;
   verifyData(): DataDifference[];
   repairData(): DataDifference[];
   integrityCheck(): string;
@@ -70,7 +88,7 @@ export interface Workspace {
   copiesFolder(): string;
   // La lista de copias. Si la copia automática del arranque está en curso, la espera.
   backups(): Promise<BackupView[]>;
-  createBackup(kind: 'manual' | 'auto'): Promise<ReadableBackup>;
+  createBackup(kind: 'manual' | 'auto' | 'before_import'): Promise<ReadableBackup>;
   // Al abrir: una copia automática si no hay ninguna o la última tiene 24 horas o más; después
   // quedan las 14 automáticas más nuevas.
   ensureAutomaticBackup(): Promise<ReadableBackup | null>;
@@ -192,6 +210,7 @@ export function openWorkspace({
       doubts: createDoubtsStore(db, clock),
       search: createSearchStore(db),
       materials: createMaterialsStore(db, clock),
+      imports: createImportsStore(db, clock, dataDir),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -237,7 +256,7 @@ export function openWorkspace({
     }
   };
 
-  const backup = (kind: 'manual' | 'auto' | 'before_restore') =>
+  const backup = (kind: 'manual' | 'auto' | 'before_restore' | 'before_import') =>
     createBackup(current().db, place, { kind, clock, appVersion, onStep: step });
 
   return {
@@ -280,6 +299,13 @@ export function openWorkspace({
     get materials() {
       return current().materials;
     },
+    get imports() {
+      return current().imports;
+    },
+    stageExport: (staging) => stageExport(current().db, { dataDir, staging, appVersion, clock }),
+    exportCounts: () => exportCounts(current().db),
+    isEmpty: () => isEmptyDatabase(current().db),
+    loadExport: ({ staging, index }) => loadStagedExport(current().db, { dataDir, staging, index }),
     // «Verificar datos» compara la agenda con el historial y el índice de búsqueda con el contenido.
     verifyData: () => [...verifyData(current().db), ...current().search.verify()],
     repairData: () => {

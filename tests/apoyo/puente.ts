@@ -7,10 +7,13 @@ import {
   handleMessage,
   type Variant,
 } from '../../src/main/bridge';
+import type { Dialogs } from '../../src/main/imports/dialogs';
+import { createTransfersService } from '../../src/main/imports/service';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
 import type { NetGate } from '../../src/main/net-gate';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
+import { runTransferTask } from '../../src/main/workers/transfers-tasks';
 import { buildApi, type Invoke } from '../../src/preload/api';
 import type { ApiOf, channels } from '../../src/preload/contract';
 import type { MaterialEvent } from '../../src/preload/contract/events';
@@ -35,6 +38,14 @@ export interface TestBridge {
   sent: { channel: string; request: unknown }[];
   // Las carpetas que se pidió abrir con el Explorador de Windows (doble: no abre nada).
   opened: string[];
+  // Los diálogos de Windows para elegir y guardar archivos (Fase 15, doble declarado): anotan cada
+  // pedido y devuelven la ruta que puso la prueba con `answerDialogs` (nula = cancelar).
+  dialogRequests: { kind: 'file' | 'folder' | 'save'; title: string; defaultName?: string }[];
+  answerDialogs: (answers: {
+    file?: string | null;
+    folder?: string | null;
+    save?: string | null;
+  }) => void;
   close: () => void;
 }
 
@@ -89,7 +100,33 @@ export function openBridge({
     ...(net ? { net } : {}),
   });
   const opened: string[] = [];
+  const dialogRequests: TestBridge['dialogRequests'] = [];
+  const answers: { file: string | null; folder: string | null; save: string | null } = {
+    file: null,
+    folder: null,
+    save: null,
+  };
+  const dialogs: Dialogs = {
+    chooseFile: async ({ title }) => {
+      dialogRequests.push({ kind: 'file', title });
+      return answers.file;
+    },
+    chooseFolder: async ({ title }) => {
+      dialogRequests.push({ kind: 'folder', title });
+      return answers.folder;
+    },
+    chooseSave: async ({ title, defaultName }) => {
+      dialogRequests.push({ kind: 'save', title, defaultName });
+      return answers.save;
+    },
+  };
   const handlers = createHandlers({
+    transfers: createTransfersService({
+      workspace,
+      clock,
+      execute: (task) => runTransferTask(task),
+    }),
+    dialogs,
     clock,
     variant,
     workspace,
@@ -130,6 +167,10 @@ export function openBridge({
     file: join(data.folder, 'retenia.db'),
     sent,
     opened,
+    dialogRequests,
+    answerDialogs: (next) => {
+      Object.assign(answers, next);
+    },
     close: () => {
       materials.abandon();
       workspace.close();

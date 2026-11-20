@@ -43,6 +43,9 @@ export const cardSchema = z.strictObject({
   kind: cardKindSchema,
   sheetState: sheetStateSchema,
   paused: z.boolean(),
+  // «Disponible» (Fase 15): importada sin historial; no entra a los repasos hasta «Sumar a mis
+  // repasos».
+  available: z.boolean(),
   // El tema que se ve (nulo si no tiene o si está en la Papelera).
   topicId: z.uuid().nullable(),
   topicName: z.string().nullable(),
@@ -202,6 +205,8 @@ export const cardHistorySchema = z.strictObject({
       plannedDay: day.nullable(),
       annulled: z.boolean(),
       skipped: z.enum(['sameDay', 'earlier']).nullable(),
+      // De dónde vino el repaso (Fase 15): «anki» si se importó de Anki; nulo si lo hiciste en Retenia.
+      origin: z.enum(['anki']).nullable(),
     }),
   ),
 });

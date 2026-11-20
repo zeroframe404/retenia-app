@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vitest';
+import { listBackupFiles } from '../../src/data/backups';
 import { texts } from '../../src/preload/contract/texts';
 import { ankiPackage, demoDeck } from '../../tools/datos-de-ejemplo/importaciones.mjs';
 import { dumpTables, readRows } from '../apoyo/base-cruda';
@@ -124,7 +126,16 @@ describe('mazo-demo.apkg', () => {
     const backups = await space.workspace.backups();
     const copy = backups.find((backup) => backup.readable && backup.id === result.backupId);
     expect(copy?.readable && copy.kind).toBe('before_import');
-    expect(copy?.readable && copy.counts.cards).toBe(cardsBefore);
+    // La copia tiene la base de antes de importar: sus tarjetas son las de antes.
+    const listed = listBackupFiles(space.workspace.copiesDir).find(
+      ({ view }) => view.readable && view.id === result.backupId,
+    );
+    const manifest = JSON.parse(
+      gunzipSync(readFileSync(listed?.file ?? ''))
+        .toString('utf8')
+        .split('\n')[0] ?? '{}',
+    ) as { counts: Record<string, number> };
+    expect(manifest.counts.cards).toBe(cardsBefore);
     expect(texts.data.kinds.before_import).toBe('Antes de importar');
   });
 
@@ -341,7 +352,7 @@ describe('los formatos de Anki', () => {
     ]);
     const [answer] = readRows(
       space.file,
-      "SELECT answer FROM card_versions WHERE answer LIKE 'José de San Martín%'",
+      "SELECT answer FROM card_versions WHERE answer LIKE '%Audio: san-martin.mp3%'",
     );
     expect(answer?.answer).toBe('José de San Martín\nAudio: san-martin.mp3');
   });

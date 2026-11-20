@@ -169,6 +169,7 @@ export function newCardsOf(
       topicId: cards.topicId,
       siblingGroupId: cards.siblingGroupId,
       createdAt: cards.createdAt,
+      availableOnly: cards.availableOnly,
     })
     .from(cards)
     .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
@@ -198,7 +199,9 @@ export function newCardsOf(
       activatedAt.set(activation.cardId, activation.seq);
     }
   }
+  // Las «Disponibles» (Fase 15: importadas sin historial) entran recién con «Sumar a mis repasos».
   return rows
+    .filter((row) => row.availableOnly === 0 || activatedAt.has(row.cardId))
     .sort((a, b) => {
       const first = activatedAt.get(a.cardId);
       const second = activatedAt.get(b.cardId);

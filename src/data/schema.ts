@@ -40,6 +40,9 @@ export const cards = sqliteTable(
     pausedAt: text('paused_at'),
     // El renglón dejó de pedir esta tarjeta (borraste el renglón o le sacaste la marca).
     detachedAt: text('detached_at'),
+    // Fase 15: 1 si llegó «Disponible» (importada sin historial). No entra a los repasos hasta
+    // «Sumar a mis repasos» (el evento `card.activated`). Se escribe al crearla y no cambia.
+    availableOnly: integer('available_only').notNull().default(0),
   },
   (table) => [
     index('cards_created_idx').on(table.createdAt, table.id),
@@ -635,4 +638,64 @@ export const ingestTasks = sqliteTable(
     index('ingest_tasks_status_idx').on(table.status, table.createdAt),
     index('ingest_tasks_material_idx').on(table.materialId, table.stageOrder, table.unitNo),
   ],
+);
+
+// --- Importar y exportar (Fase 15) ---
+
+// Cada importación hecha con «Importar» (de Anki o de RemNote): qué archivo (por su huella), cuándo,
+// a qué materia, cuánto entró y qué se rechazó con su motivo. «Importaciones» y «Ver rechazadas» de
+// «Datos y copias» salen de acá.
+export const imports = sqliteTable(
+  'imports',
+  {
+    id: text('id').primaryKey(),
+    kind: text('kind').notNull(),
+    fileSha256: text('file_sha256').notNull(),
+    fileName: text('file_name').notNull(),
+    subjectId: text('subject_id').notNull(),
+    at: text('at').notNull(),
+    summary: text('summary').notNull(),
+    rejected: text('rejected').notNull().default('[]'),
+    annotated: text('annotated').notNull().default('[]'),
+  },
+  (table) => [index('imports_file_idx').on(table.fileSha256)],
+);
+
+// La huella del origen de cada elemento importado (CA-124): una tarjeta de Anki es la nota de Anki
+// (su guid, que no cambia entre exportaciones) y su número de tarjeta; un documento de RemNote, su
+// ruta. Importar otra vez el mismo elemento no lo duplica. Las etiquetas de Anki quedan acá.
+export const importItems = sqliteTable(
+  'import_items',
+  {
+    sourceKey: text('source_key').primaryKey(),
+    importId: text('import_id').notNull(),
+    entityType: text('entity_type').notNull(),
+    entityId: text('entity_id').notNull(),
+    tags: text('tags').notNull().default('[]'),
+  },
+  (table) => [index('import_items_entity_idx').on(table.entityType, table.entityId)],
+);
+
+// Los audios que trajo una tarjeta de Anki. El archivo vive en `adjuntos\<sha256>` de la carpeta de
+// datos; la tarjeta lo nombra («Audio: nombre.mp3») y se va a poder escuchar con la Fase 30.
+export const attachments = sqliteTable(
+  'attachments',
+  {
+    id: text('id').primaryKey(),
+    sha256: text('sha256').notNull(),
+    name: text('name').notNull(),
+    mime: text('mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [uniqueIndex('attachments_sha_idx').on(table.sha256)],
+);
+
+export const cardAttachments = sqliteTable(
+  'card_attachments',
+  {
+    cardId: text('card_id').notNull(),
+    attachmentId: text('attachment_id').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.cardId, table.attachmentId] })],
 );

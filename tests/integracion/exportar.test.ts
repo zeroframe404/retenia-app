@@ -158,7 +158,8 @@ describe('Exportar todo', () => {
       ) ?? [];
     const text = String(note);
     expect(text).toContain('$\\bar{x} \\pm t \\cdot s/\\sqrt{n}$');
-    expect(text).toMatch(/\[\[Media y dispersión\]\]\{nota=[0-9a-f-]{36}\}/);
+    // El enlace del elenco va a la nota «Media y desvío» (del tema «Media y dispersión»).
+    expect(text).toMatch(/\[\[Media y desvío\]\]\{nota=[0-9a-f-]{36}\}/);
     const image = /!\[[^\]]*\]\(((?:\.\.\/)+imagenes\/[0-9a-f]{64}\.png)\)/.exec(text);
     expect(image).not.toBeNull();
     const imagePath = image?.[1]?.replace(/^(?:\.\.\/)+/, '') ?? '';

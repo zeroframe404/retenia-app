@@ -769,6 +769,7 @@ export function createCardsStore(
           plannedDay: event.plannedDay,
           annulled: event.annulled,
           skipped: event.skipped,
+          origin: event.origin,
         })),
       };
     },

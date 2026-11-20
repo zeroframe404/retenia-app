@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import { writeBellCurve } from './datos-de-ejemplo/campana.mjs';
 import * as content from './datos-de-ejemplo/contenido.mjs';
 import { documentHtml, docx, scanHtml } from './datos-de-ejemplo/documentos.mjs';
+import { ankiPackage, demoDeck, demoRemnoteZip } from './datos-de-ejemplo/importaciones.mjs';
 import { trapCodePdf, trapPathsZip } from './datos-de-ejemplo/trampas.mjs';
 import { DEV_MODELS_DIR } from './lib/modelos.mjs';
 
@@ -116,6 +117,17 @@ function goodMorningWav() {
   console.log(`  good-morning.wav (${(samples.length / rate).toFixed(1)} s)`);
 }
 
+// Los archivos de la Fase 15 (CA-122 a CA-124): un mazo de Anki en el formato actual con 3 tarjetas
+// y 5 repasos, y una exportación de RemNote en Markdown con 12 notas, 8 tarjetas y una imagen
+// faltante. Se pueden armar solos, sin Electron: «node tools/generar-datos-de-ejemplo.mjs
+// --importaciones».
+function writeImports() {
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, 'mazo-demo.apkg'), ankiPackage(demoDeck()));
+  writeFileSync(join(OUT, 'remnote-demo.zip'), demoRemnoteZip());
+  console.log('  mazo-demo.apkg, remnote-demo.zip');
+}
+
 /** @param {typeof import('electron')} electron */
 async function generate({ app, BrowserWindow }) {
   try {
@@ -149,6 +161,7 @@ async function generate({ app, BrowserWindow }) {
       `  campana.png (${Math.round(writeBellCurve(OUT) / 1024)} KB, también en el elenco)`,
     );
     goodMorningWav();
+    writeImports();
     app.exit(0);
   } catch (error) {
     console.log('No pude generar los datos de ejemplo:', error);
@@ -156,7 +169,9 @@ async function generate({ app, BrowserWindow }) {
   }
 }
 
-if (process.versions.electron) {
+if (process.argv.includes('--importaciones')) {
+  writeImports();
+} else if (process.versions.electron) {
   const electron = await import('electron');
   // Cada ventana se cierra al terminar su parte: sin esto, Electron se iría al cerrar la primera.
   electron.app.on('window-all-closed', () => undefined);

@@ -175,6 +175,13 @@ export function createDemoWorkspace({
     get materials() {
       return active.materials;
     },
+    get imports() {
+      return active.imports;
+    },
+    stageExport: (staging) => active.stageExport(staging),
+    exportCounts: () => active.exportCounts(),
+    isEmpty: () => active.isEmpty(),
+    loadExport: (input) => active.loadExport(input),
     verifyData: () => active.verifyData(),
     repairData: () => active.repairData(),
     integrityCheck: () => active.integrityCheck(),

@@ -32,6 +32,21 @@ import {
 } from './cards';
 import { noRequest } from './common';
 import type { demoChannels } from './demo';
+import {
+  exportsAllResponse,
+  exportsCanLoadResponse,
+  exportsChooseResponse,
+  exportsLoadRequest,
+  exportsLoadResponse,
+  importsCancelRequest,
+  importsChooseRequest,
+  importsChooseResponse,
+  importsListResponse,
+  importsRunRequest,
+  importsRunResponse,
+  importsSaveRejectedRequest,
+  importsSaveRejectedResponse,
+} from './imports';
 import type { labChannels } from './lab';
 import {
   materialDetailSchema,
@@ -227,6 +242,19 @@ export const channels = {
   'backups.verifyData': { request: noRequest, response: differencesResponse },
   'backups.repairData': { request: noRequest, response: differencesResponse },
   'backups.openFolder': { request: noRequest, response: openFolderResponse },
+  // Importar de Anki y de RemNote, Exportar todo e Importar exportación (Fase 15).
+  'imports.choose': { request: importsChooseRequest, response: importsChooseResponse },
+  'imports.run': { request: importsRunRequest, response: importsRunResponse },
+  'imports.cancel': { request: importsCancelRequest, response: okResponse },
+  'imports.list': { request: noRequest, response: importsListResponse },
+  'imports.saveRejected': {
+    request: importsSaveRejectedRequest,
+    response: importsSaveRejectedResponse,
+  },
+  'exports.all': { request: noRequest, response: exportsAllResponse },
+  'exports.canLoad': { request: noRequest, response: exportsCanLoadResponse },
+  'exports.choose': { request: noRequest, response: exportsChooseResponse },
+  'exports.load': { request: exportsLoadRequest, response: exportsLoadResponse },
   'search.query': { request: searchQueryRequest, response: searchQueryResponse },
   'search.opened': { request: searchOpenedRequest, response: searchOpenedResponse },
   'search.rebuild': { request: noRequest, response: searchRebuildResponse },
