@@ -148,8 +148,9 @@ describe('reconocer un escaneo', () => {
     const original = join(space.workspace.originalsDir, readdirOriginal(space));
     const before = createHash('sha256').update(readFileSync(original)).digest('hex');
     opened.service.ocrPage({ materialId, unit: 9 });
-    expect(opened.service.nextTask()).toMatchObject({ unit: 9 });
     await opened.service.whenIdle();
+    // Pasó por la misma cola que cualquier lectura: una tarea de la página 9 en el proceso de trabajo.
+    expect(opened.executed.filter((task) => task === 'extract:9')).toHaveLength(2);
     expect(createHash('sha256').update(readFileSync(original)).digest('hex')).toBe(before);
   });
 

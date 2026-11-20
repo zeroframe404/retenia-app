@@ -322,6 +322,40 @@ export const WEB_PAGE_HTML = `<!doctype html>
 </html>
 `;
 
+// Una página con todo lo que una instantánea no puede conservar (Fase 14, CA-120): scripts (uno
+// que escribiría «SCRIPT EJECUTADO» si corriera), un manejador de eventos, un enlace «javascript:»,
+// una imagen y una hoja de estilos remotas, un marco, un formulario con una clave. Lo único que
+// tiene que sobrevivir es el texto que sí es contenido.
+export const TRAP_SCRIPT_HTML = `<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Una página con trampas</title>
+    <script>document.title = 'SCRIPT EJECUTADO';</script>
+    <link rel="stylesheet" href="https://ejemplo.invalid/estilo.css" />
+    <style>body { background: url(https://ejemplo.invalid/fondo.png); }</style>
+  </head>
+  <body onload="document.body.append('SCRIPT EJECUTADO')">
+    <nav><a href="https://ejemplo.invalid/inicio">Inicio</a></nav>
+    <main>
+      <article>
+        <h1>Una página con trampas</h1>
+        <p>Texto que sí es contenido: la media de una muestra se acerca a la media de la población cuando la muestra crece, y por eso conviene juntar muchos casos antes de sacar una conclusión.</p>
+        <p onclick="document.body.append('SCRIPT EJECUTADO')">Otro párrafo que también es contenido, con un <a href="javascript:document.write('SCRIPT EJECUTADO')">enlace trampa</a> adentro, y que habla de cómo el azar pesa menos cuanto más grande es la muestra.</p>
+        <img src="https://ejemplo.invalid/rastreo.png" onerror="document.body.append('SCRIPT EJECUTADO')" alt="rastreador" />
+        <iframe src="https://ejemplo.invalid/marco"></iframe>
+        <form action="https://ejemplo.invalid/robar" method="post">
+          <input name="clave" type="password" value="1234" />
+          <button type="submit">Enviar</button>
+        </form>
+        <p>Un último párrafo de contenido: un intervalo de confianza más ancho dice menos, pero acierta más seguido, y esa es la ganancia que se paga con precisión.</p>
+        <script>document.write('SCRIPT EJECUTADO');</script>
+      </article>
+    </main>
+  </body>
+</html>
+`;
+
 export const NOT_A_PDF =
   'Este archivo se llama «no-es-un-pdf.pdf» pero no es un PDF: es texto común con otro nombre.\nSirve para comprobar que Retenia avisa que no lo puede leer, sin trabarse.\n';
 

@@ -16,7 +16,11 @@ export type ErrorProblem =
   | 'copyFailed'
   | 'pdfUnreadable'
   | 'wordUnreadable'
-  | 'textUnreadable';
+  | 'textUnreadable'
+  | 'webBlocked'
+  | 'webNotPage'
+  | 'webEmpty'
+  | 'webUnreachable';
 
 export type MaterialState =
   | { kind: 'received'; cancelled?: true }
@@ -24,10 +28,13 @@ export type MaterialState =
   | { kind: 'ready' }
   | { kind: 'partial'; read: number; total: number; cancelled?: true }
   | { kind: 'review' }
-  | { kind: 'error'; problem: ErrorProblem };
+  | { kind: 'error'; problem: ErrorProblem }
+  | { kind: 'pendingNetwork' };
 
 export interface StatusInput {
   errorCode: string | null;
+  // Una página web que espera a que haya conexión para bajarse (H-28).
+  pendingNetwork?: boolean;
   unitCount: number | null;
   units: readonly { status: UnitStatus }[];
   tasks: readonly { stage: Stage; status: TaskStatus }[];
@@ -35,9 +42,18 @@ export interface StatusInput {
 
 const isRead = (status: UnitStatus) => status === 'ready' || status === 'no_text';
 
-export function materialState({ errorCode, unitCount, units, tasks }: StatusInput): MaterialState {
+export function materialState({
+  errorCode,
+  pendingNetwork = false,
+  unitCount,
+  units,
+  tasks,
+}: StatusInput): MaterialState {
   if (errorCode !== null) {
     return { kind: 'error', problem: errorCode as ErrorProblem };
+  }
+  if (pendingNetwork) {
+    return { kind: 'pendingNetwork' };
   }
   const read = units.filter((unit) => isRead(unit.status)).length;
   const total = unitCount ?? units.length;
@@ -71,7 +87,7 @@ export type StageView =
   | { id: 'extracted'; status: StageStatus; paragraphs: number };
 
 export interface StageInput {
-  kind: 'pdf' | 'docx' | 'md' | 'text';
+  kind: 'pdf' | 'docx' | 'md' | 'text' | 'web';
   unitCount: number | null;
   units: readonly { status: UnitStatus; chars: number }[];
   // Cuántos bloques con texto hay (lo que se cuenta como «párrafos» fuera de un PDF).

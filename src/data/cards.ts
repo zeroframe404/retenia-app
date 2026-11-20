@@ -103,6 +103,9 @@ export interface CardsStore {
   list(input?: ListInput): Card[];
   // La cita de un material de la versión vigente (JSON), o null.
   sourceCite(cardId: string): string | null;
+  // Cambia solo la cita de la fuente de una tarjeta (Fase 14: el texto del material se corrigió).
+  // La pregunta y la respuesta no se tocan; queda una versión nueva.
+  updateSource(input: { cardId: string; sourceCite: string }): void;
   // Las tarjetas (no borradas) cuya versión vigente cita ese material.
   citing(materialId: string): { cardId: string; question: string; sourceCite: string }[];
   // La lista filtrada y cuántas tiene la materia sin filtrar.
@@ -509,6 +512,38 @@ export function createCardsStore(
 
     sourceCite(cardId) {
       return findCard(orm, cardId)?.sourceCite ?? null;
+    },
+
+    updateSource({ cardId, sourceCite }) {
+      orm.transaction((tx) => {
+        const current = activeCard(tx, cardId);
+        const previous = tx
+          .select()
+          .from(cardVersions)
+          .where(eq(cardVersions.id, current.versionId))
+          .get();
+        if (!previous) {
+          throw new CardNotFoundError();
+        }
+        const versionId = newId();
+        tx.insert(cardVersions)
+          .values({
+            ...previous,
+            id: versionId,
+            sourceCite,
+            createdAt: clock.now().toISOString(),
+            cause: 'edit',
+          })
+          .run();
+        tx.update(cards).set({ currentVersionId: versionId }).where(eq(cards.id, cardId)).run();
+        appendOperation(tx, clock, {
+          kind: 'card.edit',
+          entityId: cardId,
+          versionBeforeId: current.versionId,
+          versionAfterId: versionId,
+          source: 'user',
+        });
+      });
     },
 
     citing(materialId) {

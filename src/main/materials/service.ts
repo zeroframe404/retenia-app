@@ -2,10 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type Clock, type Stopwatch, systemStopwatch } from '../../core/clock';
-import { TEXT_TYPES } from '../../core/materials/blocks';
+import { type Box, TEXT_TYPES } from '../../core/materials/blocks';
+import { applyCorrections, blockKey, remapQuote } from '../../core/materials/corrections';
+import { textLayer } from '../../core/materials/quality';
 import { type FailureKind, HEARTBEAT_MS } from '../../core/materials/queue';
 import { boxesFor, quoteContext, relocateQuote } from '../../core/materials/relocate';
 import type { ErrorProblem, Stage } from '../../core/materials/status';
+import { parseWebAddress } from '../../core/materials/web-address';
+import { localDateTime } from '../../core/study-day';
 import { newId } from '../../data/ids';
 import {
   type BlockLocator,
@@ -24,10 +28,12 @@ import type {
   MaterialDetail,
   MaterialOpen,
   MaterialPage,
+  MaterialReview,
   MaterialSelection,
   MaterialSummary,
 } from '../../preload/contract/materials';
 import { texts as catalog } from '../../preload/contract/texts';
+import { createNetGate, type NetGate } from '../net-gate';
 import { WorkerProblem } from '../supervisor';
 import {
   extractResult,
@@ -39,6 +45,8 @@ import {
 } from '../workers/protocol';
 import { originalPath } from './originals';
 import { type Received, receiveFile, receiveText } from './receive';
+import { buildReview, closestBlock, offerableBlocks } from './review';
+import { downloadPage } from './web-download';
 
 // Los materiales en el proceso principal (H-25 y H-26): recibir archivos y textos, decidir qué
 // hacer con un duplicado, correr la cola etapa por etapa (cada etapa, si ya se hizo con el mismo
@@ -58,10 +66,42 @@ export interface MaterialsService {
     text: string;
     title?: string | undefined;
   }): Promise<AddResult>;
+  // Una página web por su dirección (Fase 14). Sin conexión queda pendiente y se completa sola.
+  addUrl(input: {
+    subjectId: string;
+    address: string;
+    title?: string | undefined;
+  }): Promise<AddResult>;
   decide(input: {
     pendingId: string;
     decision: 'open' | 'newVersion' | 'addAnyway';
   }): Promise<{ materialId: string }>;
+  snapshot(input: { materialId: string }): {
+    html: string;
+    address: string | null;
+    savedDay: string;
+  };
+  // La revisión de un material (Fase 14): los tres bloques, las correcciones y la cobertura.
+  review(input: { materialId: string }): MaterialReview;
+  ocrPage(input: { materialId: string; unit: number }): Record<string, never>;
+  reprocessPage(input: { materialId: string; unit: number }): Record<string, never>;
+  excludePages(input: { materialId: string; units: number[]; excluded: boolean }): MaterialReview;
+  resolveProblem(input: {
+    materialId: string;
+    problemId: string;
+    resolution: 'image' | 'ignored' | null;
+  }): MaterialReview;
+  correctText(input: { materialId: string; blockId: string; text: string }): {
+    correctionId: string;
+    cards: { cardId: string; question: string }[];
+  };
+  updateDerived(input: { correctionId: string; update: boolean }): { updated: number };
+  resolveConflict(input: { correctionId: string; keep: boolean }): MaterialReview;
+  sourceChange(input: { cardId: string }): { changed: boolean };
+  // Los bloques que se pueden ofrecer para generar tarjetas (regla dura, CA-118).
+  offerableBlockIds(input: { materialId: string }): string[];
+  // Bajar las páginas web que quedaron esperando conexión.
+  resumePending(): Promise<void>;
   list(input: { subjectId: string }): { materials: MaterialSummary[] };
   get(input: { materialId: string }): MaterialDetail;
   cancel(input: { materialId: string }): MaterialSummary;
@@ -107,7 +147,7 @@ export interface MaterialsService {
 const isWorkingState = (state: MaterialSummary['state']) =>
   state.kind === 'processing' || (state.kind === 'received' && state.cancelled !== true);
 
-const DEFAULT_TIMEOUTS = { validate: 30_000, extract: 30_000, document: 60_000 };
+const DEFAULT_TIMEOUTS = { validate: 30_000, extract: 30_000, document: 60_000, ocr: 180_000 };
 // Cuánto espera «Procesar despacio» antes de cada página.
 const SLOW_DELAY_MS = 2000;
 
@@ -130,6 +170,17 @@ function failureOf(error: unknown): { kind: FailureKind; problem: string } {
 
 const titleFromName = (name: string) => name.replace(/\.[^.]+$/, '').trim() || name;
 
+// «es.wikipedia.org/wiki/Mediana»: el título de una página web hasta que se lee la página.
+function titleFromAddress(address: string): string {
+  try {
+    const url = new URL(address);
+    const path = decodeURIComponent(url.pathname === '/' ? '' : url.pathname);
+    return `${url.host}${path}`.slice(0, 200);
+  } catch {
+    return address.slice(0, 200);
+  }
+}
+
 // El primer renglón con letras o números, sin las marcas de título de Markdown: un renglón de
 // puras marcas («##», «***») no sirve de título.
 function firstLine(text: string): string {
@@ -143,6 +194,7 @@ function firstLine(text: string): string {
 
 export function createMaterialsService({
   workspace,
+  clock,
   execute,
   emit = () => undefined,
   slow = () => false,
@@ -152,6 +204,7 @@ export function createMaterialsService({
   timeouts = {},
   autoStart = true,
   interrupt = () => undefined,
+  net = createNetGate(),
 }: {
   workspace: Workspace;
   clock: Clock;
@@ -161,10 +214,12 @@ export function createMaterialsService({
   sleep?: (ms: number) => Promise<void>;
   runnerId?: string;
   stopwatch?: Stopwatch;
-  timeouts?: Partial<Record<'validate' | 'extract' | 'document', number>>;
+  timeouts?: Partial<Record<'validate' | 'extract' | 'document' | 'ocr', number>>;
   autoStart?: boolean;
   // Corta la tarea que está corriendo en el proceso de trabajo (al cancelar o pausar).
   interrupt?: () => void;
+  // La puerta hacia internet (las páginas web): con «Simular sin conexión» falla sin salir.
+  net?: NetGate;
 }): MaterialsService {
   const elapsed = stopwatch.start();
   const limits = { ...DEFAULT_TIMEOUTS, ...timeouts };
@@ -276,6 +331,99 @@ export function createMaterialsService({
 
   const formatTool = (kind: QueueItem['kind']) => TOOLS[kind];
 
+  // La caja que envuelve a las de una página (un bloque corregido se resalta entero).
+  const unionBox = (boxes: readonly Box[]): Box | null => {
+    const first = boxes[0];
+    if (!first) {
+      return null;
+    }
+    const same = boxes.filter((box) => box.page === first.page);
+    const x = Math.min(...same.map((box) => box.x));
+    const y = Math.min(...same.map((box) => box.y));
+    return {
+      page: first.page,
+      x,
+      y,
+      width: Math.max(...same.map((box) => box.x + box.width)) - x,
+      height: Math.max(...same.map((box) => box.y + box.height)) - y,
+    };
+  };
+
+  // Los bloques de un material tal como se guardan: los de la normalización con las correcciones
+  // encima. El texto de base de un bloque corregido queda aparte (`base`) y el original, intacto.
+  function indexedBlocksOf(materialId: string, kind: QueueItem['kind']) {
+    const [normalized] = store().stageOutputs(materialId, 'normalize');
+    if (!normalized) {
+      throw new Error('Falta la normalización');
+    }
+    const { blocks } = normalizeResult.parse(normalized.output);
+    // Si la lectura dio los mismos bloques de antes, conservan su identificador.
+    const existing = store().blocks(materialId);
+    const reuse =
+      existing.length === blocks.length &&
+      existing.every((row, index) => row.type === blocks[index]?.type);
+    const ids = blocks.map((_, index) => (reuse ? (existing[index]?.id as string) : newId()));
+    const applied = applyCorrections(
+      blocks.map((block) => ({ unit: block.unit, type: block.type, base: block.normalized })),
+      store()
+        .corrections(materialId)
+        .map((row) => ({
+          id: row.id,
+          unit: row.unitNo,
+          key: row.blockKey,
+          before: row.beforeText,
+          after: row.afterText,
+        })),
+    );
+    let paragraphIndex = 0;
+    const indexed: IndexedBlock[] = blocks.map((block, index) => {
+      const text = applied.texts[index] ?? block.normalized;
+      const corrected = text !== block.normalized;
+      const boxes = block.lines.flatMap((line) => (line.box ? [line.box] : []));
+      const locator: BlockLocator = {
+        kind: kind === 'pdf' ? 'pdf' : 'flow',
+        page: block.unit,
+        lines: corrected
+          ? [{ norm: [0, text.length], box: unionBox(boxes) }]
+          : block.lines.map((line) => ({ norm: line.norm, box: line.box })),
+        headingPath: block.headingPath,
+        paragraphIndex: TEXT_TYPES.includes(block.type) ? paragraphIndex++ : -1,
+      };
+      return {
+        id: ids[index] as string,
+        parentId: block.parent === null ? null : (ids[block.parent] ?? null),
+        type: block.type,
+        level: block.level,
+        unit: block.unit,
+        raw: block.raw,
+        normalized: text,
+        transformations: corrected ? [] : block.transformations,
+        locator,
+        base: corrected ? block.normalized : null,
+      };
+    });
+    return { indexed, outcomes: applied.outcomes };
+  }
+
+  // Vuelve a armar los bloques con lo que hay (una corrección nueva, una decisión sobre un
+  // conflicto): no hace falta leer nada de nuevo, así que es al instante.
+  function rebuildBlocks(materialId: string): void {
+    const row = store().row(materialId);
+    const { indexed, outcomes } = indexedBlocksOf(materialId, (row.kind ?? 'text') as never);
+    store().replaceBlocks(materialId, indexed, outcomes);
+  }
+
+  // El título de una página web es el de la página, salvo que hayas puesto uno vos.
+  function retitle(materialId: string, title: string): void {
+    const row = store().row(materialId);
+    const fallback = row.sourceUrl
+      ? titleFromAddress(row.sourceUrl)
+      : titleFromName(row.originalName);
+    if (title.trim() !== '' && row.title === fallback) {
+      store().setTitle(materialId, title.trim().slice(0, 200));
+    }
+  }
+
   async function runStage(item: QueueItem): Promise<void> {
     const row = store().row(item.materialId);
     const meta = formatTool(item.kind);
@@ -306,12 +454,43 @@ export function createMaterialsService({
             throw new AbandonedError();
           }
         }
-        const params = { format: item.kind, pipeline: PIPELINE_VERSION };
-        const limit = item.kind === 'pdf' ? limits.extract : limits.document;
-        const { key, output } = await cachedOr(item, 'extract', item.unitNo, meta, params, () =>
-          run({ kind: 'extract', format: item.kind, file: fileOf(item), unit: item.unitNo }, limit),
+        // Una página que se pidió reconocer (o leer de nuevo) lleva su vuelta en la clave, así no
+        // reusa lo guardado. Sin eso (la primera lectura) la clave es la de siempre.
+        const unitRow =
+          item.kind === 'pdf' ? store().unit(item.materialId, item.unitNo) : undefined;
+        const ocr = unitRow?.textSource === 'ocr';
+        const generation = unitRow?.generation ?? 0;
+        const params =
+          generation === 0 && !ocr
+            ? { format: item.kind, pipeline: PIPELINE_VERSION }
+            : { format: item.kind, pipeline: PIPELINE_VERSION, generation, ocr };
+        const extractMeta = ocr ? TOOLS.ocr : meta;
+        const limit = ocr ? limits.ocr : item.kind === 'pdf' ? limits.extract : limits.document;
+        const { key, output } = await cachedOr(
+          item,
+          'extract',
+          item.unitNo,
+          extractMeta,
+          params,
+          () =>
+            run(
+              {
+                kind: 'extract',
+                format: item.kind,
+                file: fileOf(item),
+                unit: item.unitNo,
+                ...(ocr ? { ocr: true, workDir: dirs().tmpDir } : {}),
+              },
+              limit,
+            ),
         );
         const parsed = extractResult.parse(output);
+        if ('unreadable' in parsed) {
+          store().failValidation(item.id, 'webEmpty');
+          safeEmit({ type: 'material.failed', materialId: item.materialId });
+          finished = true;
+          return;
+        }
         let chars: number;
         let paragraphs = 0;
         if (parsed.format === 'pdf') {
@@ -324,15 +503,30 @@ export function createMaterialsService({
           );
           paragraphs = parsed.drafts.filter((draft) => TEXT_TYPES.includes(draft.type)).length;
         }
+        // Una página de PDF con muy poco texto para su tamaño cuenta como «No extraído»: es
+        // lo que pasa con un escaneo (con un sello o un número suelto).
+        const hasText =
+          item.kind === 'pdf'
+            ? textLayer({
+                chars,
+                width: unitRow?.width ?? null,
+                height: unitRow?.height ?? null,
+              }) === 'ok'
+            : chars > 0;
         store().completeExtract(
           item.id,
-          { key, output: parsed, ...meta, params },
+          { key, output: parsed, ...extractMeta, params },
           {
-            status: chars > 0 ? 'ready' : 'no_text',
+            status: hasText ? 'ready' : 'no_text',
             chars,
             paragraphs,
+            textSource: ocr ? 'ocr' : 'pdf',
+            ocrConfidence: parsed.format === 'pdf' ? (parsed.page.ocr?.confidence ?? null) : null,
           },
         );
+        if (parsed.format === 'web') {
+          retitle(item.materialId, parsed.snapshot.title);
+        }
         return;
       }
       case 'structure': {
@@ -361,7 +555,7 @@ export function createMaterialsService({
               entry.format === 'pdf' ? [entry.page] : [],
             );
             const drafts = extracted.flatMap((entry) =>
-              entry.format === 'pdf' ? [] : entry.drafts,
+              entry.format === 'pdf' || !('drafts' in entry) ? [] : entry.drafts,
             );
             return run(
               { kind: 'structure', format: item.kind, pages, drafts, outline },
@@ -388,34 +582,8 @@ export function createMaterialsService({
         return;
       }
       case 'index': {
-        const [normalized] = store().stageOutputs(item.materialId, 'normalize');
-        if (!normalized) {
-          throw new Error('Falta la normalización');
-        }
-        const { blocks } = normalizeResult.parse(normalized.output);
-        const ids = blocks.map(() => newId());
-        let paragraphIndex = 0;
-        const indexed: IndexedBlock[] = blocks.map((block, index) => {
-          const locator: BlockLocator = {
-            kind: item.kind === 'pdf' ? 'pdf' : 'flow',
-            page: block.unit,
-            lines: block.lines.map((line) => ({ norm: line.norm, box: line.box })),
-            headingPath: block.headingPath,
-            paragraphIndex: TEXT_TYPES.includes(block.type) ? paragraphIndex++ : -1,
-          };
-          return {
-            id: ids[index] as string,
-            parentId: block.parent === null ? null : (ids[block.parent] ?? null),
-            type: block.type,
-            level: block.level,
-            unit: block.unit,
-            raw: block.raw,
-            normalized: block.normalized,
-            transformations: block.transformations,
-            locator,
-          };
-        });
-        store().completeIndex(item.id, indexed);
+        const { indexed, outcomes } = indexedBlocksOf(item.materialId, item.kind);
+        store().completeIndex(item.id, indexed, outcomes);
         safeEmit({ type: 'material.done', materialId: item.materialId });
         finished = true;
         return;
@@ -515,6 +683,9 @@ export function createMaterialsService({
     if (!started) {
       started = true;
       recoverStale();
+      if (!net.isOffline()) {
+        beginPending();
+      }
     }
     kick();
   }
@@ -549,6 +720,7 @@ export function createMaterialsService({
       errorCode: null,
       previousMaterialId: previous?.id ?? null,
       versionNo: previous ? previous.versionNo + 1 : 1,
+      ...(received.kind === 'web' ? { snapshotAt: clock.now().toISOString() } : {}),
     });
   };
 
@@ -677,7 +849,345 @@ export function createMaterialsService({
     return { row, cite, reference, quote };
   };
 
+  const reviewInput = (materialId: string) => ({
+    units: store().units(materialId),
+    blocks: store().blocks(materialId),
+    corrections: store().corrections(materialId),
+    resolutions: store().resolutions(materialId),
+  });
+
+  const reviewOf = (materialId: string): MaterialReview => {
+    const row = store().row(materialId);
+    const summary = store().summary(materialId);
+    return buildReview({
+      materialId,
+      title: row.title,
+      kind: (row.kind ?? 'text') as MaterialReview['kind'],
+      summary,
+      working: isWorkingState(summary.state),
+      ...reviewInput(materialId),
+    });
+  };
+
+  // La cita de una tarjeta puesta al día con el texto corregido de su bloque: la frase se mueve
+  // junto con lo que cambió y se vuelve a ubicar en el texto de ahora.
+  const movedCite = (
+    materialId: string,
+    stored: StoredCite,
+    before: string,
+    after: string,
+  ): StoredCite | null => {
+    let quote = after.slice(0, 300);
+    const at = before.indexOf(stored.quote);
+    if (at >= 0) {
+      const moved = remapQuote(before, after, at, at + stored.quote.length);
+      const part = after.slice(moved.start, moved.end).trim();
+      if (part !== '') {
+        quote = part;
+      }
+    }
+    const texts = store().unitTexts(materialId);
+    const located = relocateQuote(texts, {
+      unit: stored.locator.page,
+      quote,
+      before: '',
+      after: '',
+    });
+    if (located.status !== 'located') {
+      return null;
+    }
+    const entry = texts.find((candidate) => candidate.unit === located.unit);
+    if (!entry) {
+      return null;
+    }
+    const context = quoteContext(entry.text, located.start, located.end);
+    return {
+      ...stored,
+      locator: {
+        ...stored.locator,
+        page: located.unit,
+        boxes: boxesFor(entry.spans, located.start, located.end),
+        quote,
+        before: context.before,
+        after: context.after,
+      },
+      quote,
+    };
+  };
+
+  // Páginas web: la descarga la hace el proceso principal. Sin conexión (o si falla la red) la
+  // página queda pendiente y se vuelve a intentar cuando haya conexión.
+  const downloading = new Set<string>();
+  const downloads = new Set<Promise<void>>();
+
+  async function download(materialId: string): Promise<void> {
+    let address: string | null;
+    try {
+      const row = store().row(materialId);
+      address = row.pendingNetwork === 1 ? row.sourceUrl : null;
+    } catch {
+      return;
+    }
+    if (address === null) {
+      return;
+    }
+    const result = await downloadPage(address, net);
+    if (abandoned || (!result.ok && 'pending' in result)) {
+      return;
+    }
+    try {
+      store().row(materialId);
+    } catch {
+      // Lo quitaste de la lista mientras se bajaba.
+      return;
+    }
+    if (!result.ok) {
+      store().failMaterial(materialId, result.problem);
+      safeEmit({ type: 'material.failed', materialId });
+      return;
+    }
+    const document = /^\s*<(!doctype\s+html|html[\s>])/iu.test(result.html)
+      ? result.html
+      : `<!doctype html>\n${result.html}`;
+    const received = await receiveText(document, `${new URL(address).host}.html`, dirs());
+    if (!received.ok || received.kind !== 'web') {
+      store().failMaterial(materialId, received.ok ? 'webNotPage' : received.problem);
+      safeEmit({ type: 'material.failed', materialId });
+      return;
+    }
+    store().attachDownload(materialId, {
+      sha256: received.sha256,
+      ext: received.ext,
+      sizeBytes: received.size,
+      snapshotAt: clock.now().toISOString(),
+    });
+    safeEmit({ type: 'material.progress', materialId });
+    kick();
+  }
+
+  function beginDownload(materialId: string): void {
+    if (downloading.has(materialId) || abandoned) {
+      return;
+    }
+    downloading.add(materialId);
+    const job: Promise<void> = download(materialId)
+      .catch((error: unknown) => {
+        console.error('Retenia: no se pudo bajar una página web', error);
+      })
+      .finally(() => {
+        downloading.delete(materialId);
+        downloads.delete(job);
+      });
+    downloads.add(job);
+  }
+
+  const stopWatchingNet = net.onChange((offline) => {
+    if (!offline && started) {
+      beginPending();
+    }
+  });
+  const webTimer = setInterval(() => {
+    if (started && !abandoned && !net.isOffline()) {
+      beginPending();
+    }
+  }, 30_000);
+  webTimer.unref?.();
+
+  function beginPending(): void {
+    try {
+      for (const entry of store().pendingWeb()) {
+        beginDownload(entry.id);
+      }
+    } catch {
+      // La base no está disponible ahora: la próxima vuelta lo intenta de nuevo.
+    }
+  }
+
   const service: MaterialsService = {
+    async addUrl({ subjectId, address, title }) {
+      const parsed = parseWebAddress(address);
+      if (!parsed.ok) {
+        throw new Error('La dirección no es una dirección web');
+      }
+      const materialId = store().create({
+        subjectId,
+        title: title?.trim() || titleFromAddress(parsed.url),
+        kind: 'web',
+        originalSha256: null,
+        originalName: parsed.url,
+        originalExt: null,
+        sizeBytes: 0,
+        errorCode: null,
+        sourceUrl: parsed.url,
+        pendingNetwork: true,
+      });
+      safeEmit({ type: 'material.progress', materialId });
+      beginDownload(materialId);
+      return { outcome: 'added', materialId };
+    },
+
+    snapshot({ materialId }) {
+      const row = store().row(materialId);
+      const [extract] = store().stageOutputs(materialId, 'extract');
+      const parsed = extract ? extractResult.safeParse(extract.output) : null;
+      if (!parsed?.success || parsed.data.format !== 'web' || !('snapshot' in parsed.data)) {
+        throw new Error('Este material no tiene una instantánea');
+      }
+      return {
+        html: parsed.data.snapshot.html,
+        address: row.sourceUrl,
+        savedDay: localDateTime(new Date(row.snapshotAt ?? row.addedAt)).day,
+      };
+    },
+
+    review: ({ materialId }) => reviewOf(materialId),
+
+    ocrPage({ materialId, unit }) {
+      if (store().row(materialId).kind !== 'pdf' || !store().unit(materialId, unit)) {
+        throw new Error('Esa página no existe');
+      }
+      store().requestExtract(materialId, unit, true);
+      safeEmit({ type: 'material.progress', materialId });
+      kick();
+      return {};
+    },
+
+    reprocessPage({ materialId, unit }) {
+      const unitRow = store().unit(materialId, unit);
+      if (!unitRow) {
+        throw new Error('Esa página no existe');
+      }
+      store().requestExtract(materialId, unit, unitRow.textSource === 'ocr');
+      safeEmit({ type: 'material.progress', materialId });
+      kick();
+      return {};
+    },
+
+    excludePages({ materialId, units, excluded }) {
+      store().setExcluded(materialId, units, excluded);
+      return reviewOf(materialId);
+    },
+
+    resolveProblem({ materialId, problemId, resolution }) {
+      const separator = problemId.indexOf(':');
+      const unit = Number(problemId.slice(0, separator));
+      const key = problemId.slice(separator + 1);
+      if (separator < 1 || !Number.isInteger(unit) || key === '') {
+        throw new Error('Ese problema no existe');
+      }
+      if (resolution === null) {
+        const correction = store()
+          .corrections(materialId)
+          .find((row) => row.unitNo === unit && row.blockKey === key);
+        if (correction) {
+          store().dropCorrection(correction.id);
+          rebuildBlocks(materialId);
+        }
+      }
+      store().setResolution(materialId, unit, key, resolution);
+      return reviewOf(materialId);
+    },
+
+    correctText({ materialId, blockId, text }) {
+      const clean = text.replace(/\r\n?/gu, '\n').trim();
+      if (clean === '') {
+        throw new Error('El texto corregido está vacío');
+      }
+      const block = store()
+        .blocks(materialId)
+        .find((row) => row.id === blockId);
+      if (!block) {
+        throw new Error('El bloque no es de este material');
+      }
+      const base = block.baseText ?? block.normalizedText;
+      // Las tarjetas que usan este texto, antes de que el texto cambie.
+      const cards = [
+        ...new Map(
+          citesOf(materialId)
+            .filter((entry) => entry.blockId === block.id)
+            .map(({ cardId, question }) => [cardId, { cardId, question }] as const),
+        ).values(),
+      ];
+      const correctionId = store().saveCorrection({
+        materialId,
+        unit: block.unitNo,
+        key: blockKey(block.type, base),
+        before: base,
+        after: clean,
+        pendingCards: cards.map((card) => card.cardId),
+      });
+      rebuildBlocks(materialId);
+      safeEmit({ type: 'material.progress', materialId });
+      return { correctionId, cards };
+    },
+
+    updateDerived({ correctionId, update }) {
+      const correction = store().correction(correctionId);
+      if (!correction) {
+        throw new Error('Esa corrección no existe');
+      }
+      if (!update) {
+        return { updated: 0 };
+      }
+      let updated = 0;
+      for (const cardId of JSON.parse(correction.pendingCards) as string[]) {
+        const stored = storedCiteOf(cardId);
+        if (!stored || stored.materialId !== correction.materialId) {
+          continue;
+        }
+        const next = movedCite(
+          correction.materialId,
+          stored,
+          correction.beforeText,
+          correction.afterText,
+        );
+        if (next) {
+          workspace.cards.updateSource({ cardId, sourceCite: JSON.stringify(next) });
+          updated++;
+        }
+      }
+      store().setPendingCards(correctionId, []);
+      return { updated };
+    },
+
+    resolveConflict({ correctionId, keep }) {
+      const correction = store().correction(correctionId);
+      if (!correction) {
+        throw new Error('Esa corrección no existe');
+      }
+      const { materialId } = correction;
+      if (keep) {
+        const here = store()
+          .blocks(materialId)
+          .filter(
+            (row) =>
+              row.unitNo === correction.unitNo &&
+              ['paragraph', 'list', 'table', 'formula', 'code'].includes(row.type),
+          )
+          .map((row) => ({ type: row.type, base: row.baseText ?? row.normalizedText }));
+        const candidate = closestBlock(correction.beforeText, here);
+        if (candidate) {
+          store().keepCorrection(correctionId, {
+            key: blockKey(candidate.type, candidate.base),
+            before: candidate.base,
+          });
+        }
+      } else {
+        store().dropCorrection(correctionId);
+      }
+      rebuildBlocks(materialId);
+      return reviewOf(materialId);
+    },
+
+    sourceChange: ({ cardId }) => ({ changed: store().cardsWithPendingChange(cardId) }),
+
+    offerableBlockIds: ({ materialId }) => offerableBlocks(reviewInput(materialId)),
+
+    async resumePending() {
+      beginPending();
+      await Promise.all([...downloads]);
+    },
+
     async addFiles({ paths, subjectId, title }) {
       const results: AddResult[] = [];
       for (const path of paths) {
@@ -792,6 +1302,8 @@ export function createMaterialsService({
         unit,
         unitCount: row.unitCount ?? 0,
         status: (unitRow?.status ?? 'pending') as MaterialPage['status'],
+        excluded: unitRow?.excluded === 1,
+        textSource: (unitRow?.textSource ?? 'pdf') as MaterialPage['textSource'],
         working: isWorkingState(store().summary(materialId).state),
         width: unitRow?.width ?? null,
         height: unitRow?.height ?? null,
@@ -888,6 +1400,10 @@ export function createMaterialsService({
 
     async whenIdle() {
       for (;;) {
+        if (downloads.size > 0) {
+          await Promise.all([...downloads]);
+          continue;
+        }
         if (running) {
           await running;
           continue;
@@ -938,6 +1454,8 @@ export function createMaterialsService({
     async stop() {
       started = false;
       clearInterval(staleTimer);
+      clearInterval(webTimer);
+      stopWatchingNet();
       if (running) {
         await running.catch(() => undefined);
       }
@@ -947,6 +1465,8 @@ export function createMaterialsService({
       abandoned = true;
       started = false;
       clearInterval(staleTimer);
+      clearInterval(webTimer);
+      stopWatchingNet();
     },
   };
   if (autoStart) {

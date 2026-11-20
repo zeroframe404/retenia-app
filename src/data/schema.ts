@@ -485,6 +485,11 @@ export const materials = sqliteTable(
     addedAt: text('added_at').notNull(),
     updatedAt: text('updated_at').notNull(),
     deletedAt: text('deleted_at'),
+    // Fase 14: una página web guarda su dirección (nula si vino de un archivo .html) y cuándo se
+    // sacó la instantánea; mientras no hay conexión queda pendiente y todavía sin original.
+    sourceUrl: text('source_url'),
+    snapshotAt: text('snapshot_at'),
+    pendingNetwork: integer('pending_network').notNull().default(0),
   },
   (table) => [
     index('materials_sha_idx').on(table.originalSha256),
@@ -506,8 +511,50 @@ export const materialUnits = sqliteTable(
     paragraphCount: integer('paragraph_count').notNull().default(0),
     width: real('width'),
     height: real('height'),
+    // Fase 14: «Estudiar sin estas páginas»; de dónde salió el texto ('pdf' o 'ocr'); la confianza
+    // del reconocimiento (0 a 100); y cuántas veces se pidió leerla de nuevo (entra en la clave de
+    // la etapa para que «Reprocesar» no reuse lo guardado).
+    excluded: integer('excluded').notNull().default(0),
+    textSource: text('text_source').notNull().default('pdf'),
+    ocrConfidence: real('ocr_confidence'),
+    generation: integer('generation').notNull().default(0),
   },
   (table) => [primaryKey({ columns: [table.materialId, table.unitNo] })],
+);
+
+// La capa de correcciones (Fase 14): lo que corregiste de un bloque, aparte del texto de base. El
+// bloque se reconoce por `block_key` (la huella de su tipo y su texto de base), así la corrección
+// se vuelve a aplicar cuando se reprocesa la página; si el texto de base cambió, queda 'conflict'.
+// `pending_cards` son las tarjetas anclada al bloque que todavía no se actualizaron (JSON).
+export const blockCorrections = sqliteTable(
+  'block_corrections',
+  {
+    id: text('id').primaryKey(),
+    materialId: text('material_id').notNull(),
+    unitNo: integer('unit_no').notNull(),
+    blockKey: text('block_key').notNull(),
+    beforeText: text('before_text').notNull(),
+    afterText: text('after_text').notNull(),
+    state: text('state').notNull().default('applied'),
+    pendingCards: text('pending_cards').notNull().default('[]'),
+    createdAt: text('created_at').notNull(),
+    updatedAt: text('updated_at').notNull(),
+  },
+  (table) => [index('block_corrections_material_idx').on(table.materialId, table.unitNo)],
+);
+
+// Lo que decidiste de cada problema de la revisión: marcarlo como imagen o ignorarlo (Fase 14).
+// `problem_key` es la huella del bloque, o 'unit' si el aviso es de la página entera.
+export const problemResolutions = sqliteTable(
+  'problem_resolutions',
+  {
+    materialId: text('material_id').notNull(),
+    unitNo: integer('unit_no').notNull(),
+    problemKey: text('problem_key').notNull(),
+    resolution: text('resolution').notNull(),
+    createdAt: text('created_at').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.materialId, table.unitNo, table.problemKey] })],
 );
 
 // Los bloques de un material, en orden: sección, título, párrafo, lista, tabla, fórmula, figura,
@@ -529,6 +576,9 @@ export const materialBlocks = sqliteTable(
     normalizedText: text('normalized_text').notNull(),
     transformations: text('transformations').notNull().default('[]'),
     locator: text('locator').notNull(),
+    // Fase 14: el texto de base de un bloque corregido (el que salió de la lectura, antes de tu
+    // corrección). Nulo si el bloque no tiene corrección: su texto de base es `normalized_text`.
+    baseText: text('base_text'),
   },
   (table) => [
     index('material_blocks_unit_idx').on(table.materialId, table.unitNo),

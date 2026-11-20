@@ -143,7 +143,8 @@ async function generate({ app, BrowserWindow }) {
     // que salen de la carpeta. Las pruebas arman además los suyos en el momento.
     writeFileSync(join(OUT, 'trampa-codigo.pdf'), trapCodePdf());
     writeFileSync(join(OUT, 'trampa-rutas.zip'), trapPathsZip());
-    console.log('  trampa-codigo.pdf, trampa-rutas.zip');
+    writeFileSync(join(OUT, 'trampa-script.html'), content.TRAP_SCRIPT_HTML);
+    console.log('  trampa-codigo.pdf, trampa-rutas.zip, trampa-script.html');
     console.log(
       `  campana.png (${Math.round(writeBellCurve(OUT) / 1024)} KB, también en el elenco)`,
     );

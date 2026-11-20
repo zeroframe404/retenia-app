@@ -24,7 +24,9 @@ export function resolveOriginal(
     return null;
   }
   const found = lookup(materialId);
-  if (!found) {
+  // El HTML de una página web guardada nunca se sirve a la ventana: lo que se ve es su instantánea
+  // saneada (Fase 14, CA-120).
+  if (!found || found.ext === 'html') {
     return null;
   }
   const file = originalPath(`${dataDir}${sep}originales`, found.sha256, found.ext);

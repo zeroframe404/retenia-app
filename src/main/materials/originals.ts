@@ -5,7 +5,7 @@ import { join } from 'node:path';
 // modifica (queda de solo lectura). El nombre que tenía el archivo es un dato del material, no una
 // ruta.
 
-const ORIGINAL_EXTENSIONS = ['pdf', 'docx', 'md', 'txt'] as const;
+const ORIGINAL_EXTENSIONS = ['pdf', 'docx', 'md', 'txt', 'html'] as const;
 export type OriginalExtension = (typeof ORIGINAL_EXTENSIONS)[number];
 
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -28,4 +28,5 @@ export const MIME: Record<OriginalExtension, string> = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   md: 'text/markdown; charset=utf-8',
   txt: 'text/plain; charset=utf-8',
+  html: 'text/html; charset=utf-8',
 };

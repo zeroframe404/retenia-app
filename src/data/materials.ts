@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
-import { and, asc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
 import type { BlockType, Box } from '../core/materials/blocks';
 import type { Transformation } from '../core/materials/normalize';
@@ -30,7 +30,15 @@ import { texts } from '../preload/contract/texts';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
 import type { Writer } from './orm';
-import { ingestResults, ingestTasks, materialBlocks, materials, materialUnits } from './schema';
+import {
+  blockCorrections,
+  ingestResults,
+  ingestTasks,
+  materialBlocks,
+  materials,
+  materialUnits,
+  problemResolutions,
+} from './schema';
 
 // Los materiales en la base (Fase 13): cada material con sus unidades (páginas), sus bloques, los
 // resultados de cada etapa (que solo se agregan) y la cola de tareas. Las reglas (qué estado tiene
@@ -59,7 +67,9 @@ class MaterialNotFoundError extends Error {
 
 export type MaterialRow = typeof materials.$inferSelect;
 type TaskRowDb = typeof ingestTasks.$inferSelect;
-type UnitRow = typeof materialUnits.$inferSelect;
+export type UnitRow = typeof materialUnits.$inferSelect;
+export type CorrectionRow = typeof blockCorrections.$inferSelect;
+export type ResolutionRow = typeof problemResolutions.$inferSelect;
 export type BlockRow = typeof materialBlocks.$inferSelect;
 
 interface TaskRow {
@@ -121,6 +131,8 @@ export interface IndexedBlock {
   normalized: string;
   transformations: Transformation[];
   locator: BlockLocator;
+  // El texto de base, si `normalized` es una corrección tuya (Fase 14).
+  base?: string | null;
 }
 
 interface SavedResult {
@@ -190,7 +202,53 @@ export interface MaterialsStore {
     previousMaterialId?: string | null;
     versionNo?: number;
     addedAt?: string;
+    // Páginas web (Fase 14): la dirección, cuándo se sacó la instantánea y si espera conexión.
+    sourceUrl?: string | null;
+    snapshotAt?: string | null;
+    pendingNetwork?: boolean;
   }): string;
+  // Una página web pendiente ya se bajó: se guarda su original y empieza la cadena.
+  attachDownload(
+    materialId: string,
+    input: { sha256: string; ext: string; sizeBytes: number; snapshotAt: string },
+  ): void;
+  // Un material que no pasó por la cadena y ya sabemos que no sirve (una página que pide pagar).
+  failMaterial(materialId: string, problem: ErrorProblem): void;
+  pendingWeb(): { id: string; sourceUrl: string }[];
+  units(materialId: string): UnitRow[];
+  // Volver a leer una página (reconocimiento o «Reprocesar»): la unidad vuelve a «pendiente» y la
+  // cadena de después se repite.
+  requestExtract(materialId: string, unit: number, ocr: boolean): void;
+  setExcluded(materialId: string, units: readonly number[], excluded: boolean): void;
+  // Vuelve a escribir los bloques (con las correcciones aplicadas) sin pasar por la cola.
+  replaceBlocks(
+    materialId: string,
+    blocks: readonly IndexedBlock[],
+    outcomes?: Readonly<Record<string, 'applied' | 'conflict'>>,
+  ): void;
+  setTitle(materialId: string, title: string): void;
+  // La capa de correcciones y lo que se decidió de cada problema (Fase 14).
+  corrections(materialId: string): CorrectionRow[];
+  correction(correctionId: string): CorrectionRow | undefined;
+  saveCorrection(input: {
+    materialId: string;
+    unit: number;
+    key: string;
+    before: string;
+    after: string;
+    pendingCards: readonly string[];
+  }): string;
+  dropCorrection(correctionId: string): void;
+  keepCorrection(correctionId: string, input: { key: string; before: string }): void;
+  setPendingCards(correctionId: string, cardIds: readonly string[]): void;
+  cardsWithPendingChange(cardId: string): boolean;
+  resolutions(materialId: string): ResolutionRow[];
+  setResolution(
+    materialId: string,
+    unit: number,
+    problemKey: string,
+    resolution: 'image' | 'ignored' | null,
+  ): void;
   findByHash(sha256: string): MaterialRow | undefined;
   findByName(subjectId: string, name: string): MaterialRow | undefined;
   row(materialId: string): MaterialRow;
@@ -216,10 +274,20 @@ export interface MaterialsStore {
   completeExtract(
     taskId: string,
     saved: SavedResult & StageMeta,
-    unit: { status: 'ready' | 'no_text'; chars: number; paragraphs: number },
+    unit: {
+      status: 'ready' | 'no_text';
+      chars: number;
+      paragraphs: number;
+      textSource?: 'pdf' | 'ocr';
+      ocrConfidence?: number | null;
+    },
   ): void;
   completeStage(taskId: string, saved: SavedResult & StageMeta): void;
-  completeIndex(taskId: string, blocks: readonly IndexedBlock[]): void;
+  completeIndex(
+    taskId: string,
+    blocks: readonly IndexedBlock[],
+    outcomes?: Readonly<Record<string, 'applied' | 'conflict'>>,
+  ): void;
   failValidation(taskId: string, problem: ErrorProblem): void;
   fail(taskId: string, kind: FailureKind, problem: string): TaskStatus;
   // Las salidas de las etapas anteriores de un material.
@@ -272,6 +340,7 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
     const units = unitsOf(tx, row.id);
     const input = {
       errorCode: row.errorCode,
+      pendingNetwork: row.pendingNetwork === 1,
       unitCount: row.unitCount,
       units: units.map((unit) => ({ status: unit.status as UnitStatus })),
       tasks: tasks.map((task) => ({ stage: task.stage, status: task.status })),
@@ -283,6 +352,8 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
       title: row.title,
       originalName: row.originalName,
       kind: row.kind as MaterialKind | null,
+      sourceUrl: row.sourceUrl,
+      snapshotDay: row.snapshotAt ? localDateTime(new Date(row.snapshotAt)).day : null,
       versionNo: row.versionNo,
       previousMaterialId: row.previousMaterialId,
       // El día del calendario en que lo agregaste (no el «día de estudio», que corta a las 04:00).
@@ -383,6 +454,40 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
 
   const NEXT: Partial<Record<Stage, Stage>> = { structure: 'normalize', normalize: 'index' };
 
+  // Escribe los bloques de un material (reemplaza los que había) y el estado de cada corrección.
+  const writeBlocks = (
+    tx: Writer,
+    materialId: string,
+    blocks: readonly IndexedBlock[],
+    outcomes: Readonly<Record<string, 'applied' | 'conflict'>>,
+  ) => {
+    tx.delete(materialBlocks).where(eq(materialBlocks.materialId, materialId)).run();
+    blocks.forEach((block, position) => {
+      tx.insert(materialBlocks)
+        .values({
+          id: block.id,
+          materialId,
+          parentId: block.parentId,
+          position,
+          type: block.type,
+          level: block.level,
+          unitNo: block.unit,
+          rawText: block.raw,
+          normalizedText: block.normalized,
+          transformations: JSON.stringify(block.transformations),
+          locator: JSON.stringify(block.locator),
+          baseText: block.base ?? null,
+        })
+        .run();
+    });
+    for (const [correctionId, state] of Object.entries(outcomes)) {
+      tx.update(blockCorrections)
+        .set({ state, updatedAt: clock.now().toISOString() })
+        .where(eq(blockCorrections.id, correctionId))
+        .run();
+    }
+  };
+
   const writeTask = (tx: Writer, task: TaskRow, state: TaskState) => {
     tx.update(ingestTasks)
       .set({
@@ -472,13 +577,241 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
             pipelineVersion: PIPELINE_VERSION,
             addedAt: input.addedAt ?? now,
             updatedAt: now,
+            sourceUrl: input.sourceUrl ?? null,
+            snapshotAt: input.snapshotAt ?? null,
+            pendingNetwork: input.pendingNetwork ? 1 : 0,
           })
           .run();
-        if (input.errorCode === null) {
+        if (input.errorCode === null && !input.pendingNetwork) {
           addTask(tx, id, 'validate', 0);
         }
       });
       return id;
+    },
+
+    attachDownload(materialId, { sha256: hash, ext, sizeBytes, snapshotAt }) {
+      orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        tx.update(materials)
+          .set({
+            originalSha256: hash,
+            originalExt: ext,
+            sizeBytes,
+            snapshotAt,
+            pendingNetwork: 0,
+            updatedAt: clock.now().toISOString(),
+          })
+          .where(eq(materials.id, materialId))
+          .run();
+        addTask(tx, materialId, 'validate', 0);
+      });
+    },
+
+    failMaterial(materialId, problem) {
+      orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        tx.update(materials)
+          .set({ errorCode: problem, pendingNetwork: 0, updatedAt: clock.now().toISOString() })
+          .where(eq(materials.id, materialId))
+          .run();
+      });
+    },
+
+    pendingWeb: () =>
+      orm
+        .select({ id: materials.id, sourceUrl: materials.sourceUrl })
+        .from(materials)
+        .where(
+          and(
+            eq(materials.pendingNetwork, 1),
+            isNull(materials.deletedAt),
+            isNull(materials.errorCode),
+          ),
+        )
+        .orderBy(asc(materials.addedAt))
+        .all()
+        .flatMap((row) =>
+          row.sourceUrl === null ? [] : [{ id: row.id, sourceUrl: row.sourceUrl }],
+        ),
+
+    units: (materialId) => unitsOf(orm, materialId),
+
+    requestExtract(materialId, unitNo, ocr) {
+      orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        const unit = tx
+          .select()
+          .from(materialUnits)
+          .where(and(eq(materialUnits.materialId, materialId), eq(materialUnits.unitNo, unitNo)))
+          .get();
+        if (!unit) {
+          throw new MaterialNotFoundError();
+        }
+        tx.update(materialUnits)
+          .set({
+            status: 'pending',
+            generation: unit.generation + 1,
+            textSource: ocr ? 'ocr' : unit.textSource,
+          })
+          .where(and(eq(materialUnits.materialId, materialId), eq(materialUnits.unitNo, unitNo)))
+          .run();
+        // Los resultados guardados se quedan (solo se agregan); lo que cambia es qué tareas
+        // quedan: la de esta página se hace de nuevo y la cadena de después también.
+        tx.delete(ingestTasks)
+          .where(
+            and(
+              eq(ingestTasks.materialId, materialId),
+              or(
+                and(eq(ingestTasks.stage, 'extract'), eq(ingestTasks.unitNo, unitNo)),
+                inArray(ingestTasks.stage, ['structure', 'normalize', 'index']),
+              ),
+            ),
+          )
+          .run();
+        addTask(tx, materialId, 'extract', unitNo);
+        touch(tx, materialId);
+      });
+    },
+
+    setExcluded(materialId, unitNos, excluded) {
+      orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        if (unitNos.length > 0) {
+          tx.update(materialUnits)
+            .set({ excluded: excluded ? 1 : 0 })
+            .where(
+              and(
+                eq(materialUnits.materialId, materialId),
+                inArray(materialUnits.unitNo, [...unitNos]),
+              ),
+            )
+            .run();
+        }
+        touch(tx, materialId);
+      });
+    },
+
+    corrections: (materialId) =>
+      orm
+        .select()
+        .from(blockCorrections)
+        .where(eq(blockCorrections.materialId, materialId))
+        .orderBy(asc(blockCorrections.createdAt), asc(blockCorrections.id))
+        .all(),
+
+    correction: (correctionId) =>
+      orm.select().from(blockCorrections).where(eq(blockCorrections.id, correctionId)).get(),
+
+    saveCorrection({ materialId, unit, key, before, after, pendingCards }) {
+      const now = clock.now().toISOString();
+      return orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        const existing = tx
+          .select()
+          .from(blockCorrections)
+          .where(
+            and(
+              eq(blockCorrections.materialId, materialId),
+              eq(blockCorrections.unitNo, unit),
+              eq(blockCorrections.blockKey, key),
+            ),
+          )
+          .get();
+        if (existing) {
+          tx.update(blockCorrections)
+            .set({
+              afterText: after,
+              state: 'applied',
+              pendingCards: JSON.stringify(pendingCards),
+              updatedAt: now,
+            })
+            .where(eq(blockCorrections.id, existing.id))
+            .run();
+          return existing.id;
+        }
+        const id = newId();
+        tx.insert(blockCorrections)
+          .values({
+            id,
+            materialId,
+            unitNo: unit,
+            blockKey: key,
+            beforeText: before,
+            afterText: after,
+            state: 'applied',
+            pendingCards: JSON.stringify(pendingCards),
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        return id;
+      });
+    },
+
+    dropCorrection(correctionId) {
+      orm.delete(blockCorrections).where(eq(blockCorrections.id, correctionId)).run();
+    },
+
+    // «Mantener mi corrección» sobre un texto de base nuevo: la corrección pasa a ser de ese texto.
+    keepCorrection(correctionId, { key, before }) {
+      orm
+        .update(blockCorrections)
+        .set({
+          blockKey: key,
+          beforeText: before,
+          state: 'applied',
+          updatedAt: clock.now().toISOString(),
+        })
+        .where(eq(blockCorrections.id, correctionId))
+        .run();
+    },
+
+    setPendingCards(correctionId, cardIds) {
+      orm
+        .update(blockCorrections)
+        .set({ pendingCards: JSON.stringify(cardIds), updatedAt: clock.now().toISOString() })
+        .where(eq(blockCorrections.id, correctionId))
+        .run();
+    },
+
+    cardsWithPendingChange(cardId) {
+      return orm
+        .select({ pendingCards: blockCorrections.pendingCards })
+        .from(blockCorrections)
+        .where(like(blockCorrections.pendingCards, `%"${cardId}"%`))
+        .all()
+        .some((row) => (JSON.parse(row.pendingCards) as string[]).includes(cardId));
+    },
+
+    resolutions: (materialId) =>
+      orm
+        .select()
+        .from(problemResolutions)
+        .where(eq(problemResolutions.materialId, materialId))
+        .all(),
+
+    setResolution(materialId, unitNo, problemKey, resolution) {
+      orm.transaction((tx) => {
+        rowOf(tx, materialId);
+        const where = and(
+          eq(problemResolutions.materialId, materialId),
+          eq(problemResolutions.unitNo, unitNo),
+          eq(problemResolutions.problemKey, problemKey),
+        );
+        tx.delete(problemResolutions).where(where).run();
+        if (resolution !== null) {
+          tx.insert(problemResolutions)
+            .values({
+              materialId,
+              unitNo,
+              problemKey,
+              resolution,
+              createdAt: clock.now().toISOString(),
+            })
+            .run();
+        }
+        touch(tx, materialId);
+      });
     },
 
     findByHash: (hash) =>
@@ -664,7 +997,13 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
         const material = rowOf(tx, task.materialId);
         saveResult(tx, task, material, saved);
         tx.update(materialUnits)
-          .set({ status: unit.status, charCount: unit.chars, paragraphCount: unit.paragraphs })
+          .set({
+            status: unit.status,
+            charCount: unit.chars,
+            paragraphCount: unit.paragraphs,
+            ...(unit.textSource ? { textSource: unit.textSource } : {}),
+            ocrConfidence: unit.ocrConfidence ?? null,
+          })
           .where(
             and(eq(materialUnits.materialId, material.id), eq(materialUnits.unitNo, task.unitNo)),
           )
@@ -692,31 +1031,29 @@ export function createMaterialsStore(db: ReteniaDatabase, clock: Clock): Materia
       });
     },
 
-    completeIndex(taskId, blocks) {
+    replaceBlocks(materialId, blocks, outcomes = {}) {
+      orm.transaction((tx) => {
+        writeBlocks(tx, rowOf(tx, materialId).id, blocks, outcomes);
+        touch(tx, materialId);
+      });
+    },
+
+    setTitle(materialId, title) {
+      orm
+        .update(materials)
+        .set({ title, updatedAt: clock.now().toISOString() })
+        .where(eq(materials.id, materialId))
+        .run();
+    },
+
+    completeIndex(taskId, blocks, outcomes = {}) {
       orm.transaction((tx) => {
         const task = taskRow(tx, taskId);
         if (task?.status !== 'running') {
           return;
         }
         const material = rowOf(tx, task.materialId);
-        tx.delete(materialBlocks).where(eq(materialBlocks.materialId, material.id)).run();
-        blocks.forEach((block, position) => {
-          tx.insert(materialBlocks)
-            .values({
-              id: block.id,
-              materialId: material.id,
-              parentId: block.parentId,
-              position,
-              type: block.type,
-              level: block.level,
-              unitNo: block.unit,
-              rawText: block.raw,
-              normalizedText: block.normalized,
-              transformations: JSON.stringify(block.transformations),
-              locator: JSON.stringify(block.locator),
-            })
-            .run();
-        });
+        writeBlocks(tx, material.id, blocks, outcomes);
         tx.update(materials)
           .set({ pipelineVersion: PIPELINE_VERSION })
           .where(eq(materials.id, material.id))

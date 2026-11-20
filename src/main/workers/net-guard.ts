@@ -84,7 +84,15 @@ function installGuard(modules: Loaded): void {
     | undefined;
   registerHooks?.({
     resolve(specifier, context, next) {
-      if (BLOCKED.includes(specifier.replace(/^node:/, '').split('/')[0] ?? '')) {
+      const name = specifier.replace(/^node:/, '').split('/')[0] ?? '';
+      // Una sola excepción (Fase 14): undici, que jsdom carga para existir, pide módulos de red al
+      // cargarse. Los módulos llegan igual de anulados (arriba), así que no conecta con nada; el
+      // resto del código sigue sin poder cargarlos.
+      const parent = (context as { parentURL?: string } | undefined)?.parentURL ?? '';
+      const fromUndici =
+        /[\\/]node_modules[\\/]undici[\\/]/.test(parent) &&
+        ['net', 'tls', 'http', 'https', 'http2', 'dns'].includes(name);
+      if (BLOCKED.includes(name) && !fromUndici) {
         refuse(specifier);
       }
       return next(specifier, context);
