@@ -20,6 +20,7 @@ import {
   normalizeShortAnswer,
   parseNumber,
   purposeOf,
+  referenceText,
   resultParts,
   shuffledOptions,
   validateActivity,
@@ -123,7 +124,12 @@ describe('numérica: coma, punto, margen y unidad', () => {
     expect(parseNumber('1.234,5')).toEqual({ value: 1234.5, unit: null });
     expect(parseNumber('1,234.5')).toEqual({ value: 1234.5, unit: null });
     expect(parseNumber('1.234.567')).toEqual({ value: 1234567, unit: null });
-    expect(parseNumber('1.234')).toEqual({ value: 1.234, unit: null });
+    // Un solo punto seguido de tres cifras es de miles, como se escribe acá (objeción del revisor).
+    expect(parseNumber('1.234')).toEqual({ value: 1234, unit: null });
+    expect(parseNumber('1.500')).toEqual({ value: 1500, unit: null });
+    expect(parseNumber('5.000')).toEqual({ value: 5000, unit: null });
+    expect(parseNumber('0.500')).toEqual({ value: 0.5, unit: null });
+    expect(parseNumber('1,500')).toEqual({ value: 1.5, unit: null });
   });
 
   it('no inventa números: lo que no se lee es «no reconocí un número»', () => {
@@ -614,5 +620,79 @@ describe('la comprobación sin ayuda, cuando el acierto con pista no fue el prim
 
   it('un intento afectado o sin evaluar no deja nada pendiente', () => {
     expect(hasPendingCheck([attempt('2027-03-15', 'correct', 'A2', true, false)])).toBe(false);
+  });
+});
+
+describe('objeciones del revisor: reglas', () => {
+  it('[CA-140] una variante aceptada de una numérica vale aunque traiga unidad o no sea un número', () => {
+    const spec = { value: 5, tolerance: 0, unit: null };
+    expect(evaluateNumeric('5 kg', spec, ['5 kg']).verdict).toBe('correct');
+    expect(evaluateNumeric('Tres', spec, ['tres']).verdict).toBe('correct');
+    expect(evaluateNumeric('5 kg', spec, []).verdict).toBe('incorrect');
+  });
+
+  it('el orden inicial de los pasos tampoco es un orden ya aceptado', () => {
+    const correct = ['s1', 's2', 's3'];
+    const accepted = [
+      ['s2', 's1', 's3'],
+      ['s1', 's3', 's2'],
+      ['s3', 's2', 's1'],
+      ['s2', 's3', 's1'],
+    ];
+    for (let n = 0; n < 30; n += 1) {
+      const initial = initialOrder(correct, `apertura-${n}`, accepted);
+      expect([correct, ...accepted].map((order) => order.join())).not.toContain(initial.join());
+    }
+  });
+
+  it('[CA-134] con la solución vista, «Vas bien.» o «Correcto.» dicen «Resuelto con la solución a la vista»', () => {
+    const solution = [{ kind: 'solution' as const, level: 'A4' as const }];
+    for (const verdict of ['correct', 'partial'] as const) {
+      expect(
+        resultParts({ type: 'open', verdict, used: solution, optionsQuestion: false }),
+      ).toEqual({ verdict: 'solution', review: 'helpUsed', action: 'retryLater' });
+    }
+    expect(
+      resultParts({ type: 'open', verdict: 'incorrect', used: solution, optionsQuestion: false })
+        .verdict,
+    ).toBe('incorrect');
+  });
+
+  it('una respuesta corta larguísima se compara sin calcular la diferencia letra por letra', () => {
+    const long = 'a'.repeat(5000);
+    const result = evaluateShort(long, ['París', `${'b'.repeat(4000)}`]);
+    expect(result.verdict).toBe('incorrect');
+    expect(result.diff).toEqual([]);
+  });
+});
+
+describe('la respuesta de referencia de un ejercicio', () => {
+  it('sale de la actividad: el valor con coma y su unidad, la opción correcta, los pasos o las ideas', () => {
+    expect(referenceText({ type: 'numeric', value: 4.2, tolerance: 0.05, unit: 'min' })).toBe(
+      '4,2 min',
+    );
+    expect(referenceText({ type: 'numeric', value: 5, tolerance: 0, unit: null })).toBe('5');
+    expect(
+      referenceText({
+        type: 'options',
+        options: [
+          { id: 'a', text: 'Otra', correct: false, explanation: 'No.' },
+          { id: 'b', text: 'La mediana', correct: true, explanation: '' },
+          { id: 'c', text: 'Tampoco', correct: false, explanation: 'No.' },
+        ],
+      }),
+    ).toBe('La mediana');
+    expect(
+      referenceText({
+        type: 'order',
+        steps: [
+          { id: 's1', text: 'Ordenar' },
+          { id: 's2', text: 'Contar' },
+          { id: 's3', text: 'Leer' },
+        ],
+        acceptedOrders: [],
+      }),
+    ).toBe('Ordenar · Contar · Leer');
+    expect(referenceText({ type: 'short' })).toBeNull();
   });
 });

@@ -20,7 +20,8 @@ describe('evaluación sin IA: propiedades', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: -99_999, max: 99_999 }),
-        fc.integer({ min: 0, max: 9999 }),
+        // Con tres cifras después de un punto se lee como miles (1.500 es mil quinientos).
+        fc.integer({ min: 0, max: 9999 }).filter((decimals) => String(decimals).length !== 3),
         (whole, decimals) => {
           const fraction = String(decimals);
           const withComma = parseNumber(`${whole},${fraction}`);
