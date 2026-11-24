@@ -30,8 +30,13 @@ function settableClock(start: Date) {
   };
 }
 
+// Con el reloj de la demostración, una copia del elenco sembrado una vez por proceso (lo mismo que
+// siembran estas dos líneas); con otro reloj, se siembra en la prueba.
 function seeded(clock?: Clock) {
-  const space = openSpace(clock ? { clock } : {});
+  if (!clock) {
+    return openSpace({ withCast: 'tarjetas' });
+  }
+  const space = openSpace({ clock });
   seedDemoOrganization(space.workspace);
   seedDemoCardCast(space.workspace);
   return space;

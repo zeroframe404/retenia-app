@@ -19,7 +19,7 @@ import type { ApiOf, channels } from '../../src/preload/contract';
 import type { MaterialEvent } from '../../src/preload/contract/events';
 import { fileChannels } from '../../src/preload/contract/materials';
 import { tempDataFolder } from './base';
-import { copyCastInto } from './elenco';
+import { type CastKind, copyCastInto } from './elenco';
 
 export interface TestBridge {
   api: ApiOf<typeof channels>;
@@ -65,8 +65,9 @@ export function openBridge({
 }: {
   // La puerta hacia internet (Fase 14): la de las pruebas de páginas web.
   net?: NetGate;
-  // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez).
-  withCast?: boolean;
+  // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez); con
+  // `'tarjetas'`, el de las tarjetas sin materiales.
+  withCast?: boolean | Extract<CastKind, 'tarjetas'>;
   clock?: Clock;
   variant?: Variant;
   openFolder?: (path: string) => Promise<string>;
@@ -76,8 +77,8 @@ export function openBridge({
   holdExtraction?: () => Promise<void>;
 } = {}): TestBridge {
   const data = tempDataFolder();
-  if (withCast) {
-    copyCastInto(data.folder);
+  if (withCast !== false) {
+    copyCastInto(data.folder, withCast === true ? 'completo' : withCast);
   }
   const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
   const listeners = new Set<(event: MaterialEvent) => void>();
@@ -96,7 +97,7 @@ export function openBridge({
       }
     },
     // Con el elenco, los materiales sembrados quedan «Recibido»: las pruebas que lo usan no los leen.
-    autoStart: !withCast,
+    autoStart: withCast !== true,
     ...(net ? { net } : {}),
   });
   const opened: string[] = [];

@@ -1,6 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { App } from '../../src/renderer/App';
 import { closeWindows, openWindow } from './apoyo-ventana';
 
@@ -11,10 +10,9 @@ afterEach(closeWindows);
 
 const DESVIO = '¿Qué mide el desvío estándar?';
 
+// Una copia del elenco sembrado una vez por proceso (lo mismo que sembrar materias y tarjetas).
 function withCast() {
-  const opened = openWindow();
-  seedDemoOrganization(opened.bridge.workspace);
-  seedDemoCardCast(opened.bridge.workspace);
+  const opened = openWindow('real', undefined, { withCast: 'tarjetas' });
   return opened;
 }
 

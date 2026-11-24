@@ -30,10 +30,9 @@ const SLOW = { timeout: 15_000 };
 type Opened = ReturnType<typeof openWindow>;
 type User = Opened['user'];
 
+// Una copia del elenco sembrado una vez por proceso (lo mismo que sembrar materias y tarjetas).
 function withCast(): Opened {
-  const opened = openWindow();
-  seedDemoOrganization(opened.bridge.workspace);
-  seedDemoCardCast(opened.bridge.workspace);
+  const opened = openWindow('real', undefined, { withCast: 'tarjetas' });
   return opened;
 }
 

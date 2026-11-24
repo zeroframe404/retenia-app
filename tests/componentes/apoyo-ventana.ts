@@ -23,7 +23,11 @@ export function openWindow(
     withCast = false,
     holdExtraction,
     net,
-  }: { withCast?: boolean; holdExtraction?: () => Promise<void>; net?: NetGate } = {},
+  }: {
+    withCast?: boolean | 'tarjetas';
+    holdExtraction?: () => Promise<void>;
+    net?: NetGate;
+  } = {},
 ) {
   vi.stubGlobal('__VARIANTE__', variant);
   const bridge = openBridge({

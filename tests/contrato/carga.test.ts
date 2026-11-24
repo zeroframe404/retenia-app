@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { fixedStopwatch } from '../../src/core/clock';
 import { handleMessage } from '../../src/main/bridge';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // Contrato de los canales de la carga en minutos (Fase 11): la propuesta por minutos, empezar con
@@ -14,9 +13,8 @@ const BATCH = '01969f1e-0000-4000-8000-0000000000d3';
 
 const bridges: TestBridge[] = [];
 function bridge() {
-  const opened = openBridge({ stopwatch: fixedStopwatch(1500) });
-  seedDemoOrganization(opened.workspace);
-  seedDemoCardCast(opened.workspace);
+  // Una copia del elenco sembrado una vez por proceso (lo mismo que sembrar materias y tarjetas).
+  const opened = openBridge({ stopwatch: fixedStopwatch(1500), withCast: 'tarjetas' });
   bridges.push(opened);
   return opened;
 }

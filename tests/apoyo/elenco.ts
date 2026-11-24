@@ -15,26 +15,39 @@ import { SAMPLES } from './materiales';
 // siembra una sola vez por proceso de pruebas, en una carpeta de datos aparte, y cada prueba
 // arranca con una copia (la base y sus imágenes). Es el mismo elenco, sembrado por el mismo código.
 
-let template: { file: string } | null = null;
+// `completo`: materias, notas, materiales y tarjetas (las tarjetas citan los materiales).
+// `tarjetas`: materias, notas y tarjetas sin materiales, como `seedDemoOrganization` y
+// `seedDemoCardCast` con el reloj de la demostración (lo que siembran las pruebas de la sesión y
+// de la carga).
+export type CastKind = 'completo' | 'tarjetas';
 
-function castFolder(): string {
-  if (template === null) {
-    const data = tempDataFolder();
-    const workspace = openWorkspace({
-      dataDir: data.folder,
-      clock: demoClock(),
-      appVersion: '0.0.0-prueba',
-    });
-    seedDemoOrganization(workspace);
-    seedDemoCardCast(workspace, seedDemoMaterials(workspace, SAMPLES));
-    workspace.close();
-    template = { file: data.file };
-    process.on('exit', () => data.remove());
+const templates = new Map<CastKind, string>();
+
+function castFolder(kind: CastKind): string {
+  const known = templates.get(kind);
+  if (known !== undefined) {
+    return known;
   }
-  return dirname(template.file);
+  const data = tempDataFolder();
+  const workspace = openWorkspace({
+    dataDir: data.folder,
+    clock: demoClock(),
+    appVersion: '0.0.0-prueba',
+  });
+  seedDemoOrganization(workspace);
+  if (kind === 'completo') {
+    seedDemoCardCast(workspace, seedDemoMaterials(workspace, SAMPLES));
+  } else {
+    seedDemoCardCast(workspace);
+  }
+  workspace.close();
+  const folder = dirname(data.file);
+  templates.set(kind, folder);
+  process.on('exit', () => data.remove());
+  return folder;
 }
 
 // Copia el elenco sembrado adentro de una carpeta de datos nueva (todavía sin abrir).
-export function copyCastInto(folder: string): void {
-  cpSync(castFolder(), folder, { recursive: true });
+export function copyCastInto(folder: string, kind: CastKind = 'completo'): void {
+  cpSync(castFolder(kind), folder, { recursive: true });
 }

@@ -3,7 +3,7 @@ import { type Clock, demoClock } from '../../src/core/clock';
 import { newId } from '../../src/data/ids';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
 import { tempDataFolder } from './base';
-import { copyCastInto } from './elenco';
+import { type CastKind, copyCastInto } from './elenco';
 
 // Un espacio de trabajo real (carpeta de datos propia, base y copias) para las pruebas de
 // integración de la organización. Se cierra y se borra al terminar cada prueba.
@@ -32,14 +32,15 @@ export function openSpace({
 }: {
   clock?: Clock;
   fuzz?: boolean;
-  // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez).
-  withCast?: boolean;
+  // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez); con
+  // `'tarjetas'`, el de las tarjetas sin materiales.
+  withCast?: boolean | Extract<CastKind, 'tarjetas'>;
 } = {}): Space {
   const folder = tempDataFolder();
   folders.push(folder);
   const dataDir = folder.folder;
-  if (withCast) {
-    copyCastInto(dataDir);
+  if (withCast !== false) {
+    copyCastInto(dataDir, withCast === true ? 'completo' : withCast);
   }
   const start = (withFuzz: boolean) => {
     const workspace = openWorkspace({

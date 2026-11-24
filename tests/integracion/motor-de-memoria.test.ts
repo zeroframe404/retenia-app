@@ -6,7 +6,6 @@ import {
   recallProbability,
 } from '../../src/core/memory';
 import type { Workspace } from '../../src/data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 import { inBuenosAires } from '../apoyo/fechas';
@@ -105,11 +104,9 @@ describe('motor de memoria: la retención objetivo según la materia', () => {
 });
 
 describe('motor de memoria: el elenco entero', () => {
+  // Una copia del elenco sembrado una vez por proceso (lo mismo que sembrar materias y tarjetas).
   function seeded() {
-    const space = openSpace();
-    seedDemoOrganization(space.workspace);
-    seedDemoCardCast(space.workspace);
-    return space;
+    return openSpace({ withCast: 'tarjetas' });
   }
 
   it('[CA-062] recalcular desde cero la agenda de las 192 tarjetas da exactamente las mismas fechas', () => {
