@@ -757,6 +757,28 @@ describe('objeciones del revisor: enmiendas, pasos, modo y lo que manda la venta
     expect(space.workspace.activity.recent()).toHaveLength(before);
   });
 
+  it('[CA-023] después de que «Discrepo» agrega una variante, la edición anterior ya no se deshace desde «Actividad reciente» (no se pierde la variante)', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    space.workspace.cards.edit({
+      cardId: card.id,
+      question: 'Capital de Francia',
+      answer: 'París',
+      sheet: { explanation: 'Es París.' },
+    });
+    const edited = space.workspace.activity.recent()[0];
+    expect(edited?.canUndo).toBe(true);
+    const sent = practice(space, card.id, { type: 'short', text: 'Lutecia' });
+    space.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'answer_correct',
+      verdict: 'incorrect',
+    });
+    const after = space.workspace.activity.recent().find((item) => item.id === edited?.id);
+    expect(after?.canUndo).toBe(false);
+    expect(space.workspace.cards.get({ cardId: card.id }).sheet.variants).toContain('Lutecia');
+  });
+
   it('«Exportar todo» cuenta tarjetas sin los ejercicios', () => {
     const space = openSpace();
     space.workspace.cards.create({ question: 'Una', answer: 'R' });
