@@ -4,6 +4,7 @@ import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import formStyles from '../ui/Form.module.css';
 import type { ReferenceField } from './ExerciseView';
+import { readEditorNumber } from './numbers';
 import styles from './Practice.module.css';
 
 // El editor de cada tipo de actividad en la ficha (Fase 16, tarea 2): respuesta corta, numérica
@@ -71,14 +72,6 @@ export function draftOf(activity: ActivityValue | null): ActivityDraft {
   }
 }
 
-const readNumber = (text: string): number | null => {
-  const clean = text.trim().replace(',', '.');
-  if (clean === '' || !/^-?\d*\.?\d+$/.test(clean)) {
-    return null;
-  }
-  return Number(clean);
-};
-
 type Problem = keyof typeof texts.practice.editor.problems;
 
 // La actividad que se guarda, o el primer problema que hay que arreglar.
@@ -98,8 +91,8 @@ export function activityOf(
     case 'short':
       return { activity: { type: 'short' } };
     case 'numeric': {
-      const value = readNumber(draft.value);
-      const tolerance = readNumber(draft.tolerance === '' ? '0' : draft.tolerance);
+      const value = readEditorNumber(draft.value);
+      const tolerance = readEditorNumber(draft.tolerance === '' ? '0' : draft.tolerance);
       if (value === null) {
         return { problem: 'value' };
       }
