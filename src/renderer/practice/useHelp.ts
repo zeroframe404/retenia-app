@@ -70,6 +70,16 @@ export function useHelp({
         ? opening.availability.started
         : opening.availability.idle
     : { hint: false, example: false, source: false, noIdea: false };
+  // Lo que la actividad trae: lo que se prende al empezar o al reintentar (en una evaluación, la
+  // ayuda llega recién en el reintento).
+  const offers = {
+    example: opening
+      ? opening.availability.started.example || opening.availability.retry.example
+      : false,
+    source: opening
+      ? opening.availability.started.source || opening.availability.retry.source
+      : false,
+  };
 
   async function ask(kind: HelpUseValue['kind'], confirmed = false) {
     if (cardId === null || asking.current) {
@@ -118,6 +128,7 @@ export function useHelp({
     started,
     noIdea,
     availability,
+    offers,
     panel,
     confirming,
     problem,

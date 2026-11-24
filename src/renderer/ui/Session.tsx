@@ -76,6 +76,8 @@ export function BarraAyuda({
   hintDisabled = false,
   exampleDisabled = false,
   sourceDisabled = false,
+  example = true,
+  source = true,
   tutor = true,
   noIdea = true,
   onHint,
@@ -87,6 +89,10 @@ export function BarraAyuda({
   hintDisabled?: boolean;
   exampleDisabled?: boolean;
   sourceDisabled?: boolean;
+  // Si la actividad tiene ejemplo o fuente. Sin ellos, el botón no se muestra: apagado quiere decir
+  // «todavía no» (antes del primer intento), nunca «no hay».
+  example?: boolean;
+  source?: boolean;
   tutor?: boolean;
   noIdea?: boolean;
   onHint?: () => void;
@@ -101,12 +107,16 @@ export function BarraAyuda({
       <Boton icon={Lightbulb} disabled={hintDisabled} onClick={onHint}>
         {texts.ui.helpBar.hint}
       </Boton>
-      <Boton icon={BookOpen} disabled={exampleDisabled} onClick={onExample}>
-        {texts.ui.helpBar.example}
-      </Boton>
-      <Boton icon={Quote} disabled={sourceDisabled} onClick={onSource}>
-        {texts.ui.helpBar.source}
-      </Boton>
+      {example ? (
+        <Boton icon={BookOpen} disabled={exampleDisabled} onClick={onExample}>
+          {texts.ui.helpBar.example}
+        </Boton>
+      ) : null}
+      {source ? (
+        <Boton icon={Quote} disabled={sourceDisabled} onClick={onSource}>
+          {texts.ui.helpBar.source}
+        </Boton>
+      ) : null}
       {tutor ? (
         <Boton icon={MessageCircle} onClick={onTutor}>
           {texts.ui.helpBar.tutor}

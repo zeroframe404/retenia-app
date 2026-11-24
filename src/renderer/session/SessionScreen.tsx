@@ -536,6 +536,8 @@ export function SessionScreen({
                     hintDisabled={!help.availability.hint}
                     exampleDisabled={!help.availability.example}
                     sourceDisabled={!help.availability.source}
+                    example={help.offers.example}
+                    source={help.offers.source}
                     onHint={help.hint}
                     onExample={help.example}
                     onSource={help.source}
