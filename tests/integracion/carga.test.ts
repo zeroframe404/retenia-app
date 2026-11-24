@@ -406,7 +406,8 @@ describe('sumar tarjetas nuevas a mano', () => {
     }
     const fresh = workspace.cards
       .list({ subjectId: subject.id })
-      .filter((card) => card.nextReviewDay === null)
+      // Las tarjetas nuevas (los ejercicios de la Fase 16 no se suman a los repasos).
+      .filter((card) => card.nextReviewDay === null && card.activityType === null)
       .slice(-3);
     expect(fresh).toHaveLength(3);
     workspace.cards.activate({ batchId: id(), cardIds: fresh.map((card) => card.id) });

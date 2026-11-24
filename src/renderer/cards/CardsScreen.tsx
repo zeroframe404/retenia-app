@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ActivationCost, Card, CardDetail } from '../../preload/contract/cards';
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
+import { ExerciseView } from '../practice/ExerciseView';
 import { Boton } from '../ui/Boton';
 import { Dialog, ScreenFrame, Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -19,6 +20,7 @@ type View =
   | { kind: 'form' }
   | { kind: 'detail'; cardId: string; version: number }
   | { kind: 'edit'; card: CardDetail }
+  | { kind: 'newExercise' }
   | { kind: 'review'; card: Card }
   | { kind: 'history'; card: Card };
 
@@ -50,7 +52,7 @@ export function CardsScreen({
   onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
   onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
   // Una tarjeta para abrir de entrada («Abrir la tarjeta» en Progreso); cada pedido es distinto.
-  cardRequest?: { cardId: string; nonce: number } | null;
+  cardRequest?: { cardId: string; nonce: number; practice?: boolean | undefined } | null;
 }) {
   const subjectId = subject?.id;
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -84,7 +86,9 @@ export function CardsScreen({
         ...(filters.sheetState === ''
           ? {}
           : { sheetState: filters.sheetState as Card['sheetState'] }),
-        ...(filters.kind === '' ? {} : { kind: filters.kind as Card['kind'] }),
+        ...(filters.kind === ''
+          ? {}
+          : { kind: filters.kind === 'exercise' ? 'exercise' : (filters.kind as Card['kind']) }),
       });
       if (requests.current === mine) {
         setCards(response.cards);
@@ -123,7 +127,12 @@ export function CardsScreen({
   // «Abrir la tarjeta» desde otra pantalla: después de lo de arriba (si también cambió la materia).
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
   useEffect(() => {
-    if (cardRequest) {
+    if (cardRequest?.practice) {
+      window.retenia['cards.get']({ cardId: cardRequest.cardId }).then(
+        (card) => setView({ kind: 'review', card }),
+        () => setProblem(texts.practice.loadFailed),
+      );
+    } else if (cardRequest) {
       setView({ kind: 'detail', cardId: cardRequest.cardId, version: nextVersion() });
     }
   }, [cardRequest]);
@@ -200,7 +209,53 @@ export function CardsScreen({
   };
 
   if (view.kind === 'review') {
-    return <ReviewView card={view.card} onReviewed={() => undefined} onClose={backToList} />;
+    const { card } = view;
+    const openOriginal = onOpenOriginal
+      ? (materialId: string) => onOpenOriginal(materialId, card.id)
+      : undefined;
+    // «Practicar ahora» (Fase 16): un ejercicio tiene su pantalla; la tarjeta de siempre, el repaso.
+    if (card.activityType !== null) {
+      return (
+        <ExerciseView
+          cardId={card.id}
+          onClose={backToList}
+          onOpenOriginal={openOriginal}
+          onEditReference={() => {
+            window.retenia['cards.get']({ cardId: card.id }).then(
+              (detail) => {
+                setNotice(texts.practice.editAfterAppeal);
+                setView({ kind: 'edit', card: detail });
+              },
+              () => setProblem(texts.cards.loadFailed),
+            );
+          }}
+        />
+      );
+    }
+    return (
+      <ReviewView
+        card={card}
+        onReviewed={() => undefined}
+        onClose={backToList}
+        onOpenOriginal={openOriginal}
+      />
+    );
+  }
+
+  if (view.kind === 'newExercise') {
+    return (
+      <ScreenFrame level={3} title={texts.cards.newExerciseTitle}>
+        <SheetForm
+          create={{ subjectId: subjectId ?? null }}
+          onCancel={backToList}
+          onSaved={(card) => {
+            setNotice(texts.cards.exerciseSaved);
+            setView({ kind: 'detail', cardId: card.id, version: nextVersion() });
+            void load();
+          }}
+        />
+      </ScreenFrame>
+    );
   }
 
   if (view.kind === 'history') {
@@ -211,6 +266,7 @@ export function CardsScreen({
     const { card } = view;
     return (
       <ScreenFrame level={3} title={texts.cards.sheetTitle}>
+        <Toast>{notice}</Toast>
         <SheetForm
           card={card}
           onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}
@@ -260,15 +316,25 @@ export function CardsScreen({
       title={texts.cards.title}
       actions={
         view.kind === 'list' ? (
-          <Boton
-            variant="primary"
-            onClick={() => {
-              setNotice('');
-              setView({ kind: 'form' });
-            }}
-          >
-            {texts.cards.newCard}
-          </Boton>
+          <>
+            <Boton
+              variant="primary"
+              onClick={() => {
+                setNotice('');
+                setView({ kind: 'form' });
+              }}
+            >
+              {texts.cards.newCard}
+            </Boton>
+            <Boton
+              onClick={() => {
+                setNotice('');
+                setView({ kind: 'newExercise' });
+              }}
+            >
+              {texts.cards.newExercise}
+            </Boton>
+          </>
         ) : null
       }
     >

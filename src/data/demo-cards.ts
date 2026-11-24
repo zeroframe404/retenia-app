@@ -21,12 +21,19 @@ export interface SeedCard {
   readonly answer: string;
   readonly kind: 'qa' | 'cloze';
   readonly subjectId: string;
-  readonly topicId: string;
+  readonly topicId: string | null;
   readonly createdAt: Date;
   readonly reviews: readonly SeedReview[];
   // La fuente legible y la cita de un material (Fase 13): las del elenco salen del PDF de ejemplo.
   readonly sourceText?: string;
   readonly sourceCite?: string;
+  // Fase 16: un ejercicio, con su tipo, lo propio del tipo (JSON), sus pistas, su ejemplo y su
+  // explicación.
+  readonly activityType?: string;
+  readonly activity?: string;
+  readonly hints?: readonly string[];
+  readonly example?: string;
+  readonly explanation?: string;
 }
 
 // Cuánto tardaron los repasos sembrados (el primero de cada tarjeta, no): la mediana es 12 segundos,
@@ -108,6 +115,12 @@ export function plantCard(tx: Writer, clock: Clock, entry: SeedCard): string {
       cause: 'edit',
       ...(entry.sourceText ? { sourceText: entry.sourceText } : {}),
       ...(entry.sourceCite ? { sourceCite: entry.sourceCite } : {}),
+      ...(entry.activityType && entry.activity
+        ? { activityType: entry.activityType, activity: entry.activity }
+        : {}),
+      ...(entry.hints ? { hints: JSON.stringify(entry.hints) } : {}),
+      ...(entry.example ? { example: entry.example } : {}),
+      ...(entry.explanation ? { explanation: entry.explanation } : {}),
     })
     .run();
   recomputeCardSchedule(tx, cardId);

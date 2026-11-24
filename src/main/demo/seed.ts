@@ -12,6 +12,7 @@ import type { SeedCard, SeedReview } from '../../data/demo-cards';
 import { newId } from '../../data/ids';
 import { PIPELINE_VERSION, referenceOf, type StoredCite } from '../../data/materials';
 import type { Workspace } from '../../data/workspace';
+import { activitySchema } from '../../preload/contract/activities';
 import type { InlineNode } from '../../preload/contract/notes';
 
 // El elenco de la Fase 07 (datos-de-ejemplo/elenco/materias.json): materias, temas y notas con
@@ -278,6 +279,25 @@ const cardCastSchema = () =>
         ),
       }),
     ),
+    // Fase 16: los ejercicios (se listan en «Tarjetas» con la marca «Ejercicio» y no suman al 180).
+    ejercicios: z
+      .array(
+        z.strictObject({
+          materia: z.string().min(1),
+          tema: z.string().min(1).nullable(),
+          pregunta: z.string().min(1),
+          // La respuesta corta la dice; en los demás tipos sale de la actividad.
+          respuesta: z.string().min(1).optional(),
+          actividad: activitySchema,
+          pistas: z.array(z.string().min(1)).max(3),
+          ejemplo: z.string(),
+          explicacion: z.string(),
+          cita: z
+            .strictObject({ pagina: z.number().int().positive(), texto: z.string().min(1) })
+            .optional(),
+        }),
+      )
+      .optional(),
   });
 
 // El lunes 15/03/2027 a las 10:00 de Buenos Aires: el «hoy» de la demostración.
@@ -539,6 +559,7 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
   // Se siembran al revés: la primera del archivo queda primera en la lista (más nueva por
   // identificador).
   workspace.cards.plantCast([...entries].reverse());
+  workspace.cards.plantCast(exercisesOf(elenco.ejercicios ?? [], subjects, workspace, materials));
 
   const statistics = subjects.find((item) => item.name === 'Estadística básica');
   if (statistics) {
@@ -557,6 +578,66 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
     );
   }
   return workspace.cards.count();
+}
+
+// Los ejercicios del elenco (Fase 16), sin historial y un día más viejos que las tarjetas: quedan al
+// final de la lista, así no cambian el orden que ya tenía.
+function exercisesOf(
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['ejercicios']>,
+  subjects: readonly { id: string; name: string }[],
+  workspace: Workspace,
+  materials: DemoMaterials,
+): SeedCard[] {
+  const created = new Date(DEMO_NOW.getTime() - 91 * DAY_MS);
+  return [...cast].reverse().map((exercise) => {
+    const subject = subjects.find((item) => item.name === exercise.materia);
+    if (!subject) {
+      throw new Error(
+        `El elenco de ejercicios nombra una materia que no existe: ${exercise.materia}`,
+      );
+    }
+    const topic =
+      exercise.tema === null
+        ? null
+        : workspace.topics
+            .list({ subjectId: subject.id })
+            .topics.find((item) => item.name === exercise.tema);
+    if (topic === undefined) {
+      throw new Error(`El elenco de ejercicios nombra un tema que no existe: ${exercise.tema}`);
+    }
+    const activity = exercise.actividad;
+    return {
+      question: exercise.pregunta,
+      answer: exercise.respuesta ?? referenceOfActivity(activity),
+      kind: 'qa',
+      subjectId: subject.id,
+      topicId: topic?.id ?? null,
+      createdAt: created,
+      reviews: [],
+      ...citeOf(exercise.cita, materials.inference),
+      activityType: activity.type,
+      activity: JSON.stringify(activity),
+      hints: exercise.pistas,
+      example: exercise.ejemplo,
+      explanation: exercise.explicacion,
+    };
+  });
+}
+
+// La «Respuesta» de un ejercicio que no es de respuesta corta: un resumen de la referencia.
+function referenceOfActivity(activity: z.output<typeof activitySchema>): string {
+  switch (activity.type) {
+    case 'numeric':
+      return `${String(activity.value).replace('.', ',')}${activity.unit === null ? '' : ` ${activity.unit}`}`;
+    case 'options':
+      return activity.options.find((option) => option.correct)?.text ?? '';
+    case 'order':
+      return activity.steps.map((step) => step.text).join(' · ');
+    case 'open':
+      return activity.units.map((unit) => unit.text).join(' · ');
+    default:
+      return '';
+  }
 }
 
 // «Cargar 10.000 tarjetas» (Ajustes › «Demostración», CA-103): tarjetas de relleno, nuevas, en una

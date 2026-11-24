@@ -1,4 +1,4 @@
-import type { HelpLevel, Verdict } from '../memory';
+import type { HelpLevel } from '../memory';
 
 // Los tipos de actividad de la Fase 16 (H-31): todo lo que no es la tarjeta de siempre («me
 // califico») se corrige con una regla de Retenia o marcando las unidades de idea.
@@ -13,12 +13,12 @@ export interface OptionItem {
   readonly explanation: string;
 }
 
-export interface StepItem {
+interface StepItem {
   readonly id: string;
   readonly text: string;
 }
 
-export interface UnitItem {
+interface UnitItem {
   readonly id: string;
   readonly text: string;
 }
@@ -56,5 +56,3 @@ export interface HelpUse {
 
 // «práctica» o «evaluación» (la propiedad de la actividad, tarea 9).
 export type ActivityMode = 'practice' | 'evaluation';
-
-export type { HelpLevel, Verdict };

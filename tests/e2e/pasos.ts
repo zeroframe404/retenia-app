@@ -42,7 +42,7 @@ export async function review(
   question: string,
   grade: 'La sabía' | 'Con dudas' | 'No la sabía',
 ) {
-  await itemWith(page, question).getByRole('button', { name: 'Repasar' }).click();
+  await itemWith(page, question).getByRole('button', { name: 'Practicar ahora' }).click();
   await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await page.getByRole('button', { name: grade, exact: true }).click();
   await expect(page.getByText(/^Próximo repaso: /)).toBeVisible();

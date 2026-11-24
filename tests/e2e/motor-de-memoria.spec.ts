@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
 
 async function gradeNewest(page: Page, question: string, grade: string) {
-  await itemWith(page, question).getByRole('button', { name: 'Repasar' }).click();
+  await itemWith(page, question).getByRole('button', { name: 'Practicar ahora' }).click();
   await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await page.getByRole('button', { name: grade, exact: true }).click();
 }
@@ -54,7 +54,7 @@ test('[CA-063] «Deshacer» después de «La sabía» devuelve el próximo repas
   const before = (await page.getByText(/^Próximo repaso: /).textContent()) ?? '';
   expect(before).toMatch(/^Próximo repaso: \S+ \d{2}\/\d{2}\/\d{4}$/);
 
-  await page.getByRole('button', { name: 'Repasar' }).click();
+  await page.getByRole('button', { name: 'Practicar ahora' }).click();
   await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await page.getByRole('button', { name: 'La sabía', exact: true }).click();
   const after = page.getByText(/^Próximo repaso: /);
@@ -137,7 +137,7 @@ test('accesibilidad: «¿Por qué hoy?», el repaso con «Deshacer» y el histor
   await page.getByRole('button', { name: '¿Por qué hoy?' }).click();
   await expect(page.getByText('Estimación general (sin datos tuyos)')).toBeVisible();
   expect(await violations(), 'tarjeta con «¿Por qué hoy?»').toEqual([]);
-  await page.getByRole('button', { name: 'Repasar' }).click();
+  await page.getByRole('button', { name: 'Practicar ahora' }).click();
   await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await page.getByRole('button', { name: 'Con dudas', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Deshacer' })).toBeVisible();

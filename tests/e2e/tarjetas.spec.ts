@@ -68,13 +68,13 @@ test('[CA-011] sin pregunta marca el campo con «Escribí la pregunta», conserv
   await expect(appWindow.getByText('180 tarjetas')).toBeVisible();
 });
 
-test('[CA-010] «Repasar», «Mostrar respuesta» y «La sabía» muestran «Próximo repaso: miércoles 17/03/2027», y queda al cerrar y abrir', async ({
+test('[CA-010] «Practicar ahora», «Mostrar respuesta» y «La sabía» muestran «Próximo repaso: miércoles 17/03/2027», y queda al cerrar y abrir', async ({
   launch,
 }) => {
   const first = await launch();
   await createCard(first.page, '¿Capital de Francia?', 'París');
   await itemWith(first.page, '¿Capital de Francia?')
-    .getByRole('button', { name: 'Repasar' })
+    .getByRole('button', { name: 'Practicar ahora' })
     .click();
 
   await expect(first.page.getByText('¿Capital de Francia?')).toBeVisible();
@@ -106,7 +106,7 @@ test('«Con dudas» y «No la sabía» dejan el próximo repaso el martes 16/03/
   ] as const) {
     await createCard(appWindow, `Tarjeta «${question}»`, 'x');
     await itemWith(appWindow, `Tarjeta «${question}»`)
-      .getByRole('button', { name: 'Repasar' })
+      .getByRole('button', { name: 'Practicar ahora' })
       .click();
     await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).click();
     await appWindow.getByRole('button', { name: grade, exact: true }).click();
@@ -133,7 +133,7 @@ test('un doble clic en «Guardar» crea una sola tarjeta y no abre ningún repas
 test('un doble clic en «La sabía» cuenta un solo repaso', async ({ appWindow }) => {
   await createCard(appWindow, '¿Capital de Francia?', 'París');
   await itemWith(appWindow, '¿Capital de Francia?')
-    .getByRole('button', { name: 'Repasar' })
+    .getByRole('button', { name: 'Practicar ahora' })
     .click();
   await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).click();
   await appWindow.getByRole('button', { name: 'La sabía', exact: true }).dblclick();
@@ -179,7 +179,11 @@ test('un texto larguísimo con ñ, tildes y emoji se guarda entero y la lista lo
 
   // El texto quedó guardado completo: al repasarla se lee hasta el final.
   const second = await launch();
-  await second.page.getByRole('listitem').first().getByRole('button', { name: 'Repasar' }).click();
+  await second.page
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: 'Practicar ahora' })
+    .click();
   await expect(second.page.getByText('fin del texto')).toBeVisible();
   await second.close();
 });

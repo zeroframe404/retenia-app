@@ -237,7 +237,7 @@ describe('pantalla «Tarjetas»: repaso', () => {
   async function openReview(user: ReturnType<typeof userEvent.setup>) {
     await fillAndSave(user, { question: '¿Capital de Francia?', answer: 'París' });
     const item = (await screen.findAllByRole('listitem'))[0] as HTMLElement;
-    await user.click(within(item).getByRole('button', { name: 'Repasar' }));
+    await user.click(within(item).getByRole('button', { name: 'Practicar ahora' }));
   }
 
   it('al repasar muestra la pregunta sola: la respuesta y las calificaciones aparecen con «Mostrar respuesta»', async () => {
@@ -256,7 +256,7 @@ describe('pantalla «Tarjetas»: repaso', () => {
     expect(screen.queryByRole('button', { name: 'Mostrar respuesta' })).toBeNull();
   });
 
-  it('[CA-010] «Repasar», «Mostrar respuesta» y «La sabía» muestran «Próximo repaso: miércoles 17/03/2027»', async () => {
+  it('[CA-010] «Practicar ahora», «Mostrar respuesta» y «La sabía» muestran «Próximo repaso: miércoles 17/03/2027»', async () => {
     const { bridge, user } = openScreen();
     await openReview(user);
     await user.click(await screen.findByRole('button', { name: 'Mostrar respuesta' }));

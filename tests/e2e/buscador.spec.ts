@@ -139,7 +139,7 @@ test('las flechas y Enter abren el resultado elegido', async ({ launchFromStart 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Tarjeta' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Repasar' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Practicar ahora' })).toBeVisible();
 });
 
 test('[CA-102] durante una sesión, Ctrl+K abre un resultado en un panel lateral y al cerrarlo la tarjeta y el borrador siguen intactos', async ({

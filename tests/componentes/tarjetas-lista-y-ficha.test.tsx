@@ -429,21 +429,21 @@ describe('[CA-057] «Pausar esta tarjeta» y «Reanudar»', () => {
 });
 
 describe('[CA-057] una tarjeta pausada no se ofrece para repasar', () => {
-  it('[CA-057] «Repasar» no está ni en su fila ni en su pantalla mientras está en pausa, y vuelve al reanudar', async () => {
+  it('[CA-057] «Practicar ahora» no está ni en su fila ni en su pantalla mientras está en pausa, y vuelve al reanudar', async () => {
     const { open, user, add } = setup();
     add('Pausable');
     open();
     await openCard(user, 'Pausable');
-    expect(screen.getByRole('button', { name: 'Repasar' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Practicar ahora' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Pausar esta tarjeta' }));
     await screen.findByText('En pausa');
-    expect(screen.queryByRole('button', { name: 'Repasar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Practicar ahora' })).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Volver a las tarjetas' }));
     await screen.findByText('1 tarjeta');
-    expect(screen.queryByRole('button', { name: 'Repasar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Practicar ahora' })).toBeNull();
     await openCard(user, 'Pausable');
     await user.click(screen.getByRole('button', { name: 'Reanudar' }));
-    expect(await screen.findByRole('button', { name: 'Repasar' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Practicar ahora' })).toBeTruthy();
   });
 });
 
@@ -495,7 +495,7 @@ describe('[CA-377] y [CA-378] imagen y fórmula de la tarjeta en el repaso', () 
   it('[CA-377] la imagen se ve en la pregunta (el lado del renglón en que estaba), no en la respuesta', async () => {
     const { open, user } = await cardWithImageAndFormula();
     open();
-    await user.click(await screen.findByRole('button', { name: 'Repasar' }));
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }));
     expect(await screen.findByRole('img', { name: 'La campana' })).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }));
     expect(screen.getAllByRole('img', { name: 'La campana' })).toHaveLength(1);
@@ -504,7 +504,7 @@ describe('[CA-377] y [CA-378] imagen y fórmula de la tarjeta en el repaso', () 
   it('[CA-378] la fórmula de la respuesta se ve como en un libro al mostrar la respuesta', async () => {
     const { open, user } = await cardWithImageAndFormula();
     open();
-    await user.click(await screen.findByRole('button', { name: 'Repasar' }));
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }));
     await screen.findByRole('img', { name: 'La campana' });
     expect(document.querySelector('[data-formula="rendered"]')).toBeNull();
     await user.click(screen.getByRole('button', { name: 'Mostrar respuesta' }));
@@ -521,7 +521,7 @@ describe('[CA-377] y [CA-378] imagen y fórmula de la tarjeta en el repaso', () 
       subjectId: subject.id,
     });
     open();
-    await user.click(await screen.findByRole('button', { name: 'Repasar' }));
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }));
     await waitFor(() =>
       expect(document.querySelectorAll('[data-formula="rendered"] .katex')).toHaveLength(1),
     );

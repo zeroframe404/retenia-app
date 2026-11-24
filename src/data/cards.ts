@@ -101,7 +101,7 @@ interface ListInput {
 
 // La actividad no cumple lo que pide su editor (Fase 16): opciones, pasos o unidades de más o de
 // menos, sin explicación en una opción equivocada…
-export class InvalidActivityError extends Error {
+class InvalidActivityError extends Error {
   constructor(problems: readonly string[]) {
     super(`La actividad no es válida: ${problems.join(', ')}`);
     this.name = 'InvalidActivityError';

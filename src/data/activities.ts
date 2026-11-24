@@ -53,42 +53,42 @@ import { cards, cardVersions, evaluations, observations } from './schema';
 // (versión 1) y cada corrección posterior es una versión nueva que apunta a la anterior. La agenda
 // se recalcula desde el historial en la misma transacción. Nada se borra: «Deshacer» agrega.
 
-export class NotAnExerciseError extends Error {
+class NotAnExerciseError extends Error {
   constructor() {
     super('Esa tarjeta no es un ejercicio');
     this.name = 'NotAnExerciseError';
   }
 }
 
-export class AnswerTypeMismatchError extends Error {
+class AnswerTypeMismatchError extends Error {
   constructor() {
     super('La respuesta no es del tipo de la actividad');
     this.name = 'AnswerTypeMismatchError';
   }
 }
 
-export class AttemptNotFoundError extends Error {
+class AttemptNotFoundError extends Error {
   constructor() {
     super('No encontré ese intento');
     this.name = 'AttemptNotFoundError';
   }
 }
 
-export class VerdictAboveProposalError extends Error {
+class VerdictAboveProposalError extends Error {
   constructor() {
     super('El resultado no puede quedar más alto que el que propuso Retenia');
     this.name = 'VerdictAboveProposalError';
   }
 }
 
-export class HelpNotAvailableError extends Error {
+class HelpNotAvailableError extends Error {
   constructor() {
     super('Esa ayuda no está disponible ahora');
     this.name = 'HelpNotAvailableError';
   }
 }
 
-export class AmendmentNotFoundError extends Error {
+class AmendmentNotFoundError extends Error {
   constructor() {
     super('No encontré esa corrección');
     this.name = 'AmendmentNotFoundError';
@@ -111,7 +111,7 @@ const RUBRIC: Record<Activity['type'], string> = {
   open: 'units-1',
 };
 
-export interface SubmitInput {
+interface SubmitInput {
   cardId: string;
   openingId: string;
   attemptId: string;
@@ -138,7 +138,11 @@ export interface ActivitiesStore {
   // «Enviar»: guarda el intento y devuelve lo que propone Retenia (todavía sin evaluación).
   submit(input: SubmitInput): SubmitResult;
   // Respuesta abierta: lo que propone Retenia según las unidades marcadas (no guarda nada).
-  propose(input: { attemptId: string; marked: readonly string[] }): Proposal;
+  propose(input: {
+    attemptId: string;
+    marked: readonly string[];
+    verdict?: Verdict | undefined;
+  }): Proposal;
   // Al salir del resultado: la evaluación (versión 1), nunca más alta que lo propuesto.
   finalize(input: {
     attemptId: string;
@@ -648,13 +652,18 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       });
     },
 
-    propose({ attemptId, marked }) {
+    propose({ attemptId, marked, verdict }) {
       const attempt = attemptOf(orm, attemptId);
       const evaluated = evaluate(versionOf(orm, attempt.versionId), attempt.answer, marked);
+      // Nunca más alto que lo propuesto: un resultado elegido de más queda en lo propuesto.
+      const shown =
+        verdict !== undefined && canSetVerdict(evaluated.proposed, verdict)
+          ? verdict
+          : evaluated.proposed;
       return {
         proposed: evaluated.proposed,
         allowed: allowedVerdicts(evaluated.proposed),
-        parts: partsOf(attempt, evaluated.proposed, evaluated),
+        parts: partsOf(attempt, shown, evaluated),
         missing: evaluated.missing,
       };
     },

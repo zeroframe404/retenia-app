@@ -86,9 +86,9 @@ function asSheetState(value: string): SheetState {
 }
 
 const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
-export type ActivityTypeName = (typeof ACTIVITY_TYPES)[number];
+type ActivityTypeName = (typeof ACTIVITY_TYPES)[number];
 
-export function asActivityType(value: string | null): ActivityTypeName | null {
+function asActivityType(value: string | null): ActivityTypeName | null {
   return ACTIVITY_TYPES.find((type) => type === value) ?? null;
 }
 

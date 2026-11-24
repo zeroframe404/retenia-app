@@ -5,15 +5,14 @@ import { day } from './common';
 // «Enviar», el resultado, «Discrepo» y el aviso de evaluación corregida. La ventana nunca recibe la
 // respuesta de referencia antes de enviar o de confirmar que quiere ver la solución.
 
-export const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
+const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
 export const activityTypeSchema = z.enum(ACTIVITY_TYPES);
-export type ActivityTypeValue = z.output<typeof activityTypeSchema>;
 
 const MAX_TEXT = 100_000;
 const itemId = z.string().min(1).max(64);
 const itemText = z.string().trim().min(1).max(MAX_TEXT);
 
-export const MAX_UNIT_LENGTH = 20;
+const MAX_UNIT_LENGTH = 20;
 
 // Lo propio de cada tipo, como se guarda en la ficha (el editor lo valida igual que el núcleo).
 export const activitySchema = z.discriminatedUnion('type', [
@@ -86,7 +85,7 @@ export const activitiesStartRequest = z.strictObject({
   cardId: z.uuid(),
   openingId: z.uuid(),
 });
-export const activityInputSchema = z.discriminatedUnion('type', [
+const activityInputSchema = z.discriminatedUnion('type', [
   // La tarjeta de siempre: «Tu respuesta…» y «Mostrar respuesta».
   z.strictObject({ type: z.literal('card') }),
   z.strictObject({ type: z.literal('short') }),
@@ -103,7 +102,6 @@ export const activityInputSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({ type: z.literal('open') }),
 ]);
-export type ActivityInput = z.output<typeof activityInputSchema>;
 
 export const activityOpeningSchema = z.strictObject({
   cardId: z.uuid(),
@@ -121,6 +119,7 @@ export type ActivityOpening = z.output<typeof activityOpeningSchema>;
 // solución hace falta haber confirmado la pregunta.
 export const activitiesHelpRequest = z.strictObject({
   cardId: z.uuid(),
+  openingId: z.uuid(),
   kind: z.enum(['hint', 'example', 'source', 'solution']),
   used: helpList,
   confirmed: z.boolean().optional(),
@@ -156,7 +155,7 @@ export const activitiesHelpResponse = z.discriminatedUnion('kind', [
 ]);
 export type ActivityHelp = z.output<typeof activitiesHelpResponse>;
 
-export const attemptAnswerSchema = z.discriminatedUnion('type', [
+const attemptAnswerSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('short'), text: z.string().max(MAX_TEXT) }),
   z.strictObject({ type: z.literal('numeric'), raw: z.string().max(200) }),
   z.strictObject({
@@ -173,8 +172,6 @@ export const attemptAnswerSchema = z.discriminatedUnion('type', [
 ]);
 export type AttemptAnswer = z.output<typeof attemptAnswerSchema>;
 
-const milliseconds = z.number().int().nonnegative().nullable();
-
 export const activitiesSubmitRequest = z.strictObject({
   cardId: z.uuid(),
   openingId: z.uuid(),
@@ -183,13 +180,13 @@ export const activitiesSubmitRequest = z.strictObject({
   answer: attemptAnswerSchema,
   help: helpList,
   noIdea: z.boolean(),
-  shownAt: z.iso.datetime(),
-  firstInputMs: milliseconds,
-  submittedMs: milliseconds,
 });
 
+// La primera interacción con la actividad (escribir, elegir, mover): el principal mide el tiempo.
+export const activitiesMarkRequest = z.strictObject({ openingId: z.uuid() });
+
 // Las claves del resultado en tres líneas (los textos están en el catálogo).
-export const resultPartsSchema = z.strictObject({
+const resultPartsSchema = z.strictObject({
   verdict: z.enum([
     'correct',
     'partial',
@@ -225,7 +222,7 @@ const diffStepSchema = z.strictObject({
 export type DiffStepValue = z.output<typeof diffStepSchema>;
 
 // Lo que se muestra al enviar, según el tipo.
-export const attemptDetailSchema = z.discriminatedUnion('type', [
+const attemptDetailSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('short'),
     written: z.string(),
@@ -258,7 +255,7 @@ export const attemptDetailSchema = z.discriminatedUnion('type', [
 ]);
 export type AttemptDetail = z.output<typeof attemptDetailSchema>;
 
-export const proposalSchema = z.strictObject({
+const proposalSchema = z.strictObject({
   proposed: verdictSchema,
   allowed: z.array(verdictSchema),
   parts: resultPartsSchema,
@@ -276,7 +273,12 @@ export type SubmitResult = z.output<typeof activitiesSubmitResponse>;
 
 const marked = z.array(itemId).max(4);
 
-export const activitiesProposeRequest = z.strictObject({ attemptId: z.uuid(), marked });
+// `verdict`: el resultado elegido (si se bajó), para mostrar sus tres líneas.
+export const activitiesProposeRequest = z.strictObject({
+  attemptId: z.uuid(),
+  marked,
+  verdict: verdictSchema.optional(),
+});
 export const activitiesProposeResponse = proposalSchema;
 export type Proposal = z.output<typeof proposalSchema>;
 
@@ -301,11 +303,11 @@ export const APPEAL_REASONS = [
   'reference_incomplete',
   'reference_incorrect',
 ] as const;
-export const appealReasonSchema = z.enum(APPEAL_REASONS);
+const appealReasonSchema = z.enum(APPEAL_REASONS);
 export type AppealReason = z.output<typeof appealReasonSchema>;
 
 // El aviso de evaluación corregida (CA-141): antes, después y el próximo repaso antes y después.
-export const amendmentNoticeSchema = z.strictObject({
+const amendmentNoticeSchema = z.strictObject({
   amendmentId: z.uuid(),
   cardId: z.uuid(),
   attemptId: z.uuid(),

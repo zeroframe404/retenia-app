@@ -137,7 +137,7 @@ describe('las pantallas no muestran textos prohibidos', () => {
     expect(await screen.findByText('Escribí la pregunta')).toBeTruthy();
     expect(problems(), 'formulario con avisos').toEqual([]);
     await user.click(screen.getByRole('button', { name: 'Cancelar' }));
-    await user.click(await screen.findByRole('button', { name: 'Repasar' }));
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }));
     await user.click(await screen.findByRole('button', { name: 'Mostrar respuesta' }));
     expect(problems(), 'repaso').toEqual([]);
     await user.click(screen.getByRole('button', { name: 'La sabía' }));

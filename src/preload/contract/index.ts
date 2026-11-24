@@ -7,6 +7,7 @@ import {
   activitiesFinalizeResponse,
   activitiesHelpRequest,
   activitiesHelpResponse,
+  activitiesMarkRequest,
   activitiesNoticesRequest,
   activitiesNoticesResponse,
   activitiesProposeRequest,
@@ -207,6 +208,7 @@ export const channels = {
   // Fase 16: «Practicar ahora», la ayuda, el resultado, «Discrepo» y el aviso de evaluación corregida.
   'activities.start': { request: activitiesStartRequest, response: activityOpeningSchema },
   'activities.help': { request: activitiesHelpRequest, response: activitiesHelpResponse },
+  'activities.mark': { request: activitiesMarkRequest, response: okResponse },
   'activities.submit': { request: activitiesSubmitRequest, response: activitiesSubmitResponse },
   'activities.propose': { request: activitiesProposeRequest, response: activitiesProposeResponse },
   'activities.finalize': {

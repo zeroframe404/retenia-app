@@ -147,7 +147,10 @@ export function exportCounts(db: ReteniaDatabase): ExportCounts {
     subjects: count('SELECT count(*) AS n FROM subjects WHERE deleted_at IS NULL'),
     topics: count('SELECT count(*) AS n FROM topics WHERE deleted_at IS NULL'),
     notes: count('SELECT count(*) AS n FROM notes WHERE deleted_at IS NULL'),
-    cards: count('SELECT count(*) AS n FROM cards'),
+    // Las tarjetas: los ejercicios (Fase 16) viajan igual, pero no se cuentan como tarjetas.
+    cards: count(
+      'SELECT count(*) AS n FROM cards JOIN card_versions ON card_versions.id = cards.current_version_id WHERE card_versions.activity_type IS NULL',
+    ),
     reviews: count("SELECT count(*) AS n FROM observations WHERE kind = 'review.graded'"),
     materials: count('SELECT count(*) AS n FROM materials WHERE deleted_at IS NULL'),
     images: count('SELECT count(*) AS n FROM images'),

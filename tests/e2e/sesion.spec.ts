@@ -239,7 +239,7 @@ test('[CA-071] de dos hermanas que vencen el mismo día entra una sola en la ses
   for (const question of ['¿Qué es un alcano?', 'Un hidrocarburo saturado']) {
     await itemWith(appWindow, question).first().waitFor();
     await openCardByQuestion(appWindow, question);
-    await appWindow.getByRole('button', { name: 'Repasar' }).click();
+    await appWindow.getByRole('button', { name: 'Practicar ahora' }).click();
     await answer(appWindow, 'La sabía');
     await expect(appWindow.getByText('Próximo repaso: miércoles 17/03/2027')).toBeVisible();
     await appWindow.getByRole('button', { name: 'Volver a las tarjetas' }).click();

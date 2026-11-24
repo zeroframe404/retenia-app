@@ -113,10 +113,12 @@ describe('contrato: canales de los datos de la demostración', () => {
     await handleMessage(handlers, 'cards.create', { question: 'P', answer: 'R' }, registry);
     await handleMessage(handlers, 'demo.useCast', {}, registry);
     const { cards } = (await handleMessage(handlers, 'cards.list', {}, registry)) as {
-      cards: { question: string }[];
+      cards: { question: string; activityType: string | null }[];
     };
     expect(cards.map((card) => card.question)).not.toContain('P');
-    expect(cards).toHaveLength(192);
+    // Desde la Fase 16 la lista trae también los 5 ejercicios del elenco, que no son tarjetas.
+    expect(cards.filter((card) => card.activityType === null)).toHaveLength(192);
+    expect(cards.filter((card) => card.activityType !== null)).toHaveLength(5);
   });
 
   it('los canales de cambio de modo no aceptan datos de más', async () => {

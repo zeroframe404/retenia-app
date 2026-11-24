@@ -136,7 +136,7 @@ describe('el teclado', () => {
     // La pantalla de esa tarjeta: su título y su pregunta.
     await screen.findByRole('heading', { name: 'Tarjeta' }, SLOW);
     expect(wanted).toContain('Estadística básica');
-    await screen.findByRole('button', { name: 'Repasar' }, SLOW);
+    await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW);
     expect(document.body.textContent).toContain('desvío');
   });
 
@@ -151,7 +151,7 @@ describe('el teclado', () => {
     expect(
       (await screen.findAllByText('¿Qué mide el desvío estándar?', {}, SLOW)).length,
     ).toBeGreaterThan(0);
-    expect(await screen.findByRole('button', { name: 'Repasar' }, SLOW)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW)).toBeTruthy();
   });
 
   it('Enter sobre un renglón de una nota abre la nota', async () => {

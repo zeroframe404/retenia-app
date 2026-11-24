@@ -41,9 +41,6 @@ const submitOf = (cardId: string, openingId: string, text: string) => ({
   answer: { type: 'short' as const, text },
   help: [],
   noIdea: false,
-  shownAt: '2027-03-15T13:00:00.000Z',
-  firstInputMs: 800,
-  submittedMs: 5000,
 });
 
 describe('contrato del puente: las actividades', () => {
@@ -73,6 +70,7 @@ describe('contrato del puente: las actividades', () => {
     for (const [index, text] of HINTS.entries()) {
       const help = await api['activities.help']({
         cardId: card.id,
+        openingId: randomUUID(),
         kind: 'hint',
         used,
         attemptNo: 1,
@@ -89,6 +87,7 @@ describe('contrato del puente: las actividades', () => {
     expect(used.map((use) => use.level)).toEqual(['A1', 'A2', 'A3']);
     const fourth = await api['activities.help']({
       cardId: card.id,
+      openingId: randomUUID(),
       kind: 'hint',
       used,
       attemptNo: 1,
@@ -96,6 +95,7 @@ describe('contrato del puente: las actividades', () => {
     expect(fourth).toEqual({ kind: 'confirmSolution' });
     const solution = await api['activities.help']({
       cardId: card.id,
+      openingId: randomUUID(),
       kind: 'solution',
       used,
       confirmed: true,
@@ -229,6 +229,7 @@ describe('contrato del puente: las actividades', () => {
     await expect(
       api['activities.help']({
         cardId: randomUUID(),
+        openingId: randomUUID(),
         kind: 'hint',
         used: [{ kind: 'hint', level: 'A5' as never, index: 0 }],
         attemptNo: 1,

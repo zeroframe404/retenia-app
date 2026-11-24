@@ -11,7 +11,9 @@ const OVERSCAN = 6;
 const DEFAULT_VIEWPORT = 640;
 
 // Las tarjetas que se pueden sumar a los repasos (Fase 11): las nuevas, que todavía no se repasaron.
-export const isNewCard = (card: Card): boolean => card.nextReviewDay === null && !card.paused;
+// Los ejercicios (Fase 16) no se suman: se practican con «Practicar ahora».
+export const isNewCard = (card: Card): boolean =>
+  card.nextReviewDay === null && !card.paused && card.activityType === null;
 
 // Qué tarjetas nuevas están elegidas para «Sumar a mis repasos» y cómo se elige una.
 interface Choice {
@@ -80,6 +82,7 @@ export function CardFilters({
           <option value="">{texts.cards.allKinds}</option>
           <option value="qa">{texts.cards.kindQa}</option>
           <option value="cloze">{texts.cards.kindCloze}</option>
+          <option value="exercise">{texts.cards.kindExercise}</option>
         </select>
       </label>
     </fieldset>
@@ -113,7 +116,11 @@ function Row({
         : texts.cards.notReviewed;
   const meta = [
     when,
-    card.kind === 'cloze' ? texts.cards.kindCloze : texts.cards.kindQa,
+    card.activityType !== null
+      ? texts.cards.exerciseMark
+      : card.kind === 'cloze'
+        ? texts.cards.kindCloze
+        : texts.cards.kindQa,
     texts.cards.sheetStates[card.sheetState],
     card.topicName,
   ]
@@ -150,7 +157,7 @@ function Row({
             {card.question}
           </button>
         </p>
-        {card.paused ? null : (
+        {card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired' ? null : (
           <Boton variant="quiet" onClick={() => onReview(card)}>
             {texts.cards.review}
           </Boton>

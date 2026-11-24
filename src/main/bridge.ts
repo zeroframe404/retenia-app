@@ -17,6 +17,7 @@ import {
 import type { Backup } from '../preload/contract/backups';
 import type { fileChannels } from '../preload/contract/materials';
 import { formatShortDate, texts } from '../preload/contract/texts';
+import { createActivityTimer } from './activity-timer';
 import { createAppearanceStore } from './appearance';
 import type { Dialogs } from './imports/dialogs';
 import { createTransfersService, type TransfersService } from './imports/service';
@@ -103,6 +104,7 @@ export function createHandlers({
     });
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
+  const activityTimer = createActivityTimer(clock, stopwatch);
   const ok = { ok: true } as const;
   return {
     ping: async () => ({ message: 'pong', variant, today: studyDayOf(clock.now()) }),
@@ -123,9 +125,22 @@ export function createHandlers({
     'cards.undoReview': async (request) => workspace.cards.undoReview(request),
     'cards.whyToday': async (request) => workspace.cards.whyToday(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
-    'activities.start': async (request) => workspace.activities.start(request),
-    'activities.help': async (request) => workspace.activities.help(request),
-    'activities.submit': async (request) => workspace.activities.submit(request),
+    'activities.start': async (request) => {
+      activityTimer.open(request.openingId);
+      return workspace.activities.start(request);
+    },
+    'activities.help': async ({ openingId, ...request }) => {
+      const response = workspace.activities.help(request);
+      return response.kind === 'help'
+        ? { ...response, use: { ...response.use, atMs: activityTimer.elapsed(openingId) } }
+        : response;
+    },
+    'activities.mark': async ({ openingId }) => {
+      activityTimer.firstInput(openingId);
+      return ok;
+    },
+    'activities.submit': async (request) =>
+      workspace.activities.submit({ ...request, ...activityTimer.submitted(request.openingId) }),
     'activities.propose': async (request) => workspace.activities.propose(request),
     'activities.finalize': async (request) => workspace.activities.finalize(request),
     'activities.appeal': async (request) => workspace.activities.appeal(request),

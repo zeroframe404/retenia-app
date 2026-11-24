@@ -48,7 +48,7 @@ export function hasPendingCheck(attempts: readonly CountedAttempt[]): boolean {
   return pending;
 }
 
-export type VerdictKey =
+type VerdictKey =
   | 'correct'
   | 'partial'
   | 'incorrect'
@@ -58,7 +58,7 @@ export type VerdictKey =
   | 'source'
   | 'solution';
 
-export type ReviewKey =
+type ReviewKey =
   | 'nothing'
   | 'orientingUsed'
   | 'helpUsed'
@@ -71,7 +71,7 @@ export type ReviewKey =
   | 'steps'
   | 'missingUnits';
 
-export type ActionKey = 'next' | 'check' | 'retryLater' | 'retry' | 'explanation';
+type ActionKey = 'next' | 'check' | 'retryLater' | 'retry' | 'explanation';
 
 export interface ResultParts {
   readonly verdict: VerdictKey;

@@ -49,7 +49,7 @@ const MEMORY_KINDS = [
 ];
 
 // La evaluación vigente de un intento: el veredicto y si quedó afectado (no cuenta, CA-142).
-export interface CurrentEvaluation {
+interface CurrentEvaluation {
   readonly verdict: Verdict;
   readonly affected: boolean;
 }
@@ -84,7 +84,7 @@ export interface HistoryEvent {
   readonly evaluation?: AttemptEvaluation | null | undefined;
 }
 
-export interface AttemptEvaluation {
+interface AttemptEvaluation {
   readonly activity: ActivityType;
   readonly current: Verdict | null;
   readonly versions: readonly Verdict[];

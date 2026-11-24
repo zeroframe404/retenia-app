@@ -5,7 +5,7 @@ import { App } from '../../src/renderer/App';
 import { closeWindows, openWindow } from './apoyo-ventana';
 
 // Lo que encontró el revisor independiente de la Fase 10, en la ventana: la duda desde la pantalla
-// de una tarjeta, «Repasar» en una tarjeta «En revisión» y deshacer la última desde el cierre.
+// de una tarjeta, «Practicar ahora» en una tarjeta «En revisión» y deshacer la última desde el cierre.
 
 afterEach(closeWindows);
 
@@ -56,7 +56,7 @@ describe('sesión de estudio: lo que encontró el revisor, en la ventana', () =>
     expect(screen.getByText(`De la tarjeta: ${DESVIO}`)).toBeTruthy();
   });
 
-  it('[CA-077] una tarjeta «En revisión» no tiene «Repasar» en su pantalla', async () => {
+  it('[CA-077] una tarjeta «En revisión» no tiene «Practicar ahora» en su pantalla', async () => {
     const { user, api } = withCast();
     const overview = await api['study.overview']({});
     expect(overview.dueCount).toBe(60);
@@ -70,7 +70,7 @@ describe('sesión de estudio: lo que encontró el revisor, en la ventana', () =>
     await screen.findByRole('button', { name: /^Continuar: sesión de hoy/ });
     await openDesvio(user);
     expect(screen.getByText('Estado: En revisión')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Repasar' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Practicar ahora' })).toBeNull();
   });
 
   it('[CA-067] en el cierre, Ctrl+Z (o «Deshacer») deshace la última calificación y vuelve a esa tarjeta', async () => {

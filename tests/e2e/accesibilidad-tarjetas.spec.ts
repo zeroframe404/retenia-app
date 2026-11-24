@@ -52,7 +52,11 @@ test('accesibilidad: la lista, el formulario (con y sin avisos) y el repaso no t
   expect(await violationsNow(appWindow), 'lista con cartel').toEqual([]);
 
   // El repaso: pregunta, respuesta con las tres calificaciones y resultado.
-  await appWindow.getByRole('listitem').first().getByRole('button', { name: 'Repasar' }).click();
+  await appWindow
+    .getByRole('listitem')
+    .first()
+    .getByRole('button', { name: 'Practicar ahora' })
+    .click();
   expect(await violationsNow(appWindow), 'repaso: pregunta').toEqual([]);
   await appWindow.getByRole('button', { name: 'Mostrar respuesta' }).click();
   expect(await violationsNow(appWindow), 'repaso: respuesta').toEqual([]);

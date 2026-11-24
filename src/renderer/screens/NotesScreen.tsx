@@ -29,6 +29,8 @@ export interface TopicRequest {
 export interface CardRequest {
   cardId: string;
   nonce: number;
+  // Fase 16: «Practicar ahora» desde el buscador abre la actividad directamente.
+  practice?: boolean | undefined;
 }
 
 // Apuntes: arriba, la materia que se mira y la activa; después las secciones. «Notas» es la de

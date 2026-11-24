@@ -85,7 +85,7 @@ test('[CA-017] cortar Retenia a la fuerza apenas se toca «La sabía» deja el r
 }) => {
   const first = await launch();
   await createCard(first.page, QUESTION, 'París');
-  await itemWith(first.page, QUESTION).getByRole('button', { name: 'Repasar' }).click();
+  await itemWith(first.page, QUESTION).getByRole('button', { name: 'Practicar ahora' }).click();
   await first.page.getByRole('button', { name: 'Mostrar respuesta' }).click();
   const child = first.app.process();
   const exited = new Promise((done) => child.once('exit', done));

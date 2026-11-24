@@ -278,6 +278,20 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // «Practicar ahora» desde el buscador (Fase 16): la actividad sola, fuera de la cola del día.
+  const practiceHit = (hit: SearchHit) => {
+    setSearching(false);
+    if (hit.subjectId !== null) {
+      setViewedId(hit.subjectId);
+    }
+    requests.current += 1;
+    setCardRequest({ cardId: hit.entityId, nonce: requests.current, practice: true });
+    setDestination('notes');
+    setSettingsView('settings');
+    setNotesSection('cards');
+    setNavigated(true);
+  };
+
   // Un resultado del buscador (H-23): lleva a la pantalla donde vive o, en una sesión, lo muestra en
   // un panel a la derecha sin salir de la actividad.
   const openHit = (hit: SearchHit) => {
@@ -493,7 +507,13 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           ) : null}
         </main>
       </div>
-      {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
+      {searching ? (
+        <SearchDialog
+          onClose={() => setSearching(false)}
+          onOpen={openHit}
+          onPractice={practiceHit}
+        />
+      ) : null}
       {capturing ? (
         <CaptureDialog
           onClose={() => setCapturing(false)}

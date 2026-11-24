@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { AmendmentNotice } from '../../preload/contract/activities';
 import type { CardDetail } from '../../preload/contract/cards';
 import { formatLongDate, texts } from '../../preload/contract/texts';
+import { formatNumber, noticeTexts } from '../practice/labels';
 import { DoubtDialog } from '../session/DoubtDialog';
 import { Boton } from '../ui/Boton';
 import contentStyles from '../ui/Content.module.css';
+import { AvisoEvaluacionCorregida } from '../ui/Evaluation';
 import { BannerEstado } from '../ui/Process';
 import { ViewState } from '../ui/ViewStates';
 import { CardFace } from './CardFace';
@@ -49,12 +52,15 @@ export function CardDetailView({
   const [failed, setFailed] = useState(false);
   const [problem, setProblem] = useState('');
   const [doubting, setDoubting] = useState(false);
+  // Fase 16 (CA-141): las correcciones de una evaluación que todavía no confirmaste.
+  const [notices, setNotices] = useState<AmendmentNotice[]>([]);
   const working = useRef(false);
 
   const load = useCallback(async () => {
     setFailed(false);
     try {
       setCard(await window.retenia['cards.get']({ cardId }));
+      setNotices(await window.retenia['activities.notices']({ cardId }));
     } catch {
       setFailed(true);
     }
@@ -117,7 +123,22 @@ export function CardDetailView({
       onRemoved();
     }, texts.cards.removeFailed);
 
+  const understood = (notice: AmendmentNotice) =>
+    act(async () => {
+      await window.retenia['activities.acknowledge']({ amendmentId: notice.amendmentId });
+      await load();
+    }, texts.practice.failed);
+
+  const undoAmendment = (notice: AmendmentNotice) =>
+    act(async () => {
+      await window.retenia['activities.undoAmendment']({ amendmentId: notice.amendmentId });
+      onNotice(texts.practice.amendmentUndone);
+      onChanged();
+      await load();
+    }, texts.practice.failed);
+
   const { sheet, path } = card;
+  const activity = card.activity;
   const next = card.paused
     ? texts.cards.paused
     : card.nextReviewDay
@@ -135,13 +156,62 @@ export function CardDetailView({
         <h4>{texts.cards.answerHeading}</h4>
         <CardFace content={card.answerContent} />
       </div>
+      {notices.map((notice) => (
+        <AvisoEvaluacionCorregida
+          key={notice.amendmentId}
+          {...noticeTexts(notice)}
+          onUnderstood={() => void understood(notice)}
+          onUndo={() => void undoAmendment(notice)}
+        />
+      ))}
       <p className={contentStyles.highlight}>{next}</p>
+      {card.pendingCheck ? (
+        <p className={contentStyles.highlight}>
+          {card.nextReviewDay
+            ? texts.cards.pendingCheck(formatLongDate(card.nextReviewDay))
+            : texts.cards.pendingCheckNoDay}
+        </p>
+      ) : null}
       <WhyToday cardId={card.id} />
       <section className={contentStyles.section} aria-label={texts.cards.sheetHeading}>
         <h4>{texts.cards.sheetHeading}</h4>
         <ul className={styles.sheetList}>
           <li>{texts.cards.stateLine(texts.cards.sheetStates[sheet.state])}</li>
-          <li>{texts.cards.formLine(texts.cards.formTypes[sheet.formType])}</li>
+          {activity === null ? (
+            <li>{texts.cards.formLine(texts.cards.formTypes[sheet.formType])}</li>
+          ) : (
+            <>
+              <li>{texts.cards.activityLine(texts.practice.editor.types[activity.type])}</li>
+              <li>{texts.cards.modeLine(texts.practice.editor.modes[card.mode])}</li>
+            </>
+          )}
+          {activity?.type === 'numeric' ? (
+            <li>
+              {texts.cards.numericLine(
+                formatNumber(activity.value),
+                formatNumber(activity.tolerance),
+                activity.unit,
+              )}
+            </li>
+          ) : null}
+          {activity?.type === 'options'
+            ? activity.options.map((option) => (
+                <li key={option.id}>
+                  {texts.cards.optionLine(option.text, option.correct, option.explanation)}
+                </li>
+              ))
+            : null}
+          {activity?.type === 'order'
+            ? activity.steps.map((step, index) => (
+                <li key={step.id}>{texts.cards.stepLine(index + 1, step.text)}</li>
+              ))
+            : null}
+          {activity?.type === 'open'
+            ? activity.units.map((unit, index) => (
+                <li key={unit.id}>{texts.cards.unitLine(index + 1, unit.text)}</li>
+              ))
+            : null}
+          {card.example === '' ? null : <li>{texts.cards.exampleLine(card.example)}</li>}
           {sheet.referenceAnswer === '' ? null : (
             <li>{texts.cards.referenceLine(sheet.referenceAnswer)}</li>
           )}
@@ -179,7 +249,10 @@ export function CardDetailView({
         {card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired' ? null : (
           <Boton onClick={() => onReview(card)}>{texts.cards.review}</Boton>
         )}
-        {card.kind === 'qa' && !card.hasInverse && card.inverseOfCardId === null ? (
+        {card.kind === 'qa' &&
+        card.activityType === null &&
+        !card.hasInverse &&
+        card.inverseOfCardId === null ? (
           <Boton onClick={() => void createInverse()}>{texts.cards.createInverse}</Boton>
         ) : null}
         <Boton onClick={() => void togglePause()}>

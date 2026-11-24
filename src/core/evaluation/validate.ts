@@ -4,12 +4,12 @@ import { MAX_UNITS, MIN_UNITS } from './verdicts';
 
 // Lo que exige el editor de cada tipo en la ficha. Devuelve los problemas (vacío si está bien).
 
-export const OPTIONS_COUNT = 3;
-export const MIN_STEPS = 3;
-export const MAX_STEPS = 8;
-export const MAX_UNIT_LENGTH = 20;
+const OPTIONS_COUNT = 3;
+const MIN_STEPS = 3;
+const MAX_STEPS = 8;
+const MAX_UNIT_LENGTH = 20;
 
-export type ActivityProblem =
+type ActivityProblem =
   | 'value'
   | 'tolerance'
   | 'unit'
