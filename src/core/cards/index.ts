@@ -330,11 +330,18 @@ export interface CardFilter {
   // Un tema, «none» para las que no tienen, o nada para todos.
   topicId?: string | null | undefined;
   sheetState?: SheetState | null | undefined;
-  kind?: 'qa' | 'cloze' | null | undefined;
+  // «exercise» (Fase 16): los ejercicios; «qa» y «cloze» dejan afuera los ejercicios.
+  kind?: 'qa' | 'cloze' | 'exercise' | null | undefined;
 }
 
 export function matchesFilter(
-  card: { topicId: string | null; sheetState: SheetState; kind: 'qa' | 'cloze' },
+  card: {
+    topicId: string | null;
+    sheetState: SheetState;
+    kind: 'qa' | 'cloze';
+    // El tipo de actividad de un ejercicio (nulo en la tarjeta de siempre).
+    activityType?: string | null | undefined;
+  },
   filter: CardFilter,
 ): boolean {
   if (filter.topicId !== undefined && filter.topicId !== null) {
@@ -345,5 +352,9 @@ export function matchesFilter(
   if (filter.sheetState && card.sheetState !== filter.sheetState) {
     return false;
   }
-  return !(filter.kind && card.kind !== filter.kind);
+  if (!filter.kind) {
+    return true;
+  }
+  const exercise = card.activityType !== null && card.activityType !== undefined;
+  return filter.kind === 'exercise' ? exercise : !exercise && card.kind === filter.kind;
 }

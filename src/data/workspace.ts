@@ -12,6 +12,7 @@ import { BACKUP_EXTENSION, isAutomaticBackupDue } from '../core/backups';
 import type { Clock } from '../core/clock';
 import type { ExportCounts, ExportIndex } from '../core/imports/markdown';
 import type { DataDifference } from '../preload/contract/backups';
+import { type ActivitiesStore, createActivitiesStore } from './activities';
 import { type ActivityStore, createActivityStore } from './activity';
 import {
   BackupError,
@@ -62,6 +63,8 @@ export interface Workspace {
   readonly cards: CardsStore;
   readonly trash: TrashStore;
   readonly activity: ActivityStore;
+  // Las actividades de la Fase 16: «Practicar ahora», la ayuda, el resultado y «Discrepo».
+  readonly activities: ActivitiesStore;
   readonly subjects: SubjectsStore;
   readonly topics: TopicsStore;
   readonly notes: NotesStore;
@@ -201,6 +204,7 @@ export function openWorkspace({
       cards,
       trash: createTrashStore(db, clock),
       activity: createActivityStore(db, clock),
+      activities: createActivitiesStore(db, clock),
       subjects: createSubjectsStore(db, clock),
       topics: createTopicsStore(db, clock),
       notes: createNotesStore(db, clock),
@@ -271,6 +275,9 @@ export function openWorkspace({
     },
     get activity() {
       return current().activity;
+    },
+    get activities() {
+      return current().activities;
     },
     get subjects() {
       return current().subjects;

@@ -77,6 +77,13 @@ export const cardVersions = sqliteTable(
     // 'exact' o 'meaning'.
     formType: text('form_type').notNull().default('exact'),
     sheetState: text('sheet_state').notNull().default('reviewed'),
+    // Fase 16: el tipo de actividad (nulo en la tarjeta de siempre, «me califico») y lo propio de ese
+    // tipo en JSON (valor y margen, opciones, pasos o unidades de idea); el ejemplo de «Ver un
+    // ejemplo» y si la actividad es de práctica o de evaluación.
+    activityType: text('activity_type'),
+    activity: text('activity'),
+    example: text('example').notNull().default(''),
+    mode: text('mode').notNull().default('practice'),
   },
   (table) => [index('card_versions_card_idx').on(table.cardId)],
 );
@@ -158,6 +165,21 @@ export const evaluations = sqliteTable(
     supersedesId: text('supersedes_id'),
     verdict: text('verdict').notNull(),
     source: text('source').notNull(),
+    // Fase 16: lo que propuso Retenia (el veredicto nunca queda más alto), con qué regla y qué versión
+    // del contenido se evaluó, el estado de cada componente (JSON), la certeza, lo que el intento le
+    // dice al motor, por qué hay esta versión, el motivo de «Discrepo», si el intento quedó afectado
+    // (no cuenta) y la enmienda que la escribió o que deshace.
+    proposedVerdict: text('proposed_verdict'),
+    rubricVersion: text('rubric_version'),
+    contentVersionId: text('content_version_id'),
+    components: text('components'),
+    certainty: text('certainty').notNull().default('certain'),
+    engineSignal: text('engine_signal'),
+    cause: text('cause').notNull().default('graded'),
+    appealReason: text('appeal_reason'),
+    affected: integer('affected').notNull().default(0),
+    amendmentId: text('amendment_id'),
+    undoesAmendmentId: text('undoes_amendment_id'),
     createdAt: text('created_at').notNull(),
     timeZone: text('time_zone').notNull(),
     deviceId: text('device_id').notNull(),

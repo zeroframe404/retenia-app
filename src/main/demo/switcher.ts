@@ -148,6 +148,9 @@ export function createDemoWorkspace({
     get activity() {
       return active.activity;
     },
+    get activities() {
+      return active.activities;
+    },
     get subjects() {
       return active.subjects;
     },

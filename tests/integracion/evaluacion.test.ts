@@ -281,12 +281,50 @@ describe('el efecto de la ayuda', () => {
       space.file,
       `SELECT payload, schema_version FROM observations WHERE idempotency_key = 'review:${attemptId}'`,
     );
-    expect(row?.schema_version).toBe(4);
+    expect(row?.schema_version).toBe(3);
     expect(JSON.parse(String(row?.payload))).toMatchObject({
       helpLevel: 'A2',
       purpose: 'assisted',
       help: [{ kind: 'hint', level: 'A2', index: 1, atMs: 3000 }],
     });
+  });
+});
+
+describe('la ayuda dentro de la sesión de Estudiar', () => {
+  it('[CA-137] en la sesión, «La sabía» después de una pista de concepto llega al motor como «Con dudas» y queda anotada', () => {
+    const space = openSpace({ withCast: true });
+    const view = space.workspace.study.start({ sessionId: randomUUID() });
+    const current = view.current;
+    if (!current) {
+      throw new Error('la sesión no trajo ninguna tarjeta');
+    }
+    const attemptId = randomUUID();
+    space.workspace.study.grade({
+      sessionId: view.sessionId,
+      activityId: current.activityId,
+      attemptId,
+      grade: 'good',
+      answer: 'Cuánto se alejan de la media',
+      help: [
+        { kind: 'hint', level: 'A1', index: 0, atMs: 1000 },
+        { kind: 'hint', level: 'A2', index: 1, atMs: 2000 },
+      ],
+    });
+    const [row] = readRows(
+      space.file,
+      `SELECT payload FROM observations WHERE idempotency_key = 'review:${attemptId}'`,
+    );
+    expect(JSON.parse(String(row?.payload))).toMatchObject({
+      helpLevel: 'A2',
+      purpose: 'assisted',
+      sessionId: view.sessionId,
+    });
+    const [entry] = space.workspace.cards
+      .history({ cardId: current.cardId })
+      .entries.filter((item) => item.id !== undefined)
+      .slice(-1);
+    expect(entry).toMatchObject({ result: 'good', counted: true });
+    expect(space.workspace.cards.get({ cardId: current.cardId }).pendingCheck).toBe(true);
   });
 });
 
@@ -516,5 +554,24 @@ describe('ejercicios en la lista y en la cola', () => {
     const sent = practice(space, created.id, { type: 'numeric', raw: '9' });
     space.workspace.activities.finalize({ attemptId: sent.attemptId, verdict: 'incorrect' });
     expect(space.workspace.study.overview()).toEqual(proposalBefore);
+  });
+
+  it('un ejercicio vencido tampoco entra en la propuesta del día siguiente (llega con la Fase 18)', () => {
+    const practiced = movableClock();
+    const withExercise = openSpace({ clock: practiced, withCast: true });
+    const untouched = movableClock();
+    const withoutExercise = openSpace({ clock: untouched, withCast: true });
+    const created = withExercise.workspace.cards.create({
+      question: 'La media de 3 y 5',
+      answer: '4',
+      activity: { type: 'numeric', value: 4, tolerance: 0, unit: null },
+    });
+    const sent = practice(withExercise, created.id, { type: 'numeric', raw: '9' });
+    withExercise.workspace.activities.finalize({ attemptId: sent.attemptId, verdict: 'incorrect' });
+    practiced.advance(1);
+    untouched.advance(1);
+    expect(withExercise.workspace.study.overview()).toEqual(
+      withoutExercise.workspace.study.overview(),
+    );
   });
 });

@@ -68,6 +68,9 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
         isNull(cards.pausedAt),
         gt(cardSchedule.reps, 0),
         notInArray(cardVersions.sheetState, OUT_OF_REVIEWS),
+        // Los ejercicios (Fase 16) se practican con «Practicar ahora»; entran en la sesión con la
+        // Fase 18.
+        isNull(cardVersions.activityType),
       ),
     )
     .all();
@@ -181,6 +184,9 @@ export function newCardsOf(
         isNull(cards.pausedAt),
         eq(cardSchedule.reps, 0),
         notInArray(cardVersions.sheetState, OUT_OF_REVIEWS),
+        // Los ejercicios (Fase 16) se practican con «Practicar ahora»; entran en la sesión con la
+        // Fase 18.
+        isNull(cardVersions.activityType),
       ),
     )
     .all();

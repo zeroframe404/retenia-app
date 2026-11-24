@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { helpUseSchema } from './activities';
 import { cardDetailSchema } from './cards';
 import { day } from './common';
 
@@ -155,6 +156,9 @@ export const studyGradeRequest = z.strictObject({
   attemptId: z.uuid(),
   grade,
   answer: z.string().max(MAX_ANSWER_LENGTH).nullable(),
+  // Fase 16: la ayuda que se usó en esa tarjeta y si se tocó «No sé por dónde empezar».
+  help: z.array(helpUseSchema).max(40).optional(),
+  noIdea: z.boolean().optional(),
 });
 
 export const studyFlagRequest = z.strictObject({

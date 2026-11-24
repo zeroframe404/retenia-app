@@ -73,6 +73,17 @@ const reviewGradedV2 = z.strictObject({
 const activeMs = z.number().int().nonnegative();
 const milliseconds = z.number().int().nonnegative().nullable();
 
+// Fase 16: la escala de ayuda y cada ayuda usada (qué fue, su nivel, cuál pista y a los cuántos
+// milisegundos de mostrarse la actividad).
+const helpLevel = z.enum(['A0', 'A1', 'A2', 'A3', 'A4']);
+const helpUse = z.strictObject({
+  kind: z.enum(['hint', 'example', 'source', 'solution']),
+  level: helpLevel,
+  index: z.number().int().min(0).max(2).optional(),
+  atMs: z.number().int().nonnegative().optional(),
+});
+const purpose = z.enum(['assisted', 'autonomous', 'evaluation']);
+
 // Fase 10: además de lo de la versión 2, si el repaso fue en una sesión, la sesión, la actividad, si
 // era la vuelta de una fallada (y la vuelta que creó un «No la sabía»), lo escrito en «Tu
 // respuesta…» y los tiempos: cuándo se mostró, y a los cuántos milisegundos de mostrarse hubo la
@@ -95,7 +106,53 @@ const reviewGradedV3 = z.strictObject({
   // no las traen.
   suggestedDay: z.iso.date().optional(),
   plannedDay: z.iso.date().optional(),
+  // Fase 16: cada ayuda usada, si se tocó «No sé por dónde empezar» y el propósito (el rótulo al
+  // calificar). Opcionales: los repasos de antes no los traen.
+  help: z.array(helpUse).optional(),
+  noIdea: z.boolean().optional(),
+  purpose: purpose.optional(),
 });
+
+// Un intento sobre un ejercicio (Fase 16, H-31): la respuesta original, el número de intento dentro
+// de la apertura, la ayuda, el propósito y los tiempos. Su evaluación va aparte, en la tabla de
+// evaluaciones.
+const attemptAnswer = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('short'), text: z.string() }),
+  z.strictObject({ type: z.literal('numeric'), raw: z.string() }),
+  z.strictObject({ type: z.literal('options'), optionId: z.string(), shown: z.array(z.string()) }),
+  z.strictObject({
+    type: z.literal('order'),
+    stepIds: z.array(z.string()),
+    initial: z.array(z.string()),
+  }),
+  z.strictObject({ type: z.literal('open'), text: z.string() }),
+]);
+const attemptSubmittedV1 = z.strictObject({
+  cardId: z.uuid(),
+  versionId: z.uuid(),
+  activityType: z.enum(['short', 'numeric', 'options', 'order', 'open']),
+  openingId: z.uuid(),
+  attemptNo: z.number().int().positive(),
+  sessionId: z.uuid().optional(),
+  rule: z.enum(['due', 'relearning', 'chosen', 'probe']),
+  purpose,
+  answer: attemptAnswer,
+  help: z.array(helpUse),
+  helpLevel,
+  noIdea: z.boolean(),
+  optionsQuestion: z.boolean(),
+  // La confianza declarada (Fase 27): todavía no se pide.
+  confidence: z.enum(['guessing', 'think_so', 'sure']).nullable(),
+  shownAt: z.iso.datetime(),
+  firstInputMs: milliseconds,
+  submittedMs: milliseconds,
+});
+const appealReason = z.enum([
+  'answer_correct',
+  'ambiguous',
+  'reference_incomplete',
+  'reference_incorrect',
+]);
 
 const sessionStartedV1 = z.strictObject({
   sessionId: z.uuid(),
@@ -125,6 +182,37 @@ const sessionActivityStep = z.strictObject({
 const PAYLOADS = {
   // Un repaso de una tarjeta: el botón que se tocó, la ayuda y la fecha en que vencía.
   'review.graded': { 1: reviewGradedV1, 2: reviewGradedV2, 3: reviewGradedV3 },
+  // Un intento sobre un ejercicio (Fase 16). Mueve la agenda con su evaluación vigente.
+  'attempt.submitted': { 1: attemptSubmittedV1 },
+  // «Discrepo» con «La referencia está incompleta»: se anota; el resultado no cambia.
+  'attempt.appealed': {
+    1: z.strictObject({ cardId: z.uuid(), attemptId: z.uuid(), reason: appealReason }),
+  },
+  // Una enmienda de una evaluación (Fase 16, CA-140 a CA-142): qué la pidió, qué cambió en la ficha
+  // (para poder deshacerla) y el próximo repaso antes y después. Las evaluaciones nuevas llevan su
+  // identificador. No mueve la agenda: la mueven las evaluaciones.
+  'evaluation.amended': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      attemptId: z.uuid(),
+      amendmentId: z.uuid(),
+      reason: appealReason,
+      before: z.enum(['correct', 'partial', 'incorrect']),
+      after: z.enum(['correct', 'partial', 'incorrect', 'notCounted']),
+      dueBefore: z.iso.date().nullable(),
+      dueAfter: z.iso.date().nullable(),
+      addedVariant: z.string().nullable(),
+      addedOrder: z.array(z.string()).nullable(),
+      previousSheetState: z.string().nullable(),
+    }),
+  },
+  // «Deshacer» del aviso de evaluación corregida y «Entendido».
+  'evaluation.amendment_undone': {
+    1: z.strictObject({ cardId: z.uuid(), amendmentId: z.uuid() }),
+  },
+  'evaluation.amendment_acknowledged': {
+    1: z.strictObject({ cardId: z.uuid(), amendmentId: z.uuid() }),
+  },
   // «Deshacer» un repaso (Fase 09): el repaso queda en el historial y deja de contar. Desde la Fase
   // 10, si fue en una sesión, la sesión y los milisegundos activos.
   'review.annulled': {
@@ -185,6 +273,11 @@ const PAYLOADS = {
 };
 const CURRENT_VERSION = {
   'review.graded': 3,
+  'attempt.submitted': 1,
+  'attempt.appealed': 1,
+  'evaluation.amended': 1,
+  'evaluation.amendment_undone': 1,
+  'evaluation.amendment_acknowledged': 1,
   'review.annulled': 2,
   'card.meaning_changed': 1,
   'schedule.adopted': 1,
@@ -331,10 +424,31 @@ export function appendObservation<K extends ObservationKind>(
 
 // Agrega una evaluación de un intento: la versión 1 si no tenía, o la siguiente apuntando a la
 // vigente (enmendar nunca cambia la anterior).
+export interface EvaluationFacts {
+  // Lo que propuso Retenia (el veredicto nunca queda más alto).
+  readonly proposedVerdict?: Verdict | null;
+  readonly rubricVersion?: string | null;
+  readonly contentVersionId?: string | null;
+  // El estado de cada componente, como objeto (se guarda como JSON).
+  readonly components?: unknown;
+  readonly certainty?: 'certain' | 'uncertain';
+  readonly engineSignal?: 'again' | 'hard' | 'good' | null;
+  readonly cause?: 'graded' | 'lowered' | 'appeal' | 'undo' | 'reference_incorrect';
+  readonly appealReason?: string | null;
+  readonly affected?: boolean;
+  readonly amendmentId?: string | null;
+  readonly undoesAmendmentId?: string | null;
+}
+
 export function appendEvaluation(
   tx: Writer,
   clock: Clock,
-  input: { attemptId: string; verdict: Verdict; source: EventSource },
+  input: {
+    attemptId: string;
+    verdict: Verdict;
+    // «rule» (la regla de Retenia) o quien la hizo: vos, una importación.
+    source: EventSource | 'rule';
+  } & EvaluationFacts,
 ): { id: string; version: number } {
   const versions = tx
     .select({ id: evaluations.id, version: evaluations.version })
@@ -352,6 +466,17 @@ export function appendEvaluation(
       supersedesId,
       verdict: input.verdict,
       source: input.source,
+      proposedVerdict: input.proposedVerdict ?? null,
+      rubricVersion: input.rubricVersion ?? null,
+      contentVersionId: input.contentVersionId ?? null,
+      components: input.components === undefined ? null : JSON.stringify(input.components),
+      certainty: input.certainty ?? 'certain',
+      engineSignal: input.engineSignal ?? null,
+      cause: input.cause ?? 'graded',
+      appealReason: input.appealReason ?? null,
+      affected: input.affected === true ? 1 : 0,
+      amendmentId: input.amendmentId ?? null,
+      undoesAmendmentId: input.undoesAmendmentId ?? null,
       createdAt: clock.now().toISOString(),
       timeZone: BUENOS_AIRES_ZONE,
       deviceId,
