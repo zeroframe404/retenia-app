@@ -70,6 +70,14 @@ export function ExerciseView({
   const [toast, setToast] = useState('');
   const [problem, setProblem] = useState('');
   const busy = useRef(false);
+  // Al enviar, la corrección queda a la vista (la respuesta modelo y el resultado están abajo).
+  const correction = useRef<HTMLDivElement>(null);
+  const attemptShown = submitted?.attemptId;
+  useEffect(() => {
+    if (attemptShown !== undefined) {
+      correction.current?.scrollIntoView?.({ block: 'start' });
+    }
+  }, [attemptShown]);
   const marking = useRef(false);
   const help = useHelp({ cardId, openingId, opening, attemptNo });
   const resetHelp = help.reset;
@@ -429,7 +437,7 @@ export function ExerciseView({
             </>
           ) : null}
           {submitted !== null && shownParts !== null ? (
-            <>
+            <div ref={correction} className={styles.activity}>
               {detail?.type === 'open' ? (
                 <fieldset className={styles.model}>
                   <legend>{texts.practice.modelAnswer}</legend>
@@ -532,7 +540,7 @@ export function ExerciseView({
                   }))}
                 />
               </div>
-            </>
+            </div>
           ) : null}
           {problem === '' ? null : <BannerEstado tone="attention">{problem}</BannerEstado>}
         </div>

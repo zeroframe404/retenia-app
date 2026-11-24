@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Card, CardHistory } from '../../preload/contract/cards';
 import { formatLongDate, formatShortDate, texts } from '../../preload/contract/texts';
+import practiceStyles from '../practice/Practice.module.css';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Content.module.css';
 import { ItemList, ListItem, ScreenFrame } from '../ui/Frame';
@@ -72,13 +73,19 @@ function attemptText(entry: Entry, evaluation: NonNullable<Entry['evaluation']>)
 
 // Las calificaciones anteriores de un intento corregido, tachadas: el historial nunca borra una.
 function EarlierGrades({ evaluation }: { evaluation: NonNullable<Entry['evaluation']> }) {
-  const earlier = evaluation.versions.slice(0, -1);
+  // Las anteriores distintas de la vigente (una corrección deshecha vuelve a la de antes: esa no se
+  // repite tachada).
+  const earlier = [
+    ...new Set(
+      evaluation.versions.slice(0, -1).filter((verdict) => verdict !== evaluation.current),
+    ),
+  ];
   if (earlier.length === 0) {
     return null;
   }
   const undone = evaluation.causes.at(-1) === 'undo';
   return (
-    <p className={styles.block}>
+    <p className={practiceStyles.earlier}>
       {texts.history.earlierGrades}{' '}
       {earlier.map((verdict, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: las versiones se repiten; vale su orden.

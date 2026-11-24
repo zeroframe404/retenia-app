@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14 y fase-15.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14, fase-15 y fase-16.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -994,6 +994,125 @@ async function phase15(page, app) {
   await page.getByRole('button', { name: 'Volver al elenco' }).click();
 }
 
+// Fase 16: los ejercicios en la lista, cada tipo con su resultado, la barra de ayuda con el panel y
+// la pregunta antes de la solución, «Discrepo», el aviso de evaluación corregida, el historial con la
+// calificación tachada, el editor de la ficha y la barra de ayuda en la sesión.
+async function phase16(page) {
+  await page.setViewportSize({ width: 1280, height: 1500 });
+  const open =
+    'Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?';
+  const kind = page.getByRole('combobox', { name: 'Tipo', exact: true });
+  const practice = async (question) => {
+    await kind.selectOption('exercise');
+    await page
+      .getByRole('listitem')
+      .filter({ hasText: question })
+      .getByRole('button', { name: 'Practicar ahora' })
+      .click();
+    await page.getByRole('heading', { level: 3, name: 'Ejercicio' }).waitFor();
+  };
+  const next = async () => {
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+    await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
+  };
+  await kind.selectOption('exercise');
+  await shoot(page, '1-lista-con-ejercicios');
+  await practice(open);
+  await shoot(page, '2-ejercicio-abierto');
+  await page.getByPlaceholder('Tu respuesta…').fill('Habla del método, no de este intervalo.');
+  for (let n = 0; n < 3; n += 1) {
+    await page.getByRole('button', { name: 'Pista' }).click();
+  }
+  await page.getByRole('complementary', { name: 'Pistas' }).getByRole('listitem').nth(2).waitFor();
+  await shoot(page, '3-tres-pistas-en-el-panel');
+  await page.getByRole('button', { name: 'Pista' }).click();
+  await page.getByRole('dialog').waitFor();
+  await shoot(page, '4-antes-de-la-solucion');
+  await page.getByRole('button', { name: 'Intentarlo una vez más' }).click();
+  await page.getByRole('button', { name: 'Fuente' }).click();
+  await page.getByRole('complementary', { name: 'Fuente' }).waitFor();
+  await shoot(page, '5-fuente-en-el-panel');
+  await page.getByRole('button', { name: 'Cerrar el panel' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('checkbox', { name: 'La cubrí: idea 1' }).check();
+  await page.getByRole('checkbox', { name: 'La cubrí: idea 2' }).check();
+  await page.locator('[data-component="result"]').getByText('Vas bien.').waitFor();
+  await shoot(page, '6-unidades-de-idea-vas-bien');
+  await next();
+  await practice(open);
+  await page.getByPlaceholder('Tu respuesta…').fill('Habla del procedimiento.');
+  await page.getByRole('button', { name: 'Pista' }).click();
+  await page.getByRole('button', { name: 'Pista' }).click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  for (const index of [1, 2, 3]) {
+    await page.getByRole('checkbox', { name: `La cubrí: idea ${index}` }).check();
+  }
+  await page.getByText('Logrado con pista de concepto').waitFor();
+  await shoot(page, '7-logrado-con-pista-de-concepto');
+  await next();
+  await practice('Capital de Francia');
+  await page.getByPlaceholder('Tu respuesta…').fill('Paría');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('region', { name: 'Diferencia letra por letra' }).waitFor();
+  await shoot(page, '8-respuesta-corta-letra-por-letra');
+  await next();
+  await practice('La media de 2, 4 y 9');
+  await page.getByLabel('Tu respuesta, con coma o con punto').fill('5.3');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.locator('[data-component="result"]').waitFor();
+  await shoot(page, '9-numerica');
+  await next();
+  await practice('¿Qué medida de centro cambia menos si aparece un valor extremo?');
+  await page
+    .getByRole('group', { name: 'Elegí una opción' })
+    .getByText('La media', { exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.locator('[data-component="result"]').waitFor();
+  await shoot(page, '10-opciones-explicacion');
+  await next();
+  await practice('Ordená los pasos para encontrar la mediana de 7, 3 y 5');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.locator('[data-component="result"]').waitFor();
+  await shoot(page, '11-ordenar-pasos');
+  await next();
+  await practice('Capital de Francia');
+  await page.getByPlaceholder('Tu respuesta…').fill('Ciudad de París');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('button', { name: 'Discrepo' }).click();
+  await page.getByRole('menu').waitFor();
+  await shoot(page, '12-discrepo');
+  await page.getByRole('menuitem', { name: 'Mi respuesta era correcta' }).click();
+  await page.getByText('Todavía no → Correcto').waitFor();
+  await shoot(page, '13-evaluacion-corregida');
+  await page.getByRole('button', { name: 'Deshacer' }).click();
+  await next();
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: 'Capital de Francia' })
+    .getByRole('button', { name: /^Abrir la tarjeta/ })
+    .click();
+  await page.getByRole('button', { name: 'Historial' }).click();
+  await page.getByRole('list', { name: 'Repasos de la tarjeta' }).waitFor();
+  await shoot(page, '14-historial-con-la-original-tachada');
+  await page.getByRole('button', { name: 'Volver a las tarjetas' }).click();
+  await kind.selectOption('exercise');
+  await page
+    .getByRole('listitem')
+    .filter({ hasText: '¿Qué medida de centro' })
+    .getByRole('button', { name: /^Abrir la tarjeta/ })
+    .click();
+  await page.getByRole('button', { name: 'Editar ficha' }).click();
+  await page.getByRole('form', { name: 'Editar ficha' }).waitFor();
+  await shoot(page, '15-editor-de-opciones');
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await page.getByPlaceholder('Tu respuesta…').fill('Cuánto se alejan');
+  await page.getByRole('button', { name: 'Pista' }).waitFor();
+  await shoot(page, '16-sesion-con-barra-de-ayuda');
+}
+
 let { app, page } = await launch(
   {},
   name !== 'fase-06' &&
@@ -1006,7 +1125,9 @@ let { app, page } = await launch(
     name !== 'fase-15',
 );
 try {
-  if (name === 'fase-15') {
+  if (name === 'fase-16') {
+    await phase16(page);
+  } else if (name === 'fase-15') {
     await phase15(page, app);
   } else if (name === 'fase-14') {
     await phase14(page);

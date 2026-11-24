@@ -316,7 +316,7 @@ export function CardsScreen({
       title={texts.cards.title}
       actions={
         view.kind === 'list' ? (
-          <>
+          <div className={styles.dialogActions}>
             <Boton
               variant="primary"
               onClick={() => {
@@ -334,7 +334,7 @@ export function CardsScreen({
             >
               {texts.cards.newExercise}
             </Boton>
-          </>
+          </div>
         ) : null
       }
     >

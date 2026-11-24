@@ -259,3 +259,10 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Las calificaciones anteriores de un intento corregido, en el historial. */
+.earlier {
+  margin: var(--espacio-4) 0 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
