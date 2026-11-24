@@ -123,6 +123,18 @@ export function createHandlers({
     'cards.undoReview': async (request) => workspace.cards.undoReview(request),
     'cards.whyToday': async (request) => workspace.cards.whyToday(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
+    'activities.start': async (request) => workspace.activities.start(request),
+    'activities.help': async (request) => workspace.activities.help(request),
+    'activities.submit': async (request) => workspace.activities.submit(request),
+    'activities.propose': async (request) => workspace.activities.propose(request),
+    'activities.finalize': async (request) => workspace.activities.finalize(request),
+    'activities.appeal': async (request) => workspace.activities.appeal(request),
+    'activities.undoAmendment': async (request) => workspace.activities.undoAmendment(request),
+    'activities.acknowledge': async (request) => {
+      workspace.activities.acknowledge(request);
+      return ok;
+    },
+    'activities.notices': async (request) => workspace.activities.notices(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
     'cards.activationCost': async (request) => workspace.cards.activationCost(request),

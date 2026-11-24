@@ -1,4 +1,22 @@
 import type { z } from 'zod';
+import {
+  activitiesAmendmentRequest,
+  activitiesAppealRequest,
+  activitiesAppealResponse,
+  activitiesFinalizeRequest,
+  activitiesFinalizeResponse,
+  activitiesHelpRequest,
+  activitiesHelpResponse,
+  activitiesNoticesRequest,
+  activitiesNoticesResponse,
+  activitiesProposeRequest,
+  activitiesProposeResponse,
+  activitiesStartRequest,
+  activitiesSubmitRequest,
+  activitiesSubmitResponse,
+  activitiesUndoResponse,
+  activityOpeningSchema,
+} from './activities';
 import { activityRecentResponse, activityUndoRequest, activityUndoResponse } from './activity';
 import { appInfoRequest, appInfoResponse } from './app';
 import { appearanceGetRequest, appearanceResponse, appearanceSetRequest } from './appearance';
@@ -186,6 +204,22 @@ export const channels = {
     response: cardsActivationCostResponse,
   },
   'cards.activate': { request: cardsActivateRequest, response: cardsActivateResponse },
+  // Fase 16: «Practicar ahora», la ayuda, el resultado, «Discrepo» y el aviso de evaluación corregida.
+  'activities.start': { request: activitiesStartRequest, response: activityOpeningSchema },
+  'activities.help': { request: activitiesHelpRequest, response: activitiesHelpResponse },
+  'activities.submit': { request: activitiesSubmitRequest, response: activitiesSubmitResponse },
+  'activities.propose': { request: activitiesProposeRequest, response: activitiesProposeResponse },
+  'activities.finalize': {
+    request: activitiesFinalizeRequest,
+    response: activitiesFinalizeResponse,
+  },
+  'activities.appeal': { request: activitiesAppealRequest, response: activitiesAppealResponse },
+  'activities.undoAmendment': {
+    request: activitiesAmendmentRequest,
+    response: activitiesUndoResponse,
+  },
+  'activities.acknowledge': { request: activitiesAmendmentRequest, response: okResponse },
+  'activities.notices': { request: activitiesNoticesRequest, response: activitiesNoticesResponse },
   'study.overview': { request: studyOverviewRequest, response: studyOverviewSchema },
   'study.start': { request: studyStartRequest, response: sessionViewSchema },
   'study.postpone': { request: studyPostponeRequest, response: postponeResponse },
