@@ -93,6 +93,51 @@ describe('la barra de ayuda', () => {
     expect((button('Fuente') as HTMLButtonElement).disabled).toBe(false);
   });
 
+  it('[CA-135] una actividad sin ejemplo ni fuente no muestra esos botones: apagado quiere decir «todavía no», nunca «no hay»', async () => {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    const card = bridge.workspace.cards.create({
+      question: 'Capital de Francia',
+      answer: 'París',
+      activity: { type: 'short' },
+      sheet: { hints: HINTS },
+    });
+    const user = userEvent.setup();
+    render(<ExerciseView cardId={card.id} onClose={vi.fn()} onEditReference={vi.fn()} />);
+    const hint = await screen.findByRole('button', { name: 'Pista' }, SLOW);
+    expect((hint as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Ver un ejemplo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fuente' })).toBeNull();
+    await user.type(screen.getByPlaceholderText('Tu respuesta…'), 'Pa');
+    await waitFor(() => expect((button('Pista') as HTMLButtonElement).disabled).toBe(false));
+    expect(screen.queryByRole('button', { name: 'Ver un ejemplo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fuente' })).toBeNull();
+  });
+
+  it('[CA-135] en la sesión de Estudiar, una tarjeta sin ejemplo ni fuente muestra solo «Pista»', async () => {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    const subject = bridge.workspace.subjects.create({
+      name: 'Estadística básica',
+      makeActive: true,
+    });
+    bridge.workspace.cards.create({
+      question: '¿Qué es la media?',
+      answer: 'El promedio',
+      subjectId: subject.id,
+    });
+    const started = bridge.workspace.study.start({ sessionId: crypto.randomUUID() });
+    const view = bridge.workspace.study.view({ sessionId: started.sessionId });
+    const user = userEvent.setup();
+    render(<SessionScreen initial={view} onExit={vi.fn()} onToast={vi.fn()} />);
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'La suma');
+    await waitFor(() => expect((button('Pista') as HTMLButtonElement).disabled).toBe(false), SLOW);
+    expect(screen.queryByRole('button', { name: 'Ver un ejemplo' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Fuente' })).toBeNull();
+  });
+
   it('[CA-135] también se prende con «No sé por dónde empezar»', async () => {
     const { user } = setup(OPEN);
     await user.click(await screen.findByRole('button', { name: 'No sé por dónde empezar' }, SLOW));
