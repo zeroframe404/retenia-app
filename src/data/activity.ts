@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gt } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
 import {
   type OrganizationOperationKind,
@@ -96,6 +96,24 @@ function organizationPlanFor(
       );
 }
 
+// Una versión que el sistema escribió después de esta operación (las de «Discrepo»).
+function supersededBySystem(db: Writer, operation: OperationRow): boolean {
+  return (
+    db
+      .select({ seq: operations.seq })
+      .from(operations)
+      .where(
+        and(
+          eq(operations.entityType, 'card'),
+          eq(operations.entityId, operation.entityId),
+          eq(operations.source, 'system'),
+          gt(operations.seq, operation.seq),
+        ),
+      )
+      .get() !== undefined
+  );
+}
+
 function cardPlanFor(db: Writer, operation: OperationRow, now: Date) {
   return undoPlan(
     {
@@ -103,6 +121,7 @@ function cardPlanFor(db: Writer, operation: OperationRow, now: Date) {
       versionBeforeId: operation.versionBeforeId,
       afterContent: versionContent(db, operation.versionAfterId),
       trashEntryId: operation.trashEntryId,
+      supersededBySystem: supersededBySystem(db, operation),
     },
     cardState(db, operation.entityId, now),
   );

@@ -21,6 +21,9 @@ export interface UndoableOperation {
   // El contenido que dejó la operación.
   readonly afterContent: CardContent | null;
   readonly trashEntryId: string | null;
+  // Si el sistema escribió una versión de la tarjeta después de esta operación («Discrepo» agregó
+  // una variante o la pasó a «En revisión»): volver atrás la borraría, así que ya no se deshace.
+  readonly supersededBySystem?: boolean | undefined;
 }
 
 export interface CardState {
@@ -43,6 +46,7 @@ export function undoPlan(operation: UndoableOperation, card: CardState): UndoPla
   switch (operation.kind) {
     case 'card.edit':
       return card.status === 'active' &&
+        operation.supersededBySystem !== true &&
         operation.versionBeforeId !== null &&
         sameContent(card.content, operation.afterContent)
         ? { action: 'restore-version', versionId: operation.versionBeforeId }
