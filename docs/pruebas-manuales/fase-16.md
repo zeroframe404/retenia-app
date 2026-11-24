@@ -84,7 +84,7 @@ Yo hice S1 a S5, M16.1 a M16.11 y un rato de uso libre contra el programa de pru
 
 - Hacé: con texto escrito en la respuesta, abrí «Fuente» y cerrala.
 - Tenés que ver: tu texto sigue completo.
-- Lo que vi: el texto completo. El panel de «Fuente» muestra el párrafo del 95 % de la página 6 del PDF con «Ver en el original».
+- Lo que vi: el texto completo. El panel de «Fuente» muestra el párrafo del 95 % de la página 6 del PDF, sin «Ver en el original» (ese botón te sacaba del ejercicio y perdías lo escrito; para ir al PDF, cerrá el ejercicio y usá Materiales).
 
 ## M16.9 · Logrado con pista · CA-137
 
@@ -120,4 +120,8 @@ Yo hice S1 a S5, M16.1 a M16.11 y un rato de uso libre contra el programa de pru
 4. M16.10: el paso «+1 día» antes, que elegiste.
 5. «La referencia es incorrecta» deja la tarjeta «En revisión» (CA-142), no «En pausa».
 6. El aviso también trae «Entendido» (lo pide CA-141).
-7. Para encontrar el ejercicio, Tipo › «Ejercicio» o Ctrl+K: los ejercicios quedan al final de la lista.
+7. Para encontrar el ejercicio, Tipo › «Ejercicio» o Ctrl+K: los ejercicios quedan al final de la lista. Con ese filtro, el contador dice «5 ejercicios».
+8. En el buscador (Ctrl+K) los ejercicios figuran como «Tarjeta», no como «Ejercicio»; «Practicar ahora» funciona igual.
+9. «Discrepo» › «La referencia está incompleta» abre «Editar ficha» con el cursor en la parte a corregir (en el ejercicio abierto, «Unidad de idea 1»).
+10. En «Practicar ahora», el panel «Fuente» no trae «Ver en el original» (ver M16.8).
+11. Dos capturas de referencia cambian a propósito y esperan tu aprobación: Apuntes › «Tarjetas» y la pregunta de la sesión de Estudiar (ahora con la barra de ayuda). Están en `docs/pruebas-manuales/capturas/fase-16-referencia-*-nueva.png`.
