@@ -68,6 +68,12 @@
   min-width: 0;
 }
 
+/* «Practicar ahora» no se parte en dos renglones ni se monta sobre los datos de la fila. */
+.rowAction {
+  flex: none;
+  white-space: nowrap;
+}
+
 .rowTitle {
   flex: 1 1 auto;
   min-width: 0;

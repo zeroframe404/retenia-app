@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { type Ref, useId } from 'react';
 import type { DiffStepValue } from '../../preload/contract/activities';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
@@ -12,11 +12,13 @@ export function TextAnswer({
   rows,
   readOnly,
   onChange,
+  inputRef,
 }: {
   value: string;
   rows: number;
   readOnly: boolean;
   onChange: (value: string) => void;
+  inputRef?: Ref<HTMLTextAreaElement> | undefined;
 }) {
   const id = useId();
   return (
@@ -25,6 +27,7 @@ export function TextAnswer({
         {texts.practice.answerLabel}
       </label>
       <textarea
+        ref={inputRef}
         id={id}
         className={styles.textarea}
         rows={rows}
@@ -42,17 +45,20 @@ export function NumberAnswer({
   unit,
   readOnly,
   onChange,
+  inputRef,
 }: {
   value: string;
   unit: string | null;
   readOnly: boolean;
   onChange: (value: string) => void;
+  inputRef?: Ref<HTMLInputElement> | undefined;
 }) {
   const id = useId();
   return (
     <div className={styles.field}>
       <label htmlFor={id}>{texts.practice.numberLabel}</label>
       <input
+        ref={inputRef}
         id={id}
         className={styles.input}
         type="text"

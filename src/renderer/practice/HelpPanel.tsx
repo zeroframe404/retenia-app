@@ -31,7 +31,7 @@ export function HelpPanel({
             : titles.explanation;
   return (
     <SidePanel title={title} onClose={help.closePanel}>
-      <div className={styles.panelBody} data-panel={panel.kind}>
+      <div className={styles.panelBody} data-panel={panel.kind} aria-live="polite">
         {panel.kind === 'hints' ? (
           <ol className={styles.hints}>
             {panel.hints.map((hint) => (

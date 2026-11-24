@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   type CardDetail,
   type CardSheetInput,
@@ -9,6 +9,7 @@ import {
 } from '../../preload/contract/cards';
 import { texts } from '../../preload/contract/texts';
 import { ActivityEditor, activityOf, answerOf, draftOf } from '../practice/ActivityEditor';
+import type { ReferenceField } from '../practice/ExerciseView';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Form.module.css';
 import { Dialog } from '../ui/Frame';
@@ -103,13 +104,22 @@ export function SheetForm({
   create,
   onSaved,
   onCancel,
+  focusField,
 }: {
   card?: CardDetail | undefined;
   create?: { subjectId: string | null } | undefined;
   onSaved: (card: CardDetail) => void;
   onCancel: () => void;
+  // La parte de la referencia a corregir: se abre con el foco ahí.
+  focusField?: ReferenceField | undefined;
 }) {
   const ids = useId();
+  const variantsField = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (focusField === 'variants') {
+      variantsField.current?.focus();
+    }
+  }, [focusField]);
   const card = given ?? BLANK;
   const sheet = card.sheet;
   const [draft, setDraft] = useState(() => draftOf(card.activity));
@@ -275,7 +285,7 @@ export function SheetForm({
         />
         {errors.question ? <p className={styles.fieldNotice}>{errors.question}</p> : null}
       </div>
-      <ActivityEditor draft={draft} onChange={setDraft} />
+      <ActivityEditor draft={draft} onChange={setDraft} focusField={focusField} />
       {activityProblem === '' ? null : (
         <p className={styles.fieldNotice} role="alert">
           {activityProblem}
@@ -307,6 +317,7 @@ export function SheetForm({
       <div className={styles.field}>
         <label htmlFor={`${ids}-variantes`}>{texts.cards.variantsLabel}</label>
         <textarea
+          ref={variantsField}
           id={`${ids}-variantes`}
           rows={3}
           value={variants}

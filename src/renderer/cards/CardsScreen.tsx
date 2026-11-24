@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ActivationCost, Card, CardDetail } from '../../preload/contract/cards';
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
-import { ExerciseView } from '../practice/ExerciseView';
+import { ExerciseView, type ReferenceField } from '../practice/ExerciseView';
 import { Boton } from '../ui/Boton';
 import { Dialog, ScreenFrame, Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -19,7 +19,8 @@ type View =
   | { kind: 'list' }
   | { kind: 'form' }
   | { kind: 'detail'; cardId: string; version: number }
-  | { kind: 'edit'; card: CardDetail }
+  // `focus`: la parte de la referencia a corregir («La referencia está incompleta»).
+  | { kind: 'edit'; card: CardDetail; focus?: ReferenceField | undefined }
   | { kind: 'newExercise' }
   | { kind: 'review'; card: Card }
   | { kind: 'history'; card: Card };
@@ -129,7 +130,13 @@ export function CardsScreen({
   useEffect(() => {
     if (cardRequest?.practice) {
       window.retenia['cards.get']({ cardId: cardRequest.cardId }).then(
-        (card) => setView({ kind: 'review', card }),
+        (card) =>
+          // Una en pausa, «En revisión» o «Retirada» no se practica: se abre su pantalla.
+          setView(
+            card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired'
+              ? { kind: 'detail', cardId: card.id, version: nextVersion() }
+              : { kind: 'review', card },
+          ),
         () => setProblem(texts.practice.loadFailed),
       );
     } else if (cardRequest) {
@@ -210,21 +217,19 @@ export function CardsScreen({
 
   if (view.kind === 'review') {
     const { card } = view;
-    const openOriginal = onOpenOriginal
-      ? (materialId: string) => onOpenOriginal(materialId, card.id)
-      : undefined;
     // «Practicar ahora» (Fase 16): un ejercicio tiene su pantalla; la tarjeta de siempre, el repaso.
+    // La fuente se lee en el panel: «Ver en el original» llevaría a Materiales y se perdería lo
+    // escrito, así que acá no se ofrece.
     if (card.activityType !== null) {
       return (
         <ExerciseView
           cardId={card.id}
           onClose={backToList}
-          onOpenOriginal={openOriginal}
-          onEditReference={() => {
+          onEditReference={(field) => {
             window.retenia['cards.get']({ cardId: card.id }).then(
               (detail) => {
                 setNotice(texts.practice.editAfterAppeal);
-                setView({ kind: 'edit', card: detail });
+                setView({ kind: 'edit', card: detail, focus: field });
               },
               () => setProblem(texts.cards.loadFailed),
             );
@@ -232,14 +237,7 @@ export function CardsScreen({
         />
       );
     }
-    return (
-      <ReviewView
-        card={card}
-        onReviewed={() => undefined}
-        onClose={backToList}
-        onOpenOriginal={openOriginal}
-      />
-    );
+    return <ReviewView card={card} onReviewed={() => undefined} onClose={backToList} />;
   }
 
   if (view.kind === 'newExercise') {
@@ -269,6 +267,7 @@ export function CardsScreen({
         <Toast>{notice}</Toast>
         <SheetForm
           card={card}
+          focusField={view.focus}
           onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}
           onSaved={() => {
             setNotice(texts.cards.edited);
@@ -362,7 +361,12 @@ export function CardsScreen({
       {cards !== null && !loadFailed && (total > 0 || filtering) ? (
         <>
           <p className={styles.counter} aria-live="polite">
-            {texts.cards.counter(cards.filter((card) => card.activityType === null).length, total)}
+            {filters.kind === 'exercise'
+              ? texts.cards.exerciseCounter(cards.length)
+              : texts.cards.counter(
+                  cards.filter((card) => card.activityType === null).length,
+                  total,
+                )}
           </p>
           <CardFilters filters={filters} topics={topics} onChange={setFilters} />
           {cards.some(isNewCard) ? (

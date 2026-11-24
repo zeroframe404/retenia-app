@@ -70,6 +70,10 @@ export function ExerciseView({
   const [toast, setToast] = useState('');
   const [problem, setProblem] = useState('');
   const busy = useRef(false);
+  const textField = useRef<HTMLTextAreaElement>(null);
+  const numberField = useRef<HTMLInputElement>(null);
+  // La tarjeta quedó «En revisión» por «Discrepo»: no se puede reintentar.
+  const [outOfReviews, setOutOfReviews] = useState(false);
   // Al enviar, la corrección queda a la vista (la respuesta modelo y el resultado están abajo).
   const correction = useRef<HTMLDivElement>(null);
   const attemptShown = submitted?.attemptId;
@@ -79,7 +83,13 @@ export function ExerciseView({
     }
   }, [attemptShown]);
   const marking = useRef(false);
-  const help = useHelp({ cardId, openingId, opening, attemptNo });
+  const help = useHelp({
+    cardId,
+    openingId,
+    opening,
+    attemptNo,
+    focusAnswer: () => (textField.current ?? numberField.current)?.focus(),
+  });
   const resetHelp = help.reset;
 
   useEffect(() => {
@@ -187,7 +197,7 @@ export function ExerciseView({
         help: help.used,
         noIdea: help.noIdea,
       });
-      help.closePanel();
+      help.hidePanel();
       setSubmitted(result);
       setProposal(result);
       setVerdict(result.proposed);
@@ -267,7 +277,7 @@ export function ExerciseView({
       setFinal(null);
       setNotice(null);
       setMarked([]);
-      help.closePanel();
+      help.hidePanel();
     });
 
   const appeal = (reason: AppealReason) =>
@@ -290,6 +300,7 @@ export function ExerciseView({
       }
       setFinal({ verdict: result.verdict, parts: result.parts });
       setNotice(result.notice);
+      setOutOfReviews(result.notice.inReview);
     });
 
   const undoAmendment = (current: AmendmentNotice) =>
@@ -306,6 +317,7 @@ export function ExerciseView({
         verdict: undone.verdict,
       });
       setFinal({ verdict: undone.verdict, parts: shown.parts });
+      setOutOfReviews(false);
       setNotice(null);
       setToast(texts.practice.amendmentUndone);
     });
@@ -358,6 +370,7 @@ export function ExerciseView({
           <p className={styles.prompt}>{opening.question}</p>
           {input.type === 'short' || input.type === 'open' ? (
             <TextAnswer
+              inputRef={textField}
               value={text}
               rows={input.type === 'open' ? 5 : 2}
               readOnly={submitted !== null}
@@ -369,6 +382,7 @@ export function ExerciseView({
           ) : null}
           {input.type === 'numeric' ? (
             <NumberAnswer
+              inputRef={numberField}
               value={text}
               unit={input.unit}
               readOnly={submitted !== null}
@@ -526,12 +540,14 @@ export function ExerciseView({
                 >
                   {texts.practice.buttons.explanation}
                 </Boton>
-                <Boton
-                  variant={primary === 'retry' ? 'primary' : 'secondary'}
-                  onClick={() => void retry()}
-                >
-                  {texts.practice.buttons.retry}
-                </Boton>
+                {outOfReviews ? null : (
+                  <Boton
+                    variant={primary === 'retry' ? 'primary' : 'secondary'}
+                    onClick={() => void retry()}
+                  >
+                    {texts.practice.buttons.retry}
+                  </Boton>
+                )}
                 <MenuAcciones
                   label={texts.practice.buttons.disagree}
                   items={APPEAL_REASONS.map((reason) => ({

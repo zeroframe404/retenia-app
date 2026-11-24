@@ -29,6 +29,8 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.cards.lostCard': ['Pendiente'],
   // Fase 16.
   'texts.cards.pendingCheck': ['martes 16/03/2027'],
+  'texts.cards.exerciseCounter': [5],
+  'texts.practice.effectFirst': ['martes 16/03/2027'],
   'texts.cards.activityLine': ['Respuesta abierta'],
   'texts.cards.modeLine': ['Práctica'],
   'texts.cards.exampleLine': ['La capital de Italia es Roma.'],

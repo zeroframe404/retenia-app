@@ -589,6 +589,28 @@ describe('objeciones del revisor: pantallas', () => {
     expect(bridge.workspace.cards.get({ cardId: card.id }).nextReviewDay).toBe('2027-03-17');
   });
 
+  it('el editor no deja guardar dos opciones iguales ni dos pasos iguales', async () => {
+    const { bridge, subject, user } = screenWith();
+    render(<CardsScreen subject={subject} />);
+    await user.click(await screen.findByRole('button', { name: 'Nuevo ejercicio' }, SLOW));
+    await user.type(await screen.findByLabelText('Pregunta', {}, SLOW), '¿Cuál es la mediana?');
+    await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'Opciones');
+    await user.type(screen.getByLabelText('Opción 1'), 'La mediana');
+    await user.type(screen.getByLabelText('Opción 2'), 'La  MEDIANA ');
+    await user.type(screen.getByLabelText('Opción 3'), 'La media');
+    await user.click(button('Guardar'));
+    expect(await screen.findByText('Hay dos opciones iguales.', {}, SLOW)).toBeTruthy();
+    await user.selectOptions(screen.getByLabelText('Tipo de actividad'), 'Ordenar pasos');
+    await user.type(screen.getByLabelText('Paso 1'), 'Ordenar');
+    await user.type(screen.getByLabelText('Paso 2'), 'Contar');
+    await user.type(screen.getByLabelText('Paso 3'), 'ordenar');
+    await user.click(button('Guardar'));
+    expect(await screen.findByText('Hay dos pasos iguales.', {}, SLOW)).toBeTruthy();
+    expect(bridge.workspace.cards.list().some((c) => c.question === '¿Cuál es la mediana?')).toBe(
+      false,
+    );
+  });
+
   it('«La referencia está incompleta» abre «Editar ficha» con el foco en la primera unidad de idea', async () => {
     const { subject, user } = screenWith();
     render(<CardsScreen subject={subject} />);

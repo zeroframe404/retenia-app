@@ -5,6 +5,7 @@ import { z } from 'zod';
 import cast from '../../../datos-de-ejemplo/elenco/materias.json';
 import cardCast from '../../../datos-de-ejemplo/elenco/tarjetas.json';
 import { findHoles } from '../../core/cards';
+import { referenceText } from '../../core/evaluation';
 import { extensionFor, HEAD_BYTES, identifyContent } from '../../core/materials/signature';
 import type { Grade } from '../../core/memory';
 import type { IncomingBlock } from '../../core/organization';
@@ -608,7 +609,7 @@ function exercisesOf(
     const activity = exercise.actividad;
     return {
       question: exercise.pregunta,
-      answer: exercise.respuesta ?? referenceOfActivity(activity),
+      answer: exercise.respuesta ?? referenceText(activity) ?? '',
       kind: 'qa',
       subjectId: subject.id,
       topicId: topic?.id ?? null,
@@ -622,22 +623,6 @@ function exercisesOf(
       explanation: exercise.explicacion,
     };
   });
-}
-
-// La «Respuesta» de un ejercicio que no es de respuesta corta: un resumen de la referencia.
-function referenceOfActivity(activity: z.output<typeof activitySchema>): string {
-  switch (activity.type) {
-    case 'numeric':
-      return `${String(activity.value).replace('.', ',')}${activity.unit === null ? '' : ` ${activity.unit}`}`;
-    case 'options':
-      return activity.options.find((option) => option.correct)?.text ?? '';
-    case 'order':
-      return activity.steps.map((step) => step.text).join(' · ');
-    case 'open':
-      return activity.units.map((unit) => unit.text).join(' · ');
-    default:
-      return '';
-  }
 }
 
 // «Cargar 10.000 tarjetas» (Ajustes › «Demostración», CA-103): tarjetas de relleno, nuevas, en una

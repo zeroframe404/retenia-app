@@ -69,6 +69,7 @@ export function SessionScreen({
   const inFlight = useRef(false);
   const interacted = useRef(false);
   const question = useRef<HTMLElement>(null);
+  const answerField = useRef<HTMLTextAreaElement>(null);
   const answer = useRef<HTMLElement>(null);
   const current = view.current;
   // Si la tarjeta salió de un material, después de mostrar la respuesta se puede ver el original
@@ -87,6 +88,7 @@ export function SessionScreen({
     opening,
     attemptNo: 1,
     onSolution: () => showAnswerRef.current(),
+    focusAnswer: () => answerField.current?.focus(),
   });
   const resetHelp = help.reset;
   useEffect(() => {
@@ -100,7 +102,8 @@ export function SessionScreen({
       .then((opened) => {
         if (alive) {
           setOpening(opened);
-          resetHelp(opened);
+          // Una sesión retomada con algo escrito ya tiene el intento empezado.
+          resetHelp(opened, latest.current.text.trim() !== '');
         }
       })
       .catch(() => undefined);
@@ -508,6 +511,7 @@ export function SessionScreen({
                   <label className={styles.field}>
                     <span className="visually-hidden">{texts.study.answerLabel}</span>
                     <textarea
+                      ref={answerField}
                       className={styles.textarea}
                       placeholder={texts.study.answerPlaceholder}
                       value={text}

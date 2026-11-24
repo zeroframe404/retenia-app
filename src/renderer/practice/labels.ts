@@ -94,11 +94,13 @@ export function noticeTexts(notice: AmendmentNotice): {
     effect = texts.practice.effectNotCounted;
   } else if (notice.dueAfter === null) {
     effect = texts.practice.effectNoReview;
+  } else if (notice.dueBefore === null) {
+    effect = texts.practice.effectFirst(formatLongDate(notice.dueAfter));
   } else if (notice.dueBefore === notice.dueAfter) {
     effect = texts.practice.effectUnchanged(formatLongDate(notice.dueAfter));
   } else {
     effect = texts.practice.effectChanged(
-      notice.dueBefore === null ? texts.practice.effectNoReview : formatLongDate(notice.dueBefore),
+      formatLongDate(notice.dueBefore),
       formatLongDate(notice.dueAfter),
     );
   }

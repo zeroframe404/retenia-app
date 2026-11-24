@@ -1,8 +1,9 @@
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 import type { ActivityValue } from '../../preload/contract/activities';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import formStyles from '../ui/Form.module.css';
+import type { ReferenceField } from './ExerciseView';
 import styles from './Practice.module.css';
 
 // El editor de cada tipo de actividad en la ficha (Fase 16, tarea 2): respuesta corta, numérica
@@ -81,6 +82,12 @@ const readNumber = (text: string): number | null => {
 type Problem = keyof typeof texts.practice.editor.problems;
 
 // La actividad que se guarda, o el primer problema que hay que arreglar.
+// Dos textos iguales (sin contar mayúsculas ni espacios de más) no se distinguen al practicar.
+function repeated(items: readonly string[]): boolean {
+  const seen = items.map((item) => item.trim().toLowerCase().replace(/\s+/g, ' '));
+  return new Set(seen).size !== seen.length;
+}
+
 export function activityOf(
   draft: ActivityDraft,
 ): { activity: ActivityValue | null } | { problem: Problem } {
@@ -109,6 +116,9 @@ export function activityOf(
       if (draft.options.some((option) => blank(option.text))) {
         return { problem: 'optionsBlank' };
       }
+      if (repeated(draft.options.map((option) => option.text))) {
+        return { problem: 'optionsRepeated' };
+      }
       if (draft.options.filter((option) => option.correct).length !== 1) {
         return { problem: 'optionsCorrect' };
       }
@@ -133,6 +143,9 @@ export function activityOf(
       }
       if (draft.steps.length < MIN_STEPS || draft.steps.length > MAX_STEPS) {
         return { problem: 'stepsCount' };
+      }
+      if (repeated(draft.steps.map((step) => step.text))) {
+        return { problem: 'stepsRepeated' };
       }
       const ids = new Set(draft.steps.map((step) => step.id));
       return {
@@ -183,11 +196,29 @@ export function answerOf(activity: ActivityValue): string | null {
 export function ActivityEditor({
   draft,
   onChange,
+  focusField,
 }: {
   draft: ActivityDraft;
   onChange: (draft: ActivityDraft) => void;
+  // La parte de la referencia a corregir («La referencia está incompleta»): recibe el foco al abrir.
+  focusField?: ReferenceField | undefined;
 }) {
   const ids = useId();
+  useEffect(() => {
+    const target =
+      focusField === 'numeric'
+        ? `${ids}-valor`
+        : focusField === 'options'
+          ? `${ids}-opcion-0`
+          : focusField === 'steps'
+            ? `${ids}-paso-0`
+            : focusField === 'units'
+              ? `${ids}-unidad-0`
+              : null;
+    if (target !== null) {
+      document.getElementById(target)?.focus();
+    }
+  }, [focusField, ids]);
   const editor = texts.practice.editor;
   const set = (patch: Partial<ActivityDraft>) => onChange({ ...draft, ...patch });
   return (

@@ -158,9 +158,11 @@ function Row({
           </button>
         </p>
         {card.paused || card.sheetState === 'in_review' || card.sheetState === 'retired' ? null : (
-          <Boton variant="quiet" onClick={() => onReview(card)}>
-            {texts.cards.review}
-          </Boton>
+          <span className={styles.rowAction}>
+            <Boton variant="quiet" onClick={() => onReview(card)}>
+              {texts.cards.review}
+            </Boton>
+          </span>
         )}
       </div>
       <p className={styles.rowMeta} title={meta}>

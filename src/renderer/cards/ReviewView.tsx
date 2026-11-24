@@ -46,12 +46,14 @@ export function ReviewView({
   const [written, setWritten] = useState('');
   const [openingId, setOpeningId] = useState(() => crypto.randomUUID());
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
+  const answerField = useRef<HTMLTextAreaElement>(null);
   const help = useHelp({
     cardId: card.id,
     openingId,
     opening,
     attemptNo: 1,
     onSolution: () => setStep('answer'),
+    focusAnswer: () => answerField.current?.focus(),
   });
   const resetHelp = help.reset;
   useEffect(() => {
@@ -177,6 +179,7 @@ export function ReviewView({
           {step === 'question' ? (
             <>
               <TextAnswer
+                inputRef={answerField}
                 value={written}
                 rows={3}
                 readOnly={false}

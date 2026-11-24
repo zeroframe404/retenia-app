@@ -29,6 +29,7 @@ export function useHelp({
   opening,
   attemptNo,
   onSolution,
+  focusAnswer,
 }: {
   cardId: string | null;
   // La apertura: el principal mide desde que se abrió a los cuántos milisegundos se pide cada ayuda.
@@ -37,6 +38,8 @@ export function useHelp({
   attemptNo: number;
   // La solución vista (A4): en la tarjeta de siempre es «Mostrar respuesta».
   onSolution?: (() => void) | undefined;
+  // Devuelve el foco a la respuesta (al tocar «No sé por dónde empezar» y al cerrar el panel).
+  focusAnswer?: (() => void) | undefined;
 }) {
   const [used, setUsed] = useState<HelpUseValue[]>([]);
   const [label, setLabel] = useState<ModeLabel>(opening?.label ?? 'autonomous');
@@ -48,10 +51,11 @@ export function useHelp({
   const asking = useRef(false);
   const hints = useRef<{ index: number; text: string }[]>([]);
 
-  const reset = useCallback((next: ActivityOpening | null) => {
+  // `alreadyStarted`: ya había algo escrito (una sesión retomada con su borrador).
+  const reset = useCallback((next: ActivityOpening | null, alreadyStarted = false) => {
     setUsed([]);
     setLabel(next?.label ?? 'autonomous');
-    setStarted(false);
+    setStarted(alreadyStarted);
     setNoIdea(false);
     setPanel(null);
     setConfirming(false);
@@ -122,6 +126,7 @@ export function useHelp({
     chooseNoIdea: () => {
       setNoIdea(true);
       setStarted(true);
+      focusAnswer?.();
     },
     hint: () => void ask('hint'),
     example: () => void ask('example'),
@@ -132,7 +137,12 @@ export function useHelp({
     },
     cancelSolution: () => setConfirming(false),
     showExplanation: (text: string) => setPanel({ kind: 'explanation', text }),
-    closePanel: () => setPanel(null),
+    closePanel: () => {
+      setPanel(null);
+      focusAnswer?.();
+    },
+    // Cerrar sin mover el foco (al enviar o reintentar).
+    hidePanel: () => setPanel(null),
     reset,
   };
 }

@@ -815,6 +815,8 @@ export const texts = {
     activateFailed: 'No pude sumar las tarjetas. Probá de nuevo.',
     // Fase 16: los ejercicios se listan con su marca y no suman al contador.
     kindExercise: 'Ejercicio',
+    exerciseCounter: (count: number) =>
+      count === 1 ? '1 ejercicio' : `${numberFormat.format(count)} ejercicios`,
     exerciseMark: 'Ejercicio',
     newExercise: 'Nuevo ejercicio',
     newExerciseTitle: 'Nuevo ejercicio',
@@ -949,6 +951,7 @@ export const texts = {
     effectChanged: (before: string, after: string) => `Próximo repaso: ${before} → ${after}`,
     effectUnchanged: (longDate: string) => `Próximo repaso: sin cambios, sigue el ${longDate}`,
     effectNoReview: 'Próximo repaso: todavía no tiene fecha',
+    effectFirst: (longDate: string) => `Próximo repaso: ${longDate}`,
     effectNotCounted: 'Este intento ya no cuenta para tu próximo repaso.',
     effectInReview: 'La tarjeta quedó «En revisión»: no entra en tus repasos hasta que la revises.',
     amendmentUndone: 'Corrección deshecha.',
@@ -1001,6 +1004,8 @@ export const texts = {
         stepsBlank: 'Completá cada paso o quitalo.',
         unitsCount: 'La respuesta abierta lleva de 2 a 4 unidades de idea.',
         unitsBlank: 'Completá cada unidad de idea o quitala.',
+        optionsRepeated: 'Hay dos opciones iguales.',
+        stepsRepeated: 'Hay dos pasos iguales.',
       },
     },
   },
