@@ -47,7 +47,10 @@ export function HelpPanel({
         {panel.kind === 'example' ? <p>{panel.text}</p> : null}
         {panel.kind === 'source' ? (
           <>
-            {panel.text === '' ? null : <p>{panel.text}</p>}
+            {/* La fuente escrita en la ficha suele ser la misma referencia de la cita: se dice una vez. */}
+            {panel.text === '' || panel.text.trim() === panel.cite?.reference.trim() ? null : (
+              <p>{panel.text}</p>
+            )}
             {panel.cite ? (
               <>
                 <blockquote className={styles.quote}>{panel.cite.quote}</blockquote>
