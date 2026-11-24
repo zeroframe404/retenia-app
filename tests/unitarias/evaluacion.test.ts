@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { matchesFilter } from '../../src/core/cards';
 import {
   type Activity,
   allowedVerdicts,
@@ -566,5 +567,23 @@ describe('lo que exige cada editor', () => {
 
   it('respuesta corta: no pide nada más que la respuesta de la tarjeta', () => {
     expect(validateActivity({ type: 'short' })).toEqual([]);
+  });
+});
+
+describe('la lista de Tarjetas: el filtro «Ejercicio»', () => {
+  const classic = {
+    topicId: null,
+    sheetState: 'reviewed' as const,
+    kind: 'qa' as const,
+    activityType: null,
+  };
+  const exercise = { ...classic, activityType: 'numeric' as const };
+
+  it('«Ejercicio» deja solo los ejercicios; «Pregunta y respuesta» deja afuera los ejercicios', () => {
+    expect(matchesFilter(exercise, { kind: 'exercise' })).toBe(true);
+    expect(matchesFilter(classic, { kind: 'exercise' })).toBe(false);
+    expect(matchesFilter(exercise, { kind: 'qa' })).toBe(false);
+    expect(matchesFilter(classic, { kind: 'qa' })).toBe(true);
+    expect(matchesFilter(exercise, {})).toBe(true);
   });
 });
