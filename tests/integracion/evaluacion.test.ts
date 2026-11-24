@@ -80,7 +80,7 @@ const evaluationsOf = (space: Space, attemptId: string) =>
   );
 
 describe('el registro de un intento', () => {
-  it('[CA-131] «Practicar ahora» guarda el intento con lo escrito, la regla «elegida por mí» y el propósito', () => {
+  it('«Practicar ahora» guarda el intento con lo escrito, la regla «elegida por mí» y el propósito', () => {
     const space = openSpace();
     const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
     const sent = practice(space, card.id, { type: 'short', text: 'paris' });
@@ -121,7 +121,7 @@ describe('el registro de un intento', () => {
     expect(dueOf(space, card.id)).toBe('2027-03-17');
   });
 
-  it('[CA-131] un intento sin evaluar queda en el historial y no mueve la agenda', () => {
+  it('un intento sin evaluar queda en el historial y no mueve la agenda', () => {
     const space = openSpace();
     const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
     practice(space, card.id, { type: 'short', text: 'paris' });
@@ -573,5 +573,212 @@ describe('ejercicios en la lista y en la cola', () => {
     expect(withExercise.workspace.study.overview()).toEqual(
       withoutExercise.workspace.study.overview(),
     );
+  });
+});
+
+describe('objeciones del revisor: enmiendas, pasos, modo y lo que manda la ventana', () => {
+  it('[CA-141] una corrección nueva cierra el aviso anterior: solo se deshace la última y todo vuelve a como estaba', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    const sent = practice(space, card.id, { type: 'short', text: 'Lyon' });
+    space.workspace.activities.finalize({ attemptId: sent.attemptId, verdict: 'incorrect' });
+    const first = space.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'answer_correct',
+    });
+    const second = space.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'ambiguous',
+    });
+    if (first.kind !== 'amended' || second.kind !== 'amended') {
+      throw new Error('tenían que enmendar');
+    }
+    expect(
+      space.workspace.activities.notices({ cardId: card.id }).map((notice) => notice.amendmentId),
+    ).toEqual([second.notice.amendmentId]);
+    // Deshacer la primera, ya cerrada, no cambia nada.
+    const rows = evaluationsOf(space, sent.attemptId).length;
+    space.workspace.activities.undoAmendment({ amendmentId: first.notice.amendmentId });
+    expect(evaluationsOf(space, sent.attemptId)).toHaveLength(rows);
+    space.workspace.activities.undoAmendment({ amendmentId: second.notice.amendmentId });
+    expect(evaluationsOf(space, sent.attemptId).at(-1)).toMatchObject({
+      verdict: 'correct',
+      affected: 0,
+      cause: 'undo',
+    });
+    expect(space.workspace.cards.get({ cardId: card.id }).sheetState).toBe('reviewed');
+    expect(space.workspace.verifyData()).toEqual([]);
+  });
+
+  it('[CA-140] «Mi respuesta era correcta» sobre un intento que no cuenta lo deja sin contar', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    const sent = practice(space, card.id, { type: 'short', text: 'Lyon' });
+    space.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'ambiguous',
+      verdict: 'incorrect',
+    });
+    space.workspace.activities.appeal({ attemptId: sent.attemptId, reason: 'answer_correct' });
+    expect(evaluationsOf(space, sent.attemptId).at(-1)).toMatchObject({
+      verdict: 'correct',
+      affected: 1,
+    });
+  });
+
+  it('[CA-140] en ordenar pasos, «Mi respuesta era correcta» no repite un orden ya aceptado ni el correcto', () => {
+    const space = openSpace();
+    const steps = [
+      { id: 's1', text: 'Ordenar' },
+      { id: 's2', text: 'Contar' },
+      { id: 's3', text: 'Leer' },
+    ];
+    const card = exercise(space, 'Ordená', 'Ordenar · Contar · Leer', {
+      type: 'order',
+      steps,
+      acceptedOrders: [],
+    });
+    for (let n = 0; n < 2; n += 1) {
+      const sent = practice(space, card.id, {
+        type: 'order',
+        stepIds: ['s2', 's1', 's3'],
+        initial: ['s3', 's2', 's1'],
+      });
+      space.workspace.activities.appeal({ attemptId: sent.attemptId, reason: 'answer_correct' });
+    }
+    const right = practice(space, card.id, {
+      type: 'order',
+      stepIds: ['s1', 's2', 's3'],
+      initial: ['s3', 's2', 's1'],
+    });
+    space.workspace.activities.appeal({ attemptId: right.attemptId, reason: 'answer_correct' });
+    const activity = space.workspace.cards.get({ cardId: card.id }).activity;
+    expect(activity?.type === 'order' ? activity.acceptedOrders : null).toEqual([
+      ['s2', 's1', 's3'],
+    ]);
+  });
+
+  it('volver a «Tarjeta (me califico)» deja el modo en práctica', () => {
+    const space = openSpace();
+    const card = space.workspace.cards.create({
+      question: 'La media de 2 y 4',
+      answer: '3',
+      activity: { type: 'numeric', value: 3, tolerance: 0, unit: null },
+      mode: 'evaluation',
+    });
+    const edited = space.workspace.cards.edit({
+      cardId: card.id,
+      question: 'La media de 2 y 4',
+      answer: '3',
+      activity: null,
+      mode: 'evaluation',
+    });
+    expect(edited.mode).toBe('practice');
+  });
+
+  it('el principal no le cree a la ventana el nivel de ayuda ni el número de intento', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    const openingId = randomUUID();
+    space.workspace.activities.start({ cardId: card.id, openingId });
+    const sent = space.workspace.activities.submit({
+      cardId: card.id,
+      openingId,
+      attemptId: randomUUID(),
+      attemptNo: 7,
+      answer: { type: 'short', text: 'París' },
+      help: [{ kind: 'solution', level: 'A0' }],
+      noIdea: false,
+      shownAt: space.clock.now().toISOString(),
+      firstInputMs: null,
+      submittedMs: null,
+    });
+    const [row] = readRows(
+      space.file,
+      `SELECT payload FROM observations WHERE id = '${sent.attemptId}'`,
+    );
+    expect(JSON.parse(String(row?.payload))).toMatchObject({
+      attemptNo: 1,
+      helpLevel: 'A4',
+      help: [{ kind: 'solution', level: 'A4' }],
+    });
+  });
+
+  it('en una evaluación, la solución no se puede pedir antes del primer envío aunque la ventana diga que es un reintento', () => {
+    const space = openSpace();
+    const card = space.workspace.cards.create({
+      question: 'Capital de Francia',
+      answer: 'París',
+      activity: { type: 'short' },
+      mode: 'evaluation',
+    });
+    const openingId = randomUUID();
+    space.workspace.activities.start({ cardId: card.id, openingId });
+    expect(() =>
+      space.workspace.activities.help({
+        cardId: card.id,
+        openingId,
+        kind: 'solution',
+        used: [],
+        confirmed: true,
+        attemptNo: 2,
+      }),
+    ).toThrow();
+  });
+
+  it('la respuesta guardada de un ejercicio sale de la actividad, no de lo que mande la ventana', () => {
+    const space = openSpace();
+    const card = space.workspace.cards.create({
+      question: '¿Cuál?',
+      answer: 'Cualquier cosa',
+      activity: {
+        type: 'options',
+        options: [
+          { id: 'a', text: 'La buena', correct: true, explanation: '' },
+          { id: 'b', text: 'Otra', correct: false, explanation: 'No.' },
+          { id: 'c', text: 'Tampoco', correct: false, explanation: 'No.' },
+        ],
+      },
+    });
+    expect(card.answer).toBe('La buena');
+  });
+
+  it('el paso a «En revisión» que pide «Discrepo» es del sistema: no aparece en «Actividad reciente»', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    const before = space.workspace.activity.recent().length;
+    const sent = practice(space, card.id, { type: 'short', text: 'Lyon' });
+    space.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'reference_incorrect',
+      verdict: 'incorrect',
+    });
+    expect(space.workspace.cards.get({ cardId: card.id }).sheetState).toBe('in_review');
+    expect(space.workspace.activity.recent()).toHaveLength(before);
+  });
+
+  it('«Exportar todo» cuenta tarjetas sin los ejercicios', () => {
+    const space = openSpace();
+    space.workspace.cards.create({ question: 'Una', answer: 'R' });
+    exercise(space, 'Capital de Francia', 'París', { type: 'short' });
+    expect(space.workspace.exportCounts().cards).toBe(1);
+  });
+
+  it('[CA-130] la propuesta con un resultado más bajo trae sus tres líneas; uno más alto queda en lo propuesto', () => {
+    const space = openSpace();
+    const card = exercise(space, 'Un intervalo', 'Tres ideas', OPEN);
+    const sent = practice(space, card.id, { type: 'open', text: 'Algo' });
+    const lowered = space.workspace.activities.propose({
+      attemptId: sent.attemptId,
+      marked: ['u1', 'u2'],
+      verdict: 'incorrect',
+    });
+    expect(lowered.parts.verdict).toBe('incorrect');
+    const raised = space.workspace.activities.propose({
+      attemptId: sent.attemptId,
+      marked: ['u1', 'u2'],
+      verdict: 'correct',
+    });
+    expect(raised.parts.verdict).toBe('partial');
   });
 });
