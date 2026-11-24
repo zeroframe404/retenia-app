@@ -564,8 +564,11 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
 
   const statistics = subjects.find((item) => item.name === 'Estadística básica');
   if (statistics) {
+    // Las que nacieron en la nota están en su tema: solo esas se abren (abrir las 185 tarjetas de
+    // la materia hacía lenta cada siembra).
     const born = workspace.cards
       .list({ subjectId: statistics.id })
+      .filter((card) => card.topicName === 'Intervalos de confianza')
       .map((card) => workspace.cards.get({ cardId: card.id }))
       .filter((card) => card.path.noteTitle === 'Intervalos de confianza')
       .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'qa' ? -1 : 1));

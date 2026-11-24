@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   compareSchedules,
   type Difference,
@@ -295,6 +295,22 @@ function attemptEvaluationsOf(db: Writer, cardId: string): Map<string, AttemptEv
 // ¿Queda una comprobación sin ayuda pendiente (CA-137)? Después de un acierto con pista de concepto o
 // de paso, hasta un acierto sin ayuda que cuente.
 export function pendingCheckOf(db: Writer, cardId: string): boolean {
+  // Solo un acierto con pista de concepto o de paso (A2, A3) deja una comprobación pendiente. Abrir
+  // una tarjeta lo pregunta siempre: si en su historial no hay ninguno, no hace falta rearmarlo.
+  const aided = db
+    .select({ id: observations.id })
+    .from(observations)
+    .where(
+      and(
+        eq(observations.cardId, cardId),
+        inArray(observations.kind, MEMORY_KINDS),
+        sql`json_extract(${observations.payload}, '$.helpLevel') in ('A2', 'A3')`,
+      ),
+    )
+    .get();
+  if (aided === undefined) {
+    return false;
+  }
   const events = cardEvents(db, cardId);
   const options = new Set(
     events.flatMap((event) =>
