@@ -37,6 +37,8 @@ export type MemoryEvent =
       // La vuelta de una fallada dentro de una sesión (Fase 10): queda en el historial y nunca
       // llega al motor, sea el día que sea.
       readonly retry?: boolean | undefined;
+      // Fase 16: un intento sobre una pregunta de opciones (un acierto ahí llega como «Con dudas»).
+      readonly optionsQuestion?: boolean | undefined;
       // Si la fecha de este repaso lleva la variación al azar del uso real (Fase 09).
       readonly fuzz?: boolean | undefined;
     }
