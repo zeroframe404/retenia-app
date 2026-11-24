@@ -587,3 +587,32 @@ describe('la lista de Tarjetas: el filtro «Ejercicio»', () => {
     expect(matchesFilter(exercise, {})).toBe(true);
   });
 });
+
+describe('la comprobación sin ayuda, cuando el acierto con pista no fue el primero del día', () => {
+  const attempt = (
+    studyDay: string,
+    verdict: 'correct' | 'incorrect',
+    helpLevel: 'A0' | 'A2',
+    counted: boolean,
+    valid = true,
+  ) => ({ studyDay, counted, verdict, helpLevel, optionsQuestion: false, valid });
+
+  it('[CA-137] un acierto con pista de concepto que no contó (segundo del día) igual deja la comprobación pendiente', () => {
+    expect(
+      hasPendingCheck([
+        attempt('2027-03-15', 'incorrect', 'A0', true),
+        attempt('2027-03-15', 'correct', 'A2', false),
+      ]),
+    ).toBe(true);
+  });
+
+  it('[CA-137] la cumple un acierto sin ayuda que cuente otro día; uno del mismo día, no', () => {
+    const aided = attempt('2027-03-15', 'correct', 'A2', false);
+    expect(hasPendingCheck([aided, attempt('2027-03-15', 'correct', 'A0', false)])).toBe(true);
+    expect(hasPendingCheck([aided, attempt('2027-03-16', 'correct', 'A0', true)])).toBe(false);
+  });
+
+  it('un intento afectado o sin evaluar no deja nada pendiente', () => {
+    expect(hasPendingCheck([attempt('2027-03-15', 'correct', 'A2', true, false)])).toBe(false);
+  });
+});
