@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Activity } from '../../src/core/evaluation';
+import { CardsScreen } from '../../src/renderer/cards/CardsScreen';
 import { ReviewView } from '../../src/renderer/cards/ReviewView';
 import { ExerciseView } from '../../src/renderer/practice/ExerciseView';
 import { openBridge, type TestBridge } from '../apoyo/puente';
@@ -428,5 +429,37 @@ describe('«Practicar ahora» en una tarjeta de siempre', () => {
     expect((screen.getByPlaceholderText('Tu respuesta…') as HTMLTextAreaElement).value).toBe(
       'La suma',
     );
+  });
+});
+
+describe('la lista de «Tarjetas» con ejercicios', () => {
+  it('[CA-056] los ejercicios se listan con la marca «Ejercicio», no suman al contador y el filtro «Ejercicio» los deja solos', async () => {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    const subject = bridge.workspace.subjects.create({
+      name: 'Estadística básica',
+      makeActive: true,
+    });
+    for (const question of ['Una', 'Otra']) {
+      bridge.workspace.cards.create({ question, answer: 'R', subjectId: subject.id });
+    }
+    bridge.workspace.cards.create({
+      question: 'Capital de Francia',
+      answer: 'París',
+      subjectId: subject.id,
+      activity: { type: 'short' },
+    });
+    const user = userEvent.setup();
+    render(<CardsScreen subject={subject} />);
+    expect(await screen.findByText('2 tarjetas', {}, SLOW)).toBeTruthy();
+    const row = screen
+      .getByRole('button', { name: 'Abrir la tarjeta «Capital de Francia»' })
+      .closest('li');
+    expect(row?.textContent).toContain('Ejercicio');
+    expect(within(row as HTMLElement).queryByRole('checkbox')).toBeNull();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Tipo' }), 'exercise');
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
+    expect(screen.getByText('0 de 2 tarjetas')).toBeTruthy();
   });
 });

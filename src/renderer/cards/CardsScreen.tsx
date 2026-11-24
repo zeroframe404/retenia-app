@@ -362,7 +362,7 @@ export function CardsScreen({
       {cards !== null && !loadFailed && (total > 0 || filtering) ? (
         <>
           <p className={styles.counter} aria-live="polite">
-            {texts.cards.counter(cards.length, total)}
+            {texts.cards.counter(cards.filter((card) => card.activityType === null).length, total)}
           </p>
           <CardFilters filters={filters} topics={topics} onChange={setFilters} />
           {cards.some(isNewCard) ? (

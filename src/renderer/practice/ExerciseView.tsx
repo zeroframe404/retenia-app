@@ -486,6 +486,7 @@ export function ExerciseView({
                     value={verdict}
                     onChange={(value) => {
                       if (proposal.allowed.includes(value)) {
+                        setVerdict(value);
                         void refresh(marked, value).catch(() => setProblem(texts.practice.failed));
                       }
                     }}
