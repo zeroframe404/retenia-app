@@ -463,3 +463,18 @@ describe('la lista de «Tarjetas» con ejercicios', () => {
     expect(screen.getByText('0 de 2 tarjetas')).toBeTruthy();
   });
 });
+
+describe('el modo «EVALUACIÓN» después de enviar', () => {
+  it('«Reintentar» en una evaluación ya es práctica: el rótulo deja de decir «EVALUACIÓN» y la ayuda se prende al escribir', async () => {
+    const { user } = setup(OPEN, { mode: 'evaluation' });
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'Algo');
+    await send(user);
+    await user.click(await screen.findByRole('button', { name: 'Reintentar' }, SLOW));
+    expect(await screen.findByText('PRÁCTICA AUTÓNOMA', {}, SLOW)).toBeTruthy();
+    expect(screen.queryByText('EVALUACIÓN')).toBeNull();
+    await user.type(screen.getByPlaceholderText('Tu respuesta…'), ' más');
+    await waitFor(() => expect((button('Pista') as HTMLButtonElement).disabled).toBe(false));
+    await user.click(button('Pista'));
+    expect(await screen.findByRole('complementary', { name: 'Pistas' }, SLOW)).toBeTruthy();
+  });
+});
