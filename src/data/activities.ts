@@ -43,7 +43,13 @@ import { asMode, parsedActivity } from './cards';
 import { activeCard, CardNotFoundError, type CardRow, cardOf, sheetOf } from './content';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
-import { appendEvaluation, appendObservation, appendOperation, readPayload } from './ledger';
+import {
+  appendEvaluation,
+  appendObservation,
+  appendOperation,
+  readPayload,
+  type StoredPayload,
+} from './ledger';
 import { describeCite } from './materials';
 import type { Writer } from './orm';
 import { pendingCheckOf, recomputeCardSchedule } from './projections';
@@ -185,7 +191,7 @@ export interface ActivitiesStore {
 }
 
 type VersionRow = typeof cardVersions.$inferSelect;
-type StoredAttempt = ReturnType<typeof readPayload<'attempt.submitted'>> & { id: string };
+type StoredAttempt = StoredPayload<'attempt.submitted'> & { id: string };
 
 function exerciseOf(row: { activity: string | null }): Activity {
   const activity = parsedActivity(row);

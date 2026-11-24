@@ -58,6 +58,17 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       // «Sumar a mis repasos» (Fase 11).
       'cards.activationCost',
       'cards.activate',
+      // Ejercicios, ayuda, «Discrepo» y el aviso de evaluación corregida (Fase 16).
+      'activities.start',
+      'activities.help',
+      'activities.mark',
+      'activities.submit',
+      'activities.propose',
+      'activities.finalize',
+      'activities.appeal',
+      'activities.undoAmendment',
+      'activities.acknowledge',
+      'activities.notices',
       // La sesión de estudio, las dudas y Progreso › «Dudas y revisiones» (Fase 10).
       'study.overview',
       'study.start',

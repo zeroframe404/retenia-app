@@ -302,7 +302,7 @@ export type ObservationPayload<K extends ObservationKind> = z.output<
   Payloads[K][CurrentVersion<K> & keyof Payloads[K]] & z.ZodType
 >;
 // Lo que se puede leer: cualquiera de las versiones que existieron.
-type StoredPayload<K extends ObservationKind> = z.output<
+export type StoredPayload<K extends ObservationKind> = z.output<
   Payloads[K][keyof Payloads[K]] & z.ZodType
 >;
 
