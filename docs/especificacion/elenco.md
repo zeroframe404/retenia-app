@@ -47,7 +47,15 @@ Tarjetas con nombre:
 
 Ejercicio abierto (se lista en «Tarjetas» con la marca «Ejercicio»; no suma al 180): **«Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?»**, con respuesta modelo en 3 unidades de idea: (1) el 95 % habla del procedimiento, no de este intervalo en particular; (2) si se repitiera el muestreo muchas veces, cerca del 95 % de los intervalos contendría la media; (3) no es la probabilidad de que la media esté en [4,2; 5,8]. Tema: Intervalos de confianza.
 
-Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para la media»**, de 4 pasos, con familia de variantes (CA-157, CA-164); un conjunto de 9 problemas de media, mediana y moda para elegir método (CA-162); la pregunta numérica con respuesta 4,2 y tolerancia 0,05 (CA-132); una pregunta de 3 opciones con explicación por opción (CA-133).
+Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para la media»**, de 4 pasos, con familia de variantes (CA-157, CA-164); un conjunto de 9 problemas de media, mediana y moda para elegir método (CA-162).
+
+Desde la Fase 16 el elenco trae cinco ejercicios en Estadística básica, sin historial, cada uno con 3 pistas (pregunta orientadora, pista de concepto y pista de paso), un ejemplo y una explicación (`datos-de-ejemplo/elenco/tarjetas.json`, `ejercicios`). Se listan al final de «Tarjetas» con la marca «Ejercicio» (Tipo › «Ejercicio») y no suman al 180:
+
+- El ejercicio abierto de arriba (tema Intervalos de confianza), con la fuente en el párrafo de «3.2 Qué significa el 95 %» de la página 6 del PDF.
+- **«La media de 2, 4 y 9»** → 5, margen 0,05, sin unidad (Media y dispersión). Reemplaza a la numérica de 4,2 y 0,05: CA-132 se prueba con 4,2 y 0,05 en datos propios de la prueba.
+- **«Capital de Francia»** → «París», respuesta corta (sin tema). Sin signos de pregunta, para no chocar con la tarjeta «¿Capital de Francia?» que crea la prueba de CA-009.
+- **«¿Qué medida de centro cambia menos si aparece un valor extremo?»**, 3 opciones: «La mediana» (correcta), «La media» («La media usa todos los valores: un valor extremo la arrastra.») y «El punto medio entre el mínimo y el máximo» («Depende justo de los extremos: es la que más cambia.») (Media y dispersión).
+- **«Ordená los pasos para encontrar la mediana de 7, 3 y 5»**: «Ordenar los datos de menor a mayor», «Contar cuántos datos hay», «Ubicar la posición del medio», «Leer el dato de esa posición» (Media y dispersión).
 
 ## Objetivos de aprendizaje
 
@@ -112,7 +120,7 @@ Los arma `node tools/generar-datos-de-ejemplo.mjs --importaciones` (siempre igua
 
 - Materia «Química orgánica» (CA-038, CA-041).
 - Tema «Regresión» (CA-040) y nota «Regresión lineal» (CA-042), que usan CA-048 y CA-051.
-- Tarjeta «¿Capital de Francia?» (CA-009).
+- Tarjeta «¿Capital de Francia?» (CA-009). No confundir con el ejercicio «Capital de Francia» del elenco (Fase 16).
 - Nota «Teorema de Bayes» (CA-100).
 - Renombre de «Media y dispersión» a «Medidas de resumen» (CA-044), que usa CA-099.
 - Objetivo «Interpretar un intervalo de confianza» (CA-143).

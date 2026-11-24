@@ -23,29 +23,36 @@ export function engineSignal(input: {
 
 export interface CountedAttempt {
   readonly studyDay: string;
-  // Si llegó al motor.
+  // Si llegó al motor (el primer intento de su día de estudio).
   readonly counted: boolean;
   readonly verdict: Verdict;
   readonly helpLevel: HelpLevel;
   readonly optionsQuestion: boolean;
+  // Evaluado y no afectado (falso si quedó «Sin evaluar» o si «Discrepo» lo dejó sin contar).
+  readonly valid?: boolean | undefined;
 }
 
 // La comprobación sin ayuda (CA-137): queda pendiente después de un acierto con pista de concepto o
-// de paso, y se cumple con un acierto sin ayuda que cuente (otro día: solo cuenta el primero de
-// cada día). Un fallo no la cumple.
+// de paso (haya contado o no para el motor) y se cumple con un acierto sin ayuda que cuente, de un
+// día posterior. Un fallo no la cumple.
 export function hasPendingCheck(attempts: readonly CountedAttempt[]): boolean {
-  let pending = false;
+  let pendingSince: string | null = null;
   for (const attempt of attempts) {
-    if (!attempt.counted || attempt.verdict !== 'correct' || attempt.optionsQuestion) {
+    if (attempt.valid === false || attempt.verdict !== 'correct' || attempt.optionsQuestion) {
       continue;
     }
     if (attempt.helpLevel === 'A2' || attempt.helpLevel === 'A3') {
-      pending = true;
-    } else if (attempt.helpLevel === 'A0' || attempt.helpLevel === 'A1') {
-      pending = false;
+      pendingSince = attempt.studyDay;
+    } else if (
+      (attempt.helpLevel === 'A0' || attempt.helpLevel === 'A1') &&
+      attempt.counted &&
+      pendingSince !== null &&
+      attempt.studyDay > pendingSince
+    ) {
+      pendingSince = null;
     }
   }
-  return pending;
+  return pendingSince !== null;
 }
 
 type VerdictKey =

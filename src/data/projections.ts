@@ -301,6 +301,14 @@ export function pendingCheckOf(db: Writer, cardId: string): boolean {
       event.kind === 'review' && event.optionsQuestion === true ? [event.id] : [],
     ),
   );
+  // Sin evaluar o afectado: no deja ni cumple ninguna comprobación.
+  const invalid = new Set(
+    events.flatMap((event) =>
+      event.kind === 'review' && (event.interrupted === true || event.defective === true)
+        ? [event.id]
+        : [],
+    ),
+  );
   return hasPendingCheck(
     trace(cardId, cardBasics(db, cardId), events).steps.map((step) => ({
       studyDay: step.studyDay,
@@ -308,6 +316,7 @@ export function pendingCheckOf(db: Writer, cardId: string): boolean {
       verdict: verdictOfGrade(step.grade),
       helpLevel: step.helpLevel,
       optionsQuestion: options.has(step.id),
+      valid: !invalid.has(step.id) && step.reason !== 'annulled',
     })),
   );
 }
