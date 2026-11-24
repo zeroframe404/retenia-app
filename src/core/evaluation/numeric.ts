@@ -1,8 +1,10 @@
 import type { Verdict } from '../memory';
+import { normalizeShortAnswer } from './short';
 
 // Numérica (CA-132): se acepta coma o punto. Con una sola clase de marca, si aparece una vez es la
-// decimal y si aparece varias son de miles (de a tres cifras). Con las dos, la última es la
-// decimal. Margen absoluto e inclusivo; la unidad es opcional y, si se escribe, tiene que ser la
+// decimal y si aparece varias son de miles (de a tres cifras); un solo punto seguido de exactamente
+// tres cifras también es de miles, como se escribe acá («1.500» es mil quinientos). Con las dos, la
+// última es la decimal. Margen absoluto e inclusivo; la unidad es opcional y, si se escribe, tiene que ser la
 // pedida.
 
 export interface ParsedNumber {
@@ -46,6 +48,10 @@ function readDigits(text: string): number | null {
     const at = Math.max(text.indexOf('.'), text.indexOf(','));
     integer = text.slice(0, at);
     fraction = text.slice(at + 1);
+    if (dots === 1 && fraction.length === 3 && /^[1-9][0-9]{0,2}$/.test(integer)) {
+      integer += fraction;
+      fraction = '';
+    }
   } else if (dots + commas > 1) {
     const separator = dots > 0 ? '.' : ',';
     if (!groupsAreThousands(text, separator)) {
@@ -106,6 +112,18 @@ export function evaluateNumeric(
   spec: NumericSpec,
   variants: readonly string[],
 ): NumericResult {
+  // Una variante aceptada tal cual («Mi respuesta era correcta») vale aunque traiga otra unidad o no
+  // sea un número.
+  const key = normalizeShortAnswer(raw);
+  if (key !== '' && variants.some((variant) => normalizeShortAnswer(variant) === key)) {
+    const accepted = parseNumber(raw);
+    return {
+      verdict: 'correct',
+      value: accepted?.value ?? null,
+      unit: accepted?.unit ?? null,
+      reason: null,
+    };
+  }
   const parsed = parseNumber(raw);
   if (parsed === null) {
     return { verdict: 'incorrect', value: null, unit: null, reason: 'unreadable' };

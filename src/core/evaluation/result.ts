@@ -115,6 +115,12 @@ export function resultParts(input: {
   // En una numérica, por qué no: la unidad o que no se reconoció un número.
   numericReason?: 'unreadable' | 'unit' | 'off' | null | undefined;
 }): ResultParts {
+  const help = topHelp(input.used);
+  // Con la solución a la vista no hay «Vas bien.» ni «Correcto.» a secas (al motor llega como «No la
+  // sabía»).
+  if (input.verdict !== 'incorrect' && help?.level === 'A4') {
+    return { verdict: 'solution', review: 'helpUsed', action: 'retryLater' };
+  }
   if (input.verdict !== 'correct') {
     const numeric =
       input.type === 'numeric' &&
@@ -127,7 +133,6 @@ export function resultParts(input: {
       action: input.verdict === 'partial' ? 'retry' : 'explanation',
     };
   }
-  const help = topHelp(input.used);
   const verdict = correctKey(help);
   if (verdict === 'solution') {
     return { verdict, review: 'helpUsed', action: 'retryLater' };

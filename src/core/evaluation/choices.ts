@@ -23,13 +23,25 @@ export function evaluateOptions(
 const same = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, n) => id === b[n]);
 
-// El orden en que se muestran los pasos: mezclado, y nunca el correcto.
-export function initialOrder(correct: readonly string[], seed: string): string[] {
-  const mixed = shuffle(correct, `pasos:${seed}`);
-  if (correct.length > 1 && same(mixed, correct)) {
-    return [...mixed.slice(1), ...mixed.slice(0, 1)];
+// El orden en que se muestran los pasos: mezclado, y nunca el correcto ni uno ya aceptado.
+export function initialOrder(
+  correct: readonly string[],
+  seed: string,
+  accepted: readonly (readonly string[])[] = [],
+): string[] {
+  const taken = (order: readonly string[]) =>
+    same(order, correct) || accepted.some((other) => same(order, other));
+  for (let turn = 0; turn < 50; turn += 1) {
+    const mixed = shuffle(correct, `pasos:${seed}:${turn}`);
+    for (let shift = 0; shift < mixed.length; shift += 1) {
+      const rotated = [...mixed.slice(shift), ...mixed.slice(0, shift)];
+      if (!taken(rotated)) {
+        return rotated;
+      }
+    }
   }
-  return mixed;
+  // Todos los órdenes posibles están aceptados: cualquiera vale.
+  return [...correct].reverse();
 }
 
 // ¿Difieren en un solo par de pasos vecinos cambiados?

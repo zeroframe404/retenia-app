@@ -12,6 +12,7 @@ export {
   purposeOf,
 } from './help';
 export { evaluateNumeric, parseNumber } from './numeric';
+export { referenceText } from './reference';
 export { engineSignal, hasPendingCheck, type ResultParts, resultParts } from './result';
 export { evaluateShort, letterDiff, normalizeShortAnswer } from './short';
 export type { Activity, ActivityType, HelpUse } from './types';

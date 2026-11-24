@@ -97,6 +97,11 @@ export function letterDiff(written: string, expected: string): DiffStep[] {
   return steps;
 }
 
+// Más largas que esto no se comparan letra por letra: la cuenta crece con el producto de los largos.
+const MAX_DIFF_LENGTH = 300;
+const comparable = (a: string, b: string) =>
+  Array.from(a).length <= MAX_DIFF_LENGTH && Array.from(b).length <= MAX_DIFF_LENGTH;
+
 function distance(a: string, b: string): number {
   return letterDiff(a, b).filter((step) => step.op !== 'same').length;
 }
@@ -117,16 +122,29 @@ export function evaluateShort(written: string, accepted: readonly string[]): Sho
   const matched =
     key === '' ? undefined : candidates.find((text) => normalizeShortAnswer(text) === key);
   if (matched !== undefined) {
-    return { verdict: 'correct', matched, closest: matched, diff: letterDiff(written, matched) };
+    return {
+      verdict: 'correct',
+      matched,
+      closest: matched,
+      diff: comparable(written, matched) ? letterDiff(written, matched) : [],
+    };
   }
   let closest = candidates[0] ?? '';
   let best = Number.POSITIVE_INFINITY;
   for (const candidate of candidates) {
-    const d = distance(normalizeShortAnswer(written), normalizeShortAnswer(candidate));
+    if (!comparable(key, normalizeShortAnswer(candidate))) {
+      continue;
+    }
+    const d = distance(key, normalizeShortAnswer(candidate));
     if (d < best) {
       best = d;
       closest = candidate;
     }
   }
-  return { verdict: 'incorrect', matched: null, closest, diff: letterDiff(written, closest) };
+  return {
+    verdict: 'incorrect',
+    matched: null,
+    closest,
+    diff: comparable(written, closest) ? letterDiff(written, closest) : [],
+  };
 }
