@@ -129,10 +129,10 @@ export function createHandlers({
       activityTimer.open(request.openingId);
       return workspace.activities.start(request);
     },
-    'activities.help': async ({ openingId, ...request }) => {
+    'activities.help': async (request) => {
       const response = workspace.activities.help(request);
       return response.kind === 'help'
-        ? { ...response, use: { ...response.use, atMs: activityTimer.elapsed(openingId) } }
+        ? { ...response, use: { ...response.use, atMs: activityTimer.elapsed(request.openingId) } }
         : response;
     },
     'activities.mark': async ({ openingId }) => {

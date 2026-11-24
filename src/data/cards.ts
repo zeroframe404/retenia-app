@@ -11,8 +11,10 @@ import type { Clock } from '../core/clock';
 import {
   type Activity,
   type HelpUse,
+  helpLevelOf,
   maxHelpLevel,
   purposeOf,
+  referenceText,
   validateActivity,
 } from '../core/evaluation';
 import { newCardsCost } from '../core/load';
@@ -120,6 +122,10 @@ function activityJson(activity: Activity | null | undefined): {
     throw new InvalidActivityError(problems);
   }
   return { activityType: activity.type, activity: JSON.stringify(activity) };
+}
+
+function answerFor(activity: Activity | null | undefined, given: string): string {
+  return activity ? (referenceText(activity) ?? given) : given;
 }
 
 export function parsedActivity(row: { activity: string | null }): ActivityValue | null {
@@ -406,7 +412,12 @@ export function recordReview(
   },
 ): { id: string; inserted: boolean } {
   const { cardId, grade, attemptId } = input;
-  const helpLevel = input.help === undefined ? (input.helpLevel ?? 'A0') : maxHelpLevel(input.help);
+  // El nivel de cada ayuda sale de su tipo y su número de pista, no de lo que mande la ventana.
+  const help = input.help?.map((use) => ({
+    ...use,
+    level: helpLevelOf({ kind: use.kind, index: use.index }),
+  }));
+  const helpLevel = help === undefined ? (input.helpLevel ?? 'A0') : maxHelpLevel(help);
   const current = activeCard(tx, cardId);
   if (current.pausedAt !== null) {
     throw new CardPausedError();
@@ -428,12 +439,12 @@ export function recordReview(
       plannedDay: plannedDayOf(tx, cardId) ?? studyDayOf(new Date(current.dueAt)),
       ...reviewFacts(tx, cardId, clock.now(), fuzz),
       ...(input.session ?? {}),
-      ...(input.help === undefined
+      ...(help === undefined
         ? {}
         : {
-            help: input.help.map((use) => ({ ...use })),
+            help,
             noIdea: input.noIdea === true,
-            purpose: purposeOf({ mode: asMode(current.mode), used: input.help, attemptNo: 1 }),
+            purpose: purposeOf({ mode: asMode(current.mode), used: help, attemptNo: 1 }),
           }),
     },
     idempotencyKey: `review:${attemptId}`,
@@ -537,7 +548,9 @@ export function createCardsStore(
 
   return {
     create(input, { source = 'user' } = {}) {
-      const { question, answer, topicId = null } = input;
+      const { question, topicId = null } = input;
+      // La respuesta de un ejercicio que no es de respuesta corta sale de su actividad.
+      const answer = answerFor(input.activity, input.answer);
       const now = clock.now().toISOString();
       const cardId = newId();
       const versionId = newId();
@@ -568,7 +581,8 @@ export function createCardsStore(
               : sheetColumns(mergeSheet(EMPTY_SHEET, normalizeSheet(input.sheet)))),
             ...activityJson(input.activity),
             example: input.example?.trim() ?? '',
-            mode: input.mode ?? 'practice',
+            // La tarjeta de siempre es siempre de práctica.
+            mode: input.activity ? (input.mode ?? 'practice') : 'practice',
           })
           .run();
         recomputeCardSchedule(tx, cardId);
@@ -718,7 +732,7 @@ export function createCardsStore(
       return whyToday(orm, cardId, studyDayOf(clock.now()));
     },
 
-    edit({ cardId, question, answer, sheet, meaningChanged, activity, example, mode }) {
+    edit({ cardId, question, answer: given, sheet, meaningChanged, activity, example, mode }) {
       return orm.transaction((tx) => {
         const current = activeCard(tx, cardId);
         const currentSheet = sheetOf(current);
@@ -727,13 +741,19 @@ export function createCardsStore(
           throw new SheetStateNotAllowedError();
         }
         const nextSheet: Sheet = mergeSheet(currentSheet, patch);
-        const textChanged = current.question !== question || current.answer !== answer;
         const nextActivity =
           activity === undefined
             ? { activityType: current.activityType, activity: current.activity }
             : activityJson(activity);
         const nextExample = example === undefined ? current.example : example.trim();
-        const nextMode = mode ?? asMode(current.mode);
+        const answer =
+          nextActivity.activity === null
+            ? given
+            : answerFor(JSON.parse(nextActivity.activity) as Activity, given);
+        const textChanged = current.question !== question || current.answer !== answer;
+        // Volver a la tarjeta de siempre deja el modo en práctica (no hay dónde verlo).
+        const nextMode =
+          nextActivity.activity === null ? 'practice' : (mode ?? asMode(current.mode));
         const sheetChanged =
           sheetKey(currentSheet) !== sheetKey(nextSheet) ||
           nextActivity.activity !== current.activity ||

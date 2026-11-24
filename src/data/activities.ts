@@ -11,6 +11,7 @@ import {
   evaluateShort,
   type HelpUse,
   helpAvailability,
+  helpLevelOf,
   initialOrder,
   maxHelpLevel,
   modeLabel,
@@ -38,7 +39,7 @@ import type {
   SubmitResult,
 } from '../preload/contract/activities';
 import { CardOutOfReviewsError, CardPausedError } from './card-errors';
-import { asMode, flagCardVersion, parsedActivity } from './cards';
+import { asMode, parsedActivity } from './cards';
 import { activeCard, CardNotFoundError, type CardRow, cardOf, sheetOf } from './content';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
@@ -103,6 +104,23 @@ class AttemptConflictError extends Error {
 }
 
 // La versión de cada regla (se guarda con la evaluación).
+// Cuántos órdenes aceptados puede tener un «Ordenar pasos» (el tope del contrato).
+const MAX_ACCEPTED_ORDERS = 20;
+
+// Cada ayuda con el nivel que le corresponde por su tipo y su número de pista (lo que diga la
+// ventana sobre el nivel no cuenta).
+function normalizedHelp(used: readonly HelpUseValue[]): HelpUse[] {
+  return used.map((use) => {
+    const index = use.kind === 'hint' ? Math.min(2, Math.max(0, use.index ?? 0)) : undefined;
+    return {
+      kind: use.kind,
+      level: helpLevelOf({ kind: use.kind, index }),
+      ...(index === undefined ? {} : { index }),
+      ...(use.atMs === undefined ? {} : { atMs: use.atMs }),
+    };
+  });
+}
+
 const RUBRIC: Record<Activity['type'], string> = {
   short: 'short-1',
   numeric: 'numeric-1',
@@ -130,10 +148,12 @@ export interface ActivitiesStore {
   // Una ayuda de la barra: la próxima pista, el ejemplo, la fuente o la solución.
   help(input: {
     cardId: string;
+    openingId: string;
     kind: HelpUse['kind'];
     used: readonly HelpUseValue[];
     confirmed?: boolean | undefined;
-    attemptNo: number;
+    // Lo que cree la ventana; el principal lo calcula de los intentos de la apertura.
+    attemptNo?: number | undefined;
   }): ActivityHelp;
   // «Enviar»: guarda el intento y devuelve lo que propone Retenia (todavía sin evaluación).
   submit(input: SubmitInput): SubmitResult;
@@ -348,6 +368,43 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
     return (parsed.units ?? []).filter((unit) => unit.state === 'covered').map((unit) => unit.id);
   }
 
+  // Cuántos intentos ya se enviaron en esa apertura.
+  function attemptsInOpening(tx: Writer, openingId: string): number {
+    return tx
+      .select({ id: observations.id })
+      .from(observations)
+      .where(
+        and(
+          eq(observations.kind, 'attempt.submitted'),
+          sql`json_extract(${observations.payload}, '$.openingId') = ${openingId}`,
+        ),
+      )
+      .all().length;
+  }
+
+  // Las correcciones de la tarjeta que todavía tienen su aviso abierto.
+  function openAmendments(tx: Writer, cardId: string) {
+    const closed = closedAmendments(tx, cardId);
+    return tx
+      .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+      .from(observations)
+      .where(and(eq(observations.cardId, cardId), eq(observations.kind, 'evaluation.amended')))
+      .all()
+      .map((row) => readPayload('evaluation.amended', row.schemaVersion, row.payload))
+      .filter((amended) => !closed.has(amended.amendmentId));
+  }
+
+  function closeOpenNotices(tx: Writer, cardId: string): void {
+    for (const amended of openAmendments(tx, cardId)) {
+      appendObservation(tx, clock, {
+        kind: 'evaluation.amendment_acknowledged',
+        payload: { cardId, amendmentId: amended.amendmentId },
+        idempotencyKey: `ack-amend:${amended.amendmentId}`,
+        source: 'system',
+      });
+    }
+  }
+
   // La versión 1 de la evaluación, si todavía no estaba. Devuelve la vigente.
   function ensureEvaluated(
     tx: Writer,
@@ -514,9 +571,13 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       };
     },
 
-    help({ cardId, kind, used, confirmed, attemptNo }) {
+    help({ cardId, openingId, kind, used: claimed, confirmed }) {
       const row = activeCard(orm, cardId);
       const sheet = sheetOf(row);
+      // El número de intento y el nivel de cada ayuda los calcula el principal: la ventana no los
+      // decide (un reintento existe solo si ya se envió algo en esta apertura).
+      const attemptNo = attemptsInOpening(orm, openingId) + 1;
+      const used = normalizedHelp(claimed);
       // Un reintento ya es práctica, aunque la actividad sea una evaluación.
       const mode = attemptNo > 1 ? 'practice' : asMode(row.mode);
       const state = {
@@ -614,7 +675,15 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         const activity = exerciseOf(row);
         const mode = asMode(row.mode);
         const evaluated = evaluate(row, input.answer);
-        const help = input.help.map((use) => ({ ...use }));
+        const help = normalizedHelp(input.help);
+        const repeated = tx
+          .select({ id: observations.id })
+          .from(observations)
+          .where(eq(observations.idempotencyKey, `attempt:${input.attemptId}`))
+          .get();
+        const attemptNo = repeated
+          ? attemptOf(tx, repeated.id).attemptNo
+          : attemptsInOpening(tx, input.openingId) + 1;
         const observation = appendObservation(tx, clock, {
           kind: 'attempt.submitted',
           payload: {
@@ -622,9 +691,9 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             versionId: row.versionId,
             activityType: activity.type,
             openingId: input.openingId,
-            attemptNo: input.attemptNo,
+            attemptNo,
             rule: 'chosen',
-            purpose: purposeOf({ mode, used: help, attemptNo: input.attemptNo }),
+            purpose: purposeOf({ mode, used: help, attemptNo }),
             answer: input.answer,
             help,
             helpLevel: maxHelpLevel(help),
@@ -717,6 +786,9 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         const card = activeCard(tx, attempt.cardId);
         const dueBefore = nextDayOf(tx, attempt.cardId);
         const amendmentId = newId();
+        // Una corrección nueva cierra los avisos abiertos de la tarjeta: solo se deshace la última,
+        // así «Deshacer» siempre vuelve al estado de justo antes.
+        closeOpenNotices(tx, attempt.cardId);
         let addedVariant: string | null = null;
         let addedOrder: string[] | null = null;
         let previousSheetState: string | null = null;
@@ -739,7 +811,19 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             }
           } else if (answer.type === 'order') {
             const activity = exerciseOf(version);
-            if (activity.type === 'order') {
+            const given = answer.stepIds.join(',');
+            const known =
+              activity.type === 'order'
+                ? [activity.steps.map((step) => step.id), ...activity.acceptedOrders].map((order) =>
+                    order.join(','),
+                  )
+                : [];
+            // Un orden que ya valía no se repite, y la lista tiene un tope.
+            if (
+              activity.type === 'order' &&
+              !known.includes(given) &&
+              activity.acceptedOrders.length < MAX_ACCEPTED_ORDERS
+            ) {
               addedOrder = [...answer.stepIds];
               const order = addedOrder;
               writeVersion(
@@ -777,12 +861,17 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             }),
             cause: 'appeal',
             appealReason: reason,
+            // Un intento que ya no contaba («ambigua», «incorrecta») sigue sin contar.
+            affected: before.affected === 1,
             amendmentId,
           });
-          after = 'correct';
+          after = before.affected === 1 ? 'notCounted' : 'correct';
         } else {
           previousSheetState = card.sheetState === 'in_review' ? null : card.sheetState;
-          flagCardVersion(tx, clock, attempt.cardId);
+          // Del sistema: se deshace desde el aviso, no desde «Actividad reciente».
+          if (card.sheetState !== 'in_review') {
+            writeVersion(tx, attempt.cardId, () => ({ sheetState: 'in_review' }), 'appeal');
+          }
           // «Ambigua»: ese intento. «Incorrecta»: todos los intentos evaluados de la tarjeta.
           const targets =
             reason === 'ambiguous'
@@ -874,7 +963,12 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           .from(observations)
           .where(eq(observations.idempotencyKey, `undo-amend:${amendmentId}`))
           .get();
-        if (undone === undefined) {
+        // Solo se deshace una corrección con su aviso abierto (la última de la tarjeta): una
+        // cerrada («Entendido», o porque vino otra encima) ya no cambia nada.
+        const open = openAmendments(tx, amended.cardId).some(
+          (item) => item.amendmentId === amendmentId,
+        );
+        if (undone === undefined && open) {
           const written = tx
             .select()
             .from(evaluations)
