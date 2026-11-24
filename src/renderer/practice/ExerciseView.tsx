@@ -341,7 +341,8 @@ export function ExerciseView({
   const canSubmit =
     input.type === 'options' ? chosen !== null : input.type === 'order' ? true : text.trim() !== '';
   const primary = shownParts?.action ?? 'next';
-  const label = evaluation ? 'evaluation' : help.label;
+  // Un reintento de una evaluación ya es práctica: autónoma hasta la primera ayuda.
+  const label = evaluation ? 'evaluation' : help.label === 'evaluation' ? 'autonomous' : help.label;
 
   return (
     <ScreenFrame level={3} title={texts.practice.exerciseTitle}>

@@ -508,6 +508,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         availability: {
           idle: helpAvailability({ ...base, started: false }),
           started: helpAvailability({ ...base, started: true }),
+          retry: helpAvailability({ ...base, mode: 'practice', started: true }),
         },
         hints: Math.min(3, sheet.hints.length),
       };
@@ -516,7 +517,8 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
     help({ cardId, kind, used, confirmed, attemptNo }) {
       const row = activeCard(orm, cardId);
       const sheet = sheetOf(row);
-      const mode = asMode(row.mode);
+      // Un reintento ya es práctica, aunque la actividad sea una evaluación.
+      const mode = attemptNo > 1 ? 'practice' : asMode(row.mode);
       const state = {
         started: true,
         submitted: false,

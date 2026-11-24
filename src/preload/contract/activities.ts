@@ -110,7 +110,13 @@ export const activityOpeningSchema = z.strictObject({
   label: modeLabelSchema,
   input: activityInputSchema,
   // Qué botones de la barra se prenden antes y después de empezar el intento (CA-135).
-  availability: z.strictObject({ idle: availabilitySchema, started: availabilitySchema }),
+  // `retry`: en un reintento (desde «Reintentar»), que ya es práctica aunque la actividad sea una
+  // evaluación.
+  availability: z.strictObject({
+    idle: availabilitySchema,
+    started: availabilitySchema,
+    retry: availabilitySchema,
+  }),
   hints: z.number().int().min(0).max(3),
 });
 export type ActivityOpening = z.output<typeof activityOpeningSchema>;

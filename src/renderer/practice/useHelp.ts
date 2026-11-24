@@ -60,9 +60,11 @@ export function useHelp({
   }, []);
 
   const availability = opening
-    ? started
-      ? opening.availability.started
-      : opening.availability.idle
+    ? attemptNo > 1
+      ? opening.availability.retry
+      : started
+        ? opening.availability.started
+        : opening.availability.idle
     : { hint: false, example: false, source: false, noIdea: false };
 
   async function ask(kind: HelpUseValue['kind'], confirmed = false) {
