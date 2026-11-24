@@ -5,6 +5,8 @@ import type { Activity } from '../../src/core/evaluation';
 import { CardsScreen } from '../../src/renderer/cards/CardsScreen';
 import { ReviewView } from '../../src/renderer/cards/ReviewView';
 import { ExerciseView } from '../../src/renderer/practice/ExerciseView';
+import { noticeTexts } from '../../src/renderer/practice/labels';
+import { SessionScreen } from '../../src/renderer/session/SessionScreen';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
 // La pantalla de una actividad de la Fase 16 contra el puente real: la barra de ayuda, la escalera
@@ -460,7 +462,8 @@ describe('la lista de «Tarjetas» con ejercicios', () => {
     expect(within(row as HTMLElement).queryByRole('checkbox')).toBeNull();
     await user.selectOptions(screen.getByRole('combobox', { name: 'Tipo' }), 'exercise');
     await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1));
-    expect(screen.getByText('0 de 2 tarjetas')).toBeTruthy();
+    // Con el filtro «Ejercicio», el contador cuenta los ejercicios que se ven.
+    expect(screen.getByText('1 ejercicio')).toBeTruthy();
   });
 });
 
@@ -476,5 +479,218 @@ describe('el modo «EVALUACIÓN» después de enviar', () => {
     await waitFor(() => expect((button('Pista') as HTMLButtonElement).disabled).toBe(false));
     await user.click(button('Pista'));
     expect(await screen.findByRole('complementary', { name: 'Pistas' }, SLOW)).toBeTruthy();
+  });
+});
+
+describe('objeciones del revisor: pantallas', () => {
+  function screenWith(onOpenOriginal = vi.fn()) {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    const subject = bridge.workspace.subjects.create({
+      name: 'Estadística básica',
+      makeActive: true,
+    });
+    const card = bridge.workspace.cards.create({
+      question: 'Un intervalo del 95 %',
+      answer: 'Tres ideas',
+      subjectId: subject.id,
+      activity: OPEN,
+      sheet: { hints: HINTS, explanation: 'Así se explica.' },
+    });
+    bridge.workspace.cards.updateSource({
+      cardId: card.id,
+      sourceCite: JSON.stringify({
+        materialId: '0196a000-0000-7000-8000-0000000000aa',
+        originalSha256: 'x',
+        materialVersion: 1,
+        pipelineVersion: 1,
+        locator: {
+          kind: 'pdf',
+          page: 6,
+          boxes: [],
+          quote: 'El 95 % habla del procedimiento.',
+          before: '',
+          after: '',
+          paragraphIndex: -1,
+          headingPath: [],
+        },
+        quote: 'El 95 % habla del procedimiento.',
+      }),
+    });
+    const user = userEvent.setup();
+    return { bridge, subject, card, user, onOpenOriginal };
+  }
+
+  it('[CA-138] en «Practicar ahora» la fuente se lee en el panel, sin «Ver en el original» que lleve a otra pantalla y borre lo escrito', async () => {
+    const { subject, user, onOpenOriginal } = screenWith();
+    render(<CardsScreen subject={subject} onOpenOriginal={onOpenOriginal} />);
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW));
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'Algo');
+    await user.click(button('Fuente'));
+    const panel = await screen.findByRole('complementary', { name: 'Fuente' }, SLOW);
+    expect(within(panel).getByText('El 95 % habla del procedimiento.')).toBeTruthy();
+    expect(within(panel).queryByRole('button', { name: 'Ver en el original' })).toBeNull();
+  });
+
+  it('[CA-141] al volver a la tarjeta se ve el aviso con el antes y el después, «Entendido» y «Deshacer»', async () => {
+    const { bridge, subject, card, user } = screenWith();
+    const openingId = crypto.randomUUID();
+    bridge.workspace.activities.start({ cardId: card.id, openingId });
+    const sent = bridge.workspace.activities.submit({
+      cardId: card.id,
+      openingId,
+      attemptId: crypto.randomUUID(),
+      attemptNo: 1,
+      answer: { type: 'open', text: 'Algo' },
+      help: [],
+      noIdea: false,
+      shownAt: '2027-03-15T13:00:00.000Z',
+      firstInputMs: null,
+      submittedMs: null,
+    });
+    bridge.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'answer_correct',
+      verdict: 'incorrect',
+    });
+    render(<CardsScreen subject={subject} cardRequest={{ cardId: card.id, nonce: 1 }} />);
+    expect(await screen.findByText('Todavía no → Correcto', {}, SLOW)).toBeTruthy();
+    expect(screen.getByText(/^Próximo repaso: martes 16\/03\/2027 → /)).toBeTruthy();
+    await user.click(button('Deshacer'));
+    await waitFor(() => expect(screen.queryByText('Todavía no → Correcto')).toBeNull());
+    expect(await screen.findByText('Corrección deshecha.', {}, SLOW)).toBeTruthy();
+  });
+
+  it('[CA-141] «Entendido» en la pantalla de la tarjeta saca el aviso y la corrección queda', async () => {
+    const { bridge, subject, card, user } = screenWith();
+    const openingId = crypto.randomUUID();
+    bridge.workspace.activities.start({ cardId: card.id, openingId });
+    const sent = bridge.workspace.activities.submit({
+      cardId: card.id,
+      openingId,
+      attemptId: crypto.randomUUID(),
+      attemptNo: 1,
+      answer: { type: 'open', text: 'Algo' },
+      help: [],
+      noIdea: false,
+      shownAt: '2027-03-15T13:00:00.000Z',
+      firstInputMs: null,
+      submittedMs: null,
+    });
+    bridge.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'answer_correct',
+      verdict: 'incorrect',
+    });
+    render(<CardsScreen subject={subject} cardRequest={{ cardId: card.id, nonce: 1 }} />);
+    await user.click(await screen.findByRole('button', { name: 'Entendido' }, SLOW));
+    await waitFor(() => expect(screen.queryByText('Todavía no → Correcto')).toBeNull());
+    expect(bridge.workspace.cards.get({ cardId: card.id }).nextReviewDay).toBe('2027-03-17');
+  });
+
+  it('«La referencia está incompleta» abre «Editar ficha» con el foco en la primera unidad de idea', async () => {
+    const { subject, user } = screenWith();
+    render(<CardsScreen subject={subject} />);
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW));
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'Otra idea');
+    await send(user);
+    await user.click(await screen.findByRole('button', { name: 'Discrepo' }, SLOW));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'La referencia está incompleta' }, SLOW),
+    );
+    const field = await screen.findByLabelText('Unidad de idea 1', {}, SLOW);
+    await waitFor(() => expect(document.activeElement).toBe(field));
+  });
+
+  it('después de «La referencia es incorrecta», la tarjeta queda «En revisión» y no se ofrece «Reintentar»', async () => {
+    const { subject, user } = screenWith();
+    render(<CardsScreen subject={subject} />);
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW));
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'Algo');
+    await send(user);
+    await user.click(await screen.findByRole('button', { name: 'Discrepo' }, SLOW));
+    await user.click(
+      await screen.findByRole('menuitem', { name: 'La referencia es incorrecta' }, SLOW),
+    );
+    expect(await screen.findByText('Todavía no → No cuenta', {}, SLOW)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+  });
+
+  it('«Practicar ahora» desde el buscador sobre una tarjeta «En revisión» abre su pantalla en vez de fallar', async () => {
+    const { bridge, subject, card } = screenWith();
+    bridge.workspace.cards.edit({
+      cardId: card.id,
+      question: 'Un intervalo del 95 %',
+      answer: 'Tres ideas',
+      sheet: { state: 'in_review' },
+    });
+    render(
+      <CardsScreen subject={subject} cardRequest={{ cardId: card.id, nonce: 1, practice: true }} />,
+    );
+    expect(await screen.findByRole('heading', { name: 'Tarjeta' }, SLOW)).toBeTruthy();
+    expect(screen.queryByText('No pude abrir la actividad. Probá de nuevo.')).toBeNull();
+  });
+
+  it('accesibilidad: «No sé por dónde empezar» deja el foco en la respuesta, cerrar el panel también, y la pista nueva se anuncia', async () => {
+    const { user } = setup(OPEN);
+    await user.click(await screen.findByRole('button', { name: 'No sé por dónde empezar' }, SLOW));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByPlaceholderText('Tu respuesta…')),
+    );
+    await user.click(button('Pista'));
+    const panel = await screen.findByRole('complementary', { name: 'Pistas' }, SLOW);
+    expect(panel.querySelector('[aria-live="polite"]')).not.toBeNull();
+    await user.click(within(panel).getByRole('button', { name: 'Cerrar el panel' }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByPlaceholderText('Tu respuesta…')),
+    );
+  });
+
+  it('el aviso sin próximo repaso anterior no repite «Próximo repaso:»', () => {
+    const { effect } = noticeTexts({
+      amendmentId: '0196a000-0000-7000-8000-0000000000a1',
+      cardId: '0196a000-0000-7000-8000-0000000000a2',
+      attemptId: '0196a000-0000-7000-8000-0000000000a3',
+      reason: 'answer_correct',
+      before: 'incorrect',
+      after: 'correct',
+      dueBefore: null,
+      dueAfter: '2027-03-16',
+      inReview: false,
+    });
+    expect(effect).toBe('Próximo repaso: martes 16/03/2027');
+  });
+  it('al volver a una sesión con algo escrito en «Tu respuesta…», «Pista» ya está prendida', async () => {
+    const bridge = openBridge();
+    bridges.push(bridge);
+    window.retenia = bridge.api as unknown as typeof window.retenia;
+    const subject = bridge.workspace.subjects.create({
+      name: 'Estadística básica',
+      makeActive: true,
+    });
+    bridge.workspace.cards.create({
+      question: '¿Qué es la media?',
+      answer: 'El promedio',
+      subjectId: subject.id,
+    });
+    const started = bridge.workspace.study.start({ sessionId: crypto.randomUUID() });
+    const current = started.current;
+    if (!current) {
+      throw new Error('la sesión no trajo ninguna tarjeta');
+    }
+    bridge.workspace.study.saveDraft({
+      sessionId: started.sessionId,
+      activityId: current.activityId,
+      text: 'La suma dividida',
+      answerShown: false,
+    });
+    const view = bridge.workspace.study.view({ sessionId: started.sessionId });
+    render(<SessionScreen initial={view} onExit={vi.fn()} onToast={vi.fn()} />);
+    expect(
+      ((await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW)) as HTMLTextAreaElement)
+        .value,
+    ).toBe('La suma dividida');
+    await waitFor(() => expect((button('Pista') as HTMLButtonElement).disabled).toBe(false), SLOW);
   });
 });
