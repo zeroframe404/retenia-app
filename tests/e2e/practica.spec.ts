@@ -237,3 +237,38 @@ test('en la sesión de Estudiar, la tarjeta trae la barra de ayuda: «Pista» se
   await page.getByPlaceholder('Tu respuesta…').fill('Cuánto se alejan');
   await expect(page.getByRole('button', { name: 'Pista' })).toBeEnabled();
 });
+
+test('[CA-130] en «Cambiar resultado», lo que no se puede elegir se ve apagado, no igual que lo que sí', async ({
+  launch,
+}) => {
+  const { page } = await launch();
+  await practice(page, OPEN);
+  await answerAndSend(page, 'Algo');
+  await page.getByRole('checkbox', { name: 'La cubrí: idea 1' }).check();
+  await page.getByRole('checkbox', { name: 'La cubrí: idea 2' }).check();
+  const change = page.getByRole('group', { name: 'Cambiar resultado' });
+  const pill = (name: string) =>
+    change.locator('label', { has: page.getByRole('radio', { name, exact: true }) });
+  const look = (name: string) =>
+    pill(name).evaluate((element) => {
+      const style = getComputedStyle(element);
+      return { background: style.backgroundColor, color: style.color, cursor: style.cursor };
+    });
+  const off = await look('Correcto.');
+  const on = await look('Todavía no.');
+  expect(off.background).not.toBe(on.background);
+  expect(off.color).not.toBe(on.color);
+  expect(off.cursor).not.toBe('pointer');
+});
+
+test('[CA-138] el panel «Fuente» dice la referencia una sola vez', async ({ launch }) => {
+  const { page } = await launch();
+  await practice(page, OPEN);
+  await page.getByPlaceholder('Tu respuesta…').fill('Habla del método');
+  await page.getByRole('button', { name: 'Fuente' }).click();
+  const source = page.getByRole('complementary', { name: 'Fuente' });
+  await expect(source.getByText(/El 95 % habla del procedimiento/)).toBeVisible();
+  await expect(
+    source.getByText('Inferencia — capítulos 1 a 4 · página 6', { exact: true }),
+  ).toHaveCount(1);
+});
