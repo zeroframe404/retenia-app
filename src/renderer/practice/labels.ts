@@ -1,6 +1,7 @@
 import type {
   AmendmentNotice,
   AttemptDetail,
+  DiagnosisValue,
   ResultPartsValue,
   VerdictValue,
 } from '../../preload/contract/activities';
@@ -78,6 +79,34 @@ export function actionText(parts: ResultPartsValue, checkDay: string | null): st
       return actions.explanation;
   }
 }
+
+// Tras un fallo (Fase 17, CA-153): la acción siguiente y su motivo, en una sola línea.
+export function diagnosisText(diagnosis: DiagnosisValue): string {
+  const text = texts.practice.diagnosis;
+  switch (diagnosis.action) {
+    case 'checkUnaided':
+      return diagnosis.reason === 'previousOptions' ? text.previousOptions : text.previousAided;
+    case 'sendToReview':
+      return text.doubtful;
+    case 'goToRequirement':
+      return text.missingRequirement(
+        diagnosis.requirement.title,
+        STATE_NAMES[diagnosis.requirement.state],
+      );
+    case 'practiceDifference':
+      return text.confusion(diagnosis.confusedWith.question);
+    case 'forgotten':
+      return text.forgotten;
+  }
+}
+
+const STATE_NAMES = {
+  'not-started': texts.ui.mastery.notStarted,
+  'in-practice': texts.ui.mastery.inPractice,
+  'to-review': texts.ui.mastery.toReview,
+  enough: texts.ui.mastery.enough,
+  consolidated: texts.ui.mastery.consolidated,
+} as const;
 
 // El aviso de evaluación corregida (CA-141): «Todavía no → Correcto» y el efecto en el próximo
 // repaso.

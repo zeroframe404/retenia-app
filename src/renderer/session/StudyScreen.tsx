@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react';
 import {
+  type RequirementLine,
   SESSION_MINUTES,
   type SessionFocus,
   type SessionMinutes,
@@ -9,6 +10,7 @@ import {
   type StudyProposal,
 } from '../../preload/contract/study';
 import { texts } from '../../preload/contract/texts';
+import { stateText } from '../progress/ObjectivePanel';
 import { Boton } from '../ui/Boton';
 import { ScreenFrame, Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -60,12 +62,15 @@ export function StudyScreen({
   before,
   activeSubjectId,
   onStudy,
+  onPractice,
 }: {
   focusTitle: boolean;
   before: ReactNode;
   // Cambia cuando se activa otra materia: se vuelve a leer.
   activeSubjectId: string | null;
   onStudy: (view: SessionView) => void;
+  // Fase 17: «Practicar ahora» la primera actividad del requisito que nombra la propuesta.
+  onPractice?: ((cardId: string) => void) | undefined;
 }) {
   const titleId = useId();
   const otherId = useId();
@@ -222,6 +227,14 @@ export function StudyScreen({
           <h3 id={titleId} className={styles.proposalTitle}>
             {texts.study.proposal.title(proposal.minutes)}
           </h3>
+          {proposal.requirement === null ? null : (
+            <RequirementNote
+              requirement={proposal.requirement}
+              onPractice={onPractice}
+              onDismissed={() => setAttempt((n) => n + 1)}
+              onFailed={() => setFailed(texts.progress.panel.failed)}
+            />
+          )}
           <p className={styles.headline}>
             <span>
               {texts.study.proposal.headline(
@@ -348,5 +361,62 @@ export function StudyScreen({
         />
       ) : null}
     </ScreenFrame>
+  );
+}
+
+// Fase 17 (H-35): el requisito sin cumplir. Uno que frena va primero («Antes conviene: …») con su
+// motivo; uno que no frena solo avisa («Quizá te ayude repasar: …»). «Esto no es necesario para
+// aquello» lo descarta al instante.
+function RequirementNote({
+  requirement,
+  onPractice,
+  onDismissed,
+  onFailed,
+}: {
+  requirement: RequirementLine;
+  onPractice?: ((cardId: string) => void) | undefined;
+  onDismissed: () => void;
+  onFailed: () => void;
+}) {
+  const proposalTexts = texts.study.proposal;
+  const before = requirement.kind === 'before';
+  const practiceCardId = requirement.practiceCardId;
+  return (
+    <div className={styles.requirement} role="note" aria-label={proposalTexts.requirementLabel}>
+      <p className={styles.headline}>
+        {before
+          ? proposalTexts.requirementBefore(requirement.requiresTitle)
+          : proposalTexts.requirementMaybe(requirement.requiresTitle)}
+      </p>
+      <p className={styles.why}>
+        {before
+          ? proposalTexts.requirementWhy(
+              requirement.objectiveTitle,
+              requirement.requiresTitle,
+              stateText(requirement.requiresState),
+            )
+          : proposalTexts.requirementWhyMaybe(
+              requirement.objectiveTitle,
+              requirement.requiresTitle,
+            )}
+      </p>
+      <div className={styles.startActions}>
+        {practiceCardId !== null && onPractice ? (
+          <Boton onClick={() => onPractice(practiceCardId)}>
+            {proposalTexts.requirementPractice}
+          </Boton>
+        ) : null}
+        <Boton
+          variant="quiet"
+          onClick={() => {
+            window.retenia['objectives.requirements.dismiss']({
+              requirementId: requirement.requirementId,
+            }).then(onDismissed, onFailed);
+          }}
+        >
+          {proposalTexts.requirementNotNeeded}
+        </Boton>
+      </div>
+    </div>
   );
 }

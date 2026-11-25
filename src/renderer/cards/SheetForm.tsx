@@ -105,6 +105,7 @@ export function SheetForm({
   onSaved,
   onCancel,
   focusField,
+  improve,
 }: {
   card?: CardDetail | undefined;
   create?: { subjectId: string | null } | undefined;
@@ -112,14 +113,24 @@ export function SheetForm({
   onCancel: () => void;
   // La parte de la referencia a corregir: se abre con el foco ahí.
   focusField?: ReferenceField | undefined;
+  // Fase 17: viene de «Mejorar la tarjeta»; con «Agregar una pista» se abre con el foco en la primera
+  // pista vacía.
+  improve?: 'rephrase' | 'hint' | undefined;
 }) {
   const ids = useId();
   const variantsField = useRef<HTMLTextAreaElement>(null);
+  const hintsField = useRef<HTMLFieldSetElement>(null);
   useEffect(() => {
     if (focusField === 'variants') {
       variantsField.current?.focus();
     }
   }, [focusField]);
+  useEffect(() => {
+    if (improve === 'hint') {
+      const inputs = [...(hintsField.current?.querySelectorAll('input') ?? [])];
+      (inputs.find((input) => input.value === '') ?? inputs[0])?.focus();
+    }
+  }, [improve]);
   const card = given ?? BLANK;
   const sheet = card.sheet;
   const [draft, setDraft] = useState(() => draftOf(card.activity));
@@ -247,6 +258,7 @@ export function SheetForm({
           example,
           mode,
           ...(meaningChanged === undefined ? {} : { meaningChanged }),
+          ...(improve === undefined ? {} : { improve }),
         }),
       );
     } catch {
@@ -344,7 +356,7 @@ export function SheetForm({
           </div>
         ))}
       </fieldset>
-      <fieldset className={cardStyles.pair}>
+      <fieldset ref={hintsField} className={cardStyles.pair}>
         <legend>{texts.cards.hintsLabel}</legend>
         <p className={cardStyles.fieldHelp}>{texts.practice.editor.hintsHelp}</p>
         {HINT_SLOTS.map((slot, index) => (

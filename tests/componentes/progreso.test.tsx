@@ -16,6 +16,8 @@ const OPEN_QUESTION =
 const INTERPRET = 'Interpretar un intervalo de confianza';
 const CALCULATE = 'Calcular la media y el desvío';
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+
 function withCast() {
   return openWindow('real', undefined, { withCast: 'tarjetas' });
 }
@@ -68,7 +70,7 @@ describe('Progreso › «Objetivos»', () => {
     await user.click(
       await within(dialog).findByRole(
         'checkbox',
-        { name: /^Un intervalo de confianza del 95 % para la media/u },
+        { name: new RegExp(`^${escapeRegExp(OPEN_QUESTION)}`, 'u') },
         SLOW,
       ),
     );
@@ -320,6 +322,8 @@ describe('el resultado tras un fallo', () => {
         name: 'Tarjetas',
       }),
     );
+    // Los ejercicios van al final de la lista: se filtran para que estén a la vista.
+    await user.selectOptions(await screen.findByLabelText('Tipo', {}, SLOW), 'Ejercicio');
     await user.click(
       await screen.findByRole('button', { name: 'Abrir la tarjeta «Capital de Francia»' }, SLOW),
     );

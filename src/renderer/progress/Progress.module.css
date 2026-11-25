@@ -1,0 +1,181 @@
+/* Progreso (Fase 17): los objetivos por tema, el panel de evidencias, «Mis errores» y «Mejorar la
+   tarjeta». Solo tokens del sistema de diseño; nada en rojo. */
+
+.section {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-16);
+}
+
+.note {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.subjectTitle {
+  margin: 0;
+  font: var(--tipo-subtitulo);
+}
+
+.group {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.group h3 {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--espacio-8) var(--espacio-12);
+  margin-top: var(--espacio-4);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--espacio-8);
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-pildora);
+}
+
+.tag[data-stroke="dashed"] {
+  border-style: dashed;
+}
+
+.panel {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-16);
+  overflow-wrap: anywhere;
+}
+
+.panel h3 {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--espacio-8);
+  margin: 0;
+}
+
+.column {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-12);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.column dt {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.column dd {
+  margin: 0;
+}
+
+.count {
+  font: var(--tipo-titulo);
+  font-variant-numeric: tabular-nums;
+}
+
+.last {
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.estimate {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-12);
+  border: var(--trazo-punteado) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.estimate p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}
+
+.form {
+  display: grid;
+  gap: var(--espacio-16);
+}
+
+.field {
+  display: grid;
+  gap: var(--espacio-4);
+}
+
+.field label,
+.field legend {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.input {
+  padding: var(--espacio-8) var(--espacio-12);
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea-fuerte);
+  border-radius: var(--radio-8);
+}
+
+.help {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.choices {
+  display: grid;
+  gap: var(--espacio-8);
+  max-height: 260px;
+  margin: 0;
+  padding: var(--espacio-8);
+  overflow: auto;
+  list-style: none;
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: var(--espacio-8);
+}
+
+.choice small {
+  display: block;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-8);
+}
+
+.select {
+  max-width: 260px;
+}

@@ -4,6 +4,7 @@ import type {
   AmendmentNotice,
   AppealReason,
   AttemptAnswer,
+  DiagnosisValue,
   Proposal,
   ResultPartsValue,
   SubmitResult,
@@ -21,7 +22,7 @@ import { BannerEstado } from '../ui/Process';
 import { BarraAyuda } from '../ui/Session';
 import { ConfirmSolution, HelpPanel } from './HelpPanel';
 import { ChoiceAnswer, LetterDiff, NumberAnswer, OrderAnswer, TextAnswer } from './inputs';
-import { actionText, noticeTexts, reviewText, toneOf, verdictText } from './labels';
+import { actionText, diagnosisText, noticeTexts, reviewText, toneOf, verdictText } from './labels';
 import styles from './Practice.module.css';
 import { useHelp } from './useHelp';
 
@@ -44,12 +45,17 @@ export function ExerciseView({
   onClose,
   onEditReference,
   onOpenOriginal,
+  onOpenObjective,
+  onPracticeOther,
 }: {
   cardId: string;
   onClose: () => void;
   // «La referencia está incompleta»: abrir la ficha en esa parte.
   onEditReference: (field: ReferenceField) => void;
   onOpenOriginal?: ((materialId: string) => void) | undefined;
+  // Fase 17: tras un fallo, «Ir al requisito» y «Practicar la diferencia».
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
+  onPracticeOther?: ((cardId: string) => void) | undefined;
 }) {
   const [openingId] = useState(() => crypto.randomUUID());
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
@@ -63,9 +69,11 @@ export function ExerciseView({
   const [verdict, setVerdict] = useState<VerdictValue>('incorrect');
   const [marked, setMarked] = useState<readonly string[]>([]);
   // Después de guardar: ya no se baja; el resultado lo cambia solo «Discrepo».
-  const [final, setFinal] = useState<{ verdict: VerdictValue; parts: ResultPartsValue } | null>(
-    null,
-  );
+  const [final, setFinal] = useState<{
+    verdict: VerdictValue;
+    parts: ResultPartsValue;
+    diagnosis?: DiagnosisValue | null | undefined;
+  } | null>(null);
   const [notice, setNotice] = useState<AmendmentNotice | null>(null);
   const [toast, setToast] = useState('');
   const [problem, setProblem] = useState('');
@@ -257,7 +265,7 @@ export function ExerciseView({
       verdict,
       marked: [...marked],
     });
-    const done = { verdict: saved.verdict, parts: saved.parts };
+    const done = { verdict: saved.verdict, parts: saved.parts, diagnosis: saved.diagnosis };
     setFinal(done);
     return done;
   }
@@ -353,6 +361,65 @@ export function ExerciseView({
   const canSubmit =
     input.type === 'options' ? chosen !== null : input.type === 'order' ? true : text.trim() !== '';
   const primary = shownParts?.action ?? 'next';
+  // Tras un fallo, la tercera línea es el diagnóstico (CA-153): una sola acción con su motivo.
+  const diagnosis =
+    shownVerdict === 'incorrect'
+      ? ((final === null ? proposal?.diagnosis : final.diagnosis) ?? submitted?.diagnosis ?? null)
+      : null;
+
+  async function sendToReview() {
+    const card = await window.retenia['cards.get']({ cardId });
+    await finalize();
+    await window.retenia['cards.edit']({
+      cardId,
+      question: card.question,
+      answer: card.answer,
+      sheet: { state: 'in_review' },
+    });
+    setOutOfReviews(true);
+    setToast(texts.practice.diagnosis.sentToReview);
+  }
+
+  const diagnosisAction = (() => {
+    if (diagnosis?.action === 'goToRequirement' && onOpenObjective) {
+      const target = diagnosis.requirement.objectiveId;
+      return (
+        <Boton
+          onClick={() =>
+            void guarded(async () => {
+              await finalize();
+              onOpenObjective(target);
+            })
+          }
+        >
+          {texts.practice.diagnosis.goToRequirement}
+        </Boton>
+      );
+    }
+    if (diagnosis?.action === 'practiceDifference' && onPracticeOther) {
+      const other = diagnosis.confusedWith.cardId;
+      return (
+        <Boton
+          onClick={() =>
+            void guarded(async () => {
+              await finalize();
+              onPracticeOther(other);
+            })
+          }
+        >
+          {texts.practice.diagnosis.practiceDifference}
+        </Boton>
+      );
+    }
+    if (diagnosis?.action === 'sendToReview' && !outOfReviews) {
+      return (
+        <Boton onClick={() => void guarded(sendToReview)}>
+          {texts.practice.diagnosis.sendToReview}
+        </Boton>
+      );
+    }
+    return null;
+  })();
   // Un reintento de una evaluación ya es práctica: autónoma hasta la primera ayuda.
   const label = evaluation ? 'evaluation' : help.label === 'evaluation' ? 'autonomous' : help.label;
 
@@ -497,7 +564,16 @@ export function ExerciseView({
                 verdict={toneOf(shownVerdict)}
                 label={verdictText(shownParts)}
                 review={reviewText(shownParts, detail, missing)}
-                action={<p>{actionText(shownParts, null)}</p>}
+                action={
+                  diagnosis === null ? (
+                    <p>{actionText(shownParts, null)}</p>
+                  ) : (
+                    <>
+                      <p>{diagnosisText(diagnosis)}</p>
+                      {diagnosisAction}
+                    </>
+                  )
+                }
               />
               {final === null && proposal !== null ? (
                 <div className={styles.change}>

@@ -1,133 +1,123 @@
-import { useEffect, useState } from 'react';
-import type { ReviewsList } from '../../preload/contract/study';
-import { formatShortDate, texts } from '../../preload/contract/texts';
+import { useCallback, useState } from 'react';
+import { texts } from '../../preload/contract/texts';
+import { ImproveSection } from '../progress/ImproveSection';
+import { MistakesSection } from '../progress/MistakesSection';
+import { ObjectiveForm } from '../progress/ObjectiveForm';
+import { ObjectivesSection } from '../progress/ObjectivesSection';
+import { ReviewsSection } from '../progress/ReviewsSection';
 import { Boton } from '../ui/Boton';
-import { ItemList, ListItem, ScreenFrame, SectionTabs } from '../ui/Frame';
-import { ViewState } from '../ui/ViewStates';
-import styles from './Session.module.css';
+import { ScreenFrame, SectionTabs } from '../ui/Frame';
 
-// Progreso (Fase 10: por ahora, solo «Dudas y revisiones»): las dudas guardadas con la tarjeta de la
-// que salieron y las tarjetas «En revisión». «Abrir la tarjeta» la abre en Apuntes › «Tarjetas».
+export type ProgressSectionName = 'objectives' | 'mistakes' | 'improve' | 'reviews';
+
+export interface ObjectiveRequest {
+  objectiveId: string;
+  nonce: number;
+}
+
+// Progreso (Fases 10 y 17): «Objetivos» (por tema, con «Nuevo objetivo» y el panel de cada uno),
+// «Mis errores», «Mejorar la tarjeta» y «Dudas y revisiones».
 export function ProgressScreen({
   focusTitle,
+  subjectId,
+  section,
+  onSectionChange,
+  objectiveRequest,
   onOpenCard,
+  onPractice,
+  onEditCard,
+  onOpenOriginal,
   onGoToStudy,
 }: {
   focusTitle: boolean;
+  // La materia que se mira (la activa, si no se mira otra).
+  subjectId: string | null;
+  section: ProgressSectionName;
+  onSectionChange: (section: ProgressSectionName) => void;
+  objectiveRequest: ObjectiveRequest | null;
   onOpenCard: (subjectId: string | null, cardId: string) => void;
+  onPractice: (cardId: string) => void;
+  onEditCard: (cardId: string, improve: 'rephrase' | 'hint') => void;
+  onOpenOriginal: (cardId: string) => void;
   onGoToStudy: () => void;
 }) {
-  const [reviews, setReviews] = useState<ReviewsList | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [reload, setReload] = useState(0);
+  const [notice, setNotice] = useState('');
+  // «Ir al requisito» abre el panel de ese objetivo una sola vez por pedido.
+  const [handled, setHandled] = useState(0);
+  const openId =
+    objectiveRequest !== null && objectiveRequest.nonce !== handled
+      ? objectiveRequest.objectiveId
+      : null;
+  const onOpenHandled = useCallback(() => {
+    if (objectiveRequest !== null) {
+      setHandled(objectiveRequest.nonce);
+    }
+  }, [objectiveRequest]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` vuelve a leer después de «Reintentar».
-  useEffect(() => {
-    let live = true;
-    setFailed(false);
-    window.retenia['doubts.reviews']({}).then(
-      (loaded) => {
-        if (live) {
-          setReviews(loaded);
-        }
-      },
-      () => {
-        if (live) {
-          setFailed(true);
-        }
-      },
-    );
-    return () => {
-      live = false;
-    };
-  }, [attempt]);
+  const sections: { value: ProgressSectionName; text: string }[] = [
+    { value: 'objectives', text: texts.progress.objectives },
+    { value: 'mistakes', text: texts.progress.mistakes },
+    { value: 'improve', text: texts.progress.improve },
+    { value: 'reviews', text: texts.progress.reviews },
+  ];
 
   return (
     <ScreenFrame
       title={texts.nav.progress}
       focusTitle={focusTitle}
       actions={
-        <Boton variant="primary" onClick={onGoToStudy}>
-          {texts.progress.goToStudy}
-        </Boton>
+        <>
+          {subjectId === null ? null : (
+            <Boton onClick={() => setCreating(true)}>{texts.progress.newObjective}</Boton>
+          )}
+          <Boton variant="primary" onClick={onGoToStudy}>
+            {texts.progress.goToStudy}
+          </Boton>
+        </>
       }
     >
       <SectionTabs
         label={texts.progress.sectionsLabel}
-        sections={[{ value: 'reviews', text: texts.progress.reviews }]}
-        current="reviews"
-        onChange={() => undefined}
+        sections={sections}
+        current={section}
+        onChange={onSectionChange}
       />
-      <p className={styles.note}>{texts.progress.later}</p>
-      {failed ? (
-        <ViewState
-          kind="error"
-          phrase={texts.progress.loadFailed}
-          action={{ text: texts.progress.retry, onClick: () => setAttempt((n) => n + 1) }}
+      {section === 'objectives' ? (
+        <ObjectivesSection
+          subjectId={subjectId}
+          reload={reload}
+          openId={openId}
+          onOpenHandled={onOpenHandled}
+          notice={notice}
+          onPractice={onPractice}
         />
-      ) : reviews === null ? (
-        <ViewState kind="loading" phrase={texts.progress.loading} />
-      ) : (
-        <div className={styles.reviews}>
-          <section aria-label={texts.progress.doubtsHeading}>
-            <h3>{texts.progress.doubtsHeading}</h3>
-            {reviews.doubts.length === 0 ? (
-              <p className={styles.note}>{texts.progress.noDoubts}</p>
-            ) : (
-              <ItemList label={texts.progress.doubtsHeading}>
-                {reviews.doubts.map((doubt) => (
-                  <ListItem
-                    key={doubt.id}
-                    title={doubt.text}
-                    text={
-                      doubt.card
-                        ? texts.progress.fromCard(doubt.card.question)
-                        : texts.progress.general
-                    }
-                    detail={texts.progress.savedOn(formatShortDate(doubt.day))}
-                    actions={
-                      doubt.card ? (
-                        <Boton
-                          variant="quiet"
-                          onClick={() =>
-                            doubt.card && onOpenCard(doubt.card.subjectId, doubt.card.id)
-                          }
-                        >
-                          {texts.progress.openCard}
-                        </Boton>
-                      ) : null
-                    }
-                  />
-                ))}
-              </ItemList>
-            )}
-          </section>
-          <section aria-label={texts.progress.inReviewHeading}>
-            <h3>{texts.progress.inReviewHeading}</h3>
-            {reviews.inReview.length === 0 ? (
-              <p className={styles.note}>{texts.progress.noInReview}</p>
-            ) : (
-              <ItemList label={texts.progress.inReviewHeading}>
-                {reviews.inReview.map((card) => (
-                  <ListItem
-                    key={card.cardId}
-                    title={card.question}
-                    detail={card.subjectName ?? undefined}
-                    actions={
-                      <Boton
-                        variant="quiet"
-                        onClick={() => onOpenCard(card.subjectId, card.cardId)}
-                      >
-                        {texts.progress.openCard}
-                      </Boton>
-                    }
-                  />
-                ))}
-              </ItemList>
-            )}
-          </section>
-        </div>
-      )}
+      ) : null}
+      {section === 'mistakes' ? (
+        <MistakesSection subjectId={subjectId} onPractice={onPractice} />
+      ) : null}
+      {section === 'improve' ? (
+        <ImproveSection onEdit={onEditCard} onOpenOriginal={onOpenOriginal} />
+      ) : null}
+      {section === 'reviews' ? <ReviewsSection onOpenCard={onOpenCard} /> : null}
+      {creating && subjectId !== null ? (
+        <ObjectiveForm
+          subjectId={subjectId}
+          onClose={() => setCreating(false)}
+          onCreated={(title, observable) => {
+            setCreating(false);
+            onSectionChange('objectives');
+            setReload((n) => n + 1);
+            // El objetivo nuevo queda en la lista; si el texto no empieza con una acción, se avisa.
+            setNotice(
+              observable
+                ? texts.progress.form.created(title)
+                : `${texts.progress.form.created(title)} ${texts.progress.form.notObservable}`,
+            );
+          }}
+        />
+      ) : null}
     </ScreenFrame>
   );
 }

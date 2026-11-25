@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import { MAX_DOUBT_LENGTH } from '../../preload/contract/study';
 import { texts } from '../../preload/contract/texts';
+import { landOnReviews } from '../progress/landing';
 import { Boton } from '../ui/Boton';
 import formStyles from '../ui/Form.module.css';
 import { Dialog } from '../ui/Frame';
@@ -52,6 +53,8 @@ export function DoubtDialog({
         cardId: cardId === GENERAL ? null : cardId,
         sessionId,
       });
+      // El cartel dice «La ves en Progreso › «Dudas y revisiones»»: Progreso abre ahí.
+      landOnReviews();
       onSaved();
     } catch {
       setProblem(texts.study.doubt.failed);
