@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { demoClock } from '../../src/core/clock';
 import { App } from '../../src/renderer/App';
 import { closeWindows, openWindow } from './apoyo-ventana';
 
@@ -134,8 +135,40 @@ describe('Progreso › «Objetivos»', () => {
       await within(panel).findByText('Suficiente para avanzar (por verificar)', {}, SLOW),
     ).toBeTruthy();
     expect(within(panel).getByText('Comprobación pendiente desde el 16/03/2027.')).toBeTruthy();
-    expect(within(panel).getByRole('button', { name: 'Hacer la comprobación' })).toBeTruthy();
+    // El mismo día todavía no se puede hacer: un acierto de hoy no la confirmaría.
+    expect(within(panel).queryByRole('button', { name: 'Hacer la comprobación' })).toBeNull();
     expect(within(panel).queryByRole('button', { name: 'Ya lo sé' })).toBeNull();
+  });
+
+  it('[CA-150] al día siguiente, Estudiar propone la comprobación de «Ya lo sé» con su motivo y el panel ofrece «Hacer la comprobación»', async () => {
+    let offset = 0;
+    const { user, api } = openWindow(
+      'real',
+      { now: () => demoClock(offset).now() },
+      { withCast: 'tarjetas' },
+    );
+    const interpret = await createInterpret(api);
+    await api['objectives.knowAlready']({ objectiveId: interpret });
+    offset = 1;
+    render(<App />);
+    const proposal = await screen.findByRole('region', { name: /^Sesión recomendada/ }, SLOW);
+    const note = await within(proposal).findByRole(
+      'note',
+      { name: 'Comprobación pendiente' },
+      SLOW,
+    );
+    expect([...note.querySelectorAll('p')].map((line) => line.textContent)).toEqual([
+      'Comprobación pendiente: Interpretar un intervalo de confianza',
+      'Por qué: marcaste «Ya lo sé»; un acierto sin ayuda lo confirma.',
+    ]);
+    await user.click(within(note).getByRole('button', { name: 'Hacer la comprobación' }));
+    expect(await screen.findByRole('heading', { level: 3, name: 'Ejercicio' }, SLOW)).toBeTruthy();
+    await toProgress(user);
+    await user.click(await screen.findByRole('button', { name: INTERPRET }, SLOW));
+    const panel = await screen.findByRole('dialog', { name: INTERPRET });
+    expect(
+      await within(panel).findByRole('button', { name: 'Hacer la comprobación' }, SLOW),
+    ).toBeTruthy();
   });
 
   it('[CA-151] «Marcar como requisito de…» desde «Calcular la media y el desvío» y, en el requisito, «Esto no es necesario para aquello»', async () => {
@@ -232,6 +265,23 @@ describe('Progreso › «Mejorar la tarjeta» y «Mis errores»', () => {
     ).toBe(true);
   });
 
+  it('[CA-154] «Mejorar la tarjeta» pide solo las tarjetas de la materia que está a la vista', async () => {
+    const opened = withCast();
+    const { user, api } = opened;
+    const subjectId = await statisticsId(api);
+    render(<App />);
+    await toProgress(user);
+    await user.click(within(sections()).getByRole('button', { name: 'Mejorar la tarjeta' }));
+    await screen.findByRole('list', { name: 'Mejorar la tarjeta' }, SLOW);
+    const asked = opened.bridge.sent.filter(
+      (message) => message.channel === 'progress.improveCard.list',
+    );
+    expect(asked.length).toBeGreaterThan(0);
+    for (const message of asked) {
+      expect(message.request).toEqual({ subjectId });
+    }
+  });
+
   it('[CA-154] «Agregar una pista» abre la ficha en Apuntes y, al guardar, la tarjeta deja la lista', async () => {
     const { user } = withCast();
     render(<App />);
@@ -289,6 +339,52 @@ describe('Progreso › «Mejorar la tarjeta» y «Mis errores»', () => {
 });
 
 describe('el resultado tras un fallo', () => {
+  it('[CA-153] con una duda guardada, «Mandar a revisión» deja la tarjeta «En revisión» y ese fallo no cuenta: no queda en «Mis errores»', async () => {
+    const { user, api } = withCast();
+    const subjectId = await statisticsId(api);
+    const { cards } = await api['cards.list']({ subjectId });
+    const capital = cards.find((c) => c.question === 'Capital de Francia')?.id ?? '';
+    await api['doubts.create']({
+      doubtId: randomUUID(),
+      text: '¿Con tilde?',
+      cardId: capital,
+      sessionId: null,
+    });
+    render(<App />);
+    await screen.findByRole('button', { name: 'Empezar' }, SLOW);
+    await user.click(within(rail()).getByRole('button', { name: 'Apuntes' }));
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Secciones de Apuntes' })).getByRole('button', {
+        name: 'Tarjetas',
+      }),
+    );
+    await user.selectOptions(await screen.findByLabelText('Tipo', {}, SLOW), 'Ejercicio');
+    await user.click(
+      await screen.findByRole('button', { name: 'Abrir la tarjeta «Capital de Francia»' }, SLOW),
+    );
+    await user.click(await screen.findByRole('button', { name: 'Practicar ahora' }, SLOW));
+    await user.type(await screen.findByPlaceholderText('Tu respuesta…', {}, SLOW), 'asdf');
+    await user.click(screen.getByRole('button', { name: 'Enviar' }));
+    const result = await waitFor(() => {
+      const found = document.querySelector('[data-component="result"]');
+      expect(found).toBeTruthy();
+      return found as HTMLElement;
+    }, SLOW);
+    expect([...result.querySelectorAll('p')].map((line) => line.textContent)[2]).toBe(
+      'Mandala a revisión: marcaste esta pregunta como dudosa.',
+    );
+    await user.click(within(result).getByRole('button', { name: 'Mandar a revisión' }));
+    await waitFor(
+      () => expect(within(result).queryByRole('button', { name: 'Mandar a revisión' })).toBeNull(),
+      SLOW,
+    );
+    expect((await api['cards.get']({ cardId: capital })).sheet.state).toBe('in_review');
+    const errors = await api['progress.errors']({ subjectId });
+    expect(
+      errors.groups.flatMap((group) => group.items).filter((item) => item.cardId === capital),
+    ).toEqual([]);
+  });
+
   it('[CA-153] la tercera línea dice una sola acción con su motivo: con un requisito sin cumplir, «Andá al requisito…» e «Ir al requisito» lleva a su panel', async () => {
     const { user, api } = withCast();
     const subjectId = await statisticsId(api);
