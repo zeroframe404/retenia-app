@@ -47,7 +47,10 @@ for (const destination of ['Estudiar', 'Materiales', 'Idiomas', 'Progreso'] as c
     if (destination === 'Estudiar') {
       await expect(page.getByRole('button', { name: 'Empezar', exact: true })).toBeEnabled();
     } else if (destination === 'Progreso') {
-      await expect(page.getByText('Todavía no guardaste dudas.')).toBeVisible();
+      // Desde la Fase 17, Progreso abre en «Objetivos».
+      await expect(
+        page.getByRole('heading', { name: 'Objetivos de Estadística básica' }),
+      ).toBeVisible();
     } else if (destination === 'Materiales') {
       // Desde la Fase 13, los dos materiales del elenco se leen solos al abrir: la captura espera a
       // que los dos estén «Listo», así no depende del momento.
