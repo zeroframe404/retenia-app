@@ -46,6 +46,17 @@ describe('el texto de un objetivo', () => {
     expect(parseObjectiveText('La media').observable).toBe(false);
     expect(parseObjectiveText('Explicar').observable).toBe(true);
     expect(parseObjectiveText('Explicar').content).toBe('');
+    // Una palabra corta que termina como un verbo no es una acción («Mar del Plata»).
+    expect(parseObjectiveText('Mar del Plata').observable).toBe(false);
+    expect(parseObjectiveText('Ir al centro').observable).toBe(false);
+  });
+
+  it('[CA-143] la puntuación no cambia el concepto: «Calcular «la media».» y «Calcular la media» comparten estimación', () => {
+    expect(parseObjectiveText('Calcular «la media».').conceptKey).toBe('media');
+    expect(parseObjectiveText('Calcular la media').conceptKey).toBe('media');
+    expect(parseObjectiveText('Interpretar un intervalo (de confianza)').conceptKey).toBe(
+      'intervalo de confianza',
+    );
   });
 });
 
@@ -277,6 +288,28 @@ describe('el diagnóstico tras un fallo', () => {
         confusedWith: null,
       }).action,
     ).toBe('checkUnaided');
+  });
+
+  it('[CA-153] en una pregunta de opciones, que la vez anterior también fuera de opciones no pide «Probala sin ayuda» (sigue con lo demás)', () => {
+    expect(
+      diagnoseFailure({
+        previous: { verdict: 'incorrect', helpLevel: 'A0', optionsQuestion: true },
+        currentOptionsQuestion: true,
+        doubtful: false,
+        missingRequirement: null,
+        confusedWith: null,
+      }),
+    ).toEqual({ action: 'forgotten', reason: 'forgotten' });
+    // Con una pista la vez anterior, sí.
+    expect(
+      diagnoseFailure({
+        previous: { verdict: 'correct', helpLevel: 'A2', optionsQuestion: true },
+        currentOptionsQuestion: true,
+        doubtful: false,
+        missingRequirement: null,
+        confusedWith: null,
+      }),
+    ).toEqual({ action: 'checkUnaided', reason: 'previousAided' });
   });
 
   it('[CA-153] la confusión: lo que escribiste es la respuesta de otra tarjeta de la materia (sin mayúsculas, tildes ni espacios)', () => {
