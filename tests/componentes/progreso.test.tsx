@@ -163,7 +163,8 @@ describe('Progreso › «Objetivos»', () => {
     ]);
     await user.click(within(note).getByRole('button', { name: 'Hacer la comprobación' }));
     expect(await screen.findByRole('heading', { level: 3, name: 'Ejercicio' }, SLOW)).toBeTruthy();
-    await toProgress(user);
+    // Desde el ejercicio no hay «Empezar»: se va a Progreso por el riel.
+    await user.click(within(rail()).getByRole('button', { name: 'Progreso' }));
     await user.click(await screen.findByRole('button', { name: INTERPRET }, SLOW));
     const panel = await screen.findByRole('dialog', { name: INTERPRET });
     expect(

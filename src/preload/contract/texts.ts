@@ -936,7 +936,6 @@ export const texts = {
       goToRequirement: 'Ir al requisito',
       sendToReview: 'Mandar a revisión',
       practiceDifference: 'Practicar la diferencia',
-      sentToReview: 'La tarjeta pasó a «En revisión». No cuenta como olvido.',
     },
     // La diferencia letra por letra (CA-131), dicha también en palabras para el lector de pantalla.
     diffLabel: 'Diferencia letra por letra',
@@ -1133,6 +1132,11 @@ export const texts = {
       requirementPractice: 'Practicar ahora',
       requirementNotNeeded: 'Esto no es necesario para aquello',
       requirementLabel: 'Requisito',
+      // La comprobación de un «Ya lo sé» que ya se puede hacer (CA-150).
+      checkLabel: 'Comprobación pendiente',
+      checkLine: (title: string) => `Comprobación pendiente: ${title}`,
+      checkWhy: 'Por qué: marcaste «Ya lo sé»; un acierto sin ayuda lo confirma.',
+      checkDo: 'Hacer la comprobación',
       // El freno a las tarjetas nuevas cuando hay repasos atrasados: dice cuánto y cuándo vuelven.
       brake: (band: 'half' | 'few' | 'none', days: number, newCards: number) => {
         const late = `tenés cerca de ${lateDays(days)} de repasos atrasados`;

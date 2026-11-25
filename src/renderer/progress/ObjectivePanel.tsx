@@ -308,7 +308,7 @@ function PanelView({
           <p className={styles.note}>
             {text.pendingCheck(formatShortDate(panel.pendingCheckFrom))}
           </p>
-          {firstPracticable ? (
+          {firstPracticable && panel.checkAvailable ? (
             <Boton onClick={() => onPractice(firstPracticable.cardId)}>{text.doCheck}</Boton>
           ) : null}
         </div>

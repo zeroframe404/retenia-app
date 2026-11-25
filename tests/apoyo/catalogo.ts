@@ -55,6 +55,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.progress.improveSection.thirtyDays': [3],
   'texts.progress.improveSection.part': [1],
   'texts.study.proposal.requirementBefore': ['Calcular la media y el desvío'],
+  'texts.study.proposal.checkLine': ['Interpretar un intervalo de confianza'],
   'texts.study.proposal.requirementMaybe': ['Calcular la media y el desvío'],
   'texts.study.proposal.requirementWhy': [
     'Interpretar un intervalo de confianza',

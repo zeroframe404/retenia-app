@@ -18,7 +18,9 @@ const PART_KEYS = ['primera', 'segunda'] as const;
 export function ImproveSection({
   onEdit,
   onOpenOriginal,
+  subjectId,
 }: {
+  subjectId: string | null;
   onEdit: (cardId: string, improve: 'rephrase' | 'hint') => void;
   onOpenOriginal: (cardId: string) => void;
 }) {
@@ -30,12 +32,14 @@ export function ImproveSection({
 
   const load = useCallback(async () => {
     try {
-      setList(await window.retenia['progress.improveCard.list']({}));
+      setList(
+        await window.retenia['progress.improveCard.list'](subjectId === null ? {} : { subjectId }),
+      );
       setFailed(false);
     } catch {
       setFailed(true);
     }
-  }, []);
+  }, [subjectId]);
 
   useEffect(() => {
     void load();

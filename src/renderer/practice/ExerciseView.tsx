@@ -367,19 +367,6 @@ export function ExerciseView({
       ? ((final === null ? proposal?.diagnosis : final.diagnosis) ?? submitted?.diagnosis ?? null)
       : null;
 
-  async function sendToReview() {
-    const card = await window.retenia['cards.get']({ cardId });
-    await finalize();
-    await window.retenia['cards.edit']({
-      cardId,
-      question: card.question,
-      answer: card.answer,
-      sheet: { state: 'in_review' },
-    });
-    setOutOfReviews(true);
-    setToast(texts.practice.diagnosis.sentToReview);
-  }
-
   const diagnosisAction = (() => {
     if (diagnosis?.action === 'goToRequirement' && onOpenObjective) {
       const target = diagnosis.requirement.objectiveId;
@@ -413,7 +400,9 @@ export function ExerciseView({
     }
     if (diagnosis?.action === 'sendToReview' && !outOfReviews) {
       return (
-        <Boton onClick={() => void guarded(sendToReview)}>
+        // Es «La pregunta era ambigua» de «Discrepo»: la tarjeta pasa a «En revisión» y este
+        // intento no cuenta (con su aviso y «Deshacer»).
+        <Boton onClick={() => void appeal('ambiguous')}>
           {texts.practice.diagnosis.sendToReview}
         </Boton>
       );

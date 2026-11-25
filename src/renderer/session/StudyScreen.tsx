@@ -235,6 +235,9 @@ export function StudyScreen({
               onFailed={() => setFailed(texts.progress.panel.failed)}
             />
           )}
+          {proposal.check === null ? null : (
+            <CheckNote check={proposal.check} onPractice={onPractice} />
+          )}
           <p className={styles.headline}>
             <span>
               {texts.study.proposal.headline(
@@ -361,6 +364,30 @@ export function StudyScreen({
         />
       ) : null}
     </ScreenFrame>
+  );
+}
+
+// Fase 17 (CA-150): la comprobación de un «Ya lo sé», desde el día siguiente. «Hacer la
+// comprobación» abre su actividad; un acierto sin ayuda quita el «(por verificar)».
+function CheckNote({
+  check,
+  onPractice,
+}: {
+  check: NonNullable<StudyProposal['check']>;
+  onPractice?: ((cardId: string) => void) | undefined;
+}) {
+  const proposalTexts = texts.study.proposal;
+  const practiceCardId = check.practiceCardId;
+  return (
+    <div className={styles.requirement} role="note" aria-label={proposalTexts.checkLabel}>
+      <p className={styles.headline}>{proposalTexts.checkLine(check.objectiveTitle)}</p>
+      <p className={styles.why}>{proposalTexts.checkWhy}</p>
+      {practiceCardId !== null && onPractice ? (
+        <div className={styles.startActions}>
+          <Boton onClick={() => onPractice(practiceCardId)}>{proposalTexts.checkDo}</Boton>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
