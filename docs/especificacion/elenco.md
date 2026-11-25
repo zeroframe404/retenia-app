@@ -38,7 +38,7 @@ Tarjetas con nombre:
 
 - **«¿Qué mide el desvío estándar?»** → «Cuánto se alejan, en promedio, los datos de la media.» Vence hoy; es la primera de la cola. Última vez: 20/02/2027, «Con dudas» (hace 23 días). Probabilidad estimada de recordarla hoy: cerca de 0,7 (CA-065). Tema: Media y dispersión.
 - **Hueco:** «La mediana deja el {{50 %}} de los datos por debajo.» Tema: Media y dispersión.
-- **Dificultad recurrente:** «¿Qué significa el 95 % en un intervalo de confianza del 95 %?», 4 fallos, en «Mejorar la tarjeta» (CA-154). Tema: Intervalos de confianza.
+- **Dificultad recurrente:** «¿Qué significa el 95 % en un intervalo de confianza del 95 %?», 4 fallos, en «Mejorar la tarjeta» (CA-154). Tema: Intervalos de confianza. Desde la Fase 17 cita la página 6 del PDF («3.2 Qué significa el 95 %», la misma frase del ejercicio abierto), así «Ver en el original» abre esa página.
 - **Consolidada:** «¿Qué es la media muestral?», aciertos sin ayuda en 3 días distintos, uno con 7 o más de demora. Programada. Tema: Media y dispersión.
 - **«¿Qué es la varianza?»** → «El promedio de los cuadrados de las distancias a la media.» Programada. Para CA-096. Tema: Media y dispersión.
 - **Dos tarjetas con la tabla de la página 7** del PDF como cita; usan ese texto mal leído (CA-115). Tema: Pruebas de hipótesis.
@@ -59,7 +59,7 @@ Desde la Fase 16 el elenco trae cinco ejercicios en Estadística básica, sin hi
 
 ## Objetivos de aprendizaje
 
-- **«Calcular la media y el desvío»**: tipo «Aplicar», estado «Sin iniciar». Tema: Media y dispersión. Es el requisito de CA-151.
+- **«Calcular la media y el desvío»**: tipo «Aplicar», estado «Sin iniciar». Tema: Media y dispersión. Es el requisito de CA-151. Desde la Fase 17 se siembra enlazado al ejercicio «La media de 2, 4 y 9» (con origen «demostración», después del historial: no tiene intentos).
 - **«Interpretar un intervalo de confianza»**: no existe; se crea en CA-143 y se le enlaza el requisito antes de probar CA-151.
 
 ## Apuntes

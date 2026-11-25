@@ -74,6 +74,13 @@ function eventsOf(steps: readonly Step[]): MasteryEvent[] {
 const describeSteps = (steps: readonly Step[]) =>
   steps.map(([day, what]) => `${day} ${what}`).join(' · ');
 
+// Cada caso lleva su secuencia como texto: así el título (y el renglón del tablero) es único.
+function withInput(
+  cases: readonly { id: string; steps: readonly Step[]; expected: string }[],
+): { id: string; steps: readonly Step[]; expected: string; input: string }[] {
+  return cases.map((item) => ({ ...item, input: describeSteps(item.steps) }));
+}
+
 function stateText(result: MasteryResult): string {
   return `${STATE_NAMES[result.state]}${result.toVerify ? ' (por verificar)' : ''}`;
 }
@@ -87,248 +94,247 @@ const dateOf = (day: string | null) => {
 };
 
 describe('la tabla de casos de dominio: los estados', () => {
-  it.for([
-    {
-      id: 'CA-144',
-      steps: [['15/03', 'sin ayuda']],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-144',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['15/03', 'sin ayuda'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-145',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-145',
-      steps: [
-        ['15/03', 'orientadora'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-146',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['23/03', 'sin ayuda'],
-      ],
-      expected: 'Consolidado',
-    },
-    {
-      id: 'CA-146',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['22/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-146',
-      steps: [
-        ['01/03', 'sin ayuda'],
-        ['09/03', 'sin ayuda'],
-        ['10/03', 'sin ayuda'],
-      ],
-      expected: 'Consolidado',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['23/03', 'sin ayuda'],
-        ['24/03', 'fallo'],
-      ],
-      expected: 'A revisar',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['23/03', 'sin ayuda'],
-        ['24/03', 'fallo'],
-        ['25/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['24/03', 'fallo'],
-        ['24/03', 'sin ayuda'],
-      ],
-      expected: 'A revisar',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['23/03', 'sin ayuda'],
-        ['24/03', 'fallo'],
-        ['25/03', 'sin ayuda'],
-        ['26/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['23/03', 'sin ayuda'],
-        ['24/03', 'fallo'],
-        ['25/03', 'sin ayuda'],
-        ['26/03', 'sin ayuda'],
-        ['02/04', 'sin ayuda'],
-      ],
-      expected: 'Consolidado',
-    },
-    {
-      id: 'CA-147',
-      steps: [['15/03', 'fallo']],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-147',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'fallo'],
-        ['17/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-148',
-      steps: [['15/03', 'pista']],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-148',
-      steps: [['15/03', 'opciones']],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-148',
-      steps: [
-        ['15/03', 'pista'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-148',
-      steps: [
-        ['15/03', 'opciones'],
-        ['16/03', 'paso'],
-        ['17/03', 'sin ayuda'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-148',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'solución'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-148',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'sin ayuda'],
-        ['17/03', 'pista'],
-        ['18/03', 'opciones'],
-        ['30/03', 'paso'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-144',
-      steps: [
-        ['15/03', 'sin evaluar'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-144',
-      steps: [
-        ['15/03', 'vas bien'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-150',
-      steps: [['15/03', 'ya lo sé']],
-      expected: 'Suficiente para avanzar (por verificar)',
-    },
-    {
-      id: 'CA-150',
-      steps: [
-        ['15/03', 'ya lo sé'],
-        ['16/03', 'fallo'],
-      ],
-      expected: 'En práctica',
-    },
-    {
-      id: 'CA-150',
-      steps: [
-        ['15/03', 'ya lo sé'],
-        ['16/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar',
-    },
-    {
-      id: 'CA-150',
-      steps: [
-        ['15/03', 'ya lo sé'],
-        ['15/03', 'sin ayuda'],
-      ],
-      expected: 'Suficiente para avanzar (por verificar)',
-    },
-    {
-      id: 'CA-150',
-      steps: [
-        ['15/03', 'ya lo sé'],
-        ['16/03', 'pista'],
-      ],
-      expected: 'Suficiente para avanzar (por verificar)',
-    },
-    {
-      id: 'CA-150',
-      steps: [
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'ya lo sé'],
-      ],
-      expected: 'En práctica',
-    },
-  ] satisfies readonly { id: string; steps: readonly Step[]; expected: string }[])(
-    '[$id] $expected',
-    ({ steps, expected }, { task }) => {
-      const actual = stateText(projectMastery(eventsOf(steps)));
-      task.meta.tableCase = { table: TABLE, input: describeSteps(steps), expected, actual };
-      expect(actual).toBe(expected);
-    },
-  );
+  it.for(
+    withInput([
+      {
+        id: 'CA-144',
+        steps: [['15/03', 'sin ayuda']],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-144',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['15/03', 'sin ayuda'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-145',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-145',
+        steps: [
+          ['15/03', 'orientadora'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-146',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['23/03', 'sin ayuda'],
+        ],
+        expected: 'Consolidado',
+      },
+      {
+        id: 'CA-146',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['22/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-146',
+        steps: [
+          ['01/03', 'sin ayuda'],
+          ['09/03', 'sin ayuda'],
+          ['10/03', 'sin ayuda'],
+        ],
+        expected: 'Consolidado',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['23/03', 'sin ayuda'],
+          ['24/03', 'fallo'],
+        ],
+        expected: 'A revisar',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['23/03', 'sin ayuda'],
+          ['24/03', 'fallo'],
+          ['25/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['24/03', 'fallo'],
+          ['24/03', 'sin ayuda'],
+        ],
+        expected: 'A revisar',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['23/03', 'sin ayuda'],
+          ['24/03', 'fallo'],
+          ['25/03', 'sin ayuda'],
+          ['26/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['23/03', 'sin ayuda'],
+          ['24/03', 'fallo'],
+          ['25/03', 'sin ayuda'],
+          ['26/03', 'sin ayuda'],
+          ['02/04', 'sin ayuda'],
+        ],
+        expected: 'Consolidado',
+      },
+      {
+        id: 'CA-147',
+        steps: [['15/03', 'fallo']],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-147',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'fallo'],
+          ['17/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-148',
+        steps: [['15/03', 'pista']],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-148',
+        steps: [['15/03', 'opciones']],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-148',
+        steps: [
+          ['15/03', 'pista'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-148',
+        steps: [
+          ['15/03', 'opciones'],
+          ['16/03', 'paso'],
+          ['17/03', 'sin ayuda'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-148',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'solución'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-148',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'sin ayuda'],
+          ['17/03', 'pista'],
+          ['18/03', 'opciones'],
+          ['30/03', 'paso'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-144',
+        steps: [
+          ['15/03', 'sin evaluar'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-144',
+        steps: [
+          ['15/03', 'vas bien'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-150',
+        steps: [['15/03', 'ya lo sé']],
+        expected: 'Suficiente para avanzar (por verificar)',
+      },
+      {
+        id: 'CA-150',
+        steps: [
+          ['15/03', 'ya lo sé'],
+          ['16/03', 'fallo'],
+        ],
+        expected: 'En práctica',
+      },
+      {
+        id: 'CA-150',
+        steps: [
+          ['15/03', 'ya lo sé'],
+          ['16/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar',
+      },
+      {
+        id: 'CA-150',
+        steps: [
+          ['15/03', 'ya lo sé'],
+          ['15/03', 'sin ayuda'],
+        ],
+        expected: 'Suficiente para avanzar (por verificar)',
+      },
+      {
+        id: 'CA-150',
+        steps: [
+          ['15/03', 'ya lo sé'],
+          ['16/03', 'pista'],
+        ],
+        expected: 'Suficiente para avanzar (por verificar)',
+      },
+      {
+        id: 'CA-150',
+        steps: [
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'ya lo sé'],
+        ],
+        expected: 'En práctica',
+      },
+    ]),
+  )('[$id] $input → $expected', ({ steps, expected }, { task }) => {
+    const actual = stateText(projectMastery(eventsOf(steps)));
+    task.meta.tableCase = { table: TABLE, input: describeSteps(steps), expected, actual };
+    expect(actual).toBe(expected);
+  });
 
   it('[CA-143] un objetivo sin ningún intento está «Sin iniciar», con las cuatro columnas en cero', ({
     task,
@@ -342,51 +348,50 @@ describe('la tabla de casos de dominio: los estados', () => {
 });
 
 describe('la tabla de casos de dominio: el panel de evidencias', () => {
-  it.for([
-    {
-      id: 'CA-149',
-      // Las pruebas manuales M17.2 a M17.6.
-      steps: [
-        ['15/03', 'pista'],
-        ['16/03', 'sin ayuda'],
-        ['17/03', 'sin ayuda'],
-        ['24/03', 'sin ayuda'],
-        ['25/03', 'fallo'],
-      ],
-      expected:
-        'A revisar · Sin ayuda 3 (24/03/2027) · Con ayuda 1 (15/03/2027) · Diferido 1 (24/03/2027) · Variantes 0 (—)',
-    },
-    {
-      id: 'CA-149',
-      steps: [
-        ['15/03', 'opciones'],
-        ['15/03', 'sin ayuda'],
-        ['16/03', 'pista'],
-      ],
-      expected:
-        'En práctica · Sin ayuda 0 (—) · Con ayuda 2 (16/03/2027) · Diferido 0 (—) · Variantes 0 (—)',
-    },
-    {
-      id: 'CA-149',
-      steps: [
-        ['01/03', 'sin ayuda'],
-        ['05/03', 'fallo'],
-        ['10/03', 'sin ayuda'],
-        ['20/03', 'sin ayuda'],
-      ],
-      expected:
-        'Consolidado · Sin ayuda 3 (20/03/2027) · Con ayuda 0 (—) · Diferido 1 (20/03/2027) · Variantes 0 (—)',
-    },
-  ] satisfies readonly { id: string; steps: readonly Step[]; expected: string }[])(
-    '[$id] las cuatro columnas con conteo y fecha: $expected',
-    ({ steps, expected }, { task }) => {
-      const result = projectMastery(eventsOf(steps));
-      const { unaided, aided, delayed, variants } = result.columns;
-      const actual = `${stateText(result)} · Sin ayuda ${unaided.count} (${dateOf(unaided.lastDay)}) · Con ayuda ${aided.count} (${dateOf(aided.lastDay)}) · Diferido ${delayed.count} (${dateOf(delayed.lastDay)}) · Variantes ${variants.count} (${dateOf(variants.lastDay)})`;
-      task.meta.tableCase = { table: TABLE, input: describeSteps(steps), expected, actual };
-      expect(actual).toBe(expected);
-    },
-  );
+  it.for(
+    withInput([
+      {
+        id: 'CA-149',
+        // Las pruebas manuales M17.2 a M17.6.
+        steps: [
+          ['15/03', 'pista'],
+          ['16/03', 'sin ayuda'],
+          ['17/03', 'sin ayuda'],
+          ['24/03', 'sin ayuda'],
+          ['25/03', 'fallo'],
+        ],
+        expected:
+          'A revisar · Sin ayuda 3 (24/03/2027) · Con ayuda 1 (15/03/2027) · Diferido 1 (24/03/2027) · Variantes 0 (—)',
+      },
+      {
+        id: 'CA-149',
+        steps: [
+          ['15/03', 'opciones'],
+          ['15/03', 'sin ayuda'],
+          ['16/03', 'pista'],
+        ],
+        expected:
+          'En práctica · Sin ayuda 0 (—) · Con ayuda 2 (16/03/2027) · Diferido 0 (—) · Variantes 0 (—)',
+      },
+      {
+        id: 'CA-149',
+        steps: [
+          ['01/03', 'sin ayuda'],
+          ['05/03', 'fallo'],
+          ['10/03', 'sin ayuda'],
+          ['20/03', 'sin ayuda'],
+        ],
+        expected:
+          'Consolidado · Sin ayuda 3 (20/03/2027) · Con ayuda 0 (—) · Diferido 1 (20/03/2027) · Variantes 0 (—)',
+      },
+    ]),
+  )('[$id] las cuatro columnas con conteo y fecha: $input', ({ steps, expected }, { task }) => {
+    const result = projectMastery(eventsOf(steps));
+    const { unaided, aided, delayed, variants } = result.columns;
+    const actual = `${stateText(result)} · Sin ayuda ${unaided.count} (${dateOf(unaided.lastDay)}) · Con ayuda ${aided.count} (${dateOf(aided.lastDay)}) · Diferido ${delayed.count} (${dateOf(delayed.lastDay)}) · Variantes ${variants.count} (${dateOf(variants.lastDay)})`;
+    task.meta.tableCase = { table: TABLE, input: describeSteps(steps), expected, actual };
+    expect(actual).toBe(expected);
+  });
 });
 
 describe('qué falta para el próximo estado', () => {
