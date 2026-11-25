@@ -148,32 +148,31 @@ describe('la dificultad recurrente', () => {
 
   it('[CA-154] «Dividir en dos» crea dos tarjetas en el mismo lugar y retira la original con su historial', () => {
     const { space, card } = threeFailures();
+    const splitId = randomUUID();
     const parts = [
-      { cardId: randomUUID(), question: '¿Qué es un catión?', answer: 'Un ion con carga positiva' },
-      { cardId: randomUUID(), question: '¿Qué es un anión?', answer: 'Un ion con carga negativa' },
+      { question: '¿Qué es un catión?', answer: 'Un ion con carga positiva' },
+      { question: '¿Qué es un anión?', answer: 'Un ion con carga negativa' },
     ];
-    expect(space.workspace.progress.split({ cardId: card.id, parts })).toEqual({
-      cardIds: parts.map((part) => part.cardId),
-    });
+    const { cardIds } = space.workspace.progress.split({ splitId, cardId: card.id, parts });
+    expect(cardIds).toHaveLength(2);
     expect(space.workspace.cards.get({ cardId: card.id }).sheet.state).toBe('retired');
     expect(
       space.workspace.cards.history({ cardId: card.id }).entries.length,
     ).toBeGreaterThanOrEqual(5);
-    for (const part of parts) {
-      expect(space.workspace.cards.get({ cardId: part.cardId })).toMatchObject({
-        question: part.question,
-        answer: part.answer,
+    cardIds.forEach((cardId, index) => {
+      expect(space.workspace.cards.get({ cardId })).toMatchObject({
+        question: parts[index]?.question,
+        answer: parts[index]?.answer,
+        subjectId: card.subjectId,
+        topicId: card.topicId,
       });
-    }
+    });
     expect(space.workspace.progress.improveCards().cards).toEqual([]);
     // Repetir el pedido no crea otras dos.
-    space.workspace.progress.split({ cardId: card.id, parts });
-    expect(
-      readRows(
-        space.file,
-        `SELECT id FROM cards WHERE id IN ('${parts[0]?.cardId}', '${parts[1]?.cardId}')`,
-      ),
-    ).toHaveLength(2);
+    expect(space.workspace.progress.split({ splitId, cardId: card.id, parts })).toEqual({
+      cardIds,
+    });
+    expect(readRows(space.file, `SELECT id FROM cards`)).toHaveLength(4);
   });
 });
 

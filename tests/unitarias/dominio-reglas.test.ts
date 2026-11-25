@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  conceptNameOf,
   confusionOf,
   diagnoseFailure,
   foldRequirements,
@@ -29,6 +30,14 @@ describe('el texto de un objetivo', () => {
     expect(parseObjectiveText('Calcular la media y el desvío').conceptKey).toBe(
       'media y el desvio',
     );
+  });
+
+  it('[CA-143] el concepto se muestra como se escribió, sin el artículo del principio', () => {
+    expect(conceptNameOf('un intervalo de confianza')).toBe('intervalo de confianza');
+    expect(conceptNameOf('La media y el desvío')).toBe('media y el desvío');
+    expect(conceptNameOf('Media y dispersión')).toBe('Media y dispersión');
+    expect(conceptNameOf('el')).toBe('el');
+    expect(conceptNameOf('')).toBe('');
   });
 
   it('[CA-143] «Entender», «Saber» o algo que no empieza con una acción no se pueden observar: se avisa', () => {
