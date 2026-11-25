@@ -58,42 +58,42 @@ const OBJECTIVE_KINDS = [
 
 const OUT_OF_PRACTICE = ['in_review', 'retired'];
 
-export class ObjectiveNotFoundError extends Error {
+class ObjectiveNotFoundError extends Error {
   constructor() {
     super('No encontré ese objetivo');
     this.name = 'ObjectiveNotFoundError';
   }
 }
 
-export class ObjectivePlaceError extends Error {
+class ObjectivePlaceError extends Error {
   constructor() {
     super('El tema o las actividades no son de la materia del objetivo');
     this.name = 'ObjectivePlaceError';
   }
 }
 
-export class KnowAlreadyNotAllowedError extends Error {
+class KnowAlreadyNotAllowedError extends Error {
   constructor() {
     super('«Ya lo sé» vale solo para un objetivo «Sin iniciar»');
     this.name = 'KnowAlreadyNotAllowedError';
   }
 }
 
-export class RequirementNotAllowedError extends Error {
+class RequirementNotAllowedError extends Error {
   constructor() {
     super('Ese requisito no se puede agregar: armaría un círculo o es el mismo objetivo');
     this.name = 'RequirementNotAllowedError';
   }
 }
 
-export class RequirementNotFoundError extends Error {
+class RequirementNotFoundError extends Error {
   constructor() {
     super('No encontré ese requisito');
     this.name = 'RequirementNotFoundError';
   }
 }
 
-export interface ObjectiveModel {
+interface ObjectiveModel {
   readonly id: string;
   readonly implicit: boolean;
   readonly topicId: string | null;
@@ -433,7 +433,7 @@ export function objectivesSnapshot(db: Writer, subjectId: string): ObjectivesSna
   };
 }
 
-export function summaryOf(model: ObjectiveModel): ObjectiveSummary {
+function summaryOf(model: ObjectiveModel): ObjectiveSummary {
   return {
     id: model.id,
     implicit: model.implicit,

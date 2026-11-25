@@ -12,16 +12,6 @@ export type MistakeType =
   | 'stepOrder'
   | 'other';
 
-export const MISTAKE_TYPES: readonly MistakeType[] = [
-  'distraction',
-  'forgotten',
-  'confusion',
-  'calculation',
-  'missingIdea',
-  'stepOrder',
-  'other',
-];
-
 export interface MistakeInput {
   readonly activityType: 'card' | 'short' | 'numeric' | 'options' | 'order' | 'open';
   readonly written: string;

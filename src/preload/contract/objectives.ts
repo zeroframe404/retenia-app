@@ -4,14 +4,14 @@ import { z } from 'zod';
 // evidencias, los requisitos, «Ya lo sé» y «No quiero esto ahora». También «Mis errores» y
 // «Mejorar la tarjeta» (H-36).
 
-export const MAX_OBJECTIVE_LENGTH = 200;
-export const MAX_CONDITIONS_LENGTH = 300;
+const MAX_OBJECTIVE_LENGTH = 200;
+const MAX_CONDITIONS_LENGTH = 300;
 const MAX_LINKED = 1000;
 
-export const objectiveKindSchema = z.enum(['remember', 'understand', 'apply', 'reason', 'execute']);
+const objectiveKindSchema = z.enum(['remember', 'understand', 'apply', 'reason', 'execute']);
 export type ObjectiveKindValue = z.output<typeof objectiveKindSchema>;
 
-export const masteryStateSchema = z.enum([
+const masteryStateSchema = z.enum([
   'not-started',
   'in-practice',
   'to-review',
@@ -23,14 +23,14 @@ export type MasteryStateValue = z.output<typeof masteryStateSchema>;
 // Un objetivo tuyo (UUID) o el implícito «Recordar: tema» de un tema («topic:<tema>») o de las
 // tarjetas sin tema de una materia («subject:<materia>»).
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
-export const objectiveRefSchema = z.union([
+const objectiveRefSchema = z.union([
   z.uuid(),
   z.string().regex(new RegExp(`^(topic|subject):${UUID}$`, 'u')),
 ]);
 
 const day = z.iso.date();
 
-export const objectiveSummarySchema = z.strictObject({
+const objectiveSummarySchema = z.strictObject({
   id: objectiveRefSchema,
   implicit: z.boolean(),
   topicId: z.uuid().nullable(),
@@ -80,7 +80,7 @@ export const objectivesActivitiesRequest = z.strictObject({
   subjectId: z.uuid(),
   topicId: z.uuid().nullable().optional(),
 });
-export const objectiveActivitySchema = z.strictObject({
+const objectiveActivitySchema = z.strictObject({
   cardId: z.uuid(),
   question: z.string(),
   isExercise: z.boolean(),
@@ -106,7 +106,7 @@ export const objectivePanelRequest = z.strictObject({ objectiveId: objectiveRefS
 
 const column = z.strictObject({ count: z.number().int().nonnegative(), lastDay: day.nullable() });
 
-export const nextStepSchema = z.discriminatedUnion('kind', [
+const nextStepSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('start') }),
   z.strictObject({ kind: z.literal('toEnough'), remaining: z.number().int().positive() }),
   z.strictObject({ kind: z.literal('recover') }),
@@ -120,10 +120,10 @@ export const nextStepSchema = z.discriminatedUnion('kind', [
 ]);
 export type NextStepValue = z.output<typeof nextStepSchema>;
 
-export const requirementKindSchema = z.enum(['indispensable', 'recommended']);
-export const requirementStatusSchema = z.enum(['confirmed', 'suggested']);
+const requirementKindSchema = z.enum(['indispensable', 'recommended']);
+const requirementStatusSchema = z.enum(['confirmed', 'suggested']);
 
-export const requirementViewSchema = z.strictObject({
+const requirementViewSchema = z.strictObject({
   requirementId: z.uuid(),
   objectiveId: z.uuid(),
   objectiveTitle: z.string(),
@@ -190,7 +190,7 @@ export const requirementIdRequest = z.strictObject({ requirementId: z.uuid() });
 
 // --- «Mis errores» (CA-155) ---
 
-export const mistakeTypeSchema = z.enum([
+const mistakeTypeSchema = z.enum([
   'distraction',
   'forgotten',
   'confusion',

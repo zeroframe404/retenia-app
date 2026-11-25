@@ -6,13 +6,6 @@ import type { MasteryState } from './types';
 // orden, si el intento anterior fue con ayuda o con azar, si la pregunta está marcada como dudosa,
 // si falta un requisito y si confundís dos conceptos. Propone una sola acción, con su motivo.
 
-export type DiagnosisAction =
-  | 'checkUnaided'
-  | 'sendToReview'
-  | 'goToRequirement'
-  | 'practiceDifference'
-  | 'forgotten';
-
 export interface MissingRequirement {
   readonly objectiveId: string;
   readonly title: string;

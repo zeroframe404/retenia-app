@@ -31,7 +31,7 @@ export interface MasteryAttempt {
 }
 
 // «Ya lo sé» sobre el objetivo.
-export interface KnowAlready {
+interface KnowAlready {
   readonly kind: 'knowAlready';
   readonly id: string;
   readonly seq: number;

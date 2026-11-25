@@ -37,7 +37,7 @@ export interface EstimateAttempt {
 }
 
 // El peso de un intento, en centésimos.
-export function weightOf(attempt: Omit<EstimateAttempt, 'outcome'>): number {
+function weightOf(attempt: Omit<EstimateAttempt, 'outcome'>): number {
   if (!attempt.valid || attempt.helpLevel === 'A4') {
     return 0;
   }

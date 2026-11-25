@@ -8,8 +8,8 @@ import type { MasteryState } from './types';
 // repasar…»). «Esto no es necesario para aquello» lo descarta al instante; nada se borra: todo
 // queda en el historial.
 
-export type RequirementKind = 'indispensable' | 'recommended';
-export type RequirementStatus = 'confirmed' | 'suggested';
+type RequirementKind = 'indispensable' | 'recommended';
+type RequirementStatus = 'confirmed' | 'suggested';
 
 export type RequirementEvent =
   | {

@@ -16,7 +16,7 @@ import { cardSchedule, cards, cardVersions, observations, subjects } from './sch
 
 const OUT_OF_PRACTICE = ['in_review', 'retired'];
 
-export class AttemptNotFoundError extends Error {
+class AttemptNotFoundError extends Error {
   constructor() {
     super('No encontré ese intento');
     this.name = 'AttemptNotFoundError';

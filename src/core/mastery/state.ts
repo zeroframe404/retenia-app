@@ -20,16 +20,16 @@ import type { MasteryAttempt, MasteryEvent, MasteryState, Outcome } from './type
 //   de un día posterior quita la marca; un fallo lleva a «En práctica».
 
 // Días desde la práctica anterior para que un acierto cuente como demorado («Diferido»).
-export const DELAY_DAYS = 7;
+const DELAY_DAYS = 7;
 
-export interface Column {
+interface Column {
   readonly count: number;
   readonly lastDay: string | null;
 }
 
-export type StepReason = 'counted' | 'sameDay' | 'earlier' | 'notValid' | 'notApplicable';
+type StepReason = 'counted' | 'sameDay' | 'earlier' | 'notValid' | 'notApplicable';
 
-export interface MasteryStep {
+interface MasteryStep {
   readonly id: string;
   readonly studyDay: string;
   readonly counted: boolean;
@@ -62,7 +62,7 @@ export function outcomeOf(attempt: Pick<MasteryAttempt, 'verdict' | 'helpLevel'>
   return attempt.verdict === 'partial' ? 'partial' : 'success';
 }
 
-export function isUnaided(attempt: Pick<MasteryAttempt, 'helpLevel' | 'optionsQuestion'>): boolean {
+function isUnaided(attempt: Pick<MasteryAttempt, 'helpLevel' | 'optionsQuestion'>): boolean {
   return (attempt.helpLevel === 'A0' || attempt.helpLevel === 'A1') && !attempt.optionsQuestion;
 }
 
@@ -77,7 +77,7 @@ const bump = (counter: Counter, day: string) => {
 };
 
 // Un día de estudio (AAAA-MM-DD) más N días, sin pasar por la hora local.
-export const plusDays = (day: string, days: number) => {
+const plusDays = (day: string, days: number) => {
   const date = new Date(`${day}T12:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
