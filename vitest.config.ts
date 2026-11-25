@@ -41,6 +41,12 @@ export default defineConfig({
           include: ['tests/componentes/**/*.test.tsx'],
           environment: 'jsdom',
           testTimeout: 30_000,
+          // La espera entre dos acciones del usuario simulado: en Windows, la de user-event dormía
+          // unos 15 ms aunque pidiera cero (tests/componentes/espera-del-usuario.cjs).
+          execArgv: [
+            '--require',
+            join(import.meta.dirname, 'tests', 'componentes', 'ganchos-del-usuario.cjs'),
+          ],
         },
       },
       {
