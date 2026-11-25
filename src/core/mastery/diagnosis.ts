@@ -39,6 +39,9 @@ export interface DiagnosisInput {
     readonly helpLevel: HelpLevel;
     readonly optionsQuestion: boolean;
   } | null;
+  // Si el intento que falló es de una pregunta de opciones: ahí el azar viene con la actividad, así que
+  // que la vez anterior también fuera de opciones no pide «Probala sin ayuda».
+  readonly currentOptionsQuestion?: boolean | undefined;
   // Una duda abierta sobre la tarjeta o «La pregunta era ambigua».
   readonly doubtful: boolean;
   readonly missingRequirement: MissingRequirement | null;
@@ -48,7 +51,7 @@ export interface DiagnosisInput {
 const AIDED: readonly HelpLevel[] = ['A2', 'A3', 'A4'];
 
 export function diagnoseFailure(input: DiagnosisInput): Diagnosis {
-  if (input.previous?.optionsQuestion) {
+  if (input.previous?.optionsQuestion && input.currentOptionsQuestion !== true) {
     return { action: 'checkUnaided', reason: 'previousOptions' };
   }
   if (input.previous && AIDED.includes(input.previous.helpLevel)) {

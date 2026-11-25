@@ -24,8 +24,14 @@ const ARTICLES = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
 const lowered = (text: string) =>
   normalizeShortAnswer(text.replace(/\s+/gu, '_')).replace(/_/gu, ' ');
 
+// Sin signos de puntuación (comillas, paréntesis, puntos): solo letras, números y espacios.
+const withoutPunctuation = (text: string) => text.replace(/[^\p{L}\p{N}\s]/gu, ' ');
+
+// Un verbo en infinitivo de 4 letras o más: «Mar» o «Ir» no son acciones que se puedan observar.
+const MIN_VERB_LENGTH = 4;
+
 export function conceptKeyOf(content: string): string {
-  const words = lowered(content)
+  const words = lowered(withoutPunctuation(content))
     .split(' ')
     .filter((word) => word !== '');
   if (words.length > 1 && ARTICLES.has(words[0] as string)) {
@@ -61,6 +67,7 @@ export function parseObjectiveText(text: string): {
     action,
     content,
     conceptKey: conceptKeyOf(content === '' ? title : content),
-    observable: infinitive && !NOT_OBSERVABLE.has(verb),
+    observable:
+      infinitive && Array.from(verb).length >= MIN_VERB_LENGTH && !NOT_OBSERVABLE.has(verb),
   };
 }
