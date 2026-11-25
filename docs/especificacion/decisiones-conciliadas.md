@@ -96,7 +96,7 @@ Estas reglas hacen que los ejemplos numéricos de los criterios den exactamente 
 - **Motor de memoria** (CA-010, CA-058, CA-060): FSRS-6 con parámetros por defecto de ts-fsrs, retención 0,90 (activa) y 0,85 (mantenimiento), sin pasos de corto plazo. Cálculo preliminar: tarjeta nueva + «La sabía» = 2 días (0,90) y 4 días (0,85); «Con dudas» y «No la sabía» = 1 día. La Fase 09 congela la versión y genera la tabla de casos de CA-059.
 - **Proyección de idiomas** (CA-327): horas de referencia acumuladas A2 180–200, B2 500–600, C2 1.000–1.200. Ritmo 45 min × 5 días × 52 semanas = 195 h por año. Desde A2: B2 (500 − 200) ÷ 195 = 1,5 a (600 − 180) ÷ 195 = 2,2 años; C2 (1.000 − 200) ÷ 195 = 4,1 a (1.200 − 180) ÷ 195 = 5,2 años.
 - **Regreso de 4 a 13 días** (CA-223): hoy 10 minutos de comprobación; después, días de recuperación = los que hagan falta para cubrir el atraso más la carga normal con la capacidad diaria. Con 42 min de atraso, 12 min de carga normal y 25 disponibles: 4 días (100 min para 42 + 48 = 90).
-- **Estimación interna de un concepto** (CA-156): dos contadores, a favor y en contra, que empiezan en 1 y 1. Acierto sin ayuda: +1 a favor. Acierto con pista: +0,3 a favor. Fallo: +1 en contra. Solución vista: sin cambio. La media es a favor ÷ (a favor + en contra): 2,3 ÷ 4,3 = 0,535.
+- **Estimación interna de un concepto** (CA-156): dos contadores, a favor y en contra, que empiezan en 1 y 1. Cada intento pesa 1 sin ayuda (A0 o A1), 0,3 con pista (A2 o A3) o en una pregunta de opciones, y 0 con la solución vista o sin evaluar. Un acierto suma su peso a favor, un fallo en contra y un «Vas bien.» la mitad a cada lado (Fase 17). La media es a favor ÷ (a favor + en contra): 2,3 ÷ 4,3 = 0,535.
 - **Candidatas por sección** (CA-185): 8 por cada 1.000 palabras, redondeado hacia arriba: 600 palabras → 5.
 - **Tiempo de estudio** (CA-253): unión de intervalos, sin contar dos veces lo superpuesto.
 
@@ -107,7 +107,7 @@ Estas reglas hacen que los ejemplos numéricos de los criterios den exactamente 
 | Sin iniciar | En práctica | En práctica | En práctica (cuenta en «Con ayuda») | En práctica | Suficiente (por verificar) |
 | En práctica | Suficiente para avanzar, si ya había un acierto sin ayuda otro día; si no, sigue | sigue | sigue («Con ayuda») | sigue | — |
 | A revisar | Suficiente para avanzar | sigue | sigue («Con ayuda») | sigue | — |
-| Suficiente para avanzar | Consolidado si pasaron 7 días o más desde el acierto anterior (en «Aplicar», además una variante nueva); si no, sigue | sigue | sigue («Con ayuda») | A revisar | — |
+| Suficiente para avanzar | Consolidado si, desde el último fallo que bajó el estado, ya son 3 aciertos sin ayuda en días distintos y al menos uno llegó con 7 días o más desde la práctica anterior (en «Aplicar», además una variante nueva); si no, sigue | sigue | sigue («Con ayuda») | A revisar | — |
 | Consolidado | sigue (cuenta en «Diferido» si pasaron 7 días o más) | sigue | sigue («Con ayuda») | A revisar | — |
 | Suficiente (por verificar) | Suficiente para avanzar (comprobación aprobada; se quita la marca) | — | — | En práctica | — |
 
