@@ -70,9 +70,16 @@ export function CompromisoSemanal({ done, goal }: { done: number; goal: number }
 }
 
 // «Pista» · «Ver un ejemplo» · «Fuente» · «Preguntar al tutor» y «No sé por dónde empezar». La
-// pista puede estar deshabilitada hasta que haya algo escrito.
+// pista puede estar deshabilitada hasta que haya algo escrito. Sin IA (Fase 16) el tutor no se
+// muestra, y «No sé por dónde empezar» desaparece una vez empezado el intento.
 export function BarraAyuda({
   hintDisabled = false,
+  exampleDisabled = false,
+  sourceDisabled = false,
+  example = true,
+  source = true,
+  tutor = true,
+  noIdea = true,
   onHint,
   onExample,
   onSource,
@@ -80,6 +87,14 @@ export function BarraAyuda({
   onNoIdea,
 }: {
   hintDisabled?: boolean;
+  exampleDisabled?: boolean;
+  sourceDisabled?: boolean;
+  // Si la actividad tiene ejemplo o fuente. Sin ellos, el botón no se muestra: apagado quiere decir
+  // «todavía no» (antes del primer intento), nunca «no hay».
+  example?: boolean;
+  source?: boolean;
+  tutor?: boolean;
+  noIdea?: boolean;
   onHint?: () => void;
   onExample?: () => void;
   onSource?: () => void;
@@ -92,18 +107,26 @@ export function BarraAyuda({
       <Boton icon={Lightbulb} disabled={hintDisabled} onClick={onHint}>
         {texts.ui.helpBar.hint}
       </Boton>
-      <Boton icon={BookOpen} onClick={onExample}>
-        {texts.ui.helpBar.example}
-      </Boton>
-      <Boton icon={Quote} onClick={onSource}>
-        {texts.ui.helpBar.source}
-      </Boton>
-      <Boton icon={MessageCircle} onClick={onTutor}>
-        {texts.ui.helpBar.tutor}
-      </Boton>
-      <Boton variant="quiet" onClick={onNoIdea}>
-        {texts.ui.helpBar.noIdea}
-      </Boton>
+      {example ? (
+        <Boton icon={BookOpen} disabled={exampleDisabled} onClick={onExample}>
+          {texts.ui.helpBar.example}
+        </Boton>
+      ) : null}
+      {source ? (
+        <Boton icon={Quote} disabled={sourceDisabled} onClick={onSource}>
+          {texts.ui.helpBar.source}
+        </Boton>
+      ) : null}
+      {tutor ? (
+        <Boton icon={MessageCircle} onClick={onTutor}>
+          {texts.ui.helpBar.tutor}
+        </Boton>
+      ) : null}
+      {noIdea ? (
+        <Boton variant="quiet" onClick={onNoIdea}>
+          {texts.ui.helpBar.noIdea}
+        </Boton>
+      ) : null}
     </fieldset>
   );
 }

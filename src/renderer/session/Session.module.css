@@ -390,3 +390,16 @@
   font: var(--tipo-pequeno);
   color: var(--color-tinta-suave);
 }
+
+/* Fase 17: el requisito que nombra la propuesta («Antes conviene: …»). */
+.requirement {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-12) var(--espacio-16);
+  background: var(--color-superficie-hundida);
+  border-radius: var(--radio-8);
+}
+
+.requirement p {
+  margin: 0;
+}

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Clock } from '../core/clock';
+import type { HelpUse } from '../core/evaluation';
 import { LOAD_POLICY_VERSION, postponeOutcome } from '../core/load';
 import type { Grade } from '../core/memory';
 import {
@@ -115,6 +116,9 @@ export interface StudyStore {
     answer: string | null;
     marks?: AttemptMarks;
     activeMs?: number;
+    // Fase 16: la ayuda usada en esa tarjeta y si se tocó «No sé por dónde empezar».
+    help?: readonly HelpUse[] | undefined;
+    noIdea?: boolean | undefined;
   }): SessionView;
   // Deshace la calificación de esa actividad si es la última: el mismo pedido dos veces deshace una.
   undo(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
@@ -639,7 +643,7 @@ export function createStudyStore(
       });
     },
 
-    grade({ sessionId, activityId, attemptId, grade, answer, marks, activeMs = 0 }) {
+    grade({ sessionId, activityId, attemptId, grade, answer, marks, activeMs = 0, help, noIdea }) {
       return change(sessionId, (tx, state) => {
         const current = state.pending[0];
         if (!isOpen(state) || current?.activityId !== activityId) {
@@ -649,6 +653,8 @@ export function createStudyStore(
           cardId: current.cardId,
           grade,
           attemptId,
+          help,
+          noIdea,
           session: {
             sessionId,
             activityId,

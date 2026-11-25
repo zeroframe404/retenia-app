@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { SearchHit } from '../../preload/contract/search';
 import { texts } from '../../preload/contract/texts';
+import { Boton } from '../ui/Boton';
 import { Dialog } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import { Marked } from './Marked';
@@ -51,10 +52,14 @@ type State =
 export function SearchDialog({
   onClose,
   onOpen,
+  onPractice,
 }: {
   onClose: () => void;
   // Quien lo abrió decide adónde lleva un resultado (a la pantalla, o a un panel en una sesión).
   onOpen: (hit: SearchHit) => void;
+  // Fase 16: «Practicar ahora» para la tarjeta o el ejercicio marcado (también Ctrl+Enter). Fuera
+  // de una sesión: dentro de una, el resultado solo se lee.
+  onPractice?: ((hit: SearchHit) => void) | undefined;
 }) {
   const listId = useId();
   const [text, setText] = useState('');
@@ -106,7 +111,10 @@ export function SearchDialog({
       setSelected((current) => Math.max(0, current - 1));
     } else if (event.key === 'Enter') {
       const hit = flat[selected];
-      if (hit) {
+      if (hit && event.ctrlKey && hit.kind === 'card' && onPractice) {
+        event.preventDefault();
+        onPractice(hit);
+      } else if (hit) {
         event.preventDefault();
         open(hit);
       }
@@ -222,6 +230,20 @@ export function SearchDialog({
             </fieldset>
           ))}
         </div>
+        {onPractice && flat[selected]?.kind === 'card' ? (
+          <div className={styles.footer}>
+            <Boton
+              onClick={() => {
+                const hit = flat[selected];
+                if (hit) {
+                  onPractice(hit);
+                }
+              }}
+            >
+              {texts.practice.practiceNow}
+            </Boton>
+          </div>
+        ) : null}
       </div>
     </Dialog>
   );

@@ -60,10 +60,12 @@ class UnknownGradeError extends Error {
 // Lo que le llega al motor de un intento (CA-064): con pista de concepto o de paso, un acierto
 // cuenta como «Con dudas»; con la solución vista, cualquier intento como «No la sabía»; con la
 // pregunta orientadora, igual que sin ayuda. Interrumpido, defectuoso o la vuelta de una fallada en
-// la sesión (Fase 10): nada (null).
+// la sesión (Fase 10): nada (null). Un acierto en una pregunta de opciones (Fase 16, CA-133) también
+// cuenta como «Con dudas»: ahí el azar es una ayuda.
 export function engineGradeOf(attempt: {
   readonly grade: Grade;
   readonly helpLevel?: HelpLevel | undefined;
+  readonly optionsQuestion?: boolean | undefined;
   readonly interrupted?: boolean | undefined;
   readonly defective?: boolean | undefined;
   readonly retry?: boolean | undefined;
@@ -78,7 +80,8 @@ export function engineGradeOf(attempt: {
   if (help === 'A4') {
     return 'again';
   }
-  if ((help === 'A2' || help === 'A3') && attempt.grade === 'good') {
+  const aided = help === 'A2' || help === 'A3' || attempt.optionsQuestion === true;
+  if (aided && attempt.grade === 'good') {
     return 'hard';
   }
   return attempt.grade;

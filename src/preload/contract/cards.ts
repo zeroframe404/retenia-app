@@ -1,4 +1,11 @@
 import { z } from 'zod';
+import {
+  activityModeSchema,
+  activitySchema,
+  activityTypeSchema,
+  helpUseSchema,
+  verdictSchema,
+} from './activities';
 import { day } from './common';
 import { inlineNodeSchema } from './notes';
 
@@ -49,6 +56,9 @@ export const cardSchema = z.strictObject({
   // El tema que se ve (nulo si no tiene o si está en la Papelera).
   topicId: z.uuid().nullable(),
   topicName: z.string().nullable(),
+  // Fase 16: el tipo de un ejercicio (nulo en la tarjeta de siempre). Lleva la marca «Ejercicio» y
+  // no suma al contador.
+  activityType: activityTypeSchema.nullable(),
 });
 export type Card = z.output<typeof cardSchema>;
 
@@ -118,6 +128,12 @@ export const cardDetailSchema = z.strictObject({
       changed: z.boolean(),
     })
     .nullable(),
+  // Fase 16: lo propio del tipo de actividad, el ejemplo de «Ver un ejemplo», si es de práctica o de
+  // evaluación y si quedó una comprobación sin ayuda pendiente (CA-137).
+  activity: activitySchema.nullable(),
+  example: z.string(),
+  mode: activityModeSchema,
+  pendingCheck: z.boolean(),
 });
 export type CardDetail = z.output<typeof cardDetailSchema>;
 
@@ -126,6 +142,11 @@ export const cardsCreateRequest = z.strictObject({
   answer: cardText,
   subjectId: z.uuid().nullable().optional(),
   topicId: z.uuid().nullable().optional(),
+  // Fase 16: «Nuevo ejercicio» crea la actividad con su ficha de una vez.
+  activity: activitySchema.nullable().optional(),
+  sheet: sheetInputSchema.optional(),
+  example: sheetLine.optional(),
+  mode: activityModeSchema.optional(),
 });
 
 // La lista de una materia con sus filtros (CA-056). `total` son las de la materia sin filtrar.
@@ -134,7 +155,8 @@ export const cardsListRequest = z.strictObject({
   // Un tema, o «none» para las que no tienen.
   topicId: z.union([z.uuid(), z.literal('none')]).optional(),
   sheetState: sheetStateSchema.optional(),
-  kind: cardKindSchema.optional(),
+  // «exercise» (Fase 16): solo los ejercicios.
+  kind: z.enum(['qa', 'cloze', 'exercise']).optional(),
 });
 export const cardsListResponse = z.strictObject({
   cards: z.array(cardSchema),
@@ -147,6 +169,9 @@ export const cardsReviewRequest = z.strictObject({
   cardId: z.uuid(),
   grade: gradeSchema,
   attemptId: z.uuid(),
+  // Fase 16: la ayuda que se usó con «Practicar ahora» y si se tocó «No sé por dónde empezar».
+  help: z.array(helpUseSchema).max(40).optional(),
+  noIdea: z.boolean().optional(),
 });
 
 // `meaningChanged` es la respuesta a «¿Cambió lo que hay que recordar?»: hace falta cuando la
@@ -157,6 +182,12 @@ export const cardsEditRequest = z.strictObject({
   answer: cardText,
   sheet: sheetInputSchema.optional(),
   meaningChanged: z.boolean().optional(),
+  // Fase 16: el tipo de actividad (nulo para volver a la tarjeta de siempre), el ejemplo y el modo.
+  activity: activitySchema.nullable().optional(),
+  example: sheetLine.optional(),
+  mode: activityModeSchema.optional(),
+  // Fase 17: la edición viene de «Mejorar la tarjeta» («Reformular» o «Agregar una pista»).
+  improve: z.enum(['rephrase', 'hint']).optional(),
 });
 
 export const cardIdRequest = z.strictObject({ cardId: z.uuid() });
@@ -207,6 +238,22 @@ export const cardHistorySchema = z.strictObject({
       skipped: z.enum(['sameDay', 'earlier']).nullable(),
       // De dónde vino el repaso (Fase 15): «anki» si se importó de Anki; nulo si lo hiciste en Retenia.
       origin: z.enum(['anki']).nullable(),
+      // Fase 16: si llegó al motor (un reintento o un segundo intento del mismo día no llegan) y si
+      // el intento quedó afectado («La pregunta era ambigua», «La referencia es incorrecta»).
+      counted: z.boolean(),
+      affected: z.boolean(),
+      // Fase 16: en un ejercicio, la calificación vigente (nula sin evaluar), todas sus versiones de
+      // la más vieja a la más nueva (las anteriores se muestran tachadas), por qué existe cada una y
+      // la ayuda más alta que usó.
+      evaluation: z
+        .strictObject({
+          activity: activityTypeSchema,
+          current: verdictSchema.nullable(),
+          versions: z.array(verdictSchema),
+          causes: z.array(z.string()),
+          helpLevel: z.enum(['A0', 'A1', 'A2', 'A3', 'A4']),
+        })
+        .nullable(),
     }),
   ),
 });

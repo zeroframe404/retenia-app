@@ -6,7 +6,7 @@ import { ROOT } from './lib/proceso.mjs';
 try {
   resetDemoData();
   console.log(
-    `Listo: la carpeta de datos de demostración (${relative(ROOT, DEMO_DATA_DIR) || DEMO_DATA_DIR}) quedó como nueva. Al abrir Retenia aparece el elenco de ejemplo: las materias con sus notas y 192 tarjetas con su historial, y la fecha vuelve al lunes 15/03/2027.`,
+    `Listo: la carpeta de datos de demostración (${relative(ROOT, DEMO_DATA_DIR) || DEMO_DATA_DIR}) quedó como nueva. Al abrir Retenia aparece el elenco de ejemplo: las materias con sus notas, 192 tarjetas con su historial y 5 ejercicios, y la fecha vuelve al lunes 15/03/2027.`,
   );
 } catch (error) {
   const code = /** @type {{ code?: string }} */ (error).code;

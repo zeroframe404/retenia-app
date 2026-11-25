@@ -148,6 +148,9 @@ export function createDemoWorkspace({
     get activity() {
       return active.activity;
     },
+    get activities() {
+      return active.activities;
+    },
     get subjects() {
       return active.subjects;
     },
@@ -177,6 +180,12 @@ export function createDemoWorkspace({
     },
     get imports() {
       return active.imports;
+    },
+    get objectives() {
+      return active.objectives;
+    },
+    get progress() {
+      return active.progress;
     },
     stageExport: (staging) => active.stageExport(staging),
     exportCounts: () => active.exportCounts(),

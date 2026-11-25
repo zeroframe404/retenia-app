@@ -29,6 +29,10 @@ export interface TopicRequest {
 export interface CardRequest {
   cardId: string;
   nonce: number;
+  // Fase 16: «Practicar ahora» desde el buscador abre la actividad directamente.
+  practice?: boolean | undefined;
+  // Fase 17: «Reformular» o «Agregar una pista» desde «Mejorar la tarjeta» abre la ficha para editar.
+  edit?: 'rephrase' | 'hint' | undefined;
 }
 
 // Apuntes: arriba, la materia que se mira y la activa; después las secciones. «Notas» es la de
@@ -49,6 +53,7 @@ export function NotesScreen({
   onOpenOriginal,
   onNoteRequestHandled,
   cardRequest = null,
+  onOpenObjective,
   topicRequest = null,
   onTopicRequestHandled,
 }: {
@@ -66,6 +71,8 @@ export function NotesScreen({
   noteRequest?: NoteRequest | null;
   // Abrir una tarjeta desde otra pantalla («Abrir la tarjeta» en Progreso).
   cardRequest?: CardRequest | null;
+  // «Ir al requisito» tras un fallo (Fase 17).
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onOpenNoteFromCard?: (noteId: string, blockId: string | null) => void;
   // «Ver en el original» de una tarjeta que salió de un material (Fase 13).
   onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
@@ -113,6 +120,7 @@ export function NotesScreen({
           onOpenNote={onOpenNoteFromCard}
           onOpenOriginal={onOpenOriginal}
           cardRequest={cardRequest}
+          onOpenObjective={onOpenObjective}
         />
       ) : null}
       {section === 'trash' ? (

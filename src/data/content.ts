@@ -69,6 +69,12 @@ export interface CardRow {
   sourceCite: string | null;
   formType: string;
   sheetState: string;
+  // Fase 16: el tipo de actividad (nulo en la tarjeta de siempre), lo propio de ese tipo (JSON), el
+  // ejemplo y el modo.
+  activityType: string | null;
+  activity: string | null;
+  example: string;
+  mode: string;
 }
 
 function asKind(value: string): 'qa' | 'cloze' {
@@ -77,6 +83,13 @@ function asKind(value: string): 'qa' | 'cloze' {
 
 function asSheetState(value: string): SheetState {
   return SHEET_STATES.find((state) => state === value) ?? 'reviewed';
+}
+
+const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
+type ActivityTypeName = (typeof ACTIVITY_TYPES)[number];
+
+function asActivityType(value: string | null): ActivityTypeName | null {
+  return ACTIVITY_TYPES.find((type) => type === value) ?? null;
 }
 
 function asFormType(value: string): FormType {
@@ -135,6 +148,7 @@ export function toCard(row: CardRow): Card {
     available: isAvailableOnly(row),
     topicId: row.topicId,
     topicName: row.topicName,
+    activityType: asActivityType(row.activityType),
   };
 }
 
@@ -174,6 +188,10 @@ export function selectCards(db: Writer) {
       sourceCite: cardVersions.sourceCite,
       formType: cardVersions.formType,
       sheetState: cardVersions.sheetState,
+      activityType: cardVersions.activityType,
+      activity: cardVersions.activity,
+      example: cardVersions.example,
+      mode: cardVersions.mode,
     })
     .from(cards)
     .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
@@ -205,7 +223,7 @@ export function hasHistoryOf(db: Writer, cardId: string): boolean {
       .where(
         and(
           eq(observations.cardId, cardId),
-          inArray(observations.kind, ['review.graded', 'schedule.adopted']),
+          inArray(observations.kind, ['review.graded', 'schedule.adopted', 'attempt.submitted']),
         ),
       )
       .get() !== undefined

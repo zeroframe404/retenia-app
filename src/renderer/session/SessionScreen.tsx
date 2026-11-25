@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ActivityOpening } from '../../preload/contract/activities';
 import type { CardDetail } from '../../preload/contract/cards';
 import { DRAFT_SAVE_MS, MAX_ANSWER_LENGTH, type SessionView } from '../../preload/contract/study';
 import { texts } from '../../preload/contract/texts';
@@ -6,11 +7,16 @@ import { CardFace } from '../cards/CardFace';
 import { CardPath } from '../cards/CardPath';
 import { SheetForm } from '../cards/SheetForm';
 import { Autosaver } from '../notes/editor/autosave';
+import { ConfirmSolution, HelpPanel } from '../practice/HelpPanel';
+import practiceStyles from '../practice/Practice.module.css';
+import { useHelp } from '../practice/useHelp';
+import { landOnReviews } from '../progress/landing';
 import { Boton } from '../ui/Boton';
 import { Dialog } from '../ui/Frame';
 import { type DraftState, IndicadorBorrador, RotuloModo } from '../ui/Labels';
 import { MenuAcciones } from '../ui/Menu';
 import { BannerEstado } from '../ui/Process';
+import { BarraAyuda } from '../ui/Session';
 import { sessionKeyAction } from './keys';
 import styles from './Session.module.css';
 import { SessionClosing } from './SessionClosing';
@@ -64,6 +70,7 @@ export function SessionScreen({
   const inFlight = useRef(false);
   const interacted = useRef(false);
   const question = useRef<HTMLElement>(null);
+  const answerField = useRef<HTMLTextAreaElement>(null);
   const answer = useRef<HTMLElement>(null);
   const current = view.current;
   // Si la tarjeta salió de un material, después de mostrar la respuesta se puede ver el original
@@ -72,6 +79,39 @@ export function SessionScreen({
   // «El origen cambió»: el texto del material se corrigió y esta tarjeta no se actualizó.
   const [sourceChanged, setSourceChanged] = useState(false);
   const cardId = current?.cardId ?? null;
+  // La barra de ayuda (Fase 16, H-32): cada tarjeta que aparece abre su apertura, y la ayuda que se
+  // usa viaja con la calificación. La solución vista (A4) es «Mostrar respuesta».
+  const [opening, setOpening] = useState<ActivityOpening | null>(null);
+  const showAnswerRef = useRef<() => void>(() => undefined);
+  const help = useHelp({
+    cardId,
+    openingId: attempt.attemptId,
+    opening,
+    attemptNo: 1,
+    onSolution: () => showAnswerRef.current(),
+    focusAnswer: () => answerField.current?.focus(),
+  });
+  const resetHelp = help.reset;
+  useEffect(() => {
+    setOpening(null);
+    resetHelp(null);
+    if (cardId === null) {
+      return;
+    }
+    let alive = true;
+    window.retenia['activities.start']({ cardId, openingId: attempt.attemptId })
+      .then((opened) => {
+        if (alive) {
+          setOpening(opened);
+          // Una sesión retomada con algo escrito ya tiene el intento empezado.
+          resetHelp(opened, latest.current.text.trim() !== '');
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [cardId, attempt.attemptId, resetHelp]);
   useEffect(() => {
     setCitedMaterial(null);
     setSourceChanged(false);
@@ -200,6 +240,7 @@ export function SessionScreen({
     autosaver.touch();
     void autosaver.flush();
   }, [answerShown, autosaver, current, mark]);
+  showAnswerRef.current = showAnswer;
 
   // Después de mostrarla, el foco pasa a la respuesta: los números califican y Espacio no aprieta
   // ningún botón.
@@ -221,10 +262,12 @@ export function SessionScreen({
           attemptId: attempt.attemptId,
           grade: value,
           answer: text.trim() === '' ? null : text,
+          help: help.used,
+          noIdea: help.noIdea,
         }),
       );
     },
-    [answerShown, attempt.attemptId, current, run, sessionId, text],
+    [answerShown, attempt.attemptId, current, run, sessionId, text, help.used, help.noIdea],
   );
 
   const undo = useCallback(() => {
@@ -264,6 +307,7 @@ export function SessionScreen({
       }),
     ).then((done) => {
       if (done) {
+        landOnReviews();
         onToast(texts.study.flagged);
       }
     });
@@ -287,6 +331,12 @@ export function SessionScreen({
     if (current && !interacted.current) {
       interacted.current = true;
       mark(current.activityId, 'firstInteraction');
+    }
+  };
+  // Escribir algo empieza el intento: se prende «Pista» (CA-135).
+  const startAttempt = () => {
+    if (!help.started) {
+      help.start();
     }
   };
 
@@ -349,7 +399,7 @@ export function SessionScreen({
     <main className={styles.session} aria-label={texts.study.title}>
       <h1 className="visually-hidden">{texts.study.title}</h1>
       <div className={styles.bar}>
-        <RotuloModo mode="autonomous" />
+        <RotuloModo mode={help.label} />
         <span
           className={styles.progress}
           role="status"
@@ -384,111 +434,145 @@ export function SessionScreen({
           </Boton>
         </div>
       </div>
-      <div className={styles.main}>
-        {shortcuts ? (
-          <div className={styles.shortcuts}>
-            <p>{texts.study.shortcuts}</p>
-            <Boton
-              variant="quiet"
-              onClick={() => {
-                setShortcuts(false);
-                window.retenia['study.dismissShortcuts']({}).catch(() => undefined);
-              }}
-            >
-              {texts.study.shortcutsOk}
-            </Boton>
-          </div>
-        ) : null}
-        {current ? (
-          <>
-            <section
-              ref={question}
-              tabIndex={-1}
-              className={styles.question}
-              aria-label={texts.study.questionLabel}
-            >
-              <CardPath card={current.card} />
-              <div className={styles.prompt}>
-                <CardFace content={current.card.questionContent} />
-              </div>
-            </section>
-            {answerShown ? (
-              <section
-                ref={answer}
-                tabIndex={-1}
-                className={styles.answer}
-                aria-label={texts.study.referenceAnswer}
+      <div className={practiceStyles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
+        <div className={styles.main}>
+          {shortcuts ? (
+            <div className={styles.shortcuts}>
+              <p>{texts.study.shortcuts}</p>
+              <Boton
+                variant="quiet"
+                onClick={() => {
+                  setShortcuts(false);
+                  window.retenia['study.dismissShortcuts']({}).catch(() => undefined);
+                }}
               >
-                <div className={styles.compare} data-compare={text.trim() === '' ? 'one' : 'two'}>
-                  {text.trim() === '' ? null : (
-                    <div className={styles.side}>
-                      <h2 className={styles.sideTitle}>{texts.study.yourAnswer}</h2>
-                      <p className={styles.written}>{text}</p>
-                    </div>
-                  )}
-                  <div className={styles.side}>
-                    <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
-                    <CardFace content={current.card.answerContent} />
-                    {sourceChanged ? (
-                      <p className={styles.sourceChanged} role="note">
-                        {texts.materials.sourceChanged}
-                      </p>
-                    ) : null}
-                    {citedMaterial && onOpenOriginal ? (
-                      <Boton
-                        variant="quiet"
-                        onClick={() =>
-                          onOpenOriginal({ materialId: citedMaterial, cardId: current.cardId })
-                        }
-                      >
-                        {texts.materials.viewOriginal}
-                      </Boton>
-                    ) : null}
-                  </div>
+                {texts.study.shortcutsOk}
+              </Boton>
+            </div>
+          ) : null}
+          {current ? (
+            <>
+              <section
+                ref={question}
+                tabIndex={-1}
+                className={styles.question}
+                aria-label={texts.study.questionLabel}
+              >
+                <CardPath card={current.card} />
+                <div className={styles.prompt}>
+                  <CardFace content={current.card.questionContent} />
                 </div>
-                <fieldset className={styles.grades}>
-                  <legend className={styles.legend}>{texts.cards.gradeGroup}</legend>
-                  <div className={styles.gradeButtons}>
-                    {GRADES.map(({ grade: value, label }) => (
-                      <Boton key={value} disabled={busy} onClick={() => grade(value)}>
-                        {label}
-                      </Boton>
-                    ))}
-                  </div>
-                </fieldset>
               </section>
-            ) : (
-              <div className={styles.attempt}>
-                <label className={styles.field}>
-                  <span className="visually-hidden">{texts.study.answerLabel}</span>
-                  <textarea
-                    className={styles.textarea}
-                    placeholder={texts.study.answerPlaceholder}
-                    value={text}
-                    rows={3}
-                    maxLength={MAX_ANSWER_LENGTH}
-                    onFocus={firstInteraction}
-                    onChange={(event) => {
+              {answerShown ? (
+                <section
+                  ref={answer}
+                  tabIndex={-1}
+                  className={styles.answer}
+                  aria-label={texts.study.referenceAnswer}
+                >
+                  <div className={styles.compare} data-compare={text.trim() === '' ? 'one' : 'two'}>
+                    {text.trim() === '' ? null : (
+                      <div className={styles.side}>
+                        <h2 className={styles.sideTitle}>{texts.study.yourAnswer}</h2>
+                        <p className={styles.written}>{text}</p>
+                      </div>
+                    )}
+                    <div className={styles.side}>
+                      <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
+                      <CardFace content={current.card.answerContent} />
+                      {sourceChanged ? (
+                        <p className={styles.sourceChanged} role="note">
+                          {texts.materials.sourceChanged}
+                        </p>
+                      ) : null}
+                      {citedMaterial && onOpenOriginal ? (
+                        <Boton
+                          variant="quiet"
+                          onClick={() =>
+                            onOpenOriginal({ materialId: citedMaterial, cardId: current.cardId })
+                          }
+                        >
+                          {texts.materials.viewOriginal}
+                        </Boton>
+                      ) : null}
+                    </div>
+                  </div>
+                  <fieldset className={styles.grades}>
+                    <legend className={styles.legend}>{texts.cards.gradeGroup}</legend>
+                    <div className={styles.gradeButtons}>
+                      {GRADES.map(({ grade: value, label }) => (
+                        <Boton key={value} disabled={busy} onClick={() => grade(value)}>
+                          {label}
+                        </Boton>
+                      ))}
+                    </div>
+                  </fieldset>
+                </section>
+              ) : (
+                <div className={styles.attempt}>
+                  <label className={styles.field}>
+                    <span className="visually-hidden">{texts.study.answerLabel}</span>
+                    <textarea
+                      ref={answerField}
+                      className={styles.textarea}
+                      placeholder={texts.study.answerPlaceholder}
+                      value={text}
+                      rows={3}
+                      maxLength={MAX_ANSWER_LENGTH}
+                      onFocus={firstInteraction}
+                      onChange={(event) => {
+                        firstInteraction();
+                        if (event.target.value.trim() !== '') {
+                          startAttempt();
+                        }
+                        setText(event.target.value);
+                        latest.current = { ...latest.current, text: event.target.value };
+                        autosaver.touch();
+                      }}
+                      onBlur={() => void autosaver.flush()}
+                    />
+                  </label>
+                  <BarraAyuda
+                    tutor={false}
+                    noIdea={help.availability.noIdea}
+                    hintDisabled={!help.availability.hint}
+                    exampleDisabled={!help.availability.example}
+                    sourceDisabled={!help.availability.source}
+                    example={help.offers.example}
+                    source={help.offers.source}
+                    onHint={help.hint}
+                    onExample={help.example}
+                    onSource={help.source}
+                    onNoIdea={() => {
                       firstInteraction();
-                      setText(event.target.value);
-                      latest.current = { ...latest.current, text: event.target.value };
-                      autosaver.touch();
+                      help.chooseNoIdea();
                     }}
-                    onBlur={() => void autosaver.flush()}
                   />
-                </label>
-                <div className={styles.attemptFooter}>
-                  {draft ? <IndicadorBorrador state={draft} /> : <span />}
-                  <Boton variant="primary" disabled={busy} onClick={showAnswer}>
-                    {texts.cards.showAnswer}
-                  </Boton>
+                  {help.problem === '' ? null : (
+                    <BannerEstado tone="attention">{help.problem}</BannerEstado>
+                  )}
+                  <div className={styles.attemptFooter}>
+                    {draft ? <IndicadorBorrador state={draft} /> : <span />}
+                    <Boton variant="primary" disabled={busy} onClick={showAnswer}>
+                      {texts.cards.showAnswer}
+                    </Boton>
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
-        ) : null}
-        {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
+              )}
+            </>
+          ) : null}
+          {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
+        </div>
+        <HelpPanel
+          help={help}
+          onOpenOriginal={
+            onOpenOriginal && current
+              ? (materialId) => onOpenOriginal({ materialId, cardId: current.cardId })
+              : undefined
+          }
+        />
       </div>
+      <ConfirmSolution help={help} />
       {editing ? (
         <Dialog title={texts.study.editTitle} placement="side" onClose={closeEditor}>
           <SheetForm card={editing} onSaved={closeEditor} onCancel={closeEditor} />

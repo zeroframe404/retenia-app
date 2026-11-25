@@ -83,16 +83,20 @@ const VERDICTS: Record<
 // Una nota «Provisional» (la corrección de la IA hasta que se resuelve) lleva trazo punteado.
 export function Resultado({
   verdict,
+  label,
   review,
   action,
   provisional = false,
 }: {
   verdict: Verdict;
-  review: string;
+  // Otro texto para el veredicto con el mismo tono (Fase 16: «Logrado con pista de concepto»).
+  label?: string | undefined;
+  review: ReactNode;
   action?: ReactNode;
   provisional?: boolean;
 }) {
-  const { text, icon, tone } = VERDICTS[verdict];
+  const { text: defaultText, icon, tone } = VERDICTS[verdict];
+  const text = label ?? defaultText;
   return (
     <section
       className={styles.result}

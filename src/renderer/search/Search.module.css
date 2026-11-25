@@ -144,3 +144,11 @@
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Fase 16: «Practicar ahora» para el resultado marcado. */
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--espacio-8);
+  border-top: var(--trazo-lleno) var(--color-linea);
+}

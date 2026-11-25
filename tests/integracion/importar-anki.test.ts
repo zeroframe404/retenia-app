@@ -117,7 +117,8 @@ describe('mazo-demo.apkg', () => {
   it('[CA-126] «Importar» hace primero la copia «Antes de importar», con la base de antes', async () => {
     const space = openSpace({ withCast: true });
     const transfers = openTransfers(space);
-    const cardsBefore = space.workspace.cards.count();
+    // Las filas de la tabla de tarjetas: desde la Fase 16 también están los 5 ejercicios del elenco.
+    const cardsBefore = Number(readRows(space.file, 'SELECT count(*) AS n FROM cards')[0]?.n);
     const preview = await previewOf(transfers, 'anki', sample('mazo-demo.apkg'));
     const result = await transfers.run({
       previewId: preview.previewId,

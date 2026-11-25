@@ -41,7 +41,7 @@ async function openCard(user: User, question: string) {
 
 async function gradeFromDetail(user: User, question: string, grade: string) {
   await openCard(user, question);
-  await user.click(screen.getByRole('button', { name: 'Repasar' }));
+  await user.click(screen.getByRole('button', { name: 'Practicar ahora' }));
   await user.click(await screen.findByRole('button', { name: 'Mostrar respuesta' }));
   await user.click(screen.getByRole('button', { name: grade }));
 }
@@ -172,7 +172,7 @@ describe('«¿Por qué hoy?»', () => {
     ]);
     open();
     await openCard(user, '¿Capital de Francia?');
-    await user.click(screen.getByRole('button', { name: 'Repasar' }));
+    await user.click(screen.getByRole('button', { name: 'Practicar ahora' }));
     await user.click(await screen.findByRole('button', { name: '¿Por qué hoy?' }));
     expect(
       await screen.findByText(

@@ -352,7 +352,11 @@
             {
               "q": "¿Qué significa el 95 % en un intervalo de confianza del 95 %?",
               "p": "fallos",
-              "a": "Que, si repitiéramos el muestreo muchas veces, cerca del 95 % de los intervalos construidos así contendría el valor verdadero del parámetro."
+              "a": "Que, si repitiéramos el muestreo muchas veces, cerca del 95 % de los intervalos construidos así contendría el valor verdadero del parámetro.",
+              "cita": {
+                "pagina": 6,
+                "texto": "El 95 % habla del procedimiento: si repitiéramos el muestreo muchas veces y armáramos un intervalo con cada muestra, cerca del 95 % de esos intervalos contendría la media verdadera."
+              }
             },
             {
               "q": "¿Qué es un intervalo de confianza?",
@@ -986,6 +990,153 @@
           ]
         }
       ]
+    }
+  ],
+  "ejercicios": [
+    {
+      "materia": "Estadística básica",
+      "tema": "Intervalos de confianza",
+      "pregunta": "Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?",
+      "actividad": {
+        "type": "open",
+        "units": [
+          {
+            "id": "idea-1",
+            "text": "El 95 % habla del procedimiento, no de este intervalo en particular."
+          },
+          {
+            "id": "idea-2",
+            "text": "Si se repitiera el muestreo muchas veces, cerca del 95 % de los intervalos contendría la media."
+          },
+          {
+            "id": "idea-3",
+            "text": "No es la probabilidad de que la media esté en [4,2; 5,8]."
+          }
+        ]
+      },
+      "pistas": [
+        "¿El 95 % habla de este intervalo o de la forma de construirlo?",
+        "Un intervalo de confianza sale de un procedimiento que se puede repetir con otras muestras.",
+        "Imaginá 100 muestras, cada una con su intervalo: ¿cuántos contendrían la media?"
+      ],
+      "ejemplo": "Si una encuesta dice “52 % ± 3 % con 95 % de confianza”, el método acierta en 95 de cada 100 encuestas; no hay un 95 % de probabilidad de que el valor esté entre 49 % y 55 %.",
+      "explicacion": "El 95 % describe al método: con muchas muestras, cerca de 95 de cada 100 intervalos armados así contienen la media verdadera. Este intervalo en particular la contiene o no la contiene.",
+      "cita": {
+        "pagina": 6,
+        "texto": "El 95 % habla del procedimiento: si repitiéramos el muestreo muchas veces y armáramos un intervalo con cada muestra, cerca del 95 % de esos intervalos contendría la media verdadera."
+      }
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "La media de 2, 4 y 9",
+      "actividad": {
+        "type": "numeric",
+        "value": 5,
+        "tolerance": 0.05,
+        "unit": null
+      },
+      "pistas": [
+        "¿Qué operación hacés con todos los datos?",
+        "La media es la suma de los datos dividida por cuántos son.",
+        "Sumá: 2 + 4 + 9 = 15. ¿Por cuánto dividís?"
+      ],
+      "ejemplo": "La media de 1, 2 y 6 es (1 + 2 + 6) ÷ 3 = 3.",
+      "explicacion": "La media es la suma de los datos dividida por la cantidad: (2 + 4 + 9) ÷ 3 = 15 ÷ 3 = 5."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": null,
+      "pregunta": "Capital de Francia",
+      "respuesta": "París",
+      "actividad": {
+        "type": "short"
+      },
+      "pistas": [
+        "¿Qué ciudad es la sede del gobierno francés?",
+        "Es la ciudad de la Torre Eiffel.",
+        "Empieza con P y tiene 5 letras."
+      ],
+      "ejemplo": "La capital de Italia es Roma.",
+      "explicacion": "París es la capital de Francia."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "¿Qué medida de centro cambia menos si aparece un valor extremo?",
+      "actividad": {
+        "type": "options",
+        "options": [
+          {
+            "id": "mediana",
+            "text": "La mediana",
+            "correct": true,
+            "explanation": ""
+          },
+          {
+            "id": "media",
+            "text": "La media",
+            "correct": false,
+            "explanation": "La media usa todos los valores: un valor extremo la arrastra."
+          },
+          {
+            "id": "punto-medio",
+            "text": "El punto medio entre el mínimo y el máximo",
+            "correct": false,
+            "explanation": "Depende justo de los extremos: es la que más cambia."
+          }
+        ]
+      },
+      "pistas": [
+        "¿Qué pasa con cada medida si el dato más grande se vuelve enorme?",
+        "Pensá cuál depende del orden de los datos y no de su tamaño.",
+        "Ordená 1, 2, 3, 4 y 100 y mirá cuál queda en el centro."
+      ],
+      "ejemplo": "En 2, 3 y 100, la media es 35 y la mediana es 3.",
+      "explicacion": "La mediana solo depende del dato que queda en el centro, así que un valor extremo casi no la mueve."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Ordená los pasos para encontrar la mediana de 7, 3 y 5",
+      "actividad": {
+        "type": "order",
+        "steps": [
+          {
+            "id": "ordenar",
+            "text": "Ordenar los datos de menor a mayor"
+          },
+          {
+            "id": "contar",
+            "text": "Contar cuántos datos hay"
+          },
+          {
+            "id": "ubicar",
+            "text": "Ubicar la posición del medio"
+          },
+          {
+            "id": "leer",
+            "text": "Leer el dato de esa posición"
+          }
+        ],
+        "acceptedOrders": []
+      },
+      "pistas": [
+        "¿Qué tiene que pasar con los datos antes de buscar el del medio?",
+        "La mediana es el dato que queda en el centro cuando están ordenados.",
+        "Empezá por ordenarlos: 3, 5, 7."
+      ],
+      "ejemplo": "Con 9, 1 y 4: ordenados son 1, 4 y 9; hay 3; el del medio es el segundo: 4.",
+      "explicacion": "Primero se ordenan los datos (3, 5, 7), se cuenta cuántos hay (3), se ubica la posición del medio (la segunda) y se lee ese dato: 5."
+    }
+  ],
+  "objetivos": [
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "texto": "Calcular la media y el desvío",
+      "tipo": "apply",
+      "actividades": ["La media de 2, 4 y 9"]
     }
   ]
 }

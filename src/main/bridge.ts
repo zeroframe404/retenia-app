@@ -17,6 +17,7 @@ import {
 import type { Backup } from '../preload/contract/backups';
 import type { fileChannels } from '../preload/contract/materials';
 import { formatShortDate, texts } from '../preload/contract/texts';
+import { createActivityTimer } from './activity-timer';
 import { createAppearanceStore } from './appearance';
 import type { Dialogs } from './imports/dialogs';
 import { createTransfersService, type TransfersService } from './imports/service';
@@ -103,6 +104,7 @@ export function createHandlers({
     });
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, () => workspace.study.inactivityCapMs());
+  const activityTimer = createActivityTimer(clock, stopwatch);
   const ok = { ok: true } as const;
   return {
     ping: async () => ({ message: 'pong', variant, today: studyDayOf(clock.now()) }),
@@ -123,6 +125,31 @@ export function createHandlers({
     'cards.undoReview': async (request) => workspace.cards.undoReview(request),
     'cards.whyToday': async (request) => workspace.cards.whyToday(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
+    'activities.start': async (request) => {
+      activityTimer.open(request.openingId);
+      return workspace.activities.start(request);
+    },
+    'activities.help': async (request) => {
+      const response = workspace.activities.help(request);
+      return response.kind === 'help'
+        ? { ...response, use: { ...response.use, atMs: activityTimer.elapsed(request.openingId) } }
+        : response;
+    },
+    'activities.mark': async ({ openingId }) => {
+      activityTimer.firstInput(openingId);
+      return ok;
+    },
+    'activities.submit': async (request) =>
+      workspace.activities.submit({ ...request, ...activityTimer.submitted(request.openingId) }),
+    'activities.propose': async (request) => workspace.activities.propose(request),
+    'activities.finalize': async (request) => workspace.activities.finalize(request),
+    'activities.appeal': async (request) => workspace.activities.appeal(request),
+    'activities.undoAmendment': async (request) => workspace.activities.undoAmendment(request),
+    'activities.acknowledge': async (request) => {
+      workspace.activities.acknowledge(request);
+      return ok;
+    },
+    'activities.notices': async (request) => workspace.activities.notices(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
     'cards.activationCost': async (request) => workspace.cards.activationCost(request),
@@ -180,6 +207,42 @@ export function createHandlers({
       return ok;
     },
     'doubts.reviews': async () => workspace.doubts.reviews(),
+    'objectives.list': async (request) => workspace.objectives.list(request),
+    'objectives.create': async (request) => workspace.objectives.create(request),
+    'objectives.activities': async (request) => workspace.objectives.activities(request),
+    'objectives.link': async (request) => workspace.objectives.link(request),
+    'objectives.panel': async (request) => workspace.objectives.panel(request),
+    'objectives.requirements.add': async (request) => {
+      workspace.objectives.addRequirement(request);
+      return ok;
+    },
+    'objectives.requirements.confirm': async (request) => {
+      workspace.objectives.confirmRequirement(request);
+      return ok;
+    },
+    'objectives.requirements.dismiss': async (request) => {
+      workspace.objectives.dismissRequirement(request);
+      return ok;
+    },
+    'objectives.knowAlready': async (request) => {
+      workspace.objectives.knowAlready(request);
+      return ok;
+    },
+    'objectives.postpone': async (request) => {
+      workspace.objectives.postpone(request);
+      return ok;
+    },
+    'objectives.resume': async (request) => {
+      workspace.objectives.resume(request);
+      return ok;
+    },
+    'progress.errors': async (request) => workspace.progress.errors(request),
+    'progress.errors.setType': async (request) => {
+      workspace.progress.setErrorType(request);
+      return ok;
+    },
+    'progress.improveCard.list': async (request) => workspace.progress.improveCards(request),
+    'progress.improveCard.split': async (request) => workspace.progress.split(request),
     'subjects.list': async () => workspace.subjects.list(),
     'subjects.create': async (request) => workspace.subjects.create(request),
     'subjects.activate': async (request) => workspace.subjects.activate(request),

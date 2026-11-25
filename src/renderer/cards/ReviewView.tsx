@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ActivityOpening } from '../../preload/contract/activities';
 import type { Card } from '../../preload/contract/cards';
 import type { InlineNode } from '../../preload/contract/notes';
 import { formatLongDate, texts } from '../../preload/contract/texts';
+import { ConfirmSolution, HelpPanel } from '../practice/HelpPanel';
+import { TextAnswer } from '../practice/inputs';
+import practiceStyles from '../practice/Practice.module.css';
+import { useHelp } from '../practice/useHelp';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Content.module.css';
 import { ScreenFrame } from '../ui/Frame';
+import { RotuloModo } from '../ui/Labels';
 import { BannerEstado } from '../ui/Process';
+import { BarraAyuda } from '../ui/Session';
 import { CardFace } from './CardFace';
 import { WhyToday } from './WhyToday';
 
@@ -21,16 +28,55 @@ const GRADES: { grade: Grade; label: string }[] = [
 // Al calificar los botones se deshabilitan para que un doble toque no cuente dos repasos.
 // «Deshacer» (Fase 09) anula el repaso recién hecho: la tarjeta vuelve a la pregunta sin calificar
 // y su próximo repaso es otra vez el de antes; volver a calificarla es otro intento.
+// Fase 16 («Practicar ahora»): arriba el rótulo; antes de mostrar la respuesta, «Tu respuesta…» y la
+// barra de ayuda, con «Pista» apagada hasta escribir algo o tocar «No sé por dónde empezar». La
+// ayuda se abre en el panel de la derecha y viaja con la calificación.
 export function ReviewView({
   card,
   onReviewed,
   onClose,
+  onOpenOriginal,
 }: {
   card: Card;
   onReviewed: (card: Card) => void;
   onClose: () => void;
+  onOpenOriginal?: ((materialId: string) => void) | undefined;
 }) {
   const [step, setStep] = useState<'question' | 'answer' | 'done'>('question');
+  const [written, setWritten] = useState('');
+  const [openingId, setOpeningId] = useState(() => crypto.randomUUID());
+  const [opening, setOpening] = useState<ActivityOpening | null>(null);
+  const answerField = useRef<HTMLTextAreaElement>(null);
+  const help = useHelp({
+    cardId: card.id,
+    openingId,
+    opening,
+    attemptNo: 1,
+    onSolution: () => setStep('answer'),
+    focusAnswer: () => answerField.current?.focus(),
+  });
+  const resetHelp = help.reset;
+  useEffect(() => {
+    let current = true;
+    window.retenia['activities.start']({ cardId: card.id, openingId }).then(
+      (opened) => {
+        if (current) {
+          setOpening(opened);
+          resetHelp(opened);
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [card.id, openingId, resetHelp]);
+  const startAttempt = () => {
+    if (!help.started) {
+      help.start();
+      window.retenia['activities.mark']({ openingId }).catch(() => undefined);
+    }
+  };
   // La pregunta y la respuesta con sus fórmulas e imágenes (CA-377 y CA-378): mientras se leen o si
   // no se pueden leer, se ve el texto.
   const [faces, setFaces] = useState<{ question: InlineNode[]; answer: InlineNode[] }>({
@@ -74,6 +120,8 @@ export function ReviewView({
         cardId: card.id,
         grade: value,
         attemptId,
+        help: help.used,
+        noIdea: help.noIdea,
       });
       setResult(reviewed);
       setStep('done');
@@ -101,6 +149,8 @@ export function ReviewView({
       );
       setResult(null);
       setAttemptId(crypto.randomUUID());
+      setOpeningId(crypto.randomUUID());
+      setWritten('');
       setStep('question');
       inFlight.current = false;
       onReviewed(restored);
@@ -113,64 +163,100 @@ export function ReviewView({
 
   return (
     <ScreenFrame level={3} title={texts.cards.reviewTitle}>
-      <div className={styles.stack}>
-        {notice === '' ? null : (
-          <p role="status" className={styles.highlight}>
-            {notice}
-          </p>
-        )}
-        <div className={styles.block}>
-          <CardFace content={faces.question} />
-        </div>
-        {step === 'question' ? (
-          <div className={styles.actions}>
-            <Boton variant="primary" onClick={() => setStep('answer')}>
-              {texts.cards.showAnswer}
-            </Boton>
+      <div className={practiceStyles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
+        <div className={styles.stack}>
+          <div className={practiceStyles.bar}>
+            <RotuloModo mode={help.label} />
           </div>
-        ) : (
-          <div className={styles.block}>
-            <CardFace content={faces.answer} />
-          </div>
-        )}
-        {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
-        {step === 'answer' ? (
-          <fieldset className={styles.group}>
-            <legend>{texts.cards.gradeGroup}</legend>
-            <div className={styles.actions}>
-              {GRADES.map(({ grade: value, label }) => (
-                <Boton key={value} disabled={saving} onClick={() => grade(value)}>
-                  {label}
-                </Boton>
-              ))}
-            </div>
-          </fieldset>
-        ) : null}
-        {step === 'done' && result?.nextReviewDay ? (
-          <>
+          {notice === '' ? null : (
             <p role="status" className={styles.highlight}>
-              {texts.cards.nextReview(formatLongDate(result.nextReviewDay))}
+              {notice}
             </p>
-            <div className={styles.actions}>
-              <Boton variant="primary" onClick={onClose}>
-                {texts.cards.backToCards}
-              </Boton>
-              <Boton disabled={saving} onClick={() => void undo()}>
-                {texts.cards.undoReview}
-              </Boton>
+          )}
+          <div className={styles.block}>
+            <CardFace content={faces.question} />
+          </div>
+          {step === 'question' ? (
+            <>
+              <TextAnswer
+                inputRef={answerField}
+                value={written}
+                rows={3}
+                readOnly={false}
+                onChange={(value) => {
+                  startAttempt();
+                  setWritten(value);
+                }}
+              />
+              <BarraAyuda
+                tutor={false}
+                noIdea={help.availability.noIdea}
+                hintDisabled={!help.availability.hint}
+                exampleDisabled={!help.availability.example}
+                sourceDisabled={!help.availability.source}
+                onHint={help.hint}
+                onExample={help.example}
+                onSource={help.source}
+                onNoIdea={() => {
+                  startAttempt();
+                  help.chooseNoIdea();
+                }}
+              />
+              {help.problem === '' ? null : (
+                <BannerEstado tone="attention">{help.problem}</BannerEstado>
+              )}
+              <div className={styles.actions}>
+                <Boton variant="primary" onClick={() => setStep('answer')}>
+                  {texts.cards.showAnswer}
+                </Boton>
+              </div>
+            </>
+          ) : (
+            <div className={styles.block}>
+              <CardFace content={faces.answer} />
             </div>
-          </>
-        ) : (
-          <>
-            <WhyToday key={attemptId} cardId={card.id} />
-            <div className={styles.actions}>
-              <Boton variant="quiet" onClick={onClose}>
-                {texts.cards.backToCards}
-              </Boton>
-            </div>
-          </>
-        )}
+          )}
+          {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
+          {step === 'answer' ? (
+            <fieldset className={styles.group}>
+              <legend>{texts.cards.gradeGroup}</legend>
+              <div className={styles.actions}>
+                {GRADES.map(({ grade: value, label }) => (
+                  <Boton key={value} disabled={saving} onClick={() => grade(value)}>
+                    {label}
+                  </Boton>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
+          {step === 'done' && result?.nextReviewDay ? (
+            <>
+              <p role="status" className={styles.highlight}>
+                {texts.cards.nextReview(formatLongDate(result.nextReviewDay))}
+              </p>
+              <div className={styles.actions}>
+                <Boton variant="primary" onClick={onClose}>
+                  {texts.cards.backToCards}
+                </Boton>
+                <Boton disabled={saving} onClick={() => void undo()}>
+                  {texts.cards.undoReview}
+                </Boton>
+              </div>
+            </>
+          ) : (
+            <>
+              <WhyToday key={attemptId} cardId={card.id} />
+              <div className={styles.actions}>
+                <Boton variant="quiet" onClick={onClose}>
+                  {texts.cards.backToCards}
+                </Boton>
+              </div>
+            </>
+          )}
+        </div>
+        <HelpPanel help={help} onOpenOriginal={onOpenOriginal} />
       </div>
+      <ConfirmSolution help={help} />
     </ScreenFrame>
   );
 }

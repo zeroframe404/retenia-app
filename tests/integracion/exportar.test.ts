@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -250,6 +251,54 @@ describe('Importar exportación', () => {
     for (const sha of files) {
       expect(existsSync(join(target.dataDir, 'imagenes', sha))).toBe(true);
     }
+  });
+
+  it('[CA-128] los ejercicios, sus intentos y sus correcciones viajan y quedan iguales, con 0 diferencias', async () => {
+    const origin = openSpace();
+    const card = origin.workspace.cards.create({
+      question: 'Capital de Francia',
+      answer: 'París',
+      activity: { type: 'short' },
+      sheet: { hints: ['Una pista'] },
+      example: 'La capital de Italia es Roma.',
+    });
+    const openingId = randomUUID();
+    origin.workspace.activities.start({ cardId: card.id, openingId });
+    const sent = origin.workspace.activities.submit({
+      cardId: card.id,
+      openingId,
+      attemptId: randomUUID(),
+      attemptNo: 1,
+      answer: { type: 'short', text: 'Ciudad de París' },
+      help: [{ kind: 'hint', level: 'A1', index: 0, atMs: 1000 }],
+      noIdea: false,
+      shownAt: origin.clock.now().toISOString(),
+      firstInputMs: 500,
+      submittedMs: 4000,
+    });
+    origin.workspace.activities.appeal({
+      attemptId: sent.attemptId,
+      reason: 'answer_correct',
+      verdict: 'incorrect',
+    });
+    const exported = await openTransfers(origin).exportAll({
+      file: join(outsideFolder(), 'R.zip'),
+    });
+    const target = openSpace();
+    const transfers = openTransfers(target);
+    const preview = await transfers.previewExport({ path: exported.file });
+    if (preview.outcome !== 'preview') {
+      throw new Error(preview.problem);
+    }
+    await transfers.loadExport({ previewId: preview.previewId });
+    for (const table of ['observations', 'evaluations', 'card_versions']) {
+      const sql = `SELECT * FROM ${table} ORDER BY id`;
+      expect(readRows(target.file, sql)).toEqual(readRows(origin.file, sql));
+    }
+    expect(target.workspace.cards.history({ cardId: card.id })).toEqual(
+      origin.workspace.cards.history({ cardId: card.id }),
+    );
+    expect(target.workspace.verifyData()).toEqual([]);
   });
 
   it('[CA-128] en un Retenia con datos se niega y no toca nada', async () => {

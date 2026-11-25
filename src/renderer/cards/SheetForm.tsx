@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   type CardDetail,
   type CardSheetInput,
@@ -8,6 +8,8 @@ import {
   MAX_HINTS,
 } from '../../preload/contract/cards';
 import { texts } from '../../preload/contract/texts';
+import { ActivityEditor, activityOf, answerOf, draftOf } from '../practice/ActivityEditor';
+import type { ReferenceField } from '../practice/ExerciseView';
 import { Boton } from '../ui/Boton';
 import styles from '../ui/Form.module.css';
 import { Dialog } from '../ui/Frame';
@@ -50,17 +52,93 @@ function MeaningDialog({
 // «Editar ficha» (CA-053): la pregunta y la respuesta (que, si la tarjeta nació en una nota, se
 // editan en la nota), la respuesta de referencia, las variantes aceptables, hasta 4 componentes
 // esenciales, hasta 3 pistas ordenadas, la explicación, la fuente, el tipo de forma y el estado.
+// Fase 16: el tipo de actividad con su editor, el ejemplo de «Ver un ejemplo» y el modo (práctica
+// o evaluación). Sin tarjeta (`create`) es «Nuevo ejercicio»: guardar la crea.
+const BLANK: CardDetail = {
+  id: '00000000-0000-7000-8000-000000000000',
+  question: '',
+  answer: '',
+  nextReviewDay: null,
+  kind: 'qa',
+  sheetState: 'reviewed',
+  paused: false,
+  available: false,
+  topicId: null,
+  topicName: null,
+  activityType: 'short',
+  questionContent: [],
+  answerContent: [],
+  sheet: {
+    referenceAnswer: '',
+    variants: [],
+    essentials: [],
+    hints: [],
+    explanation: '',
+    source: '',
+    formType: 'exact',
+    state: 'reviewed',
+  },
+  path: {
+    subjectName: null,
+    topicName: null,
+    noteTitle: null,
+    noteId: null,
+    blockId: null,
+    canOpenNote: false,
+  },
+  siblingGroupId: null,
+  inverseOfCardId: null,
+  hasInverse: false,
+  linked: false,
+  detached: false,
+  hasHistory: false,
+  cite: null,
+  activity: { type: 'short' },
+  example: '',
+  mode: 'practice',
+  pendingCheck: false,
+};
+
 export function SheetForm({
-  card,
+  card: given,
+  create,
   onSaved,
   onCancel,
+  focusField,
+  improve,
 }: {
-  card: CardDetail;
+  card?: CardDetail | undefined;
+  create?: { subjectId: string | null } | undefined;
   onSaved: (card: CardDetail) => void;
   onCancel: () => void;
+  // La parte de la referencia a corregir: se abre con el foco ahí.
+  focusField?: ReferenceField | undefined;
+  // Fase 17: viene de «Mejorar la tarjeta»; con «Agregar una pista» se abre con el foco en la primera
+  // pista vacía.
+  improve?: 'rephrase' | 'hint' | undefined;
 }) {
   const ids = useId();
+  const variantsField = useRef<HTMLTextAreaElement>(null);
+  const hintsField = useRef<HTMLFieldSetElement>(null);
+  useEffect(() => {
+    if (focusField === 'variants') {
+      variantsField.current?.focus();
+    }
+  }, [focusField]);
+  useEffect(() => {
+    if (improve === 'hint') {
+      const inputs = [...(hintsField.current?.querySelectorAll('input') ?? [])];
+      (inputs.find((input) => input.value === '') ?? inputs[0])?.focus();
+    }
+  }, [improve]);
+  const card = given ?? BLANK;
   const sheet = card.sheet;
+  const [draft, setDraft] = useState(() => draftOf(card.activity));
+  const [example, setExample] = useState(card.example);
+  const [mode, setMode] = useState(card.mode);
+  const [activityProblem, setActivityProblem] = useState('');
+  // En los ejercicios que no son de respuesta corta, la respuesta sale de la actividad.
+  const derivedAnswer = draft.type !== 'card' && draft.type !== 'short';
   const [question, setQuestion] = useState(card.question);
   const [answer, setAnswer] = useState(card.answer);
   const [referenceAnswer, setReferenceAnswer] = useState(sheet.referenceAnswer);
@@ -83,14 +161,30 @@ export function SheetForm({
   const questionField = useRef<HTMLTextAreaElement>(null);
   const answerField = useRef<HTMLTextAreaElement>(null);
 
-  const textChanged = question.trim() !== card.question || answer.trim() !== card.answer;
+  function finalAnswer(): string {
+    if (!derivedAnswer) {
+      return answer.trim();
+    }
+    const built = activityOf(draft);
+    return 'activity' in built && built.activity !== null
+      ? (answerOf(built.activity) ?? answer.trim())
+      : answer.trim();
+  }
+
+  const textChanged = question.trim() !== card.question || finalAnswer() !== card.answer;
 
   function validate(): boolean {
+    const built = activityOf(draft);
+    if ('problem' in built) {
+      setActivityProblem(texts.practice.editor.problems[built.problem]);
+      return false;
+    }
+    setActivityProblem('');
     // El texto de una tarjeta que nació en una nota se edita en la nota: acá no se toca.
     if (card.linked) {
       return true;
     }
-    const parsed = cardsCreateRequest.safeParse({ question, answer });
+    const parsed = cardsCreateRequest.safeParse({ question, answer: finalAnswer() });
     const found: { question?: string; answer?: string } = {};
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
@@ -138,14 +232,33 @@ export function SheetForm({
         ? {}
         : { state: STATES.find((option) => option === state) ?? 'reviewed' }),
     };
+    const built = activityOf(draft);
+    const activity = 'activity' in built ? built.activity : null;
     try {
+      if (create) {
+        const created = await window.retenia['cards.create']({
+          question: question.trim(),
+          answer: finalAnswer(),
+          subjectId: create.subjectId,
+          activity,
+          sheet: input,
+          example,
+          mode,
+        });
+        onSaved(await window.retenia['cards.get']({ cardId: created.id }));
+        return;
+      }
       onSaved(
         await window.retenia['cards.edit']({
           cardId: card.id,
           question: question.trim(),
-          answer: answer.trim(),
+          answer: finalAnswer(),
           sheet: input,
+          activity,
+          example,
+          mode,
           ...(meaningChanged === undefined ? {} : { meaningChanged }),
+          ...(improve === undefined ? {} : { improve }),
         }),
       );
     } catch {
@@ -162,7 +275,7 @@ export function SheetForm({
     }
     // Con historial, cambiar la pregunta o la respuesta pide decidir si cambió lo que hay que
     // recordar antes de guardar.
-    if (card.hasHistory && !card.linked && textChanged) {
+    if (!create && card.hasHistory && !card.linked && textChanged) {
       setAsking(true);
       return;
     }
@@ -184,7 +297,13 @@ export function SheetForm({
         />
         {errors.question ? <p className={styles.fieldNotice}>{errors.question}</p> : null}
       </div>
-      <div className={styles.field}>
+      <ActivityEditor draft={draft} onChange={setDraft} focusField={focusField} />
+      {activityProblem === '' ? null : (
+        <p className={styles.fieldNotice} role="alert">
+          {activityProblem}
+        </p>
+      )}
+      <div className={styles.field} hidden={derivedAnswer}>
         <label htmlFor={`${ids}-respuesta`}>{texts.cards.answerLabel}</label>
         <textarea
           id={`${ids}-respuesta`}
@@ -210,6 +329,7 @@ export function SheetForm({
       <div className={styles.field}>
         <label htmlFor={`${ids}-variantes`}>{texts.cards.variantsLabel}</label>
         <textarea
+          ref={variantsField}
           id={`${ids}-variantes`}
           rows={3}
           value={variants}
@@ -236,8 +356,9 @@ export function SheetForm({
           </div>
         ))}
       </fieldset>
-      <fieldset className={cardStyles.pair}>
+      <fieldset ref={hintsField} className={cardStyles.pair}>
         <legend>{texts.cards.hintsLabel}</legend>
+        <p className={cardStyles.fieldHelp}>{texts.practice.editor.hintsHelp}</p>
         {HINT_SLOTS.map((slot, index) => (
           <div className={styles.field} key={slot}>
             <label htmlFor={`${ids}-pista-${index}`}>{texts.cards.hintLabel(index + 1)}</label>
@@ -263,6 +384,31 @@ export function SheetForm({
           onChange={(event) => setExplanation(event.target.value)}
         />
       </div>
+      <div className={styles.field}>
+        <label htmlFor={`${ids}-ejemplo`}>{texts.practice.editor.example}</label>
+        <textarea
+          id={`${ids}-ejemplo`}
+          rows={2}
+          value={example}
+          onChange={(event) => setExample(event.target.value)}
+        />
+      </div>
+      {draft.type === 'card' ? null : (
+        <div className={styles.field}>
+          <label htmlFor={`${ids}-modo`}>{texts.practice.editor.mode}</label>
+          <select
+            id={`${ids}-modo`}
+            className={cardStyles.select}
+            value={mode}
+            onChange={(event) =>
+              setMode(event.target.value === 'evaluation' ? 'evaluation' : 'practice')
+            }
+          >
+            <option value="practice">{texts.practice.editor.modes.practice}</option>
+            <option value="evaluation">{texts.practice.editor.modes.evaluation}</option>
+          </select>
+        </div>
+      )}
       <div className={styles.field}>
         <label htmlFor={`${ids}-fuente`}>{texts.cards.sourceLabel}</label>
         <input

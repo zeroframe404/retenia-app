@@ -8,10 +8,24 @@ import {
   USER_SHEET_STATES,
 } from '../core/cards';
 import type { Clock } from '../core/clock';
+import {
+  type Activity,
+  type HelpUse,
+  helpLevelOf,
+  maxHelpLevel,
+  purposeOf,
+  referenceText,
+  validateActivity,
+} from '../core/evaluation';
 import { newCardsCost } from '../core/load';
 import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
+import type {
+  ActivityModeValue,
+  ActivityValue,
+  HelpUseValue,
+} from '../preload/contract/activities';
 import type {
   ActivationCost,
   Card,
@@ -45,13 +59,25 @@ import {
 import type { ReteniaDatabase } from './database';
 import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './demo-cards';
 import { newId } from './ids';
-import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
+import {
+  appendEvaluation,
+  appendObservation,
+  appendOperation,
+  type EventSource,
+  readPayload,
+} from './ledger';
 import { estimatesOf } from './load';
 import { describeCite } from './materials';
 import { SubjectNotFoundError, TopicNotFoundError } from './organization-errors';
 import type { Writer } from './orm';
 import { plannedDayOf } from './postponements';
-import { cardHistory, recomputeCardSchedule, reviewFacts, whyToday } from './projections';
+import {
+  cardHistory,
+  pendingCheckOf,
+  recomputeCardSchedule,
+  reviewFacts,
+  whyToday,
+} from './projections';
 import {
   blocks,
   cardSchedule,
@@ -78,8 +104,42 @@ interface ListInput {
   subjectId?: string | undefined;
   topicId?: string | undefined;
   sheetState?: SheetStateValue | undefined;
-  kind?: 'qa' | 'cloze' | undefined;
+  kind?: 'qa' | 'cloze' | 'exercise' | undefined;
 }
+
+// La actividad no cumple lo que pide su editor (Fase 16): opciones, pasos o unidades de más o de
+// menos, sin explicación en una opción equivocada…
+class InvalidActivityError extends Error {
+  constructor(problems: readonly string[]) {
+    super(`La actividad no es válida: ${problems.join(', ')}`);
+    this.name = 'InvalidActivityError';
+  }
+}
+
+function activityJson(activity: Activity | null | undefined): {
+  activityType: string | null;
+  activity: string | null;
+} {
+  if (activity === null || activity === undefined) {
+    return { activityType: null, activity: null };
+  }
+  const problems = validateActivity(activity);
+  if (problems.length > 0) {
+    throw new InvalidActivityError(problems);
+  }
+  return { activityType: activity.type, activity: JSON.stringify(activity) };
+}
+
+function answerFor(activity: Activity | null | undefined, given: string): string {
+  return activity ? (referenceText(activity) ?? given) : given;
+}
+
+export function parsedActivity(row: { activity: string | null }): ActivityValue | null {
+  return row.activity === null ? null : (JSON.parse(row.activity) as ActivityValue);
+}
+
+export const asMode = (value: string): ActivityModeValue =>
+  value === 'evaluation' ? 'evaluation' : 'practice';
 
 export interface CardsStore {
   create(
@@ -88,6 +148,11 @@ export interface CardsStore {
       answer: string;
       subjectId?: string | null | undefined;
       topicId?: string | null | undefined;
+      // Fase 16: un ejercicio, con su ficha de una vez.
+      activity?: Activity | null | undefined;
+      sheet?: CardSheetInput | undefined;
+      example?: string | undefined;
+      mode?: ActivityModeValue | undefined;
     },
     options?: { source?: EventSource },
   ): Card;
@@ -117,6 +182,9 @@ export interface CardsStore {
     grade: Grade;
     attemptId: string;
     helpLevel?: HelpLevel | undefined;
+    // Fase 16: cada ayuda usada con «Practicar ahora» y «No sé por dónde empezar».
+    help?: readonly HelpUseValue[] | undefined;
+    noIdea?: boolean | undefined;
   }): Card;
   // «Deshacer» el repaso recién hecho (CA-063): queda en el historial como «Anulado» y la agenda
   // vuelve a ser la de antes. Deshacerlo dos veces no agrega nada.
@@ -131,7 +199,22 @@ export interface CardsStore {
     answer: string;
     sheet?: CardSheetInput | undefined;
     meaningChanged?: boolean | undefined;
+    // Fase 16: el tipo de actividad (nulo para volver a la tarjeta de siempre), el ejemplo y el modo.
+    activity?: Activity | null | undefined;
+    example?: string | undefined;
+    // Fase 17: la edición viene de «Mejorar la tarjeta» («Reformular» o «Agregar una pista»): los
+    // fallos de la dificultad recurrente se cuentan desde esta versión.
+    improve?: 'rephrase' | 'hint' | undefined;
+    mode?: ActivityModeValue | undefined;
   }): CardDetail;
+  // «Dividir en dos» (Fase 17, «Mejorar la tarjeta»): dos tarjetas nuevas en el mismo lugar y con
+  // el mismo objetivo, y la original retirada con su historial. `splitId`: el mismo pedido dos veces
+  // no crea otras dos.
+  split(input: {
+    splitId: string;
+    cardId: string;
+    parts: readonly { question: string; answer: string }[];
+  }): { cardIds: string[] };
   // Después de un cambio hecho en la nota: la tarjeta se programa como nueva.
   markMeaningChanged(input: { cardId: string }): Card;
   setPaused(input: { cardId: string; paused: boolean }): Card;
@@ -191,7 +274,8 @@ function listCards(db: Writer, input: ListInput): { cards: Card[]; total: number
     kind: input.kind,
   };
   const shown = rows.map(toCard).filter((card) => matchesFilter(card, filter));
-  return { cards: shown, total: rows.length };
+  // El contador cuenta tarjetas: los ejercicios se listan y no suman (Fase 16).
+  return { cards: shown, total: rows.filter((row) => row.activityType === null).length };
 }
 
 // ¿El renglón de la tarjeta sigue ahí y la pide? Si la nota está en la Papelera o ya no existe, la
@@ -276,6 +360,36 @@ function detailOf(db: Writer, row: CardRow): CardDetail {
     detached: row.detachedAt !== null,
     hasHistory: hasHistoryOf(db, row.id),
     cite: describeCite(db, row.sourceCite, row.id),
+    activity: parsedActivity(row),
+    example: row.example,
+    mode: asMode(row.mode),
+    pendingCheck: pendingCheckOf(db, row.id),
+  };
+}
+
+// Una ficha vacía, para una tarjeta nueva.
+const EMPTY_SHEET: Sheet = {
+  referenceAnswer: '',
+  variants: [],
+  essentials: [],
+  hints: [],
+  explanation: '',
+  source: '',
+  formType: 'exact',
+  state: 'reviewed',
+};
+
+// La ficha como columnas de la versión.
+function sheetColumns(sheet: Sheet) {
+  return {
+    referenceAnswer: sheet.referenceAnswer,
+    variants: JSON.stringify(sheet.variants),
+    essentials: JSON.stringify(sheet.essentials),
+    hints: JSON.stringify(sheet.hints),
+    explanation: sheet.explanation,
+    sourceText: sheet.source,
+    formType: sheet.formType,
+    sheetState: sheet.state,
   };
 }
 
@@ -309,9 +423,18 @@ export function recordReview(
     attemptId: string;
     helpLevel?: HelpLevel | undefined;
     session?: SessionReviewFacts | undefined;
+    // Fase 16: cada ayuda usada (el nivel sale de la más alta) y «No sé por dónde empezar».
+    help?: readonly HelpUse[] | undefined;
+    noIdea?: boolean | undefined;
   },
 ): { id: string; inserted: boolean } {
-  const { cardId, grade, attemptId, helpLevel = 'A0' } = input;
+  const { cardId, grade, attemptId } = input;
+  // El nivel de cada ayuda sale de su tipo y su número de pista, no de lo que mande la ventana.
+  const help = input.help?.map((use) => ({
+    ...use,
+    level: helpLevelOf({ kind: use.kind, index: use.index }),
+  }));
+  const helpLevel = help === undefined ? (input.helpLevel ?? 'A0') : maxHelpLevel(help);
   const current = activeCard(tx, cardId);
   if (current.pausedAt !== null) {
     throw new CardPausedError();
@@ -333,6 +456,13 @@ export function recordReview(
       plannedDay: plannedDayOf(tx, cardId) ?? studyDayOf(new Date(current.dueAt)),
       ...reviewFacts(tx, cardId, clock.now(), fuzz),
       ...(input.session ?? {}),
+      ...(help === undefined
+        ? {}
+        : {
+            help,
+            noIdea: input.noIdea === true,
+            purpose: purposeOf({ mode: asMode(current.mode), used: help, attemptNo: 1 }),
+          }),
     },
     idempotencyKey: `review:${attemptId}`,
     source: 'user',
@@ -435,7 +565,9 @@ export function createCardsStore(
 
   return {
     create(input, { source = 'user' } = {}) {
-      const { question, answer, topicId = null } = input;
+      const { question, topicId = null } = input;
+      // La respuesta de un ejercicio que no es de respuesta corta sale de su actividad.
+      const answer = answerFor(input.activity, input.answer);
       const now = clock.now().toISOString();
       const cardId = newId();
       const versionId = newId();
@@ -454,7 +586,21 @@ export function createCardsStore(
           .values({ id: cardId, currentVersionId: versionId, createdAt: now, subjectId, topicId })
           .run();
         tx.insert(cardVersions)
-          .values({ id: versionId, cardId, question, answer, createdAt: now, cause: 'edit' })
+          .values({
+            id: versionId,
+            cardId,
+            question,
+            answer,
+            createdAt: now,
+            cause: 'edit',
+            ...(input.sheet === undefined
+              ? {}
+              : sheetColumns(mergeSheet(EMPTY_SHEET, normalizeSheet(input.sheet)))),
+            ...activityJson(input.activity),
+            example: input.example?.trim() ?? '',
+            // La tarjeta de siempre es siempre de práctica.
+            mode: input.activity ? (input.mode ?? 'practice') : 'practice',
+          })
           .run();
         recomputeCardSchedule(tx, cardId);
         appendOperation(tx, clock, {
@@ -575,9 +721,9 @@ export function createCardsStore(
       return detailOf(orm, activeCard(orm, cardId));
     },
 
-    review({ cardId, grade, attemptId, helpLevel = 'A0' }) {
+    review({ cardId, grade, attemptId, helpLevel = 'A0', help, noIdea }) {
       return orm.transaction((tx) => {
-        recordReview(tx, clock, fuzz, { cardId, grade, attemptId, helpLevel });
+        recordReview(tx, clock, fuzz, { cardId, grade, attemptId, helpLevel, help, noIdea });
         return cardOf(tx, cardId);
       });
     },
@@ -603,7 +749,17 @@ export function createCardsStore(
       return whyToday(orm, cardId, studyDayOf(clock.now()));
     },
 
-    edit({ cardId, question, answer, sheet, meaningChanged }) {
+    edit({
+      cardId,
+      question,
+      answer: given,
+      sheet,
+      meaningChanged,
+      activity,
+      example,
+      mode,
+      improve,
+    }) {
       return orm.transaction((tx) => {
         const current = activeCard(tx, cardId);
         const currentSheet = sheetOf(current);
@@ -612,8 +768,24 @@ export function createCardsStore(
           throw new SheetStateNotAllowedError();
         }
         const nextSheet: Sheet = mergeSheet(currentSheet, patch);
+        const nextActivity =
+          activity === undefined
+            ? { activityType: current.activityType, activity: current.activity }
+            : activityJson(activity);
+        const nextExample = example === undefined ? current.example : example.trim();
+        const answer =
+          nextActivity.activity === null
+            ? given
+            : answerFor(JSON.parse(nextActivity.activity) as Activity, given);
         const textChanged = current.question !== question || current.answer !== answer;
-        const sheetChanged = sheetKey(currentSheet) !== sheetKey(nextSheet);
+        // Volver a la tarjeta de siempre deja el modo en práctica (no hay dónde verlo).
+        const nextMode =
+          nextActivity.activity === null ? 'practice' : (mode ?? asMode(current.mode));
+        const sheetChanged =
+          sheetKey(currentSheet) !== sheetKey(nextSheet) ||
+          nextActivity.activity !== current.activity ||
+          nextExample !== current.example ||
+          nextMode !== current.mode;
         if (!textChanged && !sheetChanged) {
           return detailOf(tx, current);
         }
@@ -654,6 +826,9 @@ export function createCardsStore(
             sourceText: nextSheet.source,
             formType: nextSheet.formType,
             sheetState: nextSheet.state,
+            ...nextActivity,
+            example: nextExample,
+            mode: nextMode,
             createdAt: clock.now().toISOString(),
             cause: 'edit',
           })
@@ -669,7 +844,120 @@ export function createCardsStore(
         if (meaningChanged === true && textChanged && hasHistory) {
           resetAsNew(tx, cardId, versionId);
         }
+        if (improve !== undefined) {
+          appendObservation(tx, clock, {
+            kind: 'card.improved',
+            payload: { cardId, action: improve, versionId, newCardIds: [] },
+            idempotencyKey: `improve:${versionId}`,
+            source: 'user',
+          });
+        }
         return detailOf(tx, activeCard(tx, cardId));
+      });
+    },
+
+    split({ splitId, cardId, parts }) {
+      return orm.transaction((tx) => {
+        const done = tx
+          .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+          .from(observations)
+          .where(eq(observations.idempotencyKey, `split:${splitId}`))
+          .get();
+        if (done) {
+          return {
+            cardIds: [...readPayload('card.improved', done.schemaVersion, done.payload).newCardIds],
+          };
+        }
+        const current = activeCard(tx, cardId);
+        const now = clock.now().toISOString();
+        const cardIds: string[] = [];
+        for (const part of parts) {
+          const newCardId = newId();
+          const versionId = newId();
+          tx.insert(cards)
+            .values({
+              id: newCardId,
+              currentVersionId: versionId,
+              createdAt: now,
+              subjectId: current.subjectId,
+              topicId: current.topicId,
+            })
+            .run();
+          tx.insert(cardVersions)
+            .values({
+              id: versionId,
+              cardId: newCardId,
+              question: part.question.trim(),
+              answer: part.answer.trim(),
+              createdAt: now,
+              cause: 'edit',
+            })
+            .run();
+          recomputeCardSchedule(tx, newCardId);
+          appendOperation(tx, clock, {
+            kind: 'card.create',
+            entityId: newCardId,
+            versionAfterId: versionId,
+            source: 'user',
+          });
+          cardIds.push(newCardId);
+        }
+        // La original se retira (sale de los repasos y de «Mejorar la tarjeta») con su historial.
+        const previous = tx
+          .select()
+          .from(cardVersions)
+          .where(eq(cardVersions.id, current.versionId))
+          .get();
+        if (!previous) {
+          throw new CardNotFoundError();
+        }
+        const retiredId = newId();
+        tx.insert(cardVersions)
+          .values({
+            ...previous,
+            id: retiredId,
+            sheetState: 'retired',
+            createdAt: now,
+            cause: 'edit',
+          })
+          .run();
+        tx.update(cards).set({ currentVersionId: retiredId }).where(eq(cards.id, cardId)).run();
+        appendOperation(tx, clock, {
+          kind: 'card.edit',
+          entityId: cardId,
+          versionBeforeId: current.versionId,
+          versionAfterId: retiredId,
+          source: 'user',
+        });
+        // Las dos nuevas quedan en el objetivo de la original (si era uno tuyo).
+        const link = tx
+          .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+          .from(observations)
+          .where(and(eq(observations.kind, 'objective.linked'), eq(observations.cardId, cardId)))
+          .orderBy(observations.seq)
+          .all()
+          .at(-1);
+        const objectiveId =
+          link === undefined
+            ? null
+            : readPayload('objective.linked', link.schemaVersion, link.payload).objectiveId;
+        if (objectiveId !== null) {
+          for (const newCardId of cardIds) {
+            appendObservation(tx, clock, {
+              kind: 'objective.linked',
+              payload: { cardId: newCardId, objectiveId, previousObjectiveId: null },
+              idempotencyKey: `link:${splitId}:${newCardId}`,
+              source: 'user',
+            });
+          }
+        }
+        appendObservation(tx, clock, {
+          kind: 'card.improved',
+          payload: { cardId, action: 'split', versionId: retiredId, newCardIds: cardIds },
+          idempotencyKey: `split:${splitId}`,
+          source: 'user',
+        });
+        return { cardIds };
       });
     },
 
@@ -770,6 +1058,16 @@ export function createCardsStore(
           annulled: event.annulled,
           skipped: event.skipped,
           origin: event.origin,
+          counted: event.counted,
+          affected: event.affected === true,
+          evaluation:
+            event.evaluation === null || event.evaluation === undefined
+              ? null
+              : {
+                  ...event.evaluation,
+                  versions: [...event.evaluation.versions],
+                  causes: [...event.evaluation.causes],
+                },
         })),
       };
     },
@@ -804,7 +1102,15 @@ export function createCardsStore(
     },
 
     count() {
-      return orm.select({ total: count() }).from(cards).get()?.total ?? 0;
+      // Los ejercicios (Fase 16) no son tarjetas para el contador.
+      return (
+        orm
+          .select({ total: count() })
+          .from(cards)
+          .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+          .where(isNull(cardVersions.activityType))
+          .get()?.total ?? 0
+      );
     },
 
     plantCast(entries) {

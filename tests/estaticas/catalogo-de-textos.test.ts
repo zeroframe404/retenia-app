@@ -41,7 +41,8 @@ describe('catálogo de textos', () => {
     expect(texts.cards.save).toBe('Guardar');
     expect(texts.cards.saved).toBe('Tarjeta guardada');
     expect(texts.cards.questionRequired).toBe('Escribí la pregunta');
-    expect(texts.cards.review).toBe('Repasar');
+    // «Repasar» pasó a «Practicar ahora» en la Fase 16, con tu acuerdo del 24/11/2026.
+    expect(texts.cards.review).toBe('Practicar ahora');
     expect(texts.cards.showAnswer).toBe('Mostrar respuesta');
     expect(texts.cards.gradeAgain).toBe('No la sabía');
     expect(texts.cards.gradeHard).toBe('Con dudas');

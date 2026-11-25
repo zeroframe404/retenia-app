@@ -31,8 +31,13 @@ function movableClock() {
   };
 }
 
+// Con el reloj de la demostración, una copia del elenco sembrado una vez por proceso (lo mismo que
+// siembran estas dos líneas); con otro reloj, se siembra en la prueba.
 function seeded(clock?: Clock) {
-  const space = openSpace(clock ? { clock } : {});
+  if (!clock) {
+    return openSpace({ withCast: 'tarjetas' });
+  }
+  const space = openSpace({ clock });
   seedDemoOrganization(space.workspace);
   seedDemoCardCast(space.workspace);
   return space;
@@ -406,7 +411,8 @@ describe('sumar tarjetas nuevas a mano', () => {
     }
     const fresh = workspace.cards
       .list({ subjectId: subject.id })
-      .filter((card) => card.nextReviewDay === null)
+      // Las tarjetas nuevas (los ejercicios de la Fase 16 no se suman a los repasos).
+      .filter((card) => card.nextReviewDay === null && card.activityType === null)
       .slice(-3);
     expect(fresh).toHaveLength(3);
     workspace.cards.activate({ batchId: id(), cardIds: fresh.map((card) => card.id) });

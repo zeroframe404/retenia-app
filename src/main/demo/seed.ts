@@ -5,6 +5,7 @@ import { z } from 'zod';
 import cast from '../../../datos-de-ejemplo/elenco/materias.json';
 import cardCast from '../../../datos-de-ejemplo/elenco/tarjetas.json';
 import { findHoles } from '../../core/cards';
+import { referenceText } from '../../core/evaluation';
 import { extensionFor, HEAD_BYTES, identifyContent } from '../../core/materials/signature';
 import type { Grade } from '../../core/memory';
 import type { IncomingBlock } from '../../core/organization';
@@ -12,6 +13,7 @@ import type { SeedCard, SeedReview } from '../../data/demo-cards';
 import { newId } from '../../data/ids';
 import { PIPELINE_VERSION, referenceOf, type StoredCite } from '../../data/materials';
 import type { Workspace } from '../../data/workspace';
+import { activitySchema } from '../../preload/contract/activities';
 import type { InlineNode } from '../../preload/contract/notes';
 
 // El elenco de la Fase 07 (datos-de-ejemplo/elenco/materias.json): materias, temas y notas con
@@ -278,6 +280,37 @@ const cardCastSchema = () =>
         ),
       }),
     ),
+    // Fase 16: los ejercicios (se listan en «Tarjetas» con la marca «Ejercicio» y no suman al 180).
+    ejercicios: z
+      .array(
+        z.strictObject({
+          materia: z.string().min(1),
+          tema: z.string().min(1).nullable(),
+          pregunta: z.string().min(1),
+          // La respuesta corta la dice; en los demás tipos sale de la actividad.
+          respuesta: z.string().min(1).optional(),
+          actividad: activitySchema,
+          pistas: z.array(z.string().min(1)).max(3),
+          ejemplo: z.string(),
+          explicacion: z.string(),
+          cita: z
+            .strictObject({ pagina: z.number().int().positive(), texto: z.string().min(1) })
+            .optional(),
+        }),
+      )
+      .optional(),
+    // Fase 17: los objetivos del elenco, con las preguntas de sus actividades.
+    objetivos: z
+      .array(
+        z.strictObject({
+          materia: z.string().min(1),
+          tema: z.string().min(1).nullable(),
+          texto: z.string().min(1),
+          tipo: z.enum(['remember', 'understand', 'apply', 'reason', 'execute']),
+          actividades: z.array(z.string().min(1)),
+        }),
+      )
+      .optional(),
   });
 
 // El lunes 15/03/2027 a las 10:00 de Buenos Aires: el «hoy» de la demostración.
@@ -539,11 +572,16 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
   // Se siembran al revés: la primera del archivo queda primera en la lista (más nueva por
   // identificador).
   workspace.cards.plantCast([...entries].reverse());
+  workspace.cards.plantCast(exercisesOf(elenco.ejercicios ?? [], subjects, workspace, materials));
+  seedObjectives(workspace, elenco.objetivos ?? [], subjects);
 
   const statistics = subjects.find((item) => item.name === 'Estadística básica');
   if (statistics) {
+    // Las que nacieron en la nota están en su tema: solo esas se abren (abrir las 185 tarjetas de
+    // la materia hacía lenta cada siembra).
     const born = workspace.cards
       .list({ subjectId: statistics.id })
+      .filter((card) => card.topicName === 'Intervalos de confianza')
       .map((card) => workspace.cards.get({ cardId: card.id }))
       .filter((card) => card.path.noteTitle === 'Intervalos de confianza')
       .sort((x, y) => (x.kind === y.kind ? 0 : x.kind === 'qa' ? -1 : 1));
@@ -557,6 +595,96 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
     );
   }
   return workspace.cards.count();
+}
+
+// Los objetivos del elenco (Fase 17): «Calcular la media y el desvío», «Sin iniciar», con su ejercicio.
+// Se enlazan después de sembrar el historial: los intentos de antes no son de ellos.
+function seedObjectives(
+  workspace: Workspace,
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['objetivos']>,
+  subjects: readonly { id: string; name: string }[],
+): void {
+  for (const objective of cast) {
+    const subject = subjects.find((item) => item.name === objective.materia);
+    if (!subject) {
+      throw new Error(
+        `El elenco de objetivos nombra una materia que no existe: ${objective.materia}`,
+      );
+    }
+    const topic =
+      objective.tema === null
+        ? null
+        : workspace.topics
+            .list({ subjectId: subject.id })
+            .topics.find((t) => t.name === objective.tema);
+    if (topic === undefined) {
+      throw new Error(`El elenco de objetivos nombra un tema que no existe: ${objective.tema}`);
+    }
+    const all = workspace.cards.list({ subjectId: subject.id });
+    const cardIds = objective.actividades.map((question) => {
+      const card = all.find((item) => item.question === question);
+      if (!card) {
+        throw new Error(`El elenco de objetivos nombra una actividad que no existe: ${question}`);
+      }
+      return card.id;
+    });
+    workspace.objectives.create(
+      {
+        objectiveId: newId(),
+        subjectId: subject.id,
+        topicId: topic?.id ?? null,
+        text: objective.texto,
+        conditions: null,
+        kind: objective.tipo,
+        cardIds,
+      },
+      { source: 'demo' },
+    );
+  }
+}
+
+// Los ejercicios del elenco (Fase 16), sin historial y un día más viejos que las tarjetas: quedan al
+// final de la lista, así no cambian el orden que ya tenía.
+function exercisesOf(
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['ejercicios']>,
+  subjects: readonly { id: string; name: string }[],
+  workspace: Workspace,
+  materials: DemoMaterials,
+): SeedCard[] {
+  const created = new Date(DEMO_NOW.getTime() - 91 * DAY_MS);
+  return [...cast].reverse().map((exercise) => {
+    const subject = subjects.find((item) => item.name === exercise.materia);
+    if (!subject) {
+      throw new Error(
+        `El elenco de ejercicios nombra una materia que no existe: ${exercise.materia}`,
+      );
+    }
+    const topic =
+      exercise.tema === null
+        ? null
+        : workspace.topics
+            .list({ subjectId: subject.id })
+            .topics.find((item) => item.name === exercise.tema);
+    if (topic === undefined) {
+      throw new Error(`El elenco de ejercicios nombra un tema que no existe: ${exercise.tema}`);
+    }
+    const activity = exercise.actividad;
+    return {
+      question: exercise.pregunta,
+      answer: exercise.respuesta ?? referenceText(activity) ?? '',
+      kind: 'qa',
+      subjectId: subject.id,
+      topicId: topic?.id ?? null,
+      createdAt: created,
+      reviews: [],
+      ...citeOf(exercise.cita, materials.inference),
+      activityType: activity.type,
+      activity: JSON.stringify(activity),
+      hints: exercise.pistas,
+      example: exercise.ejemplo,
+      explanation: exercise.explicacion,
+    };
+  });
 }
 
 // «Cargar 10.000 tarjetas» (Ajustes › «Demostración», CA-103): tarjetas de relleno, nuevas, en una

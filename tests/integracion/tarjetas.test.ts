@@ -200,6 +200,10 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0010_revision_de_materiales' },
       { id: '0011_previous_text_de_correcciones' },
       { id: '0012_importaciones' },
+      { id: '0013_evaluacion_sin_ia' },
+      { id: '0014_objetivos' },
+      { id: '0015_objetivos_disparadores' },
+      { id: '0016_dudas_version' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([

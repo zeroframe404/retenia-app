@@ -40,6 +40,10 @@ describe('deshacer: qué se puede y qué hace', () => {
     expect(undoPlan(edit, active({ ...after, answer: 'Otra respuesta' }))).toBeNull();
   });
 
+  it('[CA-023] si el sistema escribió una versión después («Discrepo» agregó una variante), esa edición ya no se deshace', () => {
+    expect(undoPlan({ ...edit, supersededBySystem: true }, active())).toBeNull();
+  });
+
   it('[CA-023] una edición de una tarjeta en la papelera o eliminada para siempre no se deshace', () => {
     expect(undoPlan(edit, trashed('p1'))).toBeNull();
     expect(undoPlan(edit, gone)).toBeNull();

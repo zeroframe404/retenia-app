@@ -97,7 +97,8 @@ Estudiar · Apuntes · Materiales · Idiomas · Progreso · Ajustes. Arriba, «B
 - Objetivos con estados «Sin iniciar» · «En práctica» · «A revisar» · «Suficiente para avanzar» · «Consolidado» y marca «(por verificar)». Columnas «Sin ayuda» · «Con ayuda» · «Diferido» · «Variantes». «Ya lo sé». Requisitos: «Esto no es necesario para aquello».
 - Mapa de dominio (5 escalones, tipo de evidencia, fecha, «desde cuándo» si bajó). Hitos con fecha.
 - «Mis errores» (respuesta textual, correcta, tipo; por tema) → «Crear tarjeta de contraste».
-- «Dudas y revisiones»: dudas guardadas; notas provisionales con «Tenía razón yo» · «La corrección estaba bien» · «No concluyente»; «Mejorar la tarjeta» con «Reformular» · «Dividir en dos» · «Agregar una pista» · «Ver en el original»; «Ver detalle».
+- «Dudas y revisiones»: dudas guardadas; notas provisionales con «Tenía razón yo» · «La corrección estaba bien» · «No concluyente»; «Ver detalle».
+- «Mejorar la tarjeta» (sección propia): «Reformular» · «Dividir en dos» · «Agregar una pista» · «Ver en el original».
 - Confianza: «Cuando decís “Seguro”, acertás 7 de 10».
 
 ## Ajustes

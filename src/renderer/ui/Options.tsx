@@ -4,6 +4,8 @@ import styles from './Options.module.css';
 export interface Option<T extends string> {
   value: T;
   text: string;
+  // Una opción que se ve pero no se puede elegir (Fase 16: un resultado más alto que el propuesto).
+  disabled?: boolean | undefined;
 }
 
 // Un grupo de opciones excluyentes con aspecto de botones pegados: «Claro / Oscuro / Según el
@@ -40,6 +42,7 @@ export function OptionGroup<T extends string>({
               name={group}
               value={option.value}
               checked={value === option.value}
+              disabled={option.disabled === true}
               onChange={() => onChange(option.value)}
             />
             <span className={styles.text}>{option.text}</span>

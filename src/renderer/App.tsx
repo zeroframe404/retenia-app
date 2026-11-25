@@ -14,6 +14,7 @@ import { CaptureDialog } from './inbox/CaptureDialog';
 import { trackInputMode } from './inputMode';
 import { type MaterialRequest, MaterialsScreen } from './materials/MaterialsScreen';
 import { FLUSH_NOTES } from './notes/flush';
+import { PROGRESS_REVIEWS_EVENT } from './progress/landing';
 import { EmptyDestination } from './screens/EmptyDestination';
 import {
   type CardRequest,
@@ -24,7 +25,11 @@ import {
 } from './screens/NotesScreen';
 import { ResultPanel } from './search/ResultPanel';
 import { SearchDialog } from './search/SearchDialog';
-import { ProgressScreen } from './session/ProgressScreen';
+import {
+  type ObjectiveRequest,
+  ProgressScreen,
+  type ProgressSectionName,
+} from './session/ProgressScreen';
 import { SessionScreen } from './session/SessionScreen';
 import { StudyScreen } from './session/StudyScreen';
 import { SettingsScreen } from './settings/SettingsScreen';
@@ -55,6 +60,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const [destination, setDestination] = useState<Destination>('study');
   const [settingsView, setSettingsView] = useState<SettingsView>('settings');
   const [notesSection, setNotesSection] = useState<NotesSectionName>('notes');
+  // Fase 17: la sección de Progreso. Abre en «Objetivos»; después de guardar una duda o de mandar
+  // una tarjeta a revisión, en «Dudas y revisiones» (lo dice el cartel).
+  const [progressSection, setProgressSection] = useState<ProgressSectionName>('objectives');
+  const landReviews = useRef(false);
+  // «Ir al requisito» (Fase 17): el objetivo que hay que abrir en Progreso.
+  const [objectiveRequest, setObjectiveRequest] = useState<ObjectiveRequest | null>(null);
   const [searching, setSearching] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [changingSubject, setChangingSubject] = useState(false);
@@ -96,7 +107,19 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     if (next === 'notes') {
       setNotesSection('notes');
     }
+    if (next === 'progress') {
+      setProgressSection(landReviews.current ? 'reviews' : 'objectives');
+      landReviews.current = false;
+    }
     setNavigated(true);
+  }, []);
+
+  useEffect(() => {
+    const onReviews = () => {
+      landReviews.current = true;
+    };
+    window.addEventListener(PROGRESS_REVIEWS_EVENT, onReviews);
+    return () => window.removeEventListener(PROGRESS_REVIEWS_EVENT, onReviews);
   }, []);
 
   const openInbox = useCallback(() => {
@@ -278,6 +301,63 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // «Practicar ahora» desde Progreso o desde Estudiar (Fase 17): la actividad sola, en Apuntes ›
+  // «Tarjetas», fuera de la cola del día.
+  const practiceCard = (cardId: string) => {
+    requests.current += 1;
+    setCardRequest({ cardId, nonce: requests.current, practice: true });
+    setDestination('notes');
+    setSettingsView('settings');
+    setNotesSection('cards');
+    setNavigated(true);
+  };
+
+  // «Reformular» y «Agregar una pista» de «Mejorar la tarjeta» (Fase 17): la ficha, para editarla.
+  const editCard = (cardId: string, improve: 'rephrase' | 'hint') => {
+    requests.current += 1;
+    setCardRequest({ cardId, nonce: requests.current, edit: improve });
+    setDestination('notes');
+    setSettingsView('settings');
+    setNotesSection('cards');
+    setNavigated(true);
+  };
+
+  // «Ver en el original» de una tarjeta, desde «Mejorar la tarjeta».
+  const openCardOriginal = (cardId: string) => {
+    window.retenia['cards.get']({ cardId }).then(
+      (card) => {
+        if (card.cite) {
+          openOriginal({ materialId: card.cite.materialId, cardId });
+        }
+      },
+      (error: unknown) => console.error('La ventana no pudo leer la tarjeta por el puente', error),
+    );
+  };
+
+  // «Ir al requisito» tras un fallo (Fase 17): el panel del objetivo, en Progreso.
+  const openObjective = (objectiveId: string) => {
+    requests.current += 1;
+    setObjectiveRequest({ objectiveId, nonce: requests.current });
+    setProgressSection('objectives');
+    setDestination('progress');
+    setSettingsView('settings');
+    setNavigated(true);
+  };
+
+  // «Practicar ahora» desde el buscador (Fase 16): la actividad sola, fuera de la cola del día.
+  const practiceHit = (hit: SearchHit) => {
+    setSearching(false);
+    if (hit.subjectId !== null) {
+      setViewedId(hit.subjectId);
+    }
+    requests.current += 1;
+    setCardRequest({ cardId: hit.entityId, nonce: requests.current, practice: true });
+    setDestination('notes');
+    setSettingsView('settings');
+    setNotesSection('cards');
+    setNavigated(true);
+  };
+
   // Un resultado del buscador (H-23): lleva a la pantalla donde vive o, en una sesión, lo muestra en
   // un panel a la derecha sin salir de la actividad.
   const openHit = (hit: SearchHit) => {
@@ -419,6 +499,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               focusTitle={navigated}
               activeSubjectId={active?.id ?? null}
               onStudy={setStudying}
+              onPractice={practiceCard}
               before={<ActiveSubject active={active} onChange={() => setChangingSubject(true)} />}
             />
           ) : null}
@@ -439,6 +520,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onOpenOriginal={(materialId, cardId) => openOriginal({ materialId, cardId })}
               onNoteRequestHandled={() => setNoteRequest(null)}
               cardRequest={cardRequest}
+              onOpenObjective={openObjective}
               topicRequest={topicRequest}
               onTopicRequestHandled={() => setTopicRequest(null)}
             />
@@ -465,7 +547,14 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           {destination === 'progress' ? (
             <ProgressScreen
               focusTitle={navigated}
+              subjectId={viewed?.id ?? active?.id ?? null}
+              section={progressSection}
+              onSectionChange={setProgressSection}
+              objectiveRequest={objectiveRequest}
               onOpenCard={openCard}
+              onPractice={practiceCard}
+              onEditCard={editCard}
+              onOpenOriginal={openCardOriginal}
               onGoToStudy={() => go('study')}
             />
           ) : null}
@@ -493,7 +582,13 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           ) : null}
         </main>
       </div>
-      {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
+      {searching ? (
+        <SearchDialog
+          onClose={() => setSearching(false)}
+          onOpen={openHit}
+          onPractice={practiceHit}
+        />
+      ) : null}
       {capturing ? (
         <CaptureDialog
           onClose={() => setCapturing(false)}

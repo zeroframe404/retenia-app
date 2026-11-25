@@ -41,6 +41,14 @@
     border-color var(--movimiento-rapido) var(--curva);
 }
 
+/* Una opción que no se puede elegir se ve apagada, como un botón apagado. */
+.option:has(.radio:disabled) {
+  color: var(--color-tinta-suave);
+  background: var(--color-superficie-hundida);
+  border-color: var(--color-linea);
+  cursor: default;
+}
+
 .option:has(.radio:checked) {
   color: var(--color-marca-fuerte);
   background: var(--color-marca-suave);

@@ -68,6 +68,8 @@ export const EXPORTED_TABLES = [
   'card_attachments',
   'imports',
   'import_items',
+  // Fase 17: los objetivos (sus enlaces, requisitos y demás son eventos).
+  'objectives',
   'observations',
   'evaluations',
   'operations',
@@ -147,7 +149,10 @@ export function exportCounts(db: ReteniaDatabase): ExportCounts {
     subjects: count('SELECT count(*) AS n FROM subjects WHERE deleted_at IS NULL'),
     topics: count('SELECT count(*) AS n FROM topics WHERE deleted_at IS NULL'),
     notes: count('SELECT count(*) AS n FROM notes WHERE deleted_at IS NULL'),
-    cards: count('SELECT count(*) AS n FROM cards'),
+    // Las tarjetas: los ejercicios (Fase 16) viajan igual, pero no se cuentan como tarjetas.
+    cards: count(
+      'SELECT count(*) AS n FROM cards JOIN card_versions ON card_versions.id = cards.current_version_id WHERE card_versions.activity_type IS NULL',
+    ),
     reviews: count("SELECT count(*) AS n FROM observations WHERE kind = 'review.graded'"),
     materials: count('SELECT count(*) AS n FROM materials WHERE deleted_at IS NULL'),
     images: count('SELECT count(*) AS n FROM images'),
@@ -253,7 +258,8 @@ export function stageExport(
       `SELECT cards.*, card_versions.question, card_versions.answer, card_versions.question_content,
         card_versions.answer_content, card_versions.reference_answer, card_versions.variants,
         card_versions.essentials, card_versions.hints, card_versions.explanation, card_versions.source_text,
-        card_versions.source_cite, card_versions.form_type, card_versions.sheet_state
+        card_versions.source_cite, card_versions.form_type, card_versions.sheet_state,
+        card_versions.activity_type, card_versions.activity, card_versions.example, card_versions.mode
        FROM cards JOIN card_versions ON card_versions.id = cards.current_version_id ORDER BY cards.created_at, cards.id`,
     ).map((row) => ({
       id: row.id,
@@ -277,6 +283,10 @@ export function stageExport(
         estado: row.sheet_state,
       },
       cita: row.source_cite === null ? null : JSON.parse(String(row.source_cite)),
+      // Fase 16: un ejercicio trae su tipo, lo propio del tipo, el ejemplo y el modo.
+      actividad: row.activity === null ? null : JSON.parse(String(row.activity)),
+      ejemplo: row.example,
+      modo: row.mode === 'evaluation' ? 'evaluación' : 'práctica',
       relaciones: {
         nota: row.note_id,
         renglon: row.block_id,

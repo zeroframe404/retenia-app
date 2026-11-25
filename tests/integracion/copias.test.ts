@@ -170,6 +170,10 @@ describe('«Hacer copia ahora»', () => {
       '0010_revision_de_materiales',
       '0011_previous_text_de_correcciones',
       '0012_importaciones',
+      '0013_evaluacion_sin_ia',
+      '0014_objetivos',
+      '0015_objetivos_disparadores',
+      '0016_dudas_version',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

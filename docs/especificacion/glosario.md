@@ -41,7 +41,7 @@ Vocabulario del producto. Los textos de pantalla, los errores, la documentación
 - **Variante aceptable**: otra forma correcta de la respuesta. «Mi respuesta era correcta» agrega una.
 - **Marca «IA»**: la lleva para siempre una tarjeta propuesta por la IA. **Candidata**: una tarjeta propuesta todavía no aceptada. **Disponibles**: tarjetas aceptadas que no entran en los repasos hasta «Sumar a mis repasos».
 - **Pausar esta tarjeta**: sale de los repasos hasta «Reanudar», sin perder el historial.
-- **Mejorar la tarjeta**: la lista (en Progreso › «Dudas y revisiones») de tarjetas que fallaron 4 veces; salen de la cola hasta que las arregles.
+- **Mejorar la tarjeta**: la sección de Progreso con las tarjetas que fallaron 4 veces, o 3 dentro de 30 días, desde su última mejora; salen de la cola hasta que las arregles.
 - **Ejercicio**: una actividad más larga que una tarjeta: explicar, calcular, resolver. Se lista en la pestaña «Tarjetas» con la marca «Ejercicio» y no suma al contador de tarjetas.
 - **Respuesta modelo** y **unidad de idea**: la respuesta de referencia de un ejercicio, desglosada en 2 a 4 partes que se marcan como cubierta, parcial o faltante.
 - **Procedimiento**: un ejercicio de varios pasos con ejemplo resuelto que se va vaciando.
@@ -174,7 +174,7 @@ Vocabulario del producto. Los textos de pantalla, los errores, la documentación
 | «Revisión» | Pantalla de un material con sus problemas de lectura | Materiales |
 | «Requiere revisión» | Tarea de fondo que no pudo terminar | Procesos de voz y materiales |
 | «Revisada» | Estado de ficha o de lección que vos ya miraste | Ficha, lecciones |
-| «Dudas y revisiones» | Sección de Progreso con dudas, notas provisionales y «Mejorar la tarjeta» | Progreso |
+| «Dudas y revisiones» | Sección de Progreso con dudas, notas provisionales y tarjetas «En revisión» («Mejorar la tarjeta» es una sección aparte) | Progreso |
 | Objetivo | Algo observable que querés poder hacer, con estado de dominio | H-34 |
 | Meta («Mi meta») | Qué querés lograr, para cuándo y cuánto tiempo | H-48 |
 | Comprobación | Actividad corta sin ayuda programada por Retenia | H-32, H-34, H-50, H-51 |

@@ -31,8 +31,17 @@ const subjectNamed = (workspace: Workspace, name: string) => {
   return found;
 };
 
+// Las tarjetas de una materia. Desde la Fase 16 la lista trae también los ejercicios, que se listan
+// con su marca y no suman al 180 (historias.md, H-14): se cuentan aparte.
 const cardsOf = (workspace: Workspace, name: string) =>
-  workspace.cards.list({ subjectId: subjectNamed(workspace, name).id });
+  workspace.cards
+    .list({ subjectId: subjectNamed(workspace, name).id })
+    .filter((card) => card.activityType === null);
+
+const exercisesOf = (workspace: Workspace, name: string) =>
+  workspace.cards
+    .list({ subjectId: subjectNamed(workspace, name).id })
+    .filter((card) => card.activityType !== null);
 
 const named = (workspace: Workspace, subject: string, question: string) => {
   const found = cardsOf(workspace, subject).find((card) => card.question === question);
@@ -72,6 +81,33 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
     expect(cardsOf(workspace, 'Historia argentina')).toHaveLength(12);
     expect(cardsOf(workspace, 'Inglés')).toHaveLength(0);
     expect(cardsOf(workspace, 'Ejemplo')).toHaveLength(0);
+  });
+
+  it('Fase 16: Estadística básica trae además los 5 ejercicios del elenco, sin historial y con 3 pistas cada uno', () => {
+    const { workspace } = seeded();
+    const exercises = exercisesOf(workspace, 'Estadística básica');
+    expect(exercises.map((exercise) => [exercise.question, exercise.activityType]).sort()).toEqual(
+      [
+        ['Capital de Francia', 'short'],
+        ['La media de 2, 4 y 9', 'numeric'],
+        ['Ordená los pasos para encontrar la mediana de 7, 3 y 5', 'order'],
+        [
+          'Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?',
+          'open',
+        ],
+        ['¿Qué medida de centro cambia menos si aparece un valor extremo?', 'options'],
+      ].sort(),
+    );
+    for (const exercise of exercises) {
+      expect(exercise.nextReviewDay).toBeNull();
+      expect(workspace.cards.get({ cardId: exercise.id }).sheet.hints).toHaveLength(3);
+    }
+    const open = exercises.find((exercise) => exercise.activityType === 'open');
+    expect(workspace.cards.get({ cardId: open?.id ?? '' }).activity).toMatchObject({
+      type: 'open',
+      units: [{ id: 'idea-1' }, { id: 'idea-2' }, { id: 'idea-3' }],
+    });
+    expect(exercisesOf(workspace, 'Historia argentina')).toHaveLength(0);
   });
 
   it('Estadística básica: 60 vencidas, 30 nuevas y 90 programadas', () => {
