@@ -16,11 +16,18 @@ afterEach(closeSpaces);
 
 const TODAY = '2027-03-15';
 
+// Siembra en la prueba: para las que miran el acto de sembrar (cuántas siembra, sembrar de nuevo).
 function seeded() {
   const space = openSpace();
   seedDemoOrganization(space.workspace);
   const count = seedDemoCardCast(space.workspace);
   return { ...space, count };
+}
+
+// Lo sembrado, para las que solo lo leen: una copia del elenco que se sembró una vez por corrida
+// con esas mismas dos líneas y el mismo reloj (tests/apoyo/elenco.ts, «tarjetas»).
+function sown() {
+  return openSpace({ withCast: 'tarjetas' });
 }
 
 const subjectNamed = (workspace: Workspace, name: string) => {
@@ -84,7 +91,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
   });
 
   it('Fase 16: Estadística básica trae además los 5 ejercicios del elenco, sin historial y con 3 pistas cada uno', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const exercises = exercisesOf(workspace, 'Estadística básica');
     expect(exercises.map((exercise) => [exercise.question, exercise.activityType]).sort()).toEqual(
       [
@@ -111,12 +118,12 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
   });
 
   it('Estadística básica: 60 vencidas, 30 nuevas y 90 programadas', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     expect(bucketsOf(workspace, 'Estadística básica')).toEqual({ new: 30, due: 60, scheduled: 90 });
   });
 
   it('Historia argentina: 2 vencen hoy', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const due = cardsOf(workspace, 'Historia argentina').filter(
       (card) => card.nextReviewDay !== null && card.nextReviewDay <= TODAY,
     );
@@ -132,7 +139,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
   });
 
   it('las 180 se reparten en los tres temas, sin tema vacío', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const byTopic = new Map<string, number>();
     for (const card of cardsOf(workspace, 'Estadística básica')) {
       byTopic.set(
@@ -152,7 +159,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
   });
 
   it('no hay dos tarjetas con la misma pregunta dentro de una materia', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     for (const name of ['Estadística básica', 'Historia argentina']) {
       const questions = cardsOf(workspace, name).map((card) => card.question);
       expect(new Set(questions).size).toBe(questions.length);
@@ -160,7 +167,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
   });
 
   it('todas están «Revisadas», ninguna pausada, y ninguna tiene texto vacío', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     for (const card of workspace.cards.list()) {
       expect(card.sheetState).toBe('reviewed');
       expect(card.paused).toBe(false);
@@ -172,7 +179,7 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
 
 describe('elenco de tarjetas: las que tienen nombre propio', () => {
   it('«¿Qué mide el desvío estándar?» es la más atrasada de las vencidas (vence el 25/02/2027, hace 18 días) y se vio por última vez el 20/02/2027 con dudas', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const card = named(workspace, 'Estadística básica', '¿Qué mide el desvío estándar?');
     expect(card.answer).toBe('Cuánto se alejan, en promedio, los datos de la media.');
     expect(card.topicName).toBe('Media y dispersión');
@@ -192,7 +199,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('«¿Qué mide el desvío estándar?» es la vencida de Estadística básica con menos probabilidad de recordarla (0,77) y ninguna otra se le acerca a menos de una centésima', () => {
-    const { workspace, file } = seeded();
+    const { workspace, file } = sown();
     const statistics = subjectNamed(workspace, 'Estadística básica');
     const rows = readRows(
       file,
@@ -224,7 +231,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('la tarjeta de hueco «La mediana deja el {{50 %}} de los datos por debajo.»', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const card = named(
       workspace,
       'Estadística básica',
@@ -234,7 +241,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('la dificultad recurrente tiene 4 fallos y es del tema Intervalos de confianza', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const card = named(
       workspace,
       'Estadística básica',
@@ -247,7 +254,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('la consolidada «¿Qué es la media muestral?» tiene 3 aciertos en días distintos, uno con 7 o más días de demora, y está programada', () => {
-    const { workspace, file } = seeded();
+    const { workspace, file } = sown();
     const card = named(workspace, 'Estadística básica', '¿Qué es la media muestral?');
     expect(card.topicName).toBe('Media y dispersión');
     expect(card.nextReviewDay).not.toBeNull();
@@ -275,14 +282,14 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('«¿Qué es la varianza?» está programada', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const card = named(workspace, 'Estadística básica', '¿Qué es la varianza?');
     expect(card.answer).toBe('El promedio de los cuadrados de las distancias a la media.');
     expect((card.nextReviewDay ?? '') > TODAY).toBe(true);
   });
 
   it('once programadas llevan entre 27 y 33 días sin verse', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const stale = cardsOf(workspace, 'Estadística básica').filter((card) => {
       if (card.nextReviewDay === null || card.nextReviewDay <= TODAY) {
         return false;
@@ -298,7 +305,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
   });
 
   it('tres tarjetas nacieron en la nota «Intervalos de confianza»: una con «>>» y dos hermanas de un renglón con dos huecos, todas con historial', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     const born = cardsOf(workspace, 'Estadística básica')
       .map((card) => workspace.cards.get({ cardId: card.id }))
       .filter((card) => card.path.noteTitle === 'Intervalos de confianza');
@@ -317,7 +324,7 @@ describe('elenco de tarjetas: las que tienen nombre propio', () => {
 
 describe('elenco de tarjetas: el historial es de la demostración', () => {
   it('todos los repasos sembrados son eventos de origen «demo» y ninguno es de «user»', () => {
-    const { file } = seeded();
+    const { file } = sown();
     const sources = readRows(
       file,
       "SELECT DISTINCT source FROM observations WHERE kind = 'review.graded'",
@@ -326,7 +333,7 @@ describe('elenco de tarjetas: el historial es de la demostración', () => {
   });
 
   it('cada repaso sembrado guarda la versión de la tarjeta que evaluó', () => {
-    const { file } = seeded();
+    const { file } = sown();
     const missing = readRows(
       file,
       "SELECT payload FROM observations WHERE kind = 'review.graded'",
@@ -338,12 +345,12 @@ describe('elenco de tarjetas: el historial es de la demostración', () => {
   });
 
   it('«Verificar datos» no encuentra diferencias', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     expect(workspace.verifyData()).toEqual([]);
   });
 
   it('no aparece en «Actividad reciente»', () => {
-    const { workspace } = seeded();
+    const { workspace } = sown();
     expect(workspace.activity.recent()).toEqual([]);
   });
 

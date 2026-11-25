@@ -4,7 +4,6 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it } from 'vitest';
 import { demoClock } from '../../src/core/clock';
 import { newId } from '../../src/data/ids';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import type { StudyOverview } from '../../src/preload/contract/study';
 import { formatShortDate } from '../../src/preload/contract/texts';
 import { App } from '../../src/renderer/App';
@@ -500,10 +499,14 @@ describe('Estudiar: «Posponer»', () => {
 
   it('[CA-091] las tarjetas que ya se pospusieron 3 veces entran igual y el cartel lo dice', async () => {
     // Tres días seguidos posponiendo «Mañana» por el camino real: cada repaso suma un aplazamiento.
+    // El reloj arranca en el instante de la demostración: el elenco copiado (sembrado una vez por
+    // corrida con ese reloj) es lo mismo que sembrarlo acá.
     let offset = 0;
-    const opened = openWindow('real', { now: () => demoClock(offset).now() });
-    seedDemoOrganization(opened.bridge.workspace);
-    seedDemoCardCast(opened.bridge.workspace);
+    const opened = openWindow(
+      'real',
+      { now: () => demoClock(offset).now() },
+      { withCast: 'tarjetas' },
+    );
     const { user, bridge } = opened;
     for (let time = 0; time < 3; time += 1) {
       bridge.workspace.study.postpone({ requestId: newId(), when: 'tomorrow' });
