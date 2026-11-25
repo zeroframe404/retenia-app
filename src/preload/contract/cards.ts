@@ -186,6 +186,8 @@ export const cardsEditRequest = z.strictObject({
   activity: activitySchema.nullable().optional(),
   example: sheetLine.optional(),
   mode: activityModeSchema.optional(),
+  // Fase 17: la edición viene de «Mejorar la tarjeta» («Reformular» o «Agregar una pista»).
+  improve: z.enum(['rephrase', 'hint']).optional(),
 });
 
 export const cardIdRequest = z.strictObject({ cardId: z.uuid() });

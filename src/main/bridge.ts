@@ -207,6 +207,42 @@ export function createHandlers({
       return ok;
     },
     'doubts.reviews': async () => workspace.doubts.reviews(),
+    'objectives.list': async (request) => workspace.objectives.list(request),
+    'objectives.create': async (request) => workspace.objectives.create(request),
+    'objectives.activities': async (request) => workspace.objectives.activities(request),
+    'objectives.link': async (request) => workspace.objectives.link(request),
+    'objectives.panel': async (request) => workspace.objectives.panel(request),
+    'objectives.requirements.add': async (request) => {
+      workspace.objectives.addRequirement(request);
+      return ok;
+    },
+    'objectives.requirements.confirm': async (request) => {
+      workspace.objectives.confirmRequirement(request);
+      return ok;
+    },
+    'objectives.requirements.dismiss': async (request) => {
+      workspace.objectives.dismissRequirement(request);
+      return ok;
+    },
+    'objectives.knowAlready': async (request) => {
+      workspace.objectives.knowAlready(request);
+      return ok;
+    },
+    'objectives.postpone': async (request) => {
+      workspace.objectives.postpone(request);
+      return ok;
+    },
+    'objectives.resume': async (request) => {
+      workspace.objectives.resume(request);
+      return ok;
+    },
+    'progress.errors': async (request) => workspace.progress.errors(request),
+    'progress.errors.setType': async (request) => {
+      workspace.progress.setErrorType(request);
+      return ok;
+    },
+    'progress.improveCard.list': async () => workspace.progress.improveCards(),
+    'progress.improveCard.split': async (request) => workspace.progress.split(request),
     'subjects.list': async () => workspace.subjects.list(),
     'subjects.create': async (request) => workspace.subjects.create(request),
     'subjects.activate': async (request) => workspace.subjects.activate(request),
