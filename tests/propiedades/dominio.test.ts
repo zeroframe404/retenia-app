@@ -118,7 +118,7 @@ describe('la máquina de estados de dominio', () => {
             },
           ]);
           if (before.state === 'not-started') {
-            expect(after.state).toBe(help === 'A4' ? 'in-practice' : 'in-practice');
+            expect(after.state).toBe('in-practice');
           } else if (LADDER[after.state] > LADDER[before.state]) {
             // Subir de escalón con ayuda solo puede ser imposible: lo que sí puede pasar es bajar
             // (la solución vista es un fallo).
@@ -158,12 +158,30 @@ describe('la máquina de estados de dominio', () => {
   it('[CA-145] «Suficiente para avanzar» y «Consolidado» siempre tienen detrás aciertos sin ayuda en días distintos (2 y 3), salvo con «Ya lo sé»', () => {
     fc.assert(
       fc.property(fc.array(attemptArbitrary, { minLength: 0, maxLength: 25 }), (items) => {
-        const result = projectMastery(historyOf(items, false));
+        const events = historyOf(items, false);
+        const result = projectMastery(events);
+        // Los días de los aciertos sin ayuda que contaron (uno por día, como mucho).
+        const byId = new Map(events.map((event) => [event.id, event]));
+        const unaidedDays = new Set(
+          result.steps
+            .filter((step) => {
+              const event = byId.get(step.id);
+              return (
+                step.counted &&
+                event?.kind === 'attempt' &&
+                event.verdict === 'correct' &&
+                (event.helpLevel === 'A0' || event.helpLevel === 'A1') &&
+                !event.optionsQuestion
+              );
+            })
+            .map((step) => step.studyDay),
+        );
+        expect(unaidedDays.size).toBe(result.columns.unaided.count);
         if (result.state === 'enough') {
-          expect(result.columns.unaided.count).toBeGreaterThanOrEqual(1);
+          expect(unaidedDays.size).toBeGreaterThanOrEqual(2);
         }
         if (result.state === 'consolidated') {
-          expect(result.columns.unaided.count).toBeGreaterThanOrEqual(3);
+          expect(unaidedDays.size).toBeGreaterThanOrEqual(3);
           expect(result.columns.delayed.count).toBeGreaterThanOrEqual(1);
         }
       }),

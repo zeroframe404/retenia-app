@@ -104,14 +104,23 @@ test('[CA-144] [CA-145] [CA-146] [CA-147] [CA-148] [CA-149] con ayuda no acredit
   await page.getByRole('button', { name: INTERPRET, exact: true }).click();
   const panel = page.getByRole('dialog', { name: INTERPRET });
   const evidence = panel.getByRole('region', { name: 'Evidencias' });
-  const column = (name: string) => evidence.locator('div').filter({ hasText: name });
-  await expect(column('Sin ayuda')).toContainText('3');
-  await expect(column('Sin ayuda')).toContainText('Última: 24/03/2027');
-  await expect(column('Con ayuda')).toContainText('1');
-  await expect(column('Con ayuda')).toContainText('Última: 15/03/2027');
-  await expect(column('Diferido')).toContainText('1');
-  await expect(column('Diferido')).toContainText('Última: 24/03/2027');
-  await expect(column('Variantes')).toContainText('0');
+  // Las cuatro columnas, en orden, cada una con su conteo y su última fecha (exactos).
+  await expect(evidence.getByRole('term')).toHaveText([
+    'Sin ayuda',
+    'Con ayuda',
+    'Diferido',
+    'Variantes',
+  ]);
+  await expect(evidence.getByRole('definition')).toHaveText([
+    '3',
+    'Última: 24/03/2027',
+    '1',
+    'Última: 15/03/2027',
+    '1',
+    'Última: 24/03/2027',
+    '0',
+    'Ninguna todavía',
+  ]);
   await expect(
     panel.getByText(
       'Qué falta para volver a «Suficiente para avanzar»: un acierto sin ayuda otro día.',
@@ -122,6 +131,43 @@ test('[CA-144] [CA-145] [CA-146] [CA-147] [CA-148] [CA-149] con ayuda no acredit
       /^Lo que estima Retenia de «intervalo de confianza»: unos \d+ de cada 10, con 5 observaciones\.$/,
     ),
   ).toBeVisible();
+});
+
+test('[CA-150] «Ya lo sé» deja «(por verificar)»; al día siguiente Estudiar propone la comprobación y un acierto sin ayuda la quita', async ({
+  launch,
+}) => {
+  test.setTimeout(120_000);
+  const { page } = await launch();
+  await createInterpret(page);
+  await page.getByRole('button', { name: INTERPRET, exact: true }).click();
+  const panel = page.getByRole('dialog', { name: INTERPRET });
+  await panel.getByRole('button', { name: 'Ya lo sé' }).click();
+  await expect(panel.getByText('Suficiente para avanzar (por verificar)')).toBeVisible();
+  await expect(panel.getByText('Comprobación pendiente desde el 16/03/2027.')).toBeVisible();
+  // El mismo día todavía no se puede hacer.
+  await expect(panel.getByRole('button', { name: 'Hacer la comprobación' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await goToDestination(page, 'Estudiar');
+  await expect(page.getByRole('note', { name: 'Comprobación pendiente' })).toHaveCount(0);
+  await advanceDemoDate(page, '+1 día');
+  await goToDestination(page, 'Estudiar');
+  const note = page.getByRole('note', { name: 'Comprobación pendiente' });
+  await expect(note).toContainText('Comprobación pendiente: Interpretar un intervalo de confianza');
+  await expect(note).toContainText(
+    'Por qué: marcaste «Ya lo sé»; un acierto sin ayuda lo confirma.',
+  );
+  await note.getByRole('button', { name: 'Hacer la comprobación' }).click();
+  await expect(page.getByRole('heading', { level: 3, name: 'Ejercicio' })).toBeVisible();
+  await page.getByPlaceholder('Tu respuesta…').fill('El 95 % es del procedimiento.');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  for (let index = 1; index <= 3; index += 1) {
+    await page.getByRole('checkbox', { name: `La cubrí: idea ${index}` }).check();
+  }
+  await page.getByRole('button', { name: 'Siguiente' }).click();
+  const state = await stateOf(page, INTERPRET);
+  await expect(state).toHaveText('Suficiente para avanzar');
+  await goToDestination(page, 'Estudiar');
+  await expect(page.getByRole('note', { name: 'Comprobación pendiente' })).toHaveCount(0);
 });
 
 test('[CA-151] [CA-152] un requisito indispensable frena Estudiar («Antes conviene») y «Esto no es necesario para aquello» lo saca al instante', async ({
