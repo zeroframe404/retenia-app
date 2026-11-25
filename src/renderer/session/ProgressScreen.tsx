@@ -4,6 +4,7 @@ import { ImproveSection } from '../progress/ImproveSection';
 import { MistakesSection } from '../progress/MistakesSection';
 import { ObjectiveForm } from '../progress/ObjectiveForm';
 import { ObjectivesSection } from '../progress/ObjectivesSection';
+import styles from '../progress/Progress.module.css';
 import { ReviewsSection } from '../progress/ReviewsSection';
 import { Boton } from '../ui/Boton';
 import { ScreenFrame, SectionTabs } from '../ui/Frame';
@@ -68,14 +69,14 @@ export function ProgressScreen({
       title={texts.nav.progress}
       focusTitle={focusTitle}
       actions={
-        <>
+        <div className={styles.actions}>
           {subjectId === null ? null : (
             <Boton onClick={() => setCreating(true)}>{texts.progress.newObjective}</Boton>
           )}
           <Boton variant="primary" onClick={onGoToStudy}>
             {texts.progress.goToStudy}
           </Boton>
-        </>
+        </div>
       }
     >
       <SectionTabs
