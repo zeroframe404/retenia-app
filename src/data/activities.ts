@@ -24,6 +24,7 @@ import {
   verdictFromUnits,
 } from '../core/evaluation';
 import { currentEvaluation } from '../core/ledger';
+import type { Diagnosis } from '../core/mastery';
 import type { Verdict } from '../core/memory';
 import type {
   ActivityHelp,
@@ -42,6 +43,7 @@ import { CardOutOfReviewsError, CardPausedError } from './card-errors';
 import { asMode, parsedActivity } from './cards';
 import { activeCard, CardNotFoundError, type CardRow, cardOf, sheetOf } from './content';
 import type { ReteniaDatabase } from './database';
+import { diagnosisFor } from './diagnosis';
 import { newId } from './ids';
 import {
   appendEvaluation,
@@ -348,6 +350,18 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       throw new AttemptNotFoundError();
     }
     return { ...readPayload('attempt.submitted', row.schemaVersion, row.payload), id: row.id };
+  }
+
+  // Fase 17 (CA-153): con «Todavía no.», qué sigue y por qué.
+  function diagnosisOf(tx: Writer, attempt: StoredAttempt, verdict: Verdict): Diagnosis | null {
+    if (verdict !== 'incorrect') {
+      return null;
+    }
+    return diagnosisFor(tx, {
+      id: attempt.id,
+      cardId: attempt.cardId,
+      written: attempt.answer.type === 'short' ? attempt.answer.text : null,
+    });
   }
 
   function evaluationsOf(tx: Writer, attemptId: string) {
@@ -723,6 +737,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           allowed: allowedVerdicts(evaluated.proposed),
           parts: partsOf(attempt, evaluated.proposed, evaluated),
           missing: evaluated.missing,
+          diagnosis: diagnosisOf(tx, attempt, evaluated.proposed),
           detail: evaluated.detail,
           explanation: sheetOf(row).explanation,
         };
@@ -742,6 +757,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         allowed: allowedVerdicts(evaluated.proposed),
         parts: partsOf(attempt, shown, evaluated),
         missing: evaluated.missing,
+        diagnosis: diagnosisOf(orm, attempt, shown),
       };
     },
 
@@ -763,6 +779,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           nextReviewDay,
           pendingCheck,
           checkDay: pendingCheck ? nextReviewDay : null,
+          diagnosis: diagnosisOf(tx, attempt, final),
         };
       });
     },

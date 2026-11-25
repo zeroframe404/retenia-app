@@ -143,6 +143,11 @@ export const observations = sqliteTable(
     sessionId: text('session_id').generatedAlwaysAs(sql`json_extract(payload, '$.sessionId')`, {
       mode: 'virtual',
     }),
+    // Fase 17: el objetivo de la observación (enlaces, «Ya lo sé», requisitos, posponer).
+    objectiveId: text('objective_id').generatedAlwaysAs(
+      sql`json_extract(payload, '$.objectiveId')`,
+      { mode: 'virtual' },
+    ),
   },
   (table) => [
     uniqueIndex('observations_idempotency_key_unique').on(table.idempotencyKey),
@@ -150,6 +155,7 @@ export const observations = sqliteTable(
     index('observations_kind_occurred_idx').on(table.kind, table.occurredAt),
     index('observations_card_idx').on(table.cardId, table.seq),
     index('observations_session_idx').on(table.sessionId, table.seq),
+    index('observations_objective_idx').on(table.objectiveId, table.seq),
   ],
 );
 
@@ -419,8 +425,39 @@ export const doubts = sqliteTable(
     sessionId: text('session_id'),
     createdAt: text('created_at').notNull(),
     resolvedAt: text('resolved_at'),
+    // Fase 17: la versión de la tarjeta sobre la que se guardó la duda (corregirla la apaga para el
+    // diagnóstico tras un fallo). Nula en las de antes.
+    cardVersionId: text('card_version_id'),
   },
   (table) => [index('doubts_created_idx').on(table.createdAt)],
+);
+
+// --- Objetivos (Fase 17) ---
+
+// Lo que querés poder hacer: el texto («Interpretar un intervalo de confianza»), su acción
+// observable y su contenido, las condiciones, el tipo (remember, understand, apply, reason o
+// execute) y el concepto (el contenido sin artículo ni tildes). No se modifica (un disparador lo
+// impide). El objetivo implícito «Recordar: tema» no es una fila. Los enlaces con sus actividades,
+// los requisitos, «Ya lo sé» y «No quiero esto ahora» son eventos del libro mayor; el estado se
+// calcula desde la evidencia.
+export const objectives = sqliteTable(
+  'objectives',
+  {
+    id: text('id').primaryKey(),
+    subjectId: text('subject_id').notNull(),
+    topicId: text('topic_id'),
+    title: text('title').notNull(),
+    action: text('action').notNull(),
+    content: text('content').notNull(),
+    conditions: text('conditions'),
+    kind: text('kind').notNull(),
+    conceptKey: text('concept_key').notNull(),
+    // user o demo (el del elenco).
+    source: text('source').notNull().default('user'),
+    createdAt: text('created_at').notNull(),
+    deletedAt: text('deleted_at'),
+  },
+  (table) => [index('objectives_subject_idx').on(table.subjectId, table.topicId)],
 );
 
 // Ajustes y preferencias que viven en la base (JSON por clave): «ya viste la ayuda de teclas» y lo

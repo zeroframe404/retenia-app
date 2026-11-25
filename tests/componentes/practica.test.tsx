@@ -361,7 +361,7 @@ describe('el resultado', () => {
     expect(lines).toHaveLength(3);
     expect(lines[0]).toBe('Todavía no.');
     expect(lines[1]).toContain('Revisá las letras marcadas');
-    expect(lines[2]).toBe('Mirá la explicación.');
+    expect(lines[2]).toBe('Mirá la explicación: parece un olvido.');
     expect(shown.textContent).not.toMatch(/\b\d{1,3} ?\/ ?100\b|\bnota\b/i);
     for (const name of ['Siguiente', 'Explicación', 'Reintentar', 'Discrepo']) {
       expect(button(name)).toBeTruthy();

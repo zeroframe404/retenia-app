@@ -25,6 +25,14 @@ export function createDoubtsStore(db: ReteniaDatabase, clock: Clock): DoubtsStor
     create({ doubtId, text, cardId, sessionId }) {
       // En una transacción: el índice de búsqueda se actualiza junto con la duda.
       orm.transaction((tx) => {
+        const cardVersionId =
+          cardId === null
+            ? null
+            : (tx
+                .select({ versionId: cards.currentVersionId })
+                .from(cards)
+                .where(eq(cards.id, cardId))
+                .get()?.versionId ?? null);
         tx.insert(doubts)
           .values({
             id: doubtId,
@@ -32,6 +40,7 @@ export function createDoubtsStore(db: ReteniaDatabase, clock: Clock): DoubtsStor
             cardId,
             sessionId,
             createdAt: clock.now().toISOString(),
+            cardVersionId,
           })
           .onConflictDoNothing({ target: doubts.id })
           .run();

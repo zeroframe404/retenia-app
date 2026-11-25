@@ -299,6 +299,18 @@ const cardCastSchema = () =>
         }),
       )
       .optional(),
+    // Fase 17: los objetivos del elenco, con las preguntas de sus actividades.
+    objetivos: z
+      .array(
+        z.strictObject({
+          materia: z.string().min(1),
+          tema: z.string().min(1).nullable(),
+          texto: z.string().min(1),
+          tipo: z.enum(['remember', 'understand', 'apply', 'reason', 'execute']),
+          actividades: z.array(z.string().min(1)),
+        }),
+      )
+      .optional(),
   });
 
 // El lunes 15/03/2027 a las 10:00 de Buenos Aires: el «hoy» de la demostración.
@@ -561,6 +573,7 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
   // identificador).
   workspace.cards.plantCast([...entries].reverse());
   workspace.cards.plantCast(exercisesOf(elenco.ejercicios ?? [], subjects, workspace, materials));
+  seedObjectives(workspace, elenco.objetivos ?? [], subjects);
 
   const statistics = subjects.find((item) => item.name === 'Estadística básica');
   if (statistics) {
@@ -582,6 +595,52 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
     );
   }
   return workspace.cards.count();
+}
+
+// Los objetivos del elenco (Fase 17): «Calcular la media y el desvío», «Sin iniciar», con su ejercicio.
+// Se enlazan después de sembrar el historial: los intentos de antes no son de ellos.
+function seedObjectives(
+  workspace: Workspace,
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['objetivos']>,
+  subjects: readonly { id: string; name: string }[],
+): void {
+  for (const objective of cast) {
+    const subject = subjects.find((item) => item.name === objective.materia);
+    if (!subject) {
+      throw new Error(
+        `El elenco de objetivos nombra una materia que no existe: ${objective.materia}`,
+      );
+    }
+    const topic =
+      objective.tema === null
+        ? null
+        : workspace.topics
+            .list({ subjectId: subject.id })
+            .topics.find((t) => t.name === objective.tema);
+    if (topic === undefined) {
+      throw new Error(`El elenco de objetivos nombra un tema que no existe: ${objective.tema}`);
+    }
+    const all = workspace.cards.list({ subjectId: subject.id });
+    const cardIds = objective.actividades.map((question) => {
+      const card = all.find((item) => item.question === question);
+      if (!card) {
+        throw new Error(`El elenco de objetivos nombra una actividad que no existe: ${question}`);
+      }
+      return card.id;
+    });
+    workspace.objectives.create(
+      {
+        objectiveId: newId(),
+        subjectId: subject.id,
+        topicId: topic?.id ?? null,
+        text: objective.texto,
+        conditions: null,
+        kind: objective.tipo,
+        cardIds,
+      },
+      { source: 'demo' },
+    );
+  }
 }
 
 // Los ejercicios del elenco (Fase 16), sin historial y un día más viejos que las tarjetas: quedan al

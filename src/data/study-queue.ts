@@ -1,11 +1,11 @@
 import { and, eq, gt, inArray, isNull, notInArray } from 'drizzle-orm';
-import type { CardMemory, Grade } from '../core/memory';
+import type { CardMemory } from '../core/memory';
 import { recallProbability } from '../core/memory';
-import { leftOutOfQueue, type QueueCandidate } from '../core/session';
+import type { QueueCandidate } from '../core/session';
 import { studyDayOf } from '../core/study-day';
+import { difficultyOf } from './difficulty';
 import { readPayload } from './ledger';
 import type { Writer } from './orm';
-import { cardHistory } from './projections';
 import { cardSchedule, cards, cardVersions, observations, subjects } from './schema';
 
 // Qué tarjetas pueden entrar en una sesión (Fases 10 y 11): la materia activa, las vencidas que se
@@ -40,7 +40,7 @@ export interface Eligible extends QueueCandidate {
 }
 
 // Las tarjetas ya repasadas de una materia que pueden entrar en una sesión: sin pausar, sin
-// borrar, con la ficha fuera de «En revisión» y «Retirada», y sin 4 fallos seguidos. Con su
+// borrar y con la ficha fuera de «En revisión» y «Retirada». Con su
 // probabilidad de recordarlas el día `today` y el día en que vencen.
 export function eligibleCards(db: Writer, subjectId: string, today: string): Eligible[] {
   const rows = db
@@ -100,25 +100,12 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
   });
 }
 
-// Las calificaciones que llegaron al motor desde que la tarjeta se programó como nueva por última
-// vez: sin anuladas, sin otros repasos del mismo día y sin las vueltas de una fallada.
-function gradesOf(db: Writer, cardId: string): Grade[] {
-  const grades: Grade[] = [];
-  for (const entry of cardHistory(db, cardId)) {
-    if (entry.result === 'reset' || entry.result === 'adopted') {
-      grades.length = 0;
-    } else if (entry.counted && entry.result !== 'postponed') {
-      grades.push(entry.result);
-    }
-  }
-  return grades;
-}
-
-// Las vencidas hoy que pueden entrar (sin las de 4 fallos seguidos).
+// Las vencidas hoy que pueden entrar: sin las de dificultad recurrente (Fase 17: 4 fallos, o 3 en 30
+// días, desde la última mejora; contiene la regla de los 4 fallos seguidos de la Fase 10), que van a
+// «Mejorar la tarjeta». Hacen falta 3 repasos que contaron para llegar a 3 fallos.
 export function dueCandidates(db: Writer, subjectId: string, today: string): Eligible[] {
   return eligibleCards(db, subjectId, today).filter(
-    (card) =>
-      card.dueDay <= today && !(card.reps >= 4 && leftOutOfQueue(gradesOf(db, card.cardId))),
+    (card) => card.dueDay <= today && !(card.reps >= 3 && difficultyOf(db, card.cardId) !== null),
   );
 }
 

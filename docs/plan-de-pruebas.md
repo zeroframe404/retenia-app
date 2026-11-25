@@ -393,6 +393,8 @@ Cómo quedó en la Fase 10:
 | CA-155 | E | I | «Mis errores» muestra respuesta textual, correcta y tipo, por tema. |
 | CA-156 | U | P | 1 y 1 más acierto → 2 y 1; 2 y 2 más pista → 0,535; solución vista no cambia; propiedad: la media queda en (0, 1). |
 
+- Dobles nuevos: ninguno. Las secuencias de estados y la estimación van al tablero como «Tabla de casos de dominio» (`tests/unitarias/dominio.test.ts`).
+
 ### Fase 18 · Procedimientos, variantes e intercalado (H-37, H-38, H-39)
 
 | Criterio | Capa | También | Cómo se comprueba |

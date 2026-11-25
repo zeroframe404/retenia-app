@@ -258,6 +258,63 @@ const PAYLOADS = {
   },
   // «Sumar a mis repasos» (Fase 11): la tarjeta nueva pasa al principio de las nuevas.
   'card.activated': { 1: z.strictObject({ cardId: z.uuid(), batchId: z.uuid() }) },
+  // Fase 17: una actividad (tarjeta o ejercicio) pasa a un objetivo, o vuelve al implícito
+  // «Recordar: tema» (nulo). Los intentos de antes siguen contando para el objetivo que tenía.
+  'objective.linked': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      objectiveId: z.uuid().nullable(),
+      previousObjectiveId: z.uuid().nullable(),
+    }),
+  },
+  // «Ya lo sé» (CA-150), «No quiero esto ahora» y «Retomar».
+  'objective.know_already': { 1: z.strictObject({ objectiveId: z.uuid() }) },
+  'objective.postponed': { 1: z.strictObject({ objectiveId: z.uuid() }) },
+  'objective.resumed': { 1: z.strictObject({ objectiveId: z.uuid() }) },
+  // Un requisito entre objetivos (H-35): «objectiveId» necesita antes a «requiresId».
+  'requirement.added': {
+    1: z.strictObject({
+      requirementId: z.uuid(),
+      objectiveId: z.uuid(),
+      requiresId: z.uuid(),
+      kind: z.enum(['indispensable', 'recommended']),
+      status: z.enum(['confirmed', 'suggested']),
+    }),
+  },
+  // «Confirmar» uno sugerido y «Esto no es necesario para aquello».
+  'requirement.confirmed': {
+    1: z.strictObject({ requirementId: z.uuid(), objectiveId: z.uuid(), requiresId: z.uuid() }),
+  },
+  'requirement.dismissed': {
+    1: z.strictObject({ requirementId: z.uuid(), objectiveId: z.uuid(), requiresId: z.uuid() }),
+  },
+  // «Mejorar la tarjeta» (CA-154): «Reformular» y «Agregar una pista» (con la versión nueva) o
+  // «Dividir en dos» (con las dos tarjetas nuevas). Los fallos de la dificultad recurrente se
+  // cuentan desde acá.
+  'card.improved': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      action: z.enum(['rephrase', 'hint', 'split']),
+      versionId: z.uuid().nullable(),
+      newCardIds: z.array(z.uuid()),
+    }),
+  },
+  // «Mis errores» (CA-155): el tipo de error que elegiste para un intento.
+  'mistake.type_set': {
+    1: z.strictObject({
+      attemptId: z.uuid(),
+      cardId: z.uuid(),
+      type: z.enum([
+        'distraction',
+        'forgotten',
+        'confusion',
+        'calculation',
+        'missingIdea',
+        'stepOrder',
+        'other',
+      ]),
+    }),
+  },
   // «La tarjeta está mal» (CA-077): la ficha pasa a «En revisión» (esa versión) y el intento no
   // mueve la agenda (no es de los tipos que la mueven).
   'card.flagged': {
@@ -292,6 +349,15 @@ const CURRENT_VERSION = {
   'card.flagged': 1,
   'review.postponed': 1,
   'card.activated': 1,
+  'objective.linked': 1,
+  'objective.know_already': 1,
+  'objective.postponed': 1,
+  'objective.resumed': 1,
+  'requirement.added': 1,
+  'requirement.confirmed': 1,
+  'requirement.dismissed': 1,
+  'card.improved': 1,
+  'mistake.type_set': 1,
 } as const;
 
 type Payloads = typeof PAYLOADS;

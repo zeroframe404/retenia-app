@@ -162,15 +162,15 @@ Cómo quedó en la Fase 13: `materials.addFiles` (`{ paths, subjectId, title? }`
 
 | Canal | Petición | Respuesta | Historias |
 |---|---|---|---|
-| `objectives.list` / `objectives.create` / `objectives.link` | `{ topicId, title, kind, activityIds }` | objetivo con estado y marca «(por verificar)» | H-34 |
-| `objectives.panel` | `{ objectiveId }` | columnas «Sin ayuda», «Con ayuda», «Diferido», «Variantes» con conteo y fecha | H-34 |
-| `objectives.requirements.set` / `objectives.requirements.dismiss` | `{ objectiveId, requiresId, kind }` | requisitos | H-35 |
-| `objectives.knowAlready` | `{ objectiveId }` | estado «Suficiente (por verificar)» y comprobación programada | H-34 |
+| `objectives.list` / `objectives.create` / `objectives.activities` / `objectives.link` | `{ subjectId? }` / `{ objectiveId, subjectId, topicId, text, conditions, kind, cardIds }` / `{ subjectId, topicId? }` / `{ linkId, objectiveId \| null, cardIds }` | los objetivos por tema (el implícito «Recordar: tema» primero) con estado y marca «(por verificar)»; las actividades con su objetivo de ahora (Fase 17) | H-34 |
+| `objectives.panel` | `{ objectiveId }` (UUID, `topic:<tema>` o `subject:<materia>`) | columnas «Sin ayuda», «Con ayuda», «Diferido», «Variantes» con conteo y fecha, qué falta, la estimación con su respaldo, actividades, requisitos (Fase 17) | H-34 |
+| `objectives.requirements.add` / `.confirm` / `.dismiss` | `{ requirementId, objectiveId, requiresId, kind, status }` / `{ requirementId }` | requisitos (Fase 17); `study.overview` suma `proposal.requirement` («Antes conviene» o «Quizá te ayude repasar») | H-35 |
+| `objectives.knowAlready` / `objectives.postpone` / `objectives.resume` | `{ objectiveId }` | «Suficiente (por verificar)» con la comprobación desde el día siguiente; «No quiero esto ahora» y «Retomar» (Fase 17) | H-34 |
 | `progress.overview` | — | tres bloques con rótulos «Observado», «Estimado», «Datos insuficientes» y cantidades | H-54 |
 | `progress.probe30.start` / `.answer` / `.finish` | `{ cardId, answer }` | resultado «8 de 11 sin ayuda a 30 días (cerca de 73 %) · Evidencia baja», rango de Wilson | H-54 |
-| `progress.errors` / `progress.createContrastCard` | `{ subjectId?, course? }` / `{ errorIds }` | «Mis errores» por tema / tarjeta de contraste | H-36, H-38, H-65 |
+| `progress.errors` / `progress.errors.setType` / `progress.createContrastCard` | `{ subjectId? }` / `{ attemptId, type }` / `{ errorIds }` | «Mis errores» por tema y el tipo elegido (Fase 17) / tarjeta de contraste (Fase 18) | H-36, H-38, H-65 |
 | `progress.doubts.list` / `.add` / `.resolve` | `{ text, context }` / `{ doubtId, resolution }` | dudas y notas provisionales | H-17, H-46 |
-| `progress.improveCard.list` / `.apply` | `{ cardId, action: 'rephrase' \| 'split' \| 'addHint' }` | lista «Mejorar la tarjeta» | H-36 |
+| `progress.improveCard.list` / `.split` | — / `{ splitId, cardId, parts }` | lista «Mejorar la tarjeta» y «Dividir en dos» (Fase 17); «Reformular» y «Agregar una pista» son `cards.edit` con `improve` | H-36 |
 | `progress.masteryMap` / `progress.milestones` / `progress.confidence` | — | escalones por tema con evidencia y fecha; hitos con fecha; «Cuando decís “Seguro”, acertás 7 de 10» | H-55, H-56 |
 
 ### `ai`

@@ -19,8 +19,14 @@ type View =
   | { kind: 'list' }
   | { kind: 'form' }
   | { kind: 'detail'; cardId: string; version: number }
-  // `focus`: la parte de la referencia a corregir («La referencia está incompleta»).
-  | { kind: 'edit'; card: CardDetail; focus?: ReferenceField | undefined }
+  // `focus`: la parte de la referencia a corregir («La referencia está incompleta»). `improve`: la
+  // edición viene de «Mejorar la tarjeta» (Fase 17).
+  | {
+      kind: 'edit';
+      card: CardDetail;
+      focus?: ReferenceField | undefined;
+      improve?: 'rephrase' | 'hint' | undefined;
+    }
   | { kind: 'newExercise' }
   | { kind: 'review'; card: Card }
   | { kind: 'history'; card: Card };
@@ -48,12 +54,20 @@ export function CardsScreen({
   onOpenNote,
   onOpenOriginal,
   cardRequest = null,
+  onOpenObjective,
 }: {
   subject?: Subject | undefined;
   onOpenNote?: ((noteId: string, blockId: string) => void) | undefined;
   onOpenOriginal?: ((materialId: string, cardId: string) => void) | undefined;
   // Una tarjeta para abrir de entrada («Abrir la tarjeta» en Progreso); cada pedido es distinto.
-  cardRequest?: { cardId: string; nonce: number; practice?: boolean | undefined } | null;
+  cardRequest?: {
+    cardId: string;
+    nonce: number;
+    practice?: boolean | undefined;
+    edit?: 'rephrase' | 'hint' | undefined;
+  } | null;
+  // «Ir al requisito» tras un fallo (Fase 17).
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
 }) {
   const subjectId = subject?.id;
   const [cards, setCards] = useState<Card[] | null>(null);
@@ -139,6 +153,12 @@ export function CardsScreen({
           ),
         () => setProblem(texts.practice.loadFailed),
       );
+    } else if (cardRequest?.edit) {
+      const improve = cardRequest.edit;
+      window.retenia['cards.get']({ cardId: cardRequest.cardId }).then(
+        (card) => setView({ kind: 'edit', card, improve }),
+        () => setProblem(texts.cards.loadFailed),
+      );
     } else if (cardRequest) {
       setView({ kind: 'detail', cardId: cardRequest.cardId, version: nextVersion() });
     }
@@ -223,8 +243,16 @@ export function CardsScreen({
     if (card.activityType !== null) {
       return (
         <ExerciseView
+          key={card.id}
           cardId={card.id}
           onClose={backToList}
+          onOpenObjective={onOpenObjective}
+          onPracticeOther={(otherId) => {
+            window.retenia['cards.get']({ cardId: otherId }).then(
+              (other) => setView({ kind: 'review', card: other }),
+              () => setProblem(texts.cards.loadFailed),
+            );
+          }}
           onEditReference={(field) => {
             window.retenia['cards.get']({ cardId: card.id }).then(
               (detail) => {
@@ -268,6 +296,7 @@ export function CardsScreen({
         <SheetForm
           card={card}
           focusField={view.focus}
+          improve={view.improve}
           onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}
           onSaved={() => {
             setNotice(texts.cards.edited);

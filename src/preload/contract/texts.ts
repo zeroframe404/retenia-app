@@ -923,6 +923,20 @@ export const texts = {
       retry: 'Reintentar',
       disagree: 'Discrepo',
     },
+    // Fase 17 (CA-153): tras un fallo, una sola acción con su motivo.
+    diagnosis: {
+      previousAided: 'Probala sin ayuda: la vez anterior fue con ayuda.',
+      previousOptions: 'Probala sin ayuda: la vez anterior fue con opciones.',
+      doubtful: 'Mandala a revisión: marcaste esta pregunta como dudosa.',
+      missingRequirement: (title: string, state: string) =>
+        `Andá al requisito «${title}»: todavía está en «${state}».`,
+      confusion: (question: string) =>
+        `Practicá la diferencia con «${question}»: tu respuesta es la de esa tarjeta.`,
+      forgotten: 'Mirá la explicación: parece un olvido.',
+      goToRequirement: 'Ir al requisito',
+      sendToReview: 'Mandar a revisión',
+      practiceDifference: 'Practicar la diferencia',
+    },
     // La diferencia letra por letra (CA-131), dicha también en palabras para el lector de pantalla.
     diffLabel: 'Diferencia letra por letra',
     yourAnswer: 'Tu respuesta',
@@ -1108,6 +1122,21 @@ export const texts = {
           ? `Por qué: ${observed} y el tiempo es una estimación inicial.`
           : `Por qué: ${observed} y el tiempo es una estimación.`;
       },
+      // Fase 17 (H-35): el requisito sin cumplir, con su motivo.
+      requirementBefore: (title: string) => `Antes conviene: ${title}`,
+      requirementMaybe: (title: string) => `Quizá te ayude repasar: ${title}`,
+      requirementWhy: (objective: string, requirement: string, state: string) =>
+        `Por qué: «${objective}» necesita «${requirement}», que todavía está en «${state}».`,
+      requirementWhyMaybe: (objective: string, requirement: string) =>
+        `Por qué: «${objective}» tiene a «${requirement}» como requisito, sin frenarlo.`,
+      requirementPractice: 'Practicar ahora',
+      requirementNotNeeded: 'Esto no es necesario para aquello',
+      requirementLabel: 'Requisito',
+      // La comprobación de un «Ya lo sé» que ya se puede hacer (CA-150).
+      checkLabel: 'Comprobación pendiente',
+      checkLine: (title: string) => `Comprobación pendiente: ${title}`,
+      checkWhy: 'Por qué: marcaste «Ya lo sé»; un acierto sin ayuda lo confirma.',
+      checkDo: 'Hacer la comprobación',
       // El freno a las tarjetas nuevas cuando hay repasos atrasados: dice cuánto y cuándo vuelven.
       brake: (band: 'half' | 'few' | 'none', days: number, newCards: number) => {
         const late = `tenés cerca de ${lateDays(days)} de repasos atrasados`;
@@ -1163,8 +1192,180 @@ export const texts = {
   progress: {
     sectionsLabel: 'Secciones de Progreso',
     reviews: 'Dudas y revisiones',
-    later:
-      'Por ahora, acá están tus dudas y las tarjetas en revisión. Lo demás de Progreso llega más adelante.',
+    // Fase 17: los objetivos, «Mis errores» y «Mejorar la tarjeta».
+    objectives: 'Objetivos',
+    mistakes: 'Mis errores',
+    improve: 'Mejorar la tarjeta',
+    newObjective: 'Nuevo objetivo',
+    objectivesOf: (subject: string) => `Objetivos de ${subject}`,
+    topicObjectives: (topic: string) => `Objetivos de ${topic}`,
+    noTopic: 'Sin tema',
+    implicitTitle: (topic: string) => `Recordar: ${topic}`,
+    noObjectives:
+      'Todavía no hay actividades en esta materia. Cuando sumes tarjetas o ejercicios, aparecen acá con su objetivo.',
+    noSubject: 'Todavía no tenés materias.',
+    kinds: {
+      remember: 'Recordar',
+      understand: 'Comprender',
+      apply: 'Aplicar',
+      reason: 'Razonar',
+      execute: 'Ejecutar',
+    },
+    postponedTag: 'Pospuesto',
+    activityCount: (count: number) => (count === 1 ? '1 actividad' : `${count} actividades`),
+    loadingObjectives: 'Cargando tus objetivos…',
+    objectivesFailed: 'No pude leer tus objetivos. Probá de nuevo.',
+    form: {
+      title: 'Nuevo objetivo',
+      topic: 'Tema',
+      text: 'Texto',
+      textHelp: 'Lo que vas a poder hacer, empezando por la acción: «Interpretar…», «Calcular…».',
+      notObservable:
+        'Empezá con lo que vas a poder hacer: «Calcular…», «Explicar…», «Reconocer…». Así se puede comprobar.',
+      conditions: 'Condiciones (opcional)',
+      conditionsHelp: 'Por ejemplo: «sin mirar apuntes» o «con la tabla a mano».',
+      kind: 'Tipo',
+      activities: 'Actividades',
+      activitiesHelp:
+        'Las que marques pasan a este objetivo. Lo que ya practicaste sigue contando para el objetivo que tenían.',
+      noActivities: 'Este tema todavía no tiene actividades.',
+      exercise: 'Ejercicio',
+      currently: (title: string) => `Ahora en: ${title}`,
+      create: 'Crear objetivo',
+      cancel: 'Cancelar',
+      textRequired: 'Escribí qué vas a poder hacer.',
+      failed: 'No pude crear el objetivo. Probá de nuevo.',
+      created: (title: string) => `Objetivo creado: ${title}`,
+    },
+    panel: {
+      label: 'Panel del objetivo',
+      kindLine: (kind: string) => `Tipo: ${kind}`,
+      conditionsLine: (conditions: string) => `Condiciones: ${conditions}`,
+      columnsLabel: 'Evidencias',
+      unaided: 'Sin ayuda',
+      aided: 'Con ayuda',
+      delayed: 'Diferido',
+      variants: 'Variantes',
+      lastOn: (date: string) => `Última: ${date}`,
+      never: 'Ninguna todavía',
+      start: 'Qué falta: un intento en cualquiera de sus actividades.',
+      toEnough: (remaining: number) =>
+        remaining === 1
+          ? 'Qué falta para «Suficiente para avanzar»: un acierto sin ayuda más, otro día.'
+          : `Qué falta para «Suficiente para avanzar»: ${remaining} aciertos sin ayuda en días distintos.`,
+      recover: 'Qué falta para volver a «Suficiente para avanzar»: un acierto sin ayuda otro día.',
+      check: (date: string) => `Qué falta: la comprobación sin ayuda, desde el ${date}.`,
+      toConsolidated: (remaining: number, from: string | null) => {
+        const count =
+          remaining === 1
+            ? 'un acierto sin ayuda más'
+            : `${remaining} aciertos sin ayuda más, en días distintos`;
+        if (from === null) {
+          return `Qué falta para «Consolidado»: ${count}.`;
+        }
+        return remaining === 1
+          ? `Qué falta para «Consolidado»: ${count}, desde el ${from}.`
+          : `Qué falta para «Consolidado»: ${count}, uno desde el ${from}.`;
+      },
+      kept: 'Consolidado: los repasos lo mantienen.',
+      estimate: (concept: string, outOfTen: number, observations: number) =>
+        observations === 1
+          ? `Lo que estima Retenia de «${concept}»: unos ${outOfTen} de cada 10, con 1 observación.`
+          : `Lo que estima Retenia de «${concept}»: unos ${outOfTen} de cada 10, con ${observations} observaciones.`,
+      estimateNone: (concept: string) =>
+        `Lo que estima Retenia de «${concept}»: todavía sin observaciones.`,
+      estimateNote: 'El estado lo deciden las reglas, no esta estimación.',
+      activitiesHeading: 'Actividades',
+      noActivities: 'Todavía no tiene actividades.',
+      practice: 'Practicar ahora',
+      practiceOne: (question: string) => `Practicar ahora: ${question}`,
+      link: 'Enlazar actividades',
+      previous: (count: number) =>
+        count === 1
+          ? '1 intento de estas actividades es de cuando eran de otro objetivo: se ve, pero cuenta para aquel.'
+          : `${count} intentos de estas actividades son de cuando eran de otro objetivo: se ven, pero cuentan para aquel.`,
+      needsHeading: 'Necesita antes',
+      neededByHeading: 'Es requisito de',
+      noNeeds: 'No necesita nada antes.',
+      noNeededBy: 'No es requisito de ningún objetivo.',
+      missedSomething: 'Me faltó algo antes',
+      markAsRequirement: 'Marcar como requisito de…',
+      indispensable: 'Indispensable',
+      recommended: 'Recomendable',
+      confirmed: 'Confirmado',
+      suggested: 'Sugerido',
+      requiredState: (state: string) => `Está en «${state}»`,
+      confirm: 'Confirmar',
+      notNeeded: 'Esto no es necesario para aquello',
+      knowAlready: 'Ya lo sé',
+      postpone: 'No quiero esto ahora',
+      resume: 'Retomar',
+      pendingCheck: (date: string) => `Comprobación pendiente desde el ${date}.`,
+      doCheck: 'Hacer la comprobación',
+      close: 'Cerrar',
+      failed: 'No pude hacer eso. Probá de nuevo.',
+      loadFailed: 'No pude leer este objetivo. Probá de nuevo.',
+      knowAlreadyDone:
+        'Anotado como «Suficiente para avanzar (por verificar)». Desde mañana te pido una comprobación corta sin ayuda.',
+      postponedDone: 'Pospuesto: no se proponen sus tarjetas nuevas. No se borró nada.',
+      resumedDone: 'Retomado.',
+      dismissedDone: 'Listo: ese requisito ya no frena.',
+      addedDone: 'Requisito guardado.',
+      linkedDone: (count: number) =>
+        count === 1 ? '1 actividad enlazada.' : `${count} actividades enlazadas.`,
+      linkTitle: 'Enlazar actividades',
+      save: 'Guardar',
+      cancel: 'Cancelar',
+      requirementObjective: 'Objetivo',
+      requirementKind: 'Tipo de requisito',
+      requirementConfirm: 'Lo confirmo',
+      requirementConfirmHelp: 'Sin tildar, queda como sugerido: avisa, pero no frena.',
+      noCandidates: 'No hay otro objetivo tuyo en esta materia para elegir.',
+    },
+    mistakesSection: {
+      empty: 'Todavía no hay errores anotados. Acá van tus respuestas escritas que no salieron.',
+      groupLabel: (topic: string) => `Errores de ${topic}`,
+      yourAnswer: (written: string) => `Tu respuesta: ${written}`,
+      correct: (correct: string) => `La correcta: ${correct}`,
+      type: 'Tipo de error',
+      types: {
+        distraction: 'Distracción',
+        forgotten: 'No lo recordaba',
+        confusion: 'Confusión entre conceptos',
+        calculation: 'Cálculo',
+        missingIdea: 'Faltó una idea',
+        stepOrder: 'Orden de los pasos',
+        other: 'Otro',
+      },
+      on: (date: string) => `El ${date}`,
+      practice: 'Practicar ahora',
+      typeSaved: 'Tipo de error guardado.',
+      loading: 'Cargando tus errores…',
+      loadFailed: 'No pude leer tus errores. Probá de nuevo.',
+    },
+    improveSection: {
+      intro:
+        'Estas tarjetas salieron de los repasos porque fallaron varias veces. Cuando la mejorás, vuelve a los repasos.',
+      empty: 'Ninguna tarjeta necesita mejoras.',
+      total: (failures: number) => `${failures} fallos`,
+      thirtyDays: (failures: number) => `${failures} fallos en 30 días`,
+      rephrase: 'Reformular',
+      split: 'Dividir en dos',
+      addHint: 'Agregar una pista',
+      viewOriginal: 'Ver en el original',
+      noSource: 'Esta tarjeta no tiene fuente.',
+      splitTitle: 'Dividir en dos',
+      splitHelp:
+        'Dos tarjetas más chicas en el mismo tema y objetivo. La original se retira con su historial.',
+      part: (index: number) => `Tarjeta ${index}`,
+      question: 'Pregunta',
+      answer: 'Respuesta',
+      splitSave: 'Crear las dos',
+      splitDone: 'Listo: dos tarjetas nuevas; la original quedó retirada con su historial.',
+      loading: 'Cargando las tarjetas para mejorar…',
+      loadFailed: 'No pude leer las tarjetas para mejorar. Probá de nuevo.',
+      failed: 'No pude hacer eso. Probá de nuevo.',
+    },
     doubtsHeading: 'Dudas guardadas',
     noDoubts: 'Todavía no guardaste dudas.',
     fromCard: (question: string) => `De la tarjeta: ${question}`,

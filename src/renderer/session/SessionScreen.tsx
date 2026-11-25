@@ -10,6 +10,7 @@ import { Autosaver } from '../notes/editor/autosave';
 import { ConfirmSolution, HelpPanel } from '../practice/HelpPanel';
 import practiceStyles from '../practice/Practice.module.css';
 import { useHelp } from '../practice/useHelp';
+import { landOnReviews } from '../progress/landing';
 import { Boton } from '../ui/Boton';
 import { Dialog } from '../ui/Frame';
 import { type DraftState, IndicadorBorrador, RotuloModo } from '../ui/Labels';
@@ -306,6 +307,7 @@ export function SessionScreen({
       }),
     ).then((done) => {
       if (done) {
+        landOnReviews();
         onToast(texts.study.flagged);
       }
     });

@@ -119,6 +119,44 @@ describe('las pantallas no muestran textos prohibidos', () => {
     expect(problems(), 'Actividad reciente').toEqual([]);
   });
 
+  it('[CA-036] las secciones de Progreso (Fase 17): los objetivos con su panel y «Nuevo objetivo», «Mis errores» y «Mejorar la tarjeta»', async () => {
+    const { user } = await openApp();
+    const { subjects } = await window.retenia['subjects.list']({});
+    await window.retenia['objectives.create']({
+      objectiveId: '01969f1e-0000-4000-8000-0000000017a1',
+      subjectId: subjects[0]?.id ?? '',
+      topicId: null,
+      text: 'Calcular la media y el desvío',
+      conditions: 'sin calculadora',
+      kind: 'apply',
+      cardIds: [],
+    });
+    render(<App />);
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Riel lateral' })).getByRole('button', {
+        name: 'Progreso',
+      }),
+    );
+    await screen.findByRole('heading', { name: 'Objetivos de Estadística básica' });
+    expect(problems(), 'Objetivos').toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Calcular la media y el desvío' }));
+    const panel = await screen.findByRole('dialog', { name: 'Calcular la media y el desvío' });
+    await within(panel).findByRole('region', { name: 'Evidencias' });
+    expect(problems(), 'el panel del objetivo').toEqual([]);
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Nuevo objetivo' }));
+    await screen.findByRole('dialog', { name: 'Nuevo objetivo' });
+    expect(problems(), 'Nuevo objetivo').toEqual([]);
+    await user.keyboard('{Escape}');
+    const sections = screen.getByRole('navigation', { name: 'Secciones de Progreso' });
+    await user.click(within(sections).getByRole('button', { name: 'Mis errores' }));
+    expect(await screen.findByText(/^Todavía no hay errores anotados/)).toBeTruthy();
+    expect(problems(), 'Mis errores').toEqual([]);
+    await user.click(within(sections).getByRole('button', { name: 'Mejorar la tarjeta' }));
+    expect(await screen.findByText('Ninguna tarjeta necesita mejoras.')).toBeTruthy();
+    expect(problems(), 'Mejorar la tarjeta').toEqual([]);
+  });
+
   it('[CA-036] el formulario, el repaso, el historial y el cuadro «Buscar»', async () => {
     const { user } = await openApp();
     render(<App />);

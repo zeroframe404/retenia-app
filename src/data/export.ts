@@ -68,6 +68,8 @@ export const EXPORTED_TABLES = [
   'card_attachments',
   'imports',
   'import_items',
+  // Fase 17: los objetivos (sus enlaces, requisitos y demás son eventos).
+  'objectives',
   'observations',
   'evaluations',
   'operations',

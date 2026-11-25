@@ -99,6 +99,27 @@
       "when": 1795552375741,
       "tag": "0013_evaluacion_sin_ia",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1795609561317,
+      "tag": "0014_objetivos",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1795609568843,
+      "tag": "0015_objetivos_disparadores",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1795615374315,
+      "tag": "0016_dudas_version",
+      "breakpoints": true
     }
   ]
 }

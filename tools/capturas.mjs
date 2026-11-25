@@ -5,7 +5,7 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14, fase-15 y fase-16.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14, fase-15, fase-16 y fase-17.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1113,6 +1113,115 @@ async function phase16(page) {
   await shoot(page, '16-sesion-con-barra-de-ayuda');
 }
 
+// Las pantallas nuevas de la Fase 17 con los datos de las pruebas manuales: Progreso con los
+// objetivos por tema, «Nuevo objetivo», el panel de evidencias (después de M17.2 a M17.6), el
+// requisito en el panel y en Estudiar, el resultado con el diagnóstico, «Mis errores» y «Mejorar la
+// tarjeta» con «Dividir en dos».
+/** @param {import('@playwright/test').Page} page */
+async function phase17(page) {
+  await page.setViewportSize({ width: 1280, height: 1500 });
+  const open =
+    'Un intervalo de confianza del 95 % para la media es [4,2; 5,8]. ¿Qué significa ese 95 %?';
+  const interpret = 'Interpretar un intervalo de confianza';
+  const calculate = 'Calcular la media y el desvío';
+  const sections = page.getByRole('navigation', { name: 'Secciones de Progreso' });
+  const toProgress = async () => {
+    await goToDestination(page, 'Progreso');
+    await page.getByRole('heading', { name: 'Objetivos de Estadística básica' }).waitFor();
+  };
+  const practiceOpen = async (units, hint = false) => {
+    await goTo(page, 'Tarjetas');
+    await page.getByRole('combobox', { name: 'Tipo', exact: true }).selectOption('exercise');
+    await itemWith(page, open).getByRole('button', { name: 'Practicar ahora' }).click();
+    await page.getByPlaceholder('Tu respuesta…').fill('El 95 % es del procedimiento.');
+    if (hint) {
+      await page.getByRole('button', { name: 'Pista' }).click();
+      await page.getByRole('button', { name: 'Pista' }).click();
+    }
+    await page.getByRole('button', { name: 'Enviar' }).click();
+    for (let index = 1; index <= units; index += 1) {
+      await page.getByRole('checkbox', { name: `La cubrí: idea ${index}` }).check();
+    }
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+  };
+  const advance = async (button) => {
+    await goTo(page, 'Ajustes');
+    await page.getByRole('button', { name: button }).click();
+  };
+  await toProgress();
+  await shoot(page, '1-progreso-objetivos');
+  await page.getByRole('button', { name: 'Nuevo objetivo' }).click();
+  const form = page.getByRole('dialog', { name: 'Nuevo objetivo' });
+  await form.getByLabel('Tema', { exact: true }).selectOption({ label: 'Intervalos de confianza' });
+  await form.getByLabel('Texto', { exact: true }).fill(interpret);
+  await form.getByRole('radio', { name: 'Comprender' }).check();
+  await form.getByRole('checkbox').first().waitFor();
+  await form.getByRole('listitem').filter({ hasText: open }).getByRole('checkbox').check();
+  await shoot(page, '2-nuevo-objetivo');
+  await form.getByRole('button', { name: 'Crear objetivo' }).click();
+  await form.waitFor({ state: 'hidden' });
+  await shoot(page, '3-objetivo-creado');
+  await practiceOpen(3, true);
+  await advance('+1 día');
+  await practiceOpen(3);
+  await advance('+1 día');
+  await practiceOpen(3);
+  await advance('+7 días');
+  await practiceOpen(3);
+  await advance('+1 día');
+  await practiceOpen(0);
+  await toProgress();
+  await page.getByRole('button', { name: interpret, exact: true }).click();
+  const panel = page.getByRole('dialog', { name: interpret });
+  await panel.getByRole('region', { name: 'Evidencias' }).waitFor();
+  await shoot(page, '4-panel-de-evidencias');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: calculate, exact: true }).click();
+  const required = page.getByRole('dialog', { name: calculate });
+  await required.getByRole('button', { name: 'Marcar como requisito de…' }).click();
+  await required.getByLabel('Objetivo', { exact: true }).selectOption({ label: interpret });
+  await shoot(page, '5-marcar-como-requisito');
+  await required.getByRole('button', { name: 'Guardar' }).click();
+  await required.getByRole('region', { name: 'Es requisito de' }).getByText(interpret).waitFor();
+  await shoot(page, '6-requisito-en-el-panel');
+  await page.keyboard.press('Escape');
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('note', { name: 'Requisito' }).waitFor();
+  await shoot(page, '7-estudiar-antes-conviene');
+  await goTo(page, 'Tarjetas');
+  await page.getByRole('combobox', { name: 'Tipo', exact: true }).selectOption('exercise');
+  await itemWith(page, 'Capital de Francia')
+    .getByRole('button', { name: 'Practicar ahora' })
+    .click();
+  await page.getByPlaceholder('Tu respuesta…').fill('xkcd');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.locator('[data-component="result"]').waitFor();
+  await shoot(page, '8-resultado-con-diagnostico');
+  await page.getByRole('button', { name: 'Siguiente' }).click();
+  await toProgress();
+  await sections.getByRole('button', { name: 'Mis errores' }).click();
+  await page.getByRole('region', { name: 'Errores de Sin tema' }).waitFor();
+  await shoot(page, '9-mis-errores');
+  await sections.getByRole('button', { name: 'Mejorar la tarjeta' }).click();
+  await page.getByRole('list', { name: 'Mejorar la tarjeta' }).waitFor();
+  await shoot(page, '10-mejorar-la-tarjeta');
+  await page.getByRole('button', { name: 'Dividir en dos' }).click();
+  await page.getByRole('dialog', { name: 'Dividir en dos' }).waitFor();
+  await shoot(page, '11-dividir-en-dos');
+  // «Ya lo sé» en «Calcular la media y el desvío» y, al día siguiente, la comprobación en Estudiar.
+  await page.keyboard.press('Escape');
+  await toProgress();
+  await page.getByRole('button', { name: calculate, exact: true }).click();
+  const known = page.getByRole('dialog', { name: calculate });
+  await known.getByRole('button', { name: 'Ya lo sé' }).click();
+  await known.getByText('Suficiente para avanzar (por verificar)', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await advance('+1 día');
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('note', { name: 'Comprobación pendiente' }).waitFor();
+  await shoot(page, '12-estudiar-comprobacion-pendiente');
+}
+
 let { app, page } = await launch(
   {},
   name !== 'fase-06' &&
@@ -1122,10 +1231,13 @@ let { app, page } = await launch(
     name !== 'fase-12' &&
     name !== 'fase-13' &&
     name !== 'fase-14' &&
-    name !== 'fase-15',
+    name !== 'fase-15' &&
+    name !== 'fase-17',
 );
 try {
-  if (name === 'fase-16') {
+  if (name === 'fase-17') {
+    await phase17(page);
+  } else if (name === 'fase-16') {
     await phase16(page);
   } else if (name === 'fase-15') {
     await phase15(page, app);

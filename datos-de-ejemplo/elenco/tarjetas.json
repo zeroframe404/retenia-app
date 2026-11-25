@@ -352,7 +352,11 @@
             {
               "q": "¿Qué significa el 95 % en un intervalo de confianza del 95 %?",
               "p": "fallos",
-              "a": "Que, si repitiéramos el muestreo muchas veces, cerca del 95 % de los intervalos construidos así contendría el valor verdadero del parámetro."
+              "a": "Que, si repitiéramos el muestreo muchas veces, cerca del 95 % de los intervalos construidos así contendría el valor verdadero del parámetro.",
+              "cita": {
+                "pagina": 6,
+                "texto": "El 95 % habla del procedimiento: si repitiéramos el muestreo muchas veces y armáramos un intervalo con cada muestra, cerca del 95 % de esos intervalos contendría la media verdadera."
+              }
             },
             {
               "q": "¿Qué es un intervalo de confianza?",
@@ -1124,6 +1128,15 @@
       ],
       "ejemplo": "Con 9, 1 y 4: ordenados son 1, 4 y 9; hay 3; el del medio es el segundo: 4.",
       "explicacion": "Primero se ordenan los datos (3, 5, 7), se cuenta cuántos hay (3), se ubica la posición del medio (la segunda) y se lee ese dato: 5."
+    }
+  ],
+  "objetivos": [
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "texto": "Calcular la media y el desvío",
+      "tipo": "apply",
+      "actividades": ["La media de 2, 4 y 9"]
     }
   ]
 }
