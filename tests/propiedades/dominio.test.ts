@@ -42,7 +42,7 @@ const attemptArbitrary = fc.record({
   knowAlready: fc.boolean(),
 });
 
-type Generated = fc.TypeOf<typeof attemptArbitrary>;
+type Generated = typeof attemptArbitrary extends fc.Arbitrary<infer T> ? T : never;
 
 // Los eventos en el orden en que se registraron: los días no bajan (como en la realidad, salvo un
 // reloj atrasado, que la máquina ignora).

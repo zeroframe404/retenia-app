@@ -171,6 +171,15 @@ describe('los requisitos y la frontera', () => {
     // El descartado no cuenta.
     expect(wouldCreateCycle(requirements, 'c', 'a')).toBe(false);
     expect(wouldCreateCycle(requirements, 'a', 'c')).toBe(false);
+    // Dos caminos que llegan al mismo objetivo: se recorre una sola vez.
+    const diamond = foldRequirements([
+      added(1, 'd1', 'x', 'y'),
+      added(2, 'd2', 'x', 'z'),
+      added(3, 'd3', 'y', 'w'),
+      added(4, 'd4', 'z', 'w'),
+    ]);
+    expect(wouldCreateCycle(diamond, 'q', 'x')).toBe(false);
+    expect(wouldCreateCycle(diamond, 'w', 'x')).toBe(true);
   });
 
   it('[CA-152] el mismo requisito dos veces queda una sola vez', () => {
@@ -179,6 +188,13 @@ describe('los requisitos y la frontera', () => {
       added(2, 'r2', 'a', 'b', 'indispensable', 'confirmed'),
     ]);
     expect(requirements.filter((r) => !r.dismissed)).toHaveLength(1);
+    // Confirmar o descartar uno que no existe no hace nada.
+    expect(
+      foldRequirements([
+        added(1, 'r1', 'a', 'b'),
+        { kind: 'dismissed', id: 'ev9', seq: 9, requirementId: 'otro' },
+      ]),
+    ).toHaveLength(1);
     expect(requirements.find((r) => !r.dismissed)).toMatchObject({
       id: 'r2',
       kind: 'indispensable',
