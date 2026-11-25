@@ -1,12 +1,33 @@
 import { mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { changedMigrations } from '../../../tools/lib/migraciones.mjs';
 import { run } from '../../../tools/lib/proceso.mjs';
 
 // La regla «una migración aplicada no se edita», probada sobre un repositorio de juguete: así se
 // la ve en rojo sin tocar las migraciones reales.
+
+// Al empujar desde una copia de trabajo, git le pasa al gancho (que corre esta red) la ubicación del
+// repositorio real en GIT_DIR, con su ruta entera: el git de estas pruebas trabajaría sobre ese
+// repositorio y no sobre el de juguete. Como pide la documentación de git para los ganchos, esas
+// variables se borran mientras corre este archivo.
+const GIT_LOCATION = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_COMMON_DIR',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_PREFIX',
+];
+beforeAll(() => {
+  for (const name of GIT_LOCATION) {
+    vi.stubEnv(name, undefined);
+  }
+});
+afterAll(() => {
+  vi.unstubAllEnvs();
+});
 
 const repos: string[] = [];
 afterEach(() => {
