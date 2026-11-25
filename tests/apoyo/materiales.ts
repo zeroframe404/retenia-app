@@ -1,20 +1,22 @@
 import { copyFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { Clock, Stopwatch } from '../../src/core/clock';
-import type { Workspace } from '../../src/data/workspace';
+import { type Clock, demoClock, type Stopwatch } from '../../src/core/clock';
+import { openWorkspace, type Workspace } from '../../src/data/workspace';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
 import type { NetGate } from '../../src/main/net-gate';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
+import { tempDataFolder } from './base';
 import type { Space } from './espacio';
+import { sharedTemplateAsync } from './plantillas';
 
 // Los materiales sobre una carpeta de datos real. El proceso de trabajo corre en el mismo proceso
 // de la prueba: es el mismo código que corre en `materials-worker` (src/main/workers), sin
 // Electron en el medio. Las pruebas que necesitan un proceso que falla o se cuelga usan su propio
 // ejecutor (simulado), declarado en docs/plan-de-pruebas.md.
 
-export const SAMPLES = resolve(import.meta.dirname, '..', '..', 'datos-de-ejemplo');
+const SAMPLES = resolve(import.meta.dirname, '..', '..', 'datos-de-ejemplo');
 export const INFERENCE = 'Inferencia — capítulos 1 a 4.pdf';
 
 export const sample = (name: string) => join(SAMPLES, name);
@@ -94,6 +96,59 @@ export function openMaterials(
 // La materia activa de la prueba.
 export function statisticsSubject(space: Space): string {
   return space.workspace.subjects.create({ name: 'Estadística básica', makeActive: true }).id;
+}
+
+// Una carpeta de datos con «Estadística básica» activa y el PDF de inferencia agregado y leído
+// hasta el final, como la deja `statisticsSubject` + `openMaterials` + agregar el PDF y esperar
+// (con el reloj de la demostración, como `openSpace`). Leer el PDF tarda casi medio segundo: las
+// pruebas que solo lo necesitan como punto de partida arrancan con una copia
+// (`openSpace({ copyOf })`) de la que se lee una sola vez por corrida (tests/apoyo/plantillas.ts).
+// Es la misma lectura, hecha por el mismo código. Las que miran la lectura misma (qué tareas
+// corrieron, los avisos) siguen agregando el PDF en la prueba.
+let inferenceFolder: Promise<string> | null = null;
+
+export function readInferenceFolder(): Promise<string> {
+  inferenceFolder ??= sharedTemplateAsync('inferencia-leida', async () => {
+    const data = tempDataFolder();
+    const clock = demoClock();
+    const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
+    try {
+      const subjectId = workspace.subjects.create({
+        name: 'Estadística básica',
+        makeActive: true,
+      }).id;
+      const service = createMaterialsService({
+        workspace,
+        clock,
+        execute: (task) => runMaterialsTask(task),
+      });
+      const { results } = await service.addFiles({ paths: [sample(INFERENCE)], subjectId });
+      if (results[0]?.outcome !== 'added') {
+        throw new Error('no se agregó');
+      }
+      await service.whenIdle();
+      await service.stop();
+    } finally {
+      workspace.close();
+    }
+    return { folder: data.folder, remove: data.remove };
+  });
+  return inferenceFolder;
+}
+
+// El material de una carpeta que arrancó con esa copia: el PDF de inferencia de «Estadística
+// básica».
+export function readInference(space: Space): string {
+  const subject = space.workspace.subjects
+    .list()
+    .subjects.find((entry) => entry.name === 'Estadística básica');
+  const material = space.workspace.materials
+    .summaries(subject?.id ?? '')
+    .find((entry) => entry.originalName === INFERENCE);
+  if (!material) {
+    throw new Error('la copia no trae el PDF leído');
+  }
+  return material.id;
 }
 
 // Una cola de materiales que no lee nada, para las pruebas de otros canales que arman el puente

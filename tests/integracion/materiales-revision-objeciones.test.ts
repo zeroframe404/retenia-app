@@ -4,10 +4,10 @@ import type { MaterialsTask } from '../../src/main/workers/protocol';
 import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace, type Space } from '../apoyo/espacio';
 import {
-  INFERENCE,
   openMaterials,
+  readInference,
+  readInferenceFolder,
   removeTempFolders,
-  sample,
   statisticsSubject,
 } from '../apoyo/materiales';
 
@@ -22,16 +22,16 @@ afterEach(() => {
 
 type Opened = ReturnType<typeof openMaterials>;
 
+// La carpeta con el PDF de inferencia ya agregado y leído: una copia del que se leyó una vez
+// (readInferenceFolder), lo mismo que dejaba agregarlo y esperar en cada prueba.
+async function readSpace(): Promise<Space> {
+  return openSpace({ copyOf: await readInferenceFolder() });
+}
+
 async function processed(space: Space, options: Parameters<typeof openMaterials>[1] = {}) {
-  const subjectId = statisticsSubject(space);
   const opened = openMaterials(space, options);
-  const { results } = await opened.service.addFiles({ paths: [sample(INFERENCE)], subjectId });
-  const [first] = results;
-  if (first?.outcome !== 'added') {
-    throw new Error('no se agregó');
-  }
   await opened.service.whenIdle();
-  return { opened, materialId: first.materialId };
+  return { opened, materialId: readInference(space) };
 }
 
 const blockOf = (space: Space, materialId: string, type: string, unit: number) => {
@@ -105,7 +105,7 @@ describe('dos bloques con el mismo texto en una página', () => {
 
 describe('corregir dos veces el mismo bloque con tarjetas', () => {
   it('[CA-115] «Actualizarlas» después de cada corrección deja la cita en la fila que citaba', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const row = '10\t1,812\t2,228\t3,169';
@@ -130,7 +130,7 @@ describe('corregir dos veces el mismo bloque con tarjetas', () => {
 
 describe('deshacer una corrección con tarjetas ya actualizadas', () => {
   it('[CA-115] «Deshacer» devuelve la cita de las tarjetas al texto de base: no quedan huérfanas', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const cardId = cardOn(space, opened.service, materialId, table.id, '¿t con 10 gl?');
@@ -149,7 +149,7 @@ describe('deshacer una corrección con tarjetas ya actualizadas', () => {
 
 describe('páginas que no tienen texto no se ofrecen', () => {
   it('[CA-118] una página «No extraído» (casi sin texto) no aporta bloques para tarjetas', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const page3 = space.workspace.materials
       .blocks(materialId)
@@ -172,7 +172,7 @@ describe('páginas que no tienen texto no se ofrecen', () => {
 
 describe('una corrección hecha mientras se vuelve a leer, con tarjetas', () => {
   it('[CA-116] (simulado) «Actualizarlas» no se pierde: las tarjetas siguen pendientes hasta poder moverlas', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     let release: () => void = () => undefined;
     let hold: Promise<void> | null = null;
     const { opened, materialId } = await processed(space, {
@@ -222,7 +222,7 @@ describe('señales de un material que no es un PDF', () => {
 
 describe('lo corregido, con sus diferencias a la vista', () => {
   it('[CA-115] un problema corregido trae las diferencias de cifras, signos y unidades de los dos lados', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     opened.service.correctText({
@@ -244,7 +244,7 @@ describe('lo corregido, con sus diferencias a la vista', () => {
   });
 
   it('[CA-115] las tarjetas pendientes se pueden volver a preguntar desde el problema corregido', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     cardOn(space, opened.service, materialId, table.id, '¿t con 10 gl?');

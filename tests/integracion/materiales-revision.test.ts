@@ -11,6 +11,8 @@ import { closeSpaces, openSpace, type Space } from '../apoyo/espacio';
 import {
   INFERENCE,
   openMaterials,
+  readInference,
+  readInferenceFolder,
   removeTempFolders,
   sample,
   statisticsSubject,
@@ -28,7 +30,23 @@ afterEach(() => {
 
 type Opened = ReturnType<typeof openMaterials>;
 
+// La carpeta con el PDF ya leído: una copia del que se leyó una vez (readInferenceFolder). Es lo
+// que dejaba `addedAndRead` en cada prueba.
+async function readSpace(): Promise<Space> {
+  return openSpace({ copyOf: await readInferenceFolder() });
+}
+
 async function processed(
+  space: Space,
+  options: Parameters<typeof openMaterials>[1] = {},
+): Promise<{ opened: Opened; materialId: string }> {
+  const opened = openMaterials(space, options);
+  await opened.service.whenIdle();
+  return { opened, materialId: readInference(space) };
+}
+
+// Agrega el PDF y lo lee en la prueba: para la que cuenta las tareas de la lectura.
+async function addedAndRead(
   space: Space,
   options: Parameters<typeof openMaterials>[1] = {},
 ): Promise<{ opened: Opened; materialId: string }> {
@@ -78,7 +96,7 @@ const blockOf = (space: Space, materialId: string, type: string, unit: number) =
 
 describe('los tres bloques de la revisión', () => {
   it('[CA-113] «Listo», «Con problemas» (páginas 7 y 11) y «No extraído» (página 9), y cada problema con una acción', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const review = opened.service.review({ materialId });
 
@@ -103,7 +121,7 @@ describe('los tres bloques de la revisión', () => {
   });
 
   it('[CA-113] las señales son avisos: la tabla y la fórmula siguen siendo texto legible y no hay veredicto', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const review = opened.service.review({ materialId });
     const [table] = review.problems;
@@ -115,7 +133,7 @@ describe('los tres bloques de la revisión', () => {
 
 describe('reconocer un escaneo', () => {
   it('[CA-114] «Intentar reconocimiento» en la página 9: sale de «No extraído» con texto parecido al esperado', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     expect(opened.service.review({ materialId }).notExtracted.map((page) => page.unit)).toEqual([
       9,
@@ -144,7 +162,7 @@ describe('reconocer un escaneo', () => {
 
   it('[CA-114] el reconocimiento corre en la cola y deja el original del PDF como estaba', async () => {
     const space = openSpace();
-    const { opened, materialId } = await processed(space);
+    const { opened, materialId } = await addedAndRead(space);
     const original = join(space.workspace.originalsDir, readdirOriginal(space));
     const before = createHash('sha256').update(readFileSync(original)).digest('hex');
     opened.service.ocrPage({ materialId, unit: 9 });
@@ -155,7 +173,7 @@ describe('reconocer un escaneo', () => {
   });
 
   it('[CA-114] (simulado) un reconocimiento con confianza baja deja la página en «Con problemas», no en «Listo»', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space, {
       execute: async (task: MaterialsTask) => {
         const result = await runMaterialsTask(task);
@@ -184,7 +202,7 @@ function readdirOriginal(space: Space): string {
 
 describe('corregir un texto mal leído', () => {
   it('[CA-115] «Corregir texto» deja el original intacto y lista las 2 tarjetas que usan el texto', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const first = cardOnBlock(
@@ -232,7 +250,7 @@ describe('corregir un texto mal leído', () => {
   });
 
   it('[CA-115] una página sin tarjetas que la citen corrige sin preguntar nada', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const formula = blockOf(space, materialId, 'formula', 11);
     const result = opened.service.correctText({
@@ -244,7 +262,7 @@ describe('corregir un texto mal leído', () => {
   });
 
   it('[CA-115] no se acepta un texto vacío ni un bloque de otro material', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     expect(() =>
@@ -255,7 +273,7 @@ describe('corregir un texto mal leído', () => {
 
 describe('lo que depende de un texto corregido', () => {
   it('[CA-115] «Actualizarlas» mueve la cita de las tarjetas al texto corregido', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const cardId = cardOnBlock(space, opened.service, materialId, table.id, '¿t para 10 gl?');
@@ -278,7 +296,7 @@ describe('lo que depende de un texto corregido', () => {
   });
 
   it('[CA-115] «Ahora no» deja la tarjeta como estaba, con el aviso «el origen cambió»', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const cardId = cardOnBlock(space, opened.service, materialId, table.id, '¿t para 10 gl?');
@@ -299,7 +317,7 @@ describe('lo que depende de un texto corregido', () => {
 
 describe('la corrección sobrevive', () => {
   it('[CA-116] «Reprocesar esta página» vuelve a aplicar la corrección sobre el mismo texto de base', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const corrected = table.normalizedText.replace('2,228', '2,229');
@@ -316,7 +334,7 @@ describe('la corrección sobrevive', () => {
   });
 
   it('[CA-116] (simulado) si el texto de base cambió queda «En conflicto» con las dos versiones y se puede decidir', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     let alter = false;
     const { opened, materialId } = await processed(space, {
       execute: async (task: MaterialsTask) => {
@@ -365,7 +383,7 @@ describe('la corrección sobrevive', () => {
   });
 
   it('[CA-116] (simulado) «Usar el texto nuevo» descarta la corrección en conflicto', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     let alter = false;
     const { opened, materialId } = await processed(space, {
       execute: async (task: MaterialsTask) => {
@@ -397,7 +415,7 @@ describe('la corrección sobrevive', () => {
   });
 
   it('[CA-116] la corrección también sobrevive a cerrar y abrir Retenia', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const table = blockOf(space, materialId, 'table', 7);
     const corrected = table.normalizedText.replace('2,228', '2,229');
@@ -413,7 +431,7 @@ describe('la corrección sobrevive', () => {
 
 describe('mapa de cobertura', () => {
   it('[CA-117] cada página tiene su palabra y el resumen del elenco es «9 de 12 páginas listas · 2 para revisar · 1 pendiente»', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const { coverage } = opened.service.review({ materialId });
     expect(coverage.pages).toHaveLength(12);
@@ -426,7 +444,7 @@ describe('mapa de cobertura', () => {
   });
 
   it('[CA-117] después de reconocer la página 9 y resolver los problemas, el resumen sube', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     opened.service.ocrPage({ materialId, unit: 9 });
     await opened.service.whenIdle();
@@ -442,7 +460,7 @@ describe('mapa de cobertura', () => {
   });
 
   it('[CA-117] el estado de cada sección sale de sus páginas', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const { coverage } = opened.service.review({ materialId });
     const states = coverage.sections.map((section) => section.state);
@@ -457,7 +475,7 @@ describe('mapa de cobertura', () => {
 
 describe('estudiar sin estas páginas', () => {
   it('[CA-118] «Estudiar sin estas páginas» deja la página 12 «Excluida» en el mapa', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const review = opened.service.excludePages({ materialId, units: [12], excluded: true });
     expect(review.coverage.pages.find((page) => page.unit === 12)?.word).toBe('excluded');
@@ -469,7 +487,7 @@ describe('estudiar sin estas páginas', () => {
   });
 
   it('[CA-118] los bloques de una página excluida o con problema abierto no se ofrecen para tarjetas', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const all = space.workspace.materials.blocks(materialId);
     const textBlocks = (unit: number) =>
@@ -489,7 +507,7 @@ describe('estudiar sin estas páginas', () => {
   });
 
   it('[CA-118] un problema marcado como imagen o ignorado se resuelve; uno corregido también', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     const [table, formula] = opened.service.review({ materialId }).problems;
     if (!table || !formula) {
@@ -549,7 +567,7 @@ describe('con el elenco de ejemplo', () => {
 
 describe('la estructura de un escaneo reconocido', () => {
   it('[CA-114] el texto reconocido de la página 9 queda en párrafos: solo su título y su subtítulo son secciones', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     const { opened, materialId } = await processed(space);
     opened.service.ocrPage({ materialId, unit: 9 });
     await opened.service.whenIdle();
@@ -562,7 +580,7 @@ describe('la estructura de un escaneo reconocido', () => {
 
 describe('corregir mientras una página se vuelve a leer', () => {
   it('[CA-116] (simulado) una corrección hecha mientras otra página se reprocesa no falla y queda aplicada cuando termina', async () => {
-    const space = openSpace();
+    const space = await readSpace();
     let release: () => void = () => undefined;
     let hold: Promise<void> | null = null;
     const { opened, materialId } = await processed(space, {

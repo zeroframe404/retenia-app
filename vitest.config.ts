@@ -13,6 +13,9 @@ export default defineConfig({
     allowOnly: false,
     passWithNoTests: false,
     environment: 'node',
+    // La carpeta de la corrida donde quedan el elenco sembrado y el PDF leído, armados una sola vez
+    // por corrida (tests/apoyo/plantillas.ts).
+    globalSetup: [join(import.meta.dirname, 'tests', 'apoyo', 'plantillas-de-la-corrida.ts')],
     // Vitest usa por defecto un trabajador menos que los núcleos: en la máquina del CI (dos
     // núcleos) corría los archivos de a uno. Con dos como mínimo usa la máquina entera.
     maxWorkers: Math.max(2, availableParallelism() - 1),

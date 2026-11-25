@@ -1,3 +1,4 @@
+import { cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Clock, demoClock } from '../../src/core/clock';
 import { newId } from '../../src/data/ids';
@@ -29,18 +30,25 @@ export function openSpace({
   clock = demoClock(),
   fuzz = false,
   withCast = false,
+  copyOf,
 }: {
   clock?: Clock;
   fuzz?: boolean;
   // Empieza con el elenco de ejemplo ya sembrado (una copia del que se sembró una vez); con
   // `'tarjetas'`, el de las tarjetas sin materiales.
   withCast?: boolean | Extract<CastKind, 'tarjetas'>;
+  // Empieza con una copia de esa carpeta de datos, ya cerrada (por ejemplo, la del PDF de
+  // inferencia leído una vez: `readInferenceFolder` en tests/apoyo/materiales.ts).
+  copyOf?: string;
 } = {}): Space {
   const folder = tempDataFolder();
   folders.push(folder);
   const dataDir = folder.folder;
   if (withCast !== false) {
     copyCastInto(dataDir, withCast === true ? 'completo' : withCast);
+  }
+  if (copyOf !== undefined) {
+    cpSync(copyOf, dataDir, { recursive: true });
   }
   const start = (withFuzz: boolean) => {
     const workspace = openWorkspace({
