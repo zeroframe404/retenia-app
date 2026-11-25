@@ -152,7 +152,8 @@ export function subjectEvidence(
       schemaVersion: observations.schemaVersion,
     })
     .from(observations)
-    .innerJoin(cards, eq(cards.id, observations.cardId))
+    // Sin la tarjeta (ya se vació de la Papelera) los intentos siguen: son evidencia.
+    .leftJoin(cards, eq(cards.id, observations.cardId))
     .where(where)
     .orderBy(observations.seq)
     .all();
@@ -161,7 +162,7 @@ export function subjectEvidence(
       .select(evaluationColumns)
       .from(evaluations)
       .innerJoin(observations, eq(observations.id, evaluations.attemptId))
-      .innerJoin(cards, eq(cards.id, observations.cardId))
+      .leftJoin(cards, eq(cards.id, observations.cardId))
       .where(where)
       .all(),
   );
@@ -218,7 +219,12 @@ export function subjectEvidence(
         versionId: payload.versionId ?? null,
       };
     }
-    byCard.set(attempt.cardId, [...(byCard.get(attempt.cardId) ?? []), attempt]);
+    const list = byCard.get(attempt.cardId);
+    if (list) {
+      list.push(attempt);
+    } else {
+      byCard.set(attempt.cardId, [attempt]);
+    }
   }
   return byCard;
 }

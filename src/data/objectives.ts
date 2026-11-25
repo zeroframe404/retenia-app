@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
 import {
   addToEstimate,
@@ -177,6 +177,17 @@ function requirementEventOf(row: {
   return null;
 }
 
+// Agrega al final de la lista de una clave (sin copiar la lista: con muchos intentos, copiarla en
+// cada uno crecía al cuadrado).
+function pushInto<T>(map: Map<string, T[]>, key: string, value: T): void {
+  const list = map.get(key);
+  if (list) {
+    list.push(value);
+  } else {
+    map.set(key, [value]);
+  }
+}
+
 // Todo lo de los objetivos de una materia, calculado desde el historial. Nulo si la materia no
 // existe.
 export function objectivesSnapshot(db: Writer, subjectId: string): ObjectivesSnapshot | null {
@@ -205,58 +216,84 @@ export function objectivesSnapshot(db: Writer, subjectId: string): ObjectivesSna
   const cardList = subjectCards(db, subjectId);
   const cardMap = new Map(cardList.map((card) => [card.id, card]));
 
-  // Los enlaces de cada actividad, en el orden de registro.
+  // Los enlaces de cada actividad, en el orden de registro. También los de las tarjetas que ya se
+  // vaciaron de la Papelera (ya no tienen fila) y estuvieron en un objetivo tuyo: su evidencia sigue.
+  const linkRows = (where: SQL | undefined) =>
+    where === undefined
+      ? []
+      : db
+          .select({
+            seq: observations.seq,
+            payload: observations.payload,
+            schemaVersion: observations.schemaVersion,
+          })
+          .from(observations)
+          .leftJoin(cards, eq(cards.id, observations.cardId))
+          .where(and(eq(observations.kind, 'objective.linked'), where))
+          .orderBy(observations.seq)
+          .all();
   const links = new Map<string, { seq: number; objectiveId: string | null }[]>();
-  for (const row of db
-    .select({
-      seq: observations.seq,
-      payload: observations.payload,
-      schemaVersion: observations.schemaVersion,
-    })
-    .from(observations)
-    .innerJoin(cards, eq(cards.id, observations.cardId))
-    .where(and(eq(observations.kind, 'objective.linked'), eq(cards.subjectId, subjectId)))
-    .orderBy(observations.seq)
-    .all()) {
+  const addLink = (row: { seq: number; payload: string; schemaVersion: number }) => {
     const payload = readPayload('objective.linked', row.schemaVersion, row.payload);
-    links.set(payload.cardId, [
-      ...(links.get(payload.cardId) ?? []),
-      { seq: row.seq, objectiveId: payload.objectiveId },
-    ]);
+    pushInto(links, payload.cardId, { seq: row.seq, objectiveId: payload.objectiveId });
+  };
+  for (const row of linkRows(eq(cards.subjectId, subjectId))) {
+    addLink(row);
+  }
+  const purged = [
+    ...new Set(
+      linkRows(
+        explicitIds.size === 0 ? undefined : inArray(observations.objectiveId, [...explicitIds]),
+      )
+        .map((row) => readPayload('objective.linked', row.schemaVersion, row.payload).cardId)
+        .filter((cardId) => !cardMap.has(cardId)),
+    ),
+  ];
+  for (const row of linkRows(
+    purged.length === 0 ? undefined : inArray(observations.cardId, purged),
+  )) {
+    addLink(row);
   }
   const implicitOf = (card: SubjectCard) =>
     card.topicId !== null && topicName.has(card.topicId)
       ? `topic:${card.topicId}`
       : `subject:${subjectId}`;
-  const objectiveAt = (card: SubjectCard, seq: number) => {
+  // El objetivo tuyo que tenía la actividad antes de `seq` (nulo: el implícito).
+  const explicitAt = (cardId: string, seq: number) => {
     let current: string | null = null;
-    for (const link of links.get(card.id) ?? []) {
+    for (const link of links.get(cardId) ?? []) {
       if (link.seq >= seq) {
         break;
       }
       current = link.objectiveId;
     }
-    return current !== null && explicitIds.has(current) ? current : implicitOf(card);
+    return current !== null && explicitIds.has(current) ? current : null;
   };
+  const objectiveAt = (card: SubjectCard, seq: number) =>
+    explicitAt(card.id, seq) ?? implicitOf(card);
   const cardObjective = new Map(
     cardList.map((card) => [card.id, objectiveAt(card, Number.POSITIVE_INFINITY)]),
   );
 
-  // La evidencia, repartida según el objetivo que tenía cada actividad en el momento.
+  // La evidencia, repartida según el objetivo que tenía cada actividad en el momento. De una tarjeta
+  // vaciada de la Papelera solo se sabe el objetivo tuyo en que estuvo (su tema ya no está).
   const evidence = subjectEvidence(db, { subjectId });
+  for (const [cardId, attempts] of subjectEvidence(db, { cardIds: purged })) {
+    evidence.set(cardId, attempts);
+  }
   const eventsOf = new Map<string, MasteryEvent[]>();
   const attemptsOf = new Map<string, EvidenceAttempt[]>();
   const attribution = new Map<string, string>();
   for (const [cardId, attempts] of evidence) {
     const card = cardMap.get(cardId);
-    if (!card) {
-      continue;
-    }
     for (const attempt of attempts) {
-      const objectiveId = objectiveAt(card, attempt.seq);
+      const objectiveId = card ? objectiveAt(card, attempt.seq) : explicitAt(cardId, attempt.seq);
+      if (objectiveId === null) {
+        continue;
+      }
       attribution.set(attempt.id, objectiveId);
-      eventsOf.set(objectiveId, [...(eventsOf.get(objectiveId) ?? []), attemptEvent(attempt)]);
-      attemptsOf.set(objectiveId, [...(attemptsOf.get(objectiveId) ?? []), attempt]);
+      pushInto(eventsOf, objectiveId, attemptEvent(attempt));
+      pushInto(attemptsOf, objectiveId, attempt);
     }
   }
 
@@ -288,15 +325,12 @@ export function objectivesSnapshot(db: Writer, subjectId: string): ObjectivesSna
   for (const row of objectiveRows) {
     const objectiveId = row.objectiveId ?? '';
     if (row.kind === 'objective.know_already') {
-      eventsOf.set(objectiveId, [
-        ...(eventsOf.get(objectiveId) ?? []),
-        {
-          kind: 'knowAlready',
-          id: row.id,
-          seq: row.seq,
-          studyDay: studyDayOf(new Date(row.occurredAt)),
-        },
-      ]);
+      pushInto(eventsOf, objectiveId, {
+        kind: 'knowAlready',
+        id: row.id,
+        seq: row.seq,
+        studyDay: studyDayOf(new Date(row.occurredAt)),
+      });
     } else if (row.kind === 'objective.postponed') {
       postponed.add(objectiveId);
     } else if (row.kind === 'objective.resumed') {
@@ -468,7 +502,7 @@ function requirementView(snapshot: ObjectivesSnapshot, requirement: Requirement)
 }
 
 // La subject para listar: la pedida, o la activa, o la primera.
-function subjectFor(db: Writer, subjectId: string | undefined): string | null {
+export function subjectFor(db: Writer, subjectId: string | undefined): string | null {
   if (subjectId !== undefined) {
     return subjectId;
   }
@@ -494,10 +528,16 @@ export interface StudyObjectives {
   readonly heldNewCards: ReadonlySet<string>;
   readonly requisiteCards: ReadonlySet<string>;
   readonly line: RequirementLine | null;
+  // La comprobación de un «Ya lo sé» que ya se puede hacer (CA-150): la primera, por orden de creación.
+  readonly check: {
+    readonly objectiveId: string;
+    readonly objectiveTitle: string;
+    readonly practiceCardId: string | null;
+  } | null;
 }
 
-// Si la materia no tiene ningún requisito ni objetivo pospuesto, nada cambia (y no hace falta
-// calcular nada).
+// Si la materia no tiene ningún requisito, objetivo pospuesto ni «Ya lo sé», nada cambia (y no hace
+// falta calcular nada).
 function hasStudyEffects(db: Writer, subjectId: string): boolean {
   return (
     db
@@ -507,14 +547,22 @@ function hasStudyEffects(db: Writer, subjectId: string): boolean {
       .where(
         and(
           eq(objectives.subjectId, subjectId),
-          inArray(observations.kind, ['requirement.added', 'objective.postponed']),
+          inArray(observations.kind, [
+            'requirement.added',
+            'objective.postponed',
+            'objective.know_already',
+          ]),
         ),
       )
       .get() !== undefined
   );
 }
 
-export function studyObjectives(db: Writer, subjectId: string): StudyObjectives | null {
+export function studyObjectives(
+  db: Writer,
+  subjectId: string,
+  today: string,
+): StudyObjectives | null {
   if (!hasStudyEffects(db, subjectId)) {
     return null;
   }
@@ -552,7 +600,28 @@ export function studyObjectives(db: Writer, subjectId: string): StudyObjectives 
         ),
       }))
       .sort((a, b) => a.mean - b.mean || a.requirement.seq - b.requirement.seq)[0]?.requirement;
-  const before = pick(snapshot.frontier.blocked);
+  // Con requisitos en cadena (A necesita B y B necesita C), lo primero que hay que hacer es C: si el
+  // requisito elegido también está frenado, se sigue por el suyo.
+  const deepest = (start: Requirement) => {
+    let current = start;
+    const seen = new Set<string>([current.objectiveId]);
+    for (;;) {
+      const next = pick(
+        new Map(
+          [...snapshot.frontier.blocked.entries()].filter(
+            ([objectiveId]) => objectiveId === current.requiresId,
+          ),
+        ),
+      );
+      if (next === undefined || seen.has(next.objectiveId)) {
+        return current;
+      }
+      seen.add(next.objectiveId);
+      current = next;
+    }
+  };
+  const firstBlocking = pick(snapshot.frontier.blocked);
+  const before = firstBlocking === undefined ? undefined : deepest(firstBlocking);
   const chosen = before ?? pick(snapshot.frontier.warnings);
   let line: RequirementLine | null = null;
   if (chosen) {
@@ -568,7 +637,24 @@ export function studyObjectives(db: Writer, subjectId: string): StudyObjectives 
       practiceCardId: required.activities.find(isPracticable)?.id ?? null,
     };
   }
-  return { heldNewCards: held, requisiteCards: requisite, line };
+  const toCheck = snapshot.objectives.find(
+    (model) =>
+      !model.postponed &&
+      model.mastery.pendingCheckFrom !== null &&
+      model.mastery.pendingCheckFrom <= today,
+  );
+  return {
+    heldNewCards: held,
+    requisiteCards: requisite,
+    line,
+    check: toCheck
+      ? {
+          objectiveId: toCheck.id,
+          objectiveTitle: toCheck.title,
+          practiceCardId: toCheck.activities.find(isPracticable)?.id ?? null,
+        }
+      : null,
+  };
 }
 
 export interface ObjectivesStore {
@@ -895,6 +981,9 @@ export function createObjectivesStore(db: ReteniaDatabase, clock: Clock): Object
         columns: model.mastery.columns,
         nextStep: nextStepOf(model.mastery),
         pendingCheckFrom: model.mastery.pendingCheckFrom,
+        checkAvailable:
+          model.mastery.pendingCheckFrom !== null &&
+          model.mastery.pendingCheckFrom <= studyDayOf(clock.now()),
         estimate: {
           concept: model.conceptName,
           outOfTen: backing.outOfTen,

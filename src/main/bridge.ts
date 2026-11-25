@@ -241,7 +241,7 @@ export function createHandlers({
       workspace.progress.setErrorType(request);
       return ok;
     },
-    'progress.improveCard.list': async () => workspace.progress.improveCards(),
+    'progress.improveCard.list': async (request) => workspace.progress.improveCards(request),
     'progress.improveCard.split': async (request) => workspace.progress.split(request),
     'subjects.list': async () => workspace.subjects.list(),
     'subjects.create': async (request) => workspace.subjects.create(request),

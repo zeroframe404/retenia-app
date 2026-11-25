@@ -226,8 +226,10 @@ export interface Gathered {
   readonly backlogDays: number;
   readonly brake: Brake;
   readonly studiedGroups: ReadonlySet<string>;
-  // Fase 17: el requisito que nombra la propuesta («Antes conviene» o «Quizá te ayude repasar»).
+  // Fase 17: el requisito que nombra la propuesta («Antes conviene» o «Quizá te ayude repasar») y la
+  // comprobación de un «Ya lo sé» que ya se puede hacer.
   readonly requirement: RequirementLine | null;
+  readonly check: StudyProposal['check'];
 }
 
 // Los repasos vencidos de la materia que se pueden ofrecer hoy, con lo que hace falta para
@@ -302,7 +304,7 @@ export function gather(
   const held = readSetting(db, HOLD_NEW_KEY, z.string().nullable(), null) === today;
   // Fase 17 (H-35): las nuevas de un objetivo frenado por un requisito, o pospuesto, no se proponen;
   // las de un requisito suben de prioridad y sus nuevas van primero.
-  const objectivesNow = studyObjectives(db, subject.id);
+  const objectivesNow = studyObjectives(db, subject.id, today);
   const fresh = held ? [] : newCardsOf(db, subject.id);
   const newCards =
     objectivesNow === null
@@ -331,6 +333,7 @@ export function gather(
           ),
     postponedCount,
     requirement: objectivesNow?.line ?? null,
+    check: objectivesNow?.check ?? null,
     newCards,
     estimates,
     backlogDays: backlog,
@@ -458,5 +461,6 @@ export function proposalFrom(
     maintenance: null,
     alternatives: alternativesOf(db, gathered, plan, chosen),
     requirement: gathered.requirement,
+    check: gathered.check,
   };
 }

@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from 'drizzle-orm';
+import { and, eq, gt, isNull, ne, or } from 'drizzle-orm';
 import {
   confusionOf,
   type Diagnosis,
@@ -83,6 +83,59 @@ function missingRequirementOf(
     : null;
 }
 
+// La pregunta está marcada como dudosa si, sobre su versión de ahora, hay una duda abierta guardada o
+// un «La pregunta era ambigua» vigente. Corregir la tarjeta (una versión nueva) la deja de marcar.
+function isDoubtful(db: Writer, cardId: string): boolean {
+  const version = db
+    .select({ id: cardVersions.id, createdAt: cardVersions.createdAt })
+    .from(cards)
+    .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+    .where(eq(cards.id, cardId))
+    .get();
+  if (!version) {
+    return false;
+  }
+  // Las dudas de antes de la Fase 17 no dicen de qué versión son: cuentan si son de después de ella.
+  const openDoubt = db
+    .select({ id: doubts.id })
+    .from(doubts)
+    .where(
+      and(
+        eq(doubts.cardId, cardId),
+        isNull(doubts.resolvedAt),
+        or(
+          eq(doubts.cardVersionId, version.id),
+          and(isNull(doubts.cardVersionId), gt(doubts.createdAt, version.createdAt)),
+        ),
+      ),
+    )
+    .get();
+  if (openDoubt !== undefined) {
+    return true;
+  }
+  const latest = new Map<string, { version: number; ambiguous: boolean }>();
+  for (const row of db
+    .select({
+      attemptId: evaluations.attemptId,
+      version: evaluations.version,
+      appealReason: evaluations.appealReason,
+      contentVersionId: evaluations.contentVersionId,
+    })
+    .from(evaluations)
+    .innerJoin(observations, eq(observations.id, evaluations.attemptId))
+    .where(eq(observations.cardId, cardId))
+    .all()) {
+    const known = latest.get(row.attemptId);
+    if (known === undefined || row.version > known.version) {
+      latest.set(row.attemptId, {
+        version: row.version,
+        ambiguous: row.appealReason === 'ambiguous' && row.contentVersionId === version.id,
+      });
+    }
+  }
+  return [...latest.values()].some((entry) => entry.ambiguous);
+}
+
 export function diagnosisFor(
   db: Writer,
   attempt: { id: string; cardId: string; written: string | null },
@@ -99,17 +152,7 @@ export function diagnosisFor(
     .filter((entry) => !entry.annulled && entry.seq < (current?.seq ?? Number.POSITIVE_INFINITY))
     .at(-1);
 
-  const openDoubt = db
-    .select({ id: doubts.id })
-    .from(doubts)
-    .where(and(eq(doubts.cardId, attempt.cardId), isNull(doubts.resolvedAt)))
-    .get();
-  const ambiguous = db
-    .select({ id: evaluations.id })
-    .from(evaluations)
-    .innerJoin(observations, eq(observations.id, evaluations.attemptId))
-    .where(and(eq(observations.cardId, attempt.cardId), eq(evaluations.appealReason, 'ambiguous')))
-    .get();
+  const doubtful = isDoubtful(db, attempt.cardId);
 
   const written = attempt.written ?? '';
   const others =
@@ -147,7 +190,8 @@ export function diagnosisFor(
           optionsQuestion: previous.optionsQuestion,
         }
       : null,
-    doubtful: openDoubt !== undefined || ambiguous !== undefined,
+    currentOptionsQuestion: current?.optionsQuestion ?? false,
+    doubtful,
     missingRequirement:
       subjectId === null ? null : missingRequirementOf(db, subjectId, attempt.cardId),
     confusedWith: confusionOf(written, others),

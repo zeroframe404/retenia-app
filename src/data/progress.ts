@@ -6,11 +6,9 @@ import type { CardsStore } from './cards';
 import type { ReteniaDatabase } from './database';
 import { difficultyOf } from './difficulty';
 import type { EvidenceAttempt } from './evidence';
-import { newId } from './ids';
 import { appendObservation, readPayload } from './ledger';
-import { objectivesSnapshot } from './objectives';
-import type { Writer } from './orm';
-import { cardSchedule, cards, cardVersions, observations, subjects } from './schema';
+import { objectivesSnapshot, subjectFor } from './objectives';
+import { cardSchedule, cards, cardVersions, observations } from './schema';
 
 // Progreso › «Mis errores» (CA-155) y «Mejorar la tarjeta» (CA-154), Fase 17.
 
@@ -25,23 +23,13 @@ class AttemptNotFoundError extends Error {
 
 export interface ProgressStore {
   errors(input: { subjectId?: string | undefined }): ProgressErrors;
-  setErrorType(input: { attemptId: string; type: MistakeType }): void;
-  improveCards(): ImproveCards;
+  setErrorType(input: { changeId: string; attemptId: string; type: MistakeType }): void;
+  improveCards(input?: { subjectId?: string | undefined }): ImproveCards;
   split(input: {
     splitId: string;
     cardId: string;
     parts: readonly { question: string; answer: string }[];
   }): { cardIds: string[] };
-}
-
-function activeSubjectId(db: Writer): string | null {
-  const live = db
-    .select({ id: subjects.id, status: subjects.status })
-    .from(subjects)
-    .where(isNull(subjects.deletedAt))
-    .orderBy(subjects.createdAt, subjects.id)
-    .all();
-  return live.find((subject) => subject.status === 'active')?.id ?? live[0]?.id ?? null;
 }
 
 const optionText = (activity: string | null, optionId: string): string => {
@@ -52,6 +40,17 @@ const optionText = (activity: string | null, optionId: string): string => {
   return parsed.options?.find((option) => option.id === optionId)?.text ?? optionId;
 };
 
+// En un ejercicio de ordenar, lo escrito son los pasos en el orden elegido: se muestran con su texto.
+const STEP_SEPARATOR = ' · ';
+const stepsText = (activity: string | null, written: string): string => {
+  const parsed =
+    activity === null ? {} : (JSON.parse(activity) as { steps?: { id: string; text: string }[] });
+  return written
+    .split(STEP_SEPARATOR)
+    .map((stepId) => parsed.steps?.find((step) => step.id === stepId)?.text ?? stepId)
+    .join(STEP_SEPARATOR);
+};
+
 export function createProgressStore(
   db: ReteniaDatabase,
   clock: Clock,
@@ -60,7 +59,7 @@ export function createProgressStore(
   const { orm } = db;
   return {
     errors({ subjectId }) {
-      const id = subjectId ?? activeSubjectId(orm);
+      const id = subjectFor(orm, subjectId);
       const snapshot = id === null ? null : objectivesSnapshot(orm, id);
       if (!snapshot) {
         return { subject: null, groups: [] };
@@ -121,7 +120,9 @@ export function createProgressStore(
           const written =
             attempt.activityType === 'options'
               ? optionText(version?.activity ?? card?.activity ?? null, rawWritten)
-              : rawWritten;
+              : attempt.activityType === 'order'
+                ? stepsText(version?.activity ?? card?.activity ?? null, rawWritten)
+                : rawWritten;
           const confused =
             confusionOf(
               written,
@@ -186,7 +187,7 @@ export function createProgressStore(
       };
     },
 
-    setErrorType({ attemptId, type }) {
+    setErrorType({ changeId, attemptId, type }) {
       orm.transaction((tx) => {
         const attempt = tx
           .select({ cardId: observations.cardId, kind: observations.kind })
@@ -203,13 +204,13 @@ export function createProgressStore(
         appendObservation(tx, clock, {
           kind: 'mistake.type_set',
           payload: { attemptId, cardId: attempt.cardId, type },
-          idempotencyKey: `mistake:${newId()}`,
+          idempotencyKey: `mistake:${changeId}`,
           source: 'user',
         });
       });
     },
 
-    improveCards() {
+    improveCards({ subjectId } = {}) {
       // Para llegar a 3 fallos hacen falta 3 repasos que contaron.
       const candidates = orm
         .select({
@@ -228,6 +229,7 @@ export function createProgressStore(
             isNull(cards.deletedAt),
             gte(cardSchedule.reps, 3),
             ne(cardVersions.sheetState, 'retired'),
+            subjectId === undefined ? undefined : eq(cards.subjectId, subjectId),
           ),
         )
         .orderBy(cards.createdAt, cards.id)

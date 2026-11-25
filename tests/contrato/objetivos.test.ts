@@ -179,9 +179,14 @@ describe('contrato del puente: «Mis errores» y «Mejorar la tarjeta»', () => 
     expect(errors.groups.flatMap((g) => g.items)).toEqual([
       expect.objectContaining({ written: 'asdf', correct: 'París', type: 'forgotten' }),
     ]);
-    await api['progress.errors.setType']({ attemptId: sent.attemptId, type: 'confusion' });
+    await api['progress.errors.setType']({
+      changeId: randomUUID(),
+      attemptId: sent.attemptId,
+      type: 'confusion',
+    });
     await expect(
       api['progress.errors.setType']({
+        changeId: randomUUID(),
         attemptId: sent.attemptId,
         type: 'lazy' as unknown as 'confusion',
       }),

@@ -72,7 +72,11 @@ export function MistakesSection({
 
   async function setType(attemptId: string, type: MistakeTypeValue) {
     try {
-      await window.retenia['progress.errors.setType']({ attemptId, type });
+      await window.retenia['progress.errors.setType']({
+        changeId: crypto.randomUUID(),
+        attemptId,
+        type,
+      });
       setToast(text.typeSaved);
       await load();
     } catch {

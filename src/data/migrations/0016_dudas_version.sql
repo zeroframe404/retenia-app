@@ -1,0 +1,1 @@
+ALTER TABLE `doubts` ADD `card_version_id` text;

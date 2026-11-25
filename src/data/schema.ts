@@ -425,6 +425,9 @@ export const doubts = sqliteTable(
     sessionId: text('session_id'),
     createdAt: text('created_at').notNull(),
     resolvedAt: text('resolved_at'),
+    // Fase 17: la versión de la tarjeta sobre la que se guardó la duda (corregirla la apaga para el
+    // diagnóstico tras un fallo). Nula en las de antes.
+    cardVersionId: text('card_version_id'),
   },
   (table) => [index('doubts_created_idx').on(table.createdAt)],
 );

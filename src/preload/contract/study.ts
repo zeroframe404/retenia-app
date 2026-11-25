@@ -120,6 +120,14 @@ const proposalSchema = z.strictObject({
   // indispensable y confirmado) y la propuesta empieza por él («Antes conviene: …»); «maybe»: solo
   // avisa («Quizá te ayude repasar: …»).
   requirement: requirementLineSchema.nullable(),
+  // Fase 17 (CA-150): la comprobación sin ayuda de un «Ya lo sé», desde el día siguiente.
+  check: z
+    .strictObject({
+      objectiveId: z.uuid(),
+      objectiveTitle: z.string(),
+      practiceCardId: z.uuid().nullable(),
+    })
+    .nullable(),
 });
 export type StudyProposal = z.output<typeof proposalSchema>;
 

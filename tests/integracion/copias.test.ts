@@ -173,6 +173,7 @@ describe('«Hacer copia ahora»', () => {
       '0013_evaluacion_sin_ia',
       '0014_objetivos',
       '0015_objetivos_disparadores',
+      '0016_dudas_version',
     ]);
 
     // La base de adentro es una base de verdad, con las tres tarjetas.

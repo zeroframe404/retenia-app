@@ -122,6 +122,7 @@ import {
   notesTitlesResponse,
 } from './notes';
 import {
+  improveCardsRequest,
   improveCardsResponse,
   improveSplitRequest,
   improveSplitResponse,
@@ -278,7 +279,7 @@ export const channels = {
   'objectives.resume': { request: objectiveIdRequest, response: okResponse },
   'progress.errors': { request: progressErrorsRequest, response: progressErrorsResponse },
   'progress.errors.setType': { request: progressErrorsSetTypeRequest, response: okResponse },
-  'progress.improveCard.list': { request: noRequest, response: improveCardsResponse },
+  'progress.improveCard.list': { request: improveCardsRequest, response: improveCardsResponse },
   'progress.improveCard.split': { request: improveSplitRequest, response: improveSplitResponse },
   'subjects.list': { request: subjectsListRequest, response: subjectsListResponse },
   'subjects.create': { request: subjectsCreateRequest, response: subjectSchema },

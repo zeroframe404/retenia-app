@@ -153,6 +153,8 @@ export const objectivePanelResponse = z.strictObject({
   }),
   nextStep: nextStepSchema,
   pendingCheckFrom: day.nullable(),
+  // Si la comprobación ya se puede hacer (desde el día siguiente a «Ya lo sé»).
+  checkAvailable: z.boolean(),
   // La estimación del concepto (por nivel), con su respaldo: nunca un porcentaje.
   estimate: z.strictObject({
     concept: z.string(),
@@ -229,11 +231,16 @@ export const progressErrorsResponse = z.strictObject({
 export type ProgressErrors = z.output<typeof progressErrorsResponse>;
 
 export const progressErrorsSetTypeRequest = z.strictObject({
+  // El mismo pedido dos veces se anota una sola vez.
+  changeId: z.uuid(),
   attemptId: z.uuid(),
   type: mistakeTypeSchema,
 });
 
 // --- «Mejorar la tarjeta» (CA-154) ---
+
+// Las de la materia que mirás (sin materia, todas).
+export const improveCardsRequest = z.strictObject({ subjectId: z.uuid().optional() });
 
 export const improveCardsResponse = z.strictObject({
   cards: z.array(

@@ -214,7 +214,11 @@ describe('«Mis errores»', () => {
         .groups.flatMap((group) => group.items)
         .find((entry) => entry.attemptId === sent.attemptId);
     expect(item()).toMatchObject({ type: 'distraction', typeChosen: false });
-    space.workspace.progress.setErrorType({ attemptId: sent.attemptId, type: 'other' });
+    space.workspace.progress.setErrorType({
+      changeId: randomUUID(),
+      attemptId: sent.attemptId,
+      type: 'other',
+    });
     expect(item()).toMatchObject({ type: 'other', typeChosen: true });
     expect(
       readRows(space.file, `SELECT id FROM observations WHERE kind = 'mistake.type_set'`),
