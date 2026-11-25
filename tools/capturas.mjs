@@ -1208,6 +1208,18 @@ async function phase17(page) {
   await page.getByRole('button', { name: 'Dividir en dos' }).click();
   await page.getByRole('dialog', { name: 'Dividir en dos' }).waitFor();
   await shoot(page, '11-dividir-en-dos');
+  // «Ya lo sé» en «Calcular la media y el desvío» y, al día siguiente, la comprobación en Estudiar.
+  await page.keyboard.press('Escape');
+  await toProgress();
+  await page.getByRole('button', { name: calculate, exact: true }).click();
+  const known = page.getByRole('dialog', { name: calculate });
+  await known.getByRole('button', { name: 'Ya lo sé' }).click();
+  await known.getByText('Suficiente para avanzar (por verificar)', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await advance('+1 día');
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('note', { name: 'Comprobación pendiente' }).waitFor();
+  await shoot(page, '12-estudiar-comprobacion-pendiente');
 }
 
 let { app, page } = await launch(

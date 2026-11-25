@@ -142,7 +142,9 @@ test('[CA-150] «Ya lo sé» deja «(por verificar)»; al día siguiente Estudia
   await page.getByRole('button', { name: INTERPRET, exact: true }).click();
   const panel = page.getByRole('dialog', { name: INTERPRET });
   await panel.getByRole('button', { name: 'Ya lo sé' }).click();
-  await expect(panel.getByText('Suficiente para avanzar (por verificar)')).toBeVisible();
+  await expect(
+    panel.getByText('Suficiente para avanzar (por verificar)', { exact: true }),
+  ).toBeVisible();
   await expect(panel.getByText('Comprobación pendiente desde el 16/03/2027.')).toBeVisible();
   // El mismo día todavía no se puede hacer.
   await expect(panel.getByRole('button', { name: 'Hacer la comprobación' })).toHaveCount(0);
@@ -165,7 +167,8 @@ test('[CA-150] «Ya lo sé» deja «(por verificar)»; al día siguiente Estudia
   }
   await page.getByRole('button', { name: 'Siguiente' }).click();
   const state = await stateOf(page, INTERPRET);
-  await expect(state).toHaveText('Suficiente para avanzar');
+  await expect(state).toContainText('Suficiente para avanzar');
+  await expect(state).not.toContainText('por verificar');
   await goToDestination(page, 'Estudiar');
   await expect(page.getByRole('note', { name: 'Comprobación pendiente' })).toHaveCount(0);
 });
