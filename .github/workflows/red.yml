@@ -74,6 +74,12 @@ jobs:
 
       - name: Red rápida (verificar), en cada pull request
         if: github.event_name == 'pull_request'
+        # Las pruebas arman sus bases, copias y comprimidos en la carpeta temporal. La del sistema
+        # está en C:, el disco del sistema, más lento y con tope de lecturas y escrituras; la del
+        # runner está en D:, como el proyecto. Son las mismas pruebas, sobre un disco más rápido.
+        env:
+          TEMP: ${{ runner.temp }}
+          TMP: ${{ runner.temp }}
         run: npm run verificar
 
       - name: Red completa (verificar:todo), al fusionar, en un tag, por semana o a pedido

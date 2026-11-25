@@ -1,6 +1,5 @@
 import fc from 'fast-check';
 import { afterEach, describe, expect, it } from 'vitest';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 
@@ -26,9 +25,9 @@ describe('aplazar', () => {
   it('[CA-091] no cambia la memoria: la agenda de cada tarjeta y los repasos calificados quedan iguales', () => {
     fc.assert(
       fc.property(fc.array(stepArbitrary, { minLength: 1, maxLength: 4 }), (steps) => {
-        const { workspace, file } = openSpace();
-        seedDemoOrganization(workspace);
-        seedDemoCardCast(workspace);
+        // El elenco sembrado con el reloj de la demostración: una copia del que se sembró una vez
+        // (lo mismo que sembrar acá las materias y las tarjetas).
+        const { workspace, file } = openSpace({ withCast: 'tarjetas' });
         const schedule = () => readRows(file, 'SELECT * FROM card_schedule ORDER BY card_id');
         const graded = () =>
           readRows(file, "SELECT id FROM observations WHERE kind = 'review.graded' ORDER BY seq");

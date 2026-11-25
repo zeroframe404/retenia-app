@@ -13,6 +13,9 @@ export default defineConfig({
     allowOnly: false,
     passWithNoTests: false,
     environment: 'node',
+    // La carpeta de la corrida donde quedan el elenco sembrado y el PDF leído, armados una sola vez
+    // por corrida (tests/apoyo/plantillas.ts).
+    globalSetup: [join(import.meta.dirname, 'tests', 'apoyo', 'plantillas-de-la-corrida.ts')],
     // Vitest usa por defecto un trabajador menos que los núcleos: en la máquina del CI (dos
     // núcleos) corría los archivos de a uno. Con dos como mínimo usa la máquina entera.
     maxWorkers: Math.max(2, availableParallelism() - 1),
@@ -41,6 +44,12 @@ export default defineConfig({
           include: ['tests/componentes/**/*.test.tsx'],
           environment: 'jsdom',
           testTimeout: 30_000,
+          // La espera entre dos acciones del usuario simulado: en Windows, la de user-event dormía
+          // unos 15 ms aunque pidiera cero (tests/componentes/espera-del-usuario.cjs).
+          execArgv: [
+            '--require',
+            join(import.meta.dirname, 'tests', 'componentes', 'ganchos-del-usuario.cjs'),
+          ],
         },
       },
       {

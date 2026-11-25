@@ -6,6 +6,7 @@ import { createDemoWorkspace } from '../../src/main/demo/switcher';
 import { resetDemoData } from '../../tools/lib/datos.mjs';
 import { tempDataFolder } from '../apoyo/base';
 import { dumpTables } from '../apoyo/base-cruda';
+import { copyCastInto } from '../apoyo/elenco';
 
 // «Empezar como la primera vez» y «Volver al elenco» (Ajustes › «Demostración»): la demostración
 // se abre sobre una segunda carpeta de datos, vacía, sin tocar el elenco. El modo queda anotado.
@@ -25,6 +26,16 @@ function dataDir() {
   const folder = tempDataFolder();
   folders.push(folder);
   return folder.folder;
+}
+
+// Una carpeta con el elenco ya sembrado: una copia del que se sembró una vez por corrida
+// (tests/apoyo/elenco.ts), que es lo mismo que siembra `createDemoWorkspace` al abrir una carpeta
+// vacía (materias, notas y tarjetas sin materiales, con el reloj de la demostración). Las pruebas
+// de esa siembra al abrir, y la de «datos:reiniciar», arrancan con la carpeta vacía.
+function seededDir() {
+  const dir = dataDir();
+  copyCastInto(dir, 'tarjetas');
+  return dir;
 }
 
 function open(dir = dataDir()) {
@@ -56,14 +67,14 @@ describe('el modo elenco', () => {
   });
 
   it('el espacio de trabajo expone la misma carpeta de datos en los dos modos', () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     expect(demo.workspace.dataDir).toBe(dir);
   });
 });
 
 describe('«Empezar como la primera vez»', () => {
   it('[CA-041] abre una base vacía, sin materias ni tarjetas, en una carpeta aparte', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
 
     await expect(demo.useFirstTime()).resolves.toBe('first-time');
 
@@ -76,7 +87,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('[CA-041] ahí se puede escribir «Química orgánica»: queda activa, y el elenco no se entera', async () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     await demo.useFirstTime();
 
     const created = demo.workspace.subjects.create({ name: 'Química orgánica', makeActive: true });
@@ -92,7 +103,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('[CA-041] «Probar con un ejemplo (3 min)» en la primera vez carga «Ejemplo» y la deja activa', async () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     await demo.useFirstTime();
     const example = demo.workspace.subjects.createExample();
     expect(example).toMatchObject({ name: 'Ejemplo', status: 'active', isExample: true });
@@ -100,7 +111,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('volver al elenco no toca la base del elenco: queda idéntica, fila por fila', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     const before = dumpTables(join(dir, 'retenia.db'));
     await demo.useFirstTime();
     demo.workspace.subjects.create({ name: 'Química orgánica', makeActive: true });
@@ -110,7 +121,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('lo escrito en la primera vez sigue ahí si se vuelve a esa carpeta', async () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     await demo.useFirstTime();
     demo.workspace.subjects.create({ name: 'Química orgánica', makeActive: true });
     await demo.useCast();
@@ -121,7 +132,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('pedirlo estando ya en ese modo no cambia nada', async () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     await demo.useFirstTime();
     demo.workspace.subjects.create({ name: 'Química orgánica', makeActive: true });
     await expect(demo.useFirstTime()).resolves.toBe('first-time');
@@ -132,7 +143,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('cada modo tiene sus propias copias', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     expect(demo.workspace.copiesDir).toBe(join(dir, 'copias'));
     await demo.useFirstTime();
     expect(demo.workspace.copiesDir).toBe(join(dir, 'primera-vez', 'copias'));
@@ -144,7 +155,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('un pedido en curso termina antes de cambiar de modo', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     const backup = demo.workspace.createBackup('manual');
     const switching = demo.useFirstTime();
     await expect(backup).resolves.toMatchObject({ kind: 'manual' });
@@ -154,7 +165,7 @@ describe('«Empezar como la primera vez»', () => {
   });
 
   it('los pedidos que llegan mientras se cambia de modo esperan y caen en la base nueva', async () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     const backup = demo.workspace.createBackup('manual');
     const switching = demo.useFirstTime();
     const later = demo.workspace.backups();
@@ -165,7 +176,7 @@ describe('«Empezar como la primera vez»', () => {
 
 describe('el modo queda anotado', () => {
   it('el modo se guarda en demo-modo.json y al abrir de nuevo sigue en la primera vez', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     await demo.useFirstTime();
     expect(JSON.parse(readFileSync(join(dir, 'demo-modo.json'), 'utf8'))).toEqual({
       mode: 'first-time',
@@ -182,7 +193,7 @@ describe('el modo queda anotado', () => {
   });
 
   it('volver al elenco también queda anotado', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     await demo.useFirstTime();
     await demo.useCast();
     expect(JSON.parse(readFileSync(join(dir, 'demo-modo.json'), 'utf8'))).toEqual({ mode: 'cast' });
@@ -199,7 +210,7 @@ describe('el modo queda anotado', () => {
       '{"mode":1}',
       '{}',
     ]) {
-      const dir = dataDir();
+      const dir = seededDir();
       if (content !== null) {
         writeFileSync(join(dir, 'demo-modo.json'), content);
       }
@@ -211,7 +222,7 @@ describe('el modo queda anotado', () => {
   });
 
   it('el archivo no deja temporales y no pisa lo demás de la carpeta', async () => {
-    const { demo, dir } = open();
+    const { demo, dir } = open(seededDir());
     await demo.useFirstTime();
     expect(readdirSync(dir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
     expect(existsSync(join(dir, 'retenia.db'))).toBe(true);
@@ -220,13 +231,13 @@ describe('el modo queda anotado', () => {
 
 describe('cerrar', () => {
   it('cerrar cierra la base del modo en uso', () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     demo.close();
     expect(() => demo.workspace.cards.list()).toThrow();
   });
 
   it('cerrar dos veces no falla', () => {
-    const { demo } = open();
+    const { demo } = open(seededDir());
     demo.close();
     expect(() => demo.close()).not.toThrow();
   });

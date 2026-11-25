@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { type Clock, demoClock } from '../../src/core/clock';
 import type { Workspace } from '../../src/data/workspace';
-import { seedDemoCardCast, seedDemoOrganization } from '../../src/main/demo/seed';
+import { seedDemoOrganization } from '../../src/main/demo/seed';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace } from '../apoyo/espacio';
 
@@ -31,16 +31,15 @@ function movableClock() {
   };
 }
 
-// Con el reloj de la demostración, una copia del elenco sembrado una vez por proceso (lo mismo que
-// siembran estas dos líneas); con otro reloj, se siembra en la prueba.
+// Una copia del elenco sembrado una vez por corrida con el reloj de la demostración: lo mismo que
+// siembran `seedDemoOrganization` y `seedDemoCardCast`. El reloj que se puede adelantar arranca en
+// ese mismo instante, así que sembraría lo mismo: arranca con la copia y la prueba lo adelanta
+// después. Con un reloj en otro instante se sembraría otra cosa: la prueba frena.
 function seeded(clock?: Clock) {
-  if (!clock) {
-    return openSpace({ withCast: 'tarjetas' });
+  if (clock && clock.now().getTime() !== demoClock().now().getTime()) {
+    throw new Error('el elenco copiado se sembró con el reloj de la demostración');
   }
-  const space = openSpace({ clock });
-  seedDemoOrganization(space.workspace);
-  seedDemoCardCast(space.workspace);
-  return space;
+  return openSpace({ ...(clock ? { clock } : {}), withCast: 'tarjetas' });
 }
 
 const proposalOf = (workspace: Workspace, minutes?: 5 | 10 | 25 | 45) => {
