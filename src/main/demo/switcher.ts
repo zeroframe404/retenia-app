@@ -181,6 +181,12 @@ export function createDemoWorkspace({
     get imports() {
       return active.imports;
     },
+    get objectives() {
+      return active.objectives;
+    },
+    get progress() {
+      return active.progress;
+    },
     stageExport: (staging) => active.stageExport(staging),
     exportCounts: () => active.exportCounts(),
     isEmpty: () => active.isEmpty(),

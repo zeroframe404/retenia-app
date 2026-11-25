@@ -43,6 +43,8 @@ import { continueSequence, readLedgerState } from './ledger';
 import { createMaterialsStore, type MaterialsStore } from './materials';
 import { migrationIds } from './migrations';
 import { createNotesStore, type NotesStore } from './notes';
+import { createObjectivesStore, type ObjectivesStore } from './objectives';
+import { createProgressStore, type ProgressStore } from './progress';
 import { repairData, verifyData } from './projections';
 import { createSearchStore, type SearchStore } from './search';
 import { createStudyStore, type StudyStore } from './study';
@@ -77,6 +79,10 @@ export interface Workspace {
   readonly materials: MaterialsStore;
   // Importar de Anki y de RemNote (Fase 15).
   readonly imports: ImportsStore;
+  // Los objetivos, su estado y sus requisitos (Fase 17).
+  readonly objectives: ObjectivesStore;
+  // Progreso › «Mis errores» y «Mejorar la tarjeta» (Fase 17).
+  readonly progress: ProgressStore;
   // «Exportar todo»: arma los archivos de datos en la carpeta `staging` y dice qué va al comprimido.
   stageExport(staging: string): StagedExport;
   exportCounts(): ExportCounts;
@@ -215,6 +221,8 @@ export function openWorkspace({
       search: createSearchStore(db),
       materials: createMaterialsStore(db, clock),
       imports: createImportsStore(db, clock, dataDir),
+      objectives: createObjectivesStore(db, clock),
+      progress: createProgressStore(db, clock, () => cards),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -308,6 +316,12 @@ export function openWorkspace({
     },
     get imports() {
       return current().imports;
+    },
+    get objectives() {
+      return current().objectives;
+    },
+    get progress() {
+      return current().progress;
     },
     stageExport: (staging) => stageExport(current().db, { dataDir, staging, appVersion, clock }),
     exportCounts: () => exportCounts(current().db),

@@ -227,6 +227,32 @@ const diffStepSchema = z.strictObject({
 });
 export type DiffStepValue = z.output<typeof diffStepSchema>;
 
+// El diagnóstico tras un fallo (Fase 17, CA-153): una sola acción siguiente con su motivo, en el
+// orden del criterio. Nulo si no es un fallo.
+export const diagnosisSchema = z.discriminatedUnion('action', [
+  z.strictObject({
+    action: z.literal('checkUnaided'),
+    reason: z.enum(['previousAided', 'previousOptions']),
+  }),
+  z.strictObject({ action: z.literal('sendToReview'), reason: z.literal('doubtful') }),
+  z.strictObject({
+    action: z.literal('goToRequirement'),
+    reason: z.literal('missingRequirement'),
+    requirement: z.strictObject({
+      objectiveId: z.uuid(),
+      title: z.string(),
+      state: z.enum(['not-started', 'in-practice', 'to-review', 'enough', 'consolidated']),
+    }),
+  }),
+  z.strictObject({
+    action: z.literal('practiceDifference'),
+    reason: z.literal('confusion'),
+    confusedWith: z.strictObject({ cardId: z.uuid(), question: z.string() }),
+  }),
+  z.strictObject({ action: z.literal('forgotten'), reason: z.literal('forgotten') }),
+]);
+export type DiagnosisValue = z.output<typeof diagnosisSchema>;
+
 // Lo que se muestra al enviar, según el tipo.
 const attemptDetailSchema = z.discriminatedUnion('type', [
   z.strictObject({
@@ -267,6 +293,8 @@ const proposalSchema = z.strictObject({
   parts: resultPartsSchema,
   // Las unidades de idea que faltan (respuesta abierta), para «qué revisar».
   missing: z.array(z.string()),
+  // Fase 17: con «Todavía no.», qué sigue y por qué (CA-153).
+  diagnosis: diagnosisSchema.nullable(),
 });
 
 export const activitiesSubmitResponse = z.strictObject({
@@ -300,6 +328,7 @@ export const activitiesFinalizeResponse = z.strictObject({
   pendingCheck: z.boolean(),
   // El día de la comprobación sin ayuda, si quedó pendiente.
   checkDay: day.nullable(),
+  diagnosis: diagnosisSchema.nullable(),
 });
 export type FinalResult = z.output<typeof activitiesFinalizeResponse>;
 

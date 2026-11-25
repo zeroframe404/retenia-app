@@ -59,7 +59,13 @@ import {
 import type { ReteniaDatabase } from './database';
 import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './demo-cards';
 import { newId } from './ids';
-import { appendEvaluation, appendObservation, appendOperation, type EventSource } from './ledger';
+import {
+  appendEvaluation,
+  appendObservation,
+  appendOperation,
+  type EventSource,
+  readPayload,
+} from './ledger';
 import { estimatesOf } from './load';
 import { describeCite } from './materials';
 import { SubjectNotFoundError, TopicNotFoundError } from './organization-errors';
@@ -196,8 +202,19 @@ export interface CardsStore {
     // Fase 16: el tipo de actividad (nulo para volver a la tarjeta de siempre), el ejemplo y el modo.
     activity?: Activity | null | undefined;
     example?: string | undefined;
+    // Fase 17: la edición viene de «Mejorar la tarjeta» («Reformular» o «Agregar una pista»): los
+    // fallos de la dificultad recurrente se cuentan desde esta versión.
+    improve?: 'rephrase' | 'hint' | undefined;
     mode?: ActivityModeValue | undefined;
   }): CardDetail;
+  // «Dividir en dos» (Fase 17, «Mejorar la tarjeta»): dos tarjetas nuevas en el mismo lugar y con
+  // el mismo objetivo, y la original retirada con su historial. `splitId`: el mismo pedido dos veces
+  // no crea otras dos.
+  split(input: {
+    splitId: string;
+    cardId: string;
+    parts: readonly { question: string; answer: string }[];
+  }): { cardIds: string[] };
   // Después de un cambio hecho en la nota: la tarjeta se programa como nueva.
   markMeaningChanged(input: { cardId: string }): Card;
   setPaused(input: { cardId: string; paused: boolean }): Card;
@@ -732,7 +749,17 @@ export function createCardsStore(
       return whyToday(orm, cardId, studyDayOf(clock.now()));
     },
 
-    edit({ cardId, question, answer: given, sheet, meaningChanged, activity, example, mode }) {
+    edit({
+      cardId,
+      question,
+      answer: given,
+      sheet,
+      meaningChanged,
+      activity,
+      example,
+      mode,
+      improve,
+    }) {
       return orm.transaction((tx) => {
         const current = activeCard(tx, cardId);
         const currentSheet = sheetOf(current);
@@ -817,7 +844,120 @@ export function createCardsStore(
         if (meaningChanged === true && textChanged && hasHistory) {
           resetAsNew(tx, cardId, versionId);
         }
+        if (improve !== undefined) {
+          appendObservation(tx, clock, {
+            kind: 'card.improved',
+            payload: { cardId, action: improve, versionId, newCardIds: [] },
+            idempotencyKey: `improve:${versionId}`,
+            source: 'user',
+          });
+        }
         return detailOf(tx, activeCard(tx, cardId));
+      });
+    },
+
+    split({ splitId, cardId, parts }) {
+      return orm.transaction((tx) => {
+        const done = tx
+          .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+          .from(observations)
+          .where(eq(observations.idempotencyKey, `split:${splitId}`))
+          .get();
+        if (done) {
+          return {
+            cardIds: [...readPayload('card.improved', done.schemaVersion, done.payload).newCardIds],
+          };
+        }
+        const current = activeCard(tx, cardId);
+        const now = clock.now().toISOString();
+        const cardIds: string[] = [];
+        for (const part of parts) {
+          const newCardId = newId();
+          const versionId = newId();
+          tx.insert(cards)
+            .values({
+              id: newCardId,
+              currentVersionId: versionId,
+              createdAt: now,
+              subjectId: current.subjectId,
+              topicId: current.topicId,
+            })
+            .run();
+          tx.insert(cardVersions)
+            .values({
+              id: versionId,
+              cardId: newCardId,
+              question: part.question.trim(),
+              answer: part.answer.trim(),
+              createdAt: now,
+              cause: 'edit',
+            })
+            .run();
+          recomputeCardSchedule(tx, newCardId);
+          appendOperation(tx, clock, {
+            kind: 'card.create',
+            entityId: newCardId,
+            versionAfterId: versionId,
+            source: 'user',
+          });
+          cardIds.push(newCardId);
+        }
+        // La original se retira (sale de los repasos y de «Mejorar la tarjeta») con su historial.
+        const previous = tx
+          .select()
+          .from(cardVersions)
+          .where(eq(cardVersions.id, current.versionId))
+          .get();
+        if (!previous) {
+          throw new CardNotFoundError();
+        }
+        const retiredId = newId();
+        tx.insert(cardVersions)
+          .values({
+            ...previous,
+            id: retiredId,
+            sheetState: 'retired',
+            createdAt: now,
+            cause: 'edit',
+          })
+          .run();
+        tx.update(cards).set({ currentVersionId: retiredId }).where(eq(cards.id, cardId)).run();
+        appendOperation(tx, clock, {
+          kind: 'card.edit',
+          entityId: cardId,
+          versionBeforeId: current.versionId,
+          versionAfterId: retiredId,
+          source: 'user',
+        });
+        // Las dos nuevas quedan en el objetivo de la original (si era uno tuyo).
+        const link = tx
+          .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+          .from(observations)
+          .where(and(eq(observations.kind, 'objective.linked'), eq(observations.cardId, cardId)))
+          .orderBy(observations.seq)
+          .all()
+          .at(-1);
+        const objectiveId =
+          link === undefined
+            ? null
+            : readPayload('objective.linked', link.schemaVersion, link.payload).objectiveId;
+        if (objectiveId !== null) {
+          for (const newCardId of cardIds) {
+            appendObservation(tx, clock, {
+              kind: 'objective.linked',
+              payload: { cardId: newCardId, objectiveId, previousObjectiveId: null },
+              idempotencyKey: `link:${splitId}:${newCardId}`,
+              source: 'user',
+            });
+          }
+        }
+        appendObservation(tx, clock, {
+          kind: 'card.improved',
+          payload: { cardId, action: 'split', versionId: retiredId, newCardIds: cardIds },
+          idempotencyKey: `split:${splitId}`,
+          source: 'user',
+        });
+        return { cardIds };
       });
     },
 

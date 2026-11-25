@@ -71,6 +71,20 @@ const alternativeSchema = z.strictObject({
 });
 export type StudyAlternative = z.output<typeof alternativeSchema>;
 
+// El requisito que nombra la propuesta (Fase 17).
+const requirementLineSchema = z.strictObject({
+  kind: z.enum(['before', 'maybe']),
+  requirementId: z.uuid(),
+  objectiveId: z.uuid(),
+  objectiveTitle: z.string(),
+  requiresId: z.uuid(),
+  requiresTitle: z.string(),
+  requiresState: z.enum(['not-started', 'in-practice', 'to-review', 'enough', 'consolidated']),
+  // La primera actividad del requisito que se puede practicar ahora (nula si no tiene).
+  practiceCardId: z.uuid().nullable(),
+});
+export type RequirementLine = z.output<typeof requirementLineSchema>;
+
 // La propuesta de hoy (H-19): lo que entra en los minutos elegidos y por qué. Las duraciones ya
 // vienen redondeadas a 5 minutos; el atraso se mide en días de lo que estudiás por día.
 const proposalSchema = z.strictObject({
@@ -102,6 +116,10 @@ const proposalSchema = z.strictObject({
     .strictObject({ subjectName: z.string(), minutes: z.number().int().positive() })
     .nullable(),
   alternatives: z.array(alternativeSchema).max(3),
+  // Fase 17 (H-35): un requisito sin cumplir de un objetivo de la materia. «before»: frena (es
+  // indispensable y confirmado) y la propuesta empieza por él («Antes conviene: …»); «maybe»: solo
+  // avisa («Quizá te ayude repasar: …»).
+  requirement: requirementLineSchema.nullable(),
 });
 export type StudyProposal = z.output<typeof proposalSchema>;
 

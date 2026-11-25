@@ -17,12 +17,14 @@ import {
 } from '../core/load';
 import { studyDayOf } from '../core/study-day';
 import type {
+  RequirementLine,
   SessionFocus,
   SessionMinutes,
   StudyAlternative,
   StudyProposal,
 } from '../preload/contract/study';
 import { readPayload } from './ledger';
+import { studyObjectives } from './objectives';
 import type { Writer } from './orm';
 import { postponementStates } from './postponements';
 import { observations, topics } from './schema';
@@ -224,6 +226,8 @@ export interface Gathered {
   readonly backlogDays: number;
   readonly brake: Brake;
   readonly studiedGroups: ReadonlySet<string>;
+  // Fase 17: el requisito que nombra la propuesta («Antes conviene» o «Quizá te ayude repasar»).
+  readonly requirement: RequirementLine | null;
 }
 
 // Los repasos vencidos de la materia que se pueden ofrecer hoy, con lo que hace falta para
@@ -296,13 +300,38 @@ export function gather(
     }
   }
   const held = readSetting(db, HOLD_NEW_KEY, z.string().nullable(), null) === today;
+  // Fase 17 (H-35): las nuevas de un objetivo frenado por un requisito, o pospuesto, no se proponen;
+  // las de un requisito suben de prioridad y sus nuevas van primero.
+  const objectivesNow = studyObjectives(db, subject.id);
+  const fresh = held ? [] : newCardsOf(db, subject.id);
+  const newCards =
+    objectivesNow === null
+      ? fresh
+      : [
+          ...fresh.filter(
+            (card) =>
+              objectivesNow.requisiteCards.has(card.cardId) &&
+              !objectivesNow.heldNewCards.has(card.cardId),
+          ),
+          ...fresh.filter(
+            (card) =>
+              !objectivesNow.requisiteCards.has(card.cardId) &&
+              !objectivesNow.heldNewCards.has(card.cardId),
+          ),
+        ];
   return {
     subject,
     today,
     defaultMinutes,
-    reviews: offered,
+    reviews:
+      objectivesNow === null
+        ? offered
+        : offered.map((card) =>
+            objectivesNow.requisiteCards.has(card.cardId) ? { ...card, isRequisite: true } : card,
+          ),
     postponedCount,
-    newCards: held ? [] : newCardsOf(db, subject.id),
+    requirement: objectivesNow?.line ?? null,
+    newCards,
     estimates,
     backlogDays: backlog,
     brake: brakeWithRecovery([...dailySeries(past, today).slice(-13), backlog]),
@@ -428,5 +457,6 @@ export function proposalFrom(
     postponedCount: gathered.postponedCount,
     maintenance: null,
     alternatives: alternativesOf(db, gathered, plan, chosen),
+    requirement: gathered.requirement,
   };
 }

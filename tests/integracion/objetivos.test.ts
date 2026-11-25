@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterEach, describe, expect, it } from 'vitest';
 import { type Clock, demoClock } from '../../src/core/clock';
-import { readRows } from '../apoyo/base-cruda';
+import { readRows, runRaw } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace, type Space } from '../apoyo/espacio';
 
 // Fase 17 (H-34 y H-35), con la base real y el elenco: los objetivos, sus actividades, el estado
@@ -199,7 +199,7 @@ describe('crear un objetivo', () => {
       concept_key: 'mediana',
     });
     expect(() =>
-      readRows(space.file, `UPDATE objectives SET title = 'Otro' WHERE id = '${objectiveId}'`),
+      runRaw(space.file, `UPDATE objectives SET title = 'Otro' WHERE id = '${objectiveId}'`),
     ).toThrow(/no se modifica/);
     // Repetir el pedido no crea otro.
     space.workspace.objectives.create({
@@ -280,9 +280,10 @@ describe('el estado sale de la evidencia', () => {
       variants: { count: 0, lastDay: null },
     });
     expect(panel.nextStep).toEqual({ kind: 'recover' });
+    // 1 y 1, más 0,3 (con pista), 3 aciertos y un fallo: 4,3 a favor y 2 en contra, unos 7 de cada 10.
     expect(panel.estimate).toEqual({
       concept: 'intervalo de confianza',
-      outOfTen: 6,
+      outOfTen: 7,
       observations: 5,
     });
   });

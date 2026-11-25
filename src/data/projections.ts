@@ -49,7 +49,7 @@ const MEMORY_KINDS = [
 ];
 
 // La evaluación vigente de un intento: el veredicto y si quedó afectado (no cuenta, CA-142).
-interface CurrentEvaluation {
+export interface CurrentEvaluation {
   readonly verdict: Verdict;
   readonly affected: boolean;
 }
@@ -161,7 +161,7 @@ function memoryEventsOf(
   });
 }
 
-interface EvaluationRow {
+export interface EvaluationRow {
   readonly attemptId: string;
   readonly id: string;
   readonly version: number;
@@ -169,7 +169,7 @@ interface EvaluationRow {
   readonly affected: number;
 }
 
-const evaluationColumns = {
+export const evaluationColumns = {
   attemptId: evaluations.attemptId,
   id: evaluations.id,
   version: evaluations.version,
@@ -178,7 +178,7 @@ const evaluationColumns = {
 };
 
 // La evaluación vigente de cada intento.
-function currentVerdicts(rows: readonly EvaluationRow[]): Map<string, CurrentEvaluation> {
+export function currentVerdicts(rows: readonly EvaluationRow[]): Map<string, CurrentEvaluation> {
   const byAttempt = new Map<string, EvaluationRow[]>();
   for (const row of rows) {
     byAttempt.set(row.attemptId, [...(byAttempt.get(row.attemptId) ?? []), row]);

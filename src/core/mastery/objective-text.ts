@@ -34,6 +34,15 @@ export function conceptKeyOf(content: string): string {
   return words.join(' ');
 }
 
+// El concepto como se lee en pantalla: el contenido sin el artículo del principio, con sus tildes.
+export function conceptNameOf(content: string): string {
+  const words = content.trim().split(/\s+/u);
+  if (words.length > 1 && ARTICLES.has(lowered(words[0] as string))) {
+    words.shift();
+  }
+  return words.join(' ');
+}
+
 export function parseObjectiveText(text: string): {
   title: string;
   action: string;

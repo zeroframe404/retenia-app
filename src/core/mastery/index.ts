@@ -25,7 +25,7 @@ export {
   weightOf,
 } from './estimate';
 export { MISTAKE_TYPES, type MistakeInput, type MistakeType, mistakeTypeOf } from './mistakes';
-export { conceptKeyOf, parseObjectiveText } from './objective-text';
+export { conceptKeyOf, conceptNameOf, parseObjectiveText } from './objective-text';
 export {
   blocks,
   type Frontier,

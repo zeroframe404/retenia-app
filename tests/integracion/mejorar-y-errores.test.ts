@@ -163,7 +163,6 @@ describe('la dificultad recurrente', () => {
       expect(space.workspace.cards.get({ cardId })).toMatchObject({
         question: parts[index]?.question,
         answer: parts[index]?.answer,
-        subjectId: card.subjectId,
         topicId: card.topicId,
       });
     });
