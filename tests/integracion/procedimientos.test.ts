@@ -165,7 +165,8 @@ describe('la corrección por pasos', () => {
         attemptId,
         stepId: 'margen',
         retryId: randomUUID(),
-        written: '1',
+        // Un valor que no es el margen de ninguna variante (el mayor es 5,88).
+        written: '999998',
       }),
     ).toEqual({ ok: false, next: { stepId: 'margen', position: 3 } });
     const right = rightAnswers(space, cardId, session.openingId).get('margen') ?? '';
