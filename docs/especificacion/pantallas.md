@@ -34,7 +34,7 @@ Estudiar · Apuntes · Materiales · Idiomas · Progreso · Ajustes. Arriba, «B
 - Menú «Más»: «La tarjeta está mal» · «Editar» · «Saltar».
 - Confianza (1 de cada 5 intentos): «¿Cuánta confianza tenés?» → «Adivinando» · «Creo que sí» · «Seguro».
 - Tutor: «Pista» · «Ver un ejemplo» · «Explicame» · «Dejame pensar» · «Sigo solo» · «Mostrame la solución». Ícono «Pista disponible». Bloques «Según tu material» y «Aporte del modelo, no verificado». «Esta cita no dice eso». «Hay un error; ¿lo encontrás?».
-- Procedimientos y métodos: «¿Por qué este paso?»; «Hay un error en el paso 3; ¿lo encontrás?»; «¿Qué método usarías? No lo resuelvas».
+- Procedimientos y métodos: «¿Por qué este paso?»; «Hay un error en el paso 3; ¿lo encontrás?»; «¿Qué método usarías? No lo resuelvas». Al terminar un procedimiento, «Práctica terminada»; un conjunto, «Conjunto terminado» con «Los tipos, en el orden en que salieron».
 - Panel lateral del buscador (Ctrl+K) sin salir de la sesión.
 - Teclado: Espacio muestra la respuesta; 1, 2, 3 califican; Esc pausa; Ctrl+Z deshace.
 

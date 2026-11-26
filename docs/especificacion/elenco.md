@@ -49,6 +49,15 @@ Ejercicio abierto (se lista en «Tarjetas» con la marca «Ejercicio»; no suma 
 
 Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para la media»**, de 4 pasos, con familia de variantes (CA-157, CA-164); un conjunto de 9 problemas de media, mediana y moda para elegir método (CA-162).
 
+Desde la Fase 18 están sembrados (`tarjetas.json`, con `conjuntos` e `intentos`):
+
+- **«Calcular un intervalo de confianza para la media»** (Intervalos de confianza): paso 1 (clave) el error estándar `s / raiz(n)`; 2 el valor crítico 1,96; 3 el margen de error; 4 el límite superior. Familia: media de 40 a 80, n de 16, 25, 36, 64 o 100, y el desvío calculado `ee * raiz(n)`; tres enunciados (el segundo y el tercero, para el último escalón).
+- **Nueve problemas** numéricos de «Media y dispersión», tres de cada tipo; ninguno dice «media», «mediana» ni «moda». Uno de cada tipo trae un intento acertado (09, 10 y 11/03/2027): «ya lo practicaste por separado».
+- **El conjunto «Media, mediana y moda»**, con los tipos «Media», «Mediana» y «Moda».
+- **Dos tarjetas de decisión**: la del sueldo del gerente (la correcta es «La mediana») y la del talle de remera (la correcta es «La moda»). La del sueldo trae un intento del 12/03/2027 que eligió «La media»: es el error de confusión de «Mis errores» para la tarjeta de contraste (CA-163).
+
+Los estados de los objetivos de la demostración no cambian (todo lo sembrado cae en días que ya tenían repasos o en objetivos implícitos que ya estaban en «Suficiente para avanzar»); cambia la cantidad de actividades de «Media y dispersión» (80) e «Intervalos de confianza» (63).
+
 Desde la Fase 16 el elenco trae cinco ejercicios en Estadística básica, sin historial, cada uno con 3 pistas (pregunta orientadora, pista de concepto y pista de paso), un ejemplo y una explicación (`datos-de-ejemplo/elenco/tarjetas.json`, `ejercicios`). Se listan al final de «Tarjetas» con la marca «Ejercicio» (Tipo › «Ejercicio») y no suman al 180:
 
 - El ejercicio abierto de arriba (tema Intervalos de confianza), con la fuente en el párrafo de «3.2 Qué significa el 95 %» de la página 6 del PDF.
