@@ -1927,8 +1927,9 @@ export const texts = {
     // Lo que se agrega al renglón si no salió bien (si salió bien, nada).
     sentStatus: {
       rejected_schema: 'respuesta descartada',
-      refused: 'sin respuesta',
+      refused: 'la IA no quiso responder',
       failed: 'falló',
+      unanswered: 'sin respuesta: cuenta lo máximo que pudo costar',
     },
     // «02/04/2027 · Explicar un fragmento · 1 fragmento de “Apunte.pdf” · USD 0,02».
     sentRow: (
@@ -1983,7 +1984,12 @@ export const texts = {
       auth: 'La clave de la IA no funciona. Revisala en Ajustes.',
       billing: 'Tu cuenta de la IA no tiene saldo. Cargalo en la consola de Anthropic.',
       refused: 'La IA no quiso responder este pedido.',
-      cancelled: 'Se canceló: activaste el modo solo local.',
+      cancelled: 'Se canceló.',
+      cancelled_local_only: 'Se canceló: activaste el modo solo local.',
+      cancelled_suspended: 'Se canceló: suspendiste esta función de la IA.',
+      cancelled_permission: 'Se canceló: este material ya no tiene permiso para ir a la IA.',
+      cancelled_no_ai: 'Se canceló: ya no hay una IA conectada.',
+      cancelled_ai_changed: 'Se canceló: cambió la IA conectada. Pedila de nuevo.',
     },
     retry: 'Reintentar',
     unavailable: 'No pude pedir la explicación. Probá de nuevo.',

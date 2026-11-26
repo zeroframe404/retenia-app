@@ -35,7 +35,10 @@ import { toApiSchema } from './schema-api';
 // CA-171) y lo guardado para no volver a pagar. La compuerta solo escribe en sus tablas (el puerto
 // `store`): lo que devuelve la IA se muestra; nunca toca tu aprendizaje (CA-174).
 // Sin conexión, el pedido espera en la cola y sale solo cuando vuelve (CA-176). Un error técnico se
-// reintenta hasta 3 veces y se dice como error técnico.
+// reintenta hasta 3 veces y se dice como error técnico. Lo que pudo haber salido de la PC (también un
+// corte sin respuesta) queda en «Qué se envió»; si no se sabe lo que costó, cuenta lo máximo que pudo
+// costar, así el tope nunca se pasa. Antes de salir, lo que espera en la cola se vuelve a mirar: si
+// ya no puede salir (modo solo local, función suspendida, otra IA, sin permiso), se cancela.
 
 export interface AiPrefs {
   readonly capCents: number;
@@ -43,7 +46,19 @@ export interface AiPrefs {
   readonly suspended: readonly string[];
 }
 
+// Por qué se canceló un pedido que esperaba.
+type CancelReason =
+  | 'cancelled'
+  | 'cancelled_local_only'
+  | 'cancelled_suspended'
+  | 'cancelled_permission'
+  | 'cancelled_no_ai'
+  | 'cancelled_ai_changed';
+
 export interface AiGate {
+  // Lo que se puede saber sin leer el pasaje (función suspendida, «Modo solo local», sin IA): si
+  // corta, el pasaje ni se lee.
+  precheck(): AiOutcome | null;
   explain(input: {
     materialId: string;
     materialTitle: string;
@@ -54,16 +69,20 @@ export interface AiGate {
   cancel(requestId: string): AiOutcome | null;
   // Cancela todo lo pendiente (al prender «Modo solo local»).
   cancelPending(): void;
+  // Vuelve a mirar lo que espera (después de quitar un permiso, suspender o borrar la clave): lo que
+  // ya no puede salir se cancela.
+  reviewPending(): void;
   // Manda lo pendiente, una vez cada pedido; lo que falla espera la próxima vuelta.
   sendPending(): Promise<void>;
   monthSpentMicros(): number;
   functionStateOf(id: string): AiFunctionState;
-  // Al abrir: lo que quedó «enviándose» en un cierre vuelve a la cola.
+  // Al abrir: lo que quedó «enviándose» en un cierre pudo haber llegado; queda en «Qué se envió» con
+  // lo máximo que pudo costar, cuenta como intento y vuelve a la cola.
   recover(): void;
 }
 
 const MAX_ATTEMPTS = 3;
-const TRANSIENT = new Set(['busy', 'server', 'timeout']);
+const TRANSIENT = new Set(['busy', 'server', 'timeout', 'connection']);
 const API_SCHEMA = toApiSchema(explainOutputSchema);
 
 const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
@@ -159,14 +178,10 @@ export function createAiGate({
       attempt,
     });
 
-  // «Qué se envió»: solo lo que salió de la PC, con lo que costó.
-  const log = (
-    item: AiQueueItem,
-    current: AiProvider,
-    status: AiRequestStatus,
-    response: CompletionResponse | null,
-  ) => {
-    if (current.kind !== 'remote') {
+  // «Qué se envió»: solo lo que salió de la PC con tu clave (la IA simulada no saca nada), con lo
+  // que costó. Sin respuesta, lo máximo que pudo costar.
+  const log = (item: AiQueueItem, status: AiRequestStatus, response: CompletionResponse | null) => {
+    if (item.allowedBy === 'local') {
       return 0;
     }
     const usage = response?.usage ?? {
@@ -175,12 +190,15 @@ export function createAiGate({
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
-    const usdMicros = costMicros(usage, priceFor(EXPLAIN_FRAGMENT.model));
+    const usdMicros =
+      status === 'unanswered'
+        ? requestOf(item.fragment, item.materialTitle).maxCost
+        : costMicros(usage, priceFor(EXPLAIN_FRAGMENT.model));
     store().logRequest({
       id: newId(),
       at: now(),
       purpose: EXPLAIN_FRAGMENT.id,
-      provider: current.id,
+      provider: item.provider,
       model: EXPLAIN_FRAGMENT.model,
       promptVersion: EXPLAIN_FRAGMENT.prompt.version,
       rubricVersion: EXPLAIN_FRAGMENT.rubricVersion,
@@ -201,12 +219,48 @@ export function createAiGate({
     return usdMicros;
   };
 
+  // Lo que espera en la cola se vuelve a mirar antes de salir. Nulo si todavía puede salir.
+  const cancelReasonOf = (item: AiQueueItem, current: AiProvider | null): CancelReason | null => {
+    if (prefs().localOnly) {
+      return 'cancelled_local_only';
+    }
+    if (functionStateOf(item.purpose) === 'suspended') {
+      return 'cancelled_suspended';
+    }
+    if (current === null) {
+      return 'cancelled_no_ai';
+    }
+    // La huella dice con qué IA (y qué variante) se pidió: si cambió, no sale por otra.
+    if (
+      current.id !== item.provider ||
+      cacheKeyOf(current, item.materialTitle, item.fragment) !== item.cacheKey
+    ) {
+      return 'cancelled_ai_changed';
+    }
+    if (current.kind === 'remote') {
+      const permission = store().permission(item.materialId);
+      if (permission === 'never' || (item.allowedBy === 'always' && permission !== 'always')) {
+        return 'cancelled_permission';
+      }
+    }
+    return null;
+  };
+
+  const cancelItem = (item: AiQueueItem, reason: CancelReason) => {
+    trace(item, 'cancelled', item.attempts);
+    finish(item, { state: 'failed', requestId: item.id, reason });
+  };
+
+  // Se canceló mientras iba en camino: lo que vuelva ya no se muestra ni se reintenta.
+  const cancelledMeanwhile = (item: AiQueueItem) =>
+    store().queueItem(item.id)?.status !== 'sending';
+
   // Un pedido de la cola. Devuelve falso si no hay conexión (no tiene sentido seguir).
   const sendOne = async (item: AiQueueItem): Promise<boolean> => {
     const current = provider();
-    if (prefs().localOnly || current === null) {
-      trace(item, 'cancelled', item.attempts);
-      finish(item, { state: 'failed', requestId: item.id, reason: 'cancelled' });
+    const reason = cancelReasonOf(item, current);
+    if (reason !== null || current === null) {
+      cancelItem(item, reason ?? 'cancelled_no_ai');
       return true;
     }
     const request = requestOf(item.fragment, item.materialTitle);
@@ -241,32 +295,41 @@ export function createAiGate({
     } catch (error) {
       const failure = error instanceof AiProviderError ? error : new AiProviderError('server');
       if (failure.kind === 'offline') {
-        // No salió nada de la PC: no cuenta como intento.
-        store().markWaiting(item.id, 'offline', item.attempts);
+        // La puerta de la PC no lo dejó salir: no salió nada y no cuenta como intento.
+        if (!cancelledMeanwhile(item)) {
+          store().markWaiting(item.id, 'offline', item.attempts);
+          notify({ type: 'ai.pending', requestId: item.id });
+        }
         trace(item, 'offline', item.attempts, { latencyMs: elapsed() });
-        notify({ type: 'ai.pending', requestId: item.id });
         return false;
       }
-      log(item, current, 'failed', null);
+      // Con respuesta de la IA (un código), no se cobra; sin respuesta, pudo haber llegado.
+      log(item, failure.status === null ? 'unanswered' : 'failed', null);
       trace(item, 'error', attempt, {
         errorKind: failure.kind,
         httpStatus: failure.status,
         latencyMs: elapsed(),
       });
+      if (cancelledMeanwhile(item)) {
+        return true;
+      }
       if (TRANSIENT.has(failure.kind) && attempt < MAX_ATTEMPTS) {
         store().markWaiting(item.id, 'retrying', attempt);
         notify({ type: 'ai.pending', requestId: item.id });
         return true;
       }
-      const reason =
+      const failed =
         failure.kind === 'auth' ? 'auth' : failure.kind === 'billing' ? 'billing' : 'technical';
-      finish(item, { state: 'failed', requestId: item.id, reason });
+      finish(item, { state: 'failed', requestId: item.id, reason: failed });
       return true;
     }
     trace(item, 'answered', attempt, { latencyMs: elapsed() });
+    const stopped = cancelledMeanwhile(item);
     if (response.stopReason === 'refusal') {
-      log(item, current, 'refused', response);
-      finish(item, { state: 'failed', requestId: item.id, reason: 'refused' });
+      log(item, 'refused', response);
+      if (!stopped) {
+        finish(item, { state: 'failed', requestId: item.id, reason: 'refused' });
+      }
       return true;
     }
     // Una respuesta cortada por largo no tiene la forma entera: se tira (CA-173).
@@ -275,11 +338,14 @@ export function createAiGate({
         ? ({ ok: false } as const)
         : parseModelOutput(response.text, explainOutputSchema);
     if (!parsed.ok) {
-      log(item, current, 'rejected_schema', response);
-      finish(item, { state: 'failed', requestId: item.id, reason: 'format' });
+      log(item, 'rejected_schema', response);
+      if (!stopped) {
+        finish(item, { state: 'failed', requestId: item.id, reason: 'format' });
+      }
       return true;
     }
-    const micros = log(item, current, 'ok', response);
+    const micros = log(item, 'ok', response);
+    // Ya está pagada: si la pedís de nuevo, sale de lo guardado.
     store().saveCached({
       key: item.cacheKey,
       purpose: EXPLAIN_FRAGMENT.id,
@@ -289,17 +355,46 @@ export function createAiGate({
       output: JSON.stringify(parsed.value),
       createdAt: now(),
     });
-    finish(item, {
-      state: 'done',
-      requestId: item.id,
-      result: verifyExplanation(parsed.value, item.fragment),
-      cost: current.kind === 'remote' ? { kind: 'paid', micros } : { kind: 'simulated' },
-      percentUsed: warningOf(current),
-    });
+    if (!stopped) {
+      finish(item, {
+        state: 'done',
+        requestId: item.id,
+        result: verifyExplanation(parsed.value, item.fragment),
+        cost: current.kind === 'remote' ? { kind: 'paid', micros } : { kind: 'simulated' },
+        percentUsed: warningOf(current),
+      });
+    }
     return true;
   };
 
   return {
+    precheck() {
+      const current = provider();
+      const { capCents, localOnly } = prefs();
+      // La misma regla de siempre, con lo que todavía no se leyó en neutro.
+      const decision = decideRequest({
+        functionState: functionStateOf(EXPLAIN_FRAGMENT.id),
+        localOnly,
+        provider: current === null ? 'none' : current.kind,
+        fragmentChars: 0,
+        maxChars: EXPLAIN_FRAGMENT.maxChars,
+        spentMicros: 0,
+        capCents,
+        nextMaxMicros: 0,
+        cached: false,
+        permission: 'always',
+        choice: null,
+      });
+      if (
+        decision.action !== 'block' ||
+        !['suspended', 'local_only', 'not_connected'].includes(decision.reason)
+      ) {
+        return null;
+      }
+      const spentMicros = current?.kind === 'remote' ? monthSpentMicros() : 0;
+      return { state: 'blocked', reason: decision.reason, spentMicros, capCents };
+    },
+
     explain({ materialId, materialTitle, fragment, choice }) {
       const current = provider();
       const { capCents, localOnly } = prefs();
@@ -364,6 +459,8 @@ export function createAiGate({
             waiting: isOffline() ? 'offline' : 'sending',
             outcome: null,
             finishedAt: null,
+            provider: current?.id ?? '',
+            allowedBy: !remote ? 'local' : choice === 'once' ? 'once' : 'always',
           };
           store().enqueue(item);
           notify({ type: 'ai.pending', requestId: item.id });
@@ -385,16 +482,24 @@ export function createAiGate({
     cancel(requestId) {
       const item = store().queueItem(requestId);
       if (item?.status === 'pending' || item?.status === 'sending') {
-        trace(item, 'cancelled', item.attempts);
-        finish(item, { state: 'failed', requestId, reason: 'cancelled' });
+        cancelItem(item, 'cancelled');
       }
       return this.outcome(requestId);
     },
 
     cancelPending() {
       for (const item of store().pendingItems()) {
-        trace(item, 'cancelled', item.attempts);
-        finish(item, { state: 'failed', requestId: item.id, reason: 'cancelled' });
+        cancelItem(item, 'cancelled_local_only');
+      }
+    },
+
+    reviewPending() {
+      const current = provider();
+      for (const item of store().pendingItems()) {
+        const reason = cancelReasonOf(item, current);
+        if (reason !== null) {
+          cancelItem(item, reason);
+        }
       }
     },
 
@@ -419,6 +524,16 @@ export function createAiGate({
 
     monthSpentMicros,
     functionStateOf,
-    recover: () => store().recoverSending(),
+    recover() {
+      for (const item of store().sendingItems()) {
+        log(item, 'unanswered', null);
+        trace(item, 'error', item.attempts, { errorKind: 'interrupted' });
+        if (item.attempts >= MAX_ATTEMPTS) {
+          finish(item, { state: 'failed', requestId: item.id, reason: 'technical' });
+        } else {
+          store().markWaiting(item.id, 'retrying', item.attempts);
+        }
+      }
+    },
   };
 }

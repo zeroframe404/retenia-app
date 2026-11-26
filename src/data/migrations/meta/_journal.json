@@ -134,6 +134,13 @@
       "when": 1795723840272,
       "tag": "0018_ia_disparadores",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1795731869674,
+      "tag": "0019_ia_cola",
+      "breakpoints": true
     }
   ]
 }

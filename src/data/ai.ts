@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { AiQueueItem, AiStorePort } from '../core/ai/ports';
 import { localDateTime } from '../core/study-day';
 import type { AiPermissions, AiSentLog } from '../preload/contract/ai';
@@ -21,16 +21,18 @@ type QueueRow = typeof aiQueue.$inferSelect;
 
 const WAITING = new Set(['sending', 'offline', 'retrying']);
 const STATUS = new Set(['pending', 'sending', 'finished']);
+const ALLOWED_BY = new Set(['local', 'once', 'always']);
 
 function itemOf(row: QueueRow): AiQueueItem {
   return {
     ...row,
     status: STATUS.has(row.status) ? (row.status as AiQueueItem['status']) : 'finished',
     waiting: WAITING.has(row.waiting) ? (row.waiting as AiQueueItem['waiting']) : 'sending',
+    allowedBy: ALLOWED_BY.has(row.allowedBy) ? (row.allowedBy as AiQueueItem['allowedBy']) : 'once',
   };
 }
 
-const SENT_STATUS = new Set(['ok', 'rejected_schema', 'refused', 'failed']);
+const SENT_STATUS = new Set(['ok', 'rejected_schema', 'refused', 'failed', 'unanswered']);
 
 export function createAiStore(db: ReteniaDatabase): AiStore {
   const { orm } = db;
@@ -131,7 +133,7 @@ export function createAiStore(db: ReteniaDatabase): AiStore {
       const row = orm
         .select()
         .from(aiQueue)
-        .where(and(eq(aiQueue.cacheKey, cacheKey), eq(aiQueue.status, 'pending')))
+        .where(and(eq(aiQueue.cacheKey, cacheKey), inArray(aiQueue.status, ['pending', 'sending'])))
         .get();
       return row ? itemOf(row) : null;
     },
@@ -171,8 +173,14 @@ export function createAiStore(db: ReteniaDatabase): AiStore {
         .run();
     },
 
-    recoverSending() {
-      orm.update(aiQueue).set({ status: 'pending' }).where(eq(aiQueue.status, 'sending')).run();
+    sendingItems() {
+      return orm
+        .select()
+        .from(aiQueue)
+        .where(eq(aiQueue.status, 'sending'))
+        .orderBy(asc(aiQueue.createdAt), asc(aiQueue.id))
+        .all()
+        .map(itemOf);
     },
 
     sentLog() {
@@ -228,4 +236,29 @@ export function createAiStore(db: ReteniaDatabase): AiStore {
         .run();
     },
   };
+}
+
+// «Qué se envió» no vuelve atrás al restaurar una copia (objeción del revisor, CA-169 y CA-171): lo
+// que salió de la PC salió, y lo gastado en el mes sigue contando para el tope. Los envíos de la base
+// de hoy que la copia no tiene se le agregan antes de ponerla en su lugar (solo se agrega, como
+// permiten los disparadores).
+export function carrySentLog(from: ReteniaDatabase['orm'], into: ReteniaDatabase['orm']): void {
+  const present = new Set(
+    into
+      .select({ id: aiRequests.id })
+      .from(aiRequests)
+      .all()
+      .map((row) => row.id),
+  );
+  const missing = from
+    .select()
+    .from(aiRequests)
+    .all()
+    .filter((row) => !present.has(row.id));
+  for (let start = 0; start < missing.length; start += 200) {
+    into
+      .insert(aiRequests)
+      .values(missing.slice(start, start + 200))
+      .run();
+  }
 }

@@ -65,7 +65,8 @@ export const aiSentLogSchema = z.strictObject({
       materialTitle: z.string(),
       fragmentCount: z.number().int().positive(),
       costMicros: micros,
-      status: z.enum(['ok', 'rejected_schema', 'refused', 'failed']),
+      // 'unanswered': salió y no llegó respuesta; cuenta lo máximo que pudo costar.
+      status: z.enum(['ok', 'rejected_schema', 'refused', 'failed', 'unanswered']),
     }),
   ),
 });
@@ -133,7 +134,21 @@ export const aiOutcomeSchema = z.discriminatedUnion('state', [
   z.strictObject({
     state: z.literal('failed'),
     requestId: z.uuid(),
-    reason: z.enum(['format', 'technical', 'auth', 'billing', 'refused', 'cancelled']),
+    reason: z.enum([
+      'format',
+      'technical',
+      'auth',
+      'billing',
+      'refused',
+      // Lo que esperaba y ya no puede salir: a mano, por el modo solo local, la función suspendida,
+      // el permiso quitado, sin IA o con otra IA conectada.
+      'cancelled',
+      'cancelled_local_only',
+      'cancelled_suspended',
+      'cancelled_permission',
+      'cancelled_no_ai',
+      'cancelled_ai_changed',
+    ]),
   }),
 ]);
 export type AiOutcome = z.input<typeof aiOutcomeSchema>;

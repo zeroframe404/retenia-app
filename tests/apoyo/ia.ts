@@ -157,7 +157,15 @@ export async function openAiSpace({
       remote: (apiKey) => {
         keysUsed.push(apiKey);
         return anthropicFetch
-          ? createAnthropicProvider({ apiKey, fetch: net.fetch, baseURL: 'http://127.0.0.1:9' })
+          ? createAnthropicProvider({
+              apiKey,
+              fetch: (input, init) =>
+                net.fetch(
+                  typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+                  init,
+                ),
+              baseURL: 'http://127.0.0.1:9',
+            })
           : remote;
       },
       simulated: () => (demoOn ? demoProvider : null),

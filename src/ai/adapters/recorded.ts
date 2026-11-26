@@ -38,7 +38,17 @@ const NO_USAGE: Usage = {
   cacheWriteTokens: 0,
 };
 
+const STATUS_OF: Partial<Record<ProviderErrorKind, number>> = {
+  auth: 401,
+  billing: 402,
+  model_unavailable: 404,
+  bad_request: 400,
+  busy: 529,
+  server: 500,
+};
+
 export function createRecordedProvider({
+  id = 'simulated',
   kind = 'local',
   answer,
   isOffline = () => false,
@@ -47,6 +57,9 @@ export function createRecordedProvider({
   hold,
   variant = () => 'grabada',
 }: {
+  // El nombre del proveedor, que entra en la huella de lo guardado (en las pruebas, la IA «como
+  // remota» se llama distinto que la de la demostración).
+  id?: string;
   kind?: ProviderKind;
   answer: (request: CompletionRequest, index: number) => RecordedAnswer;
   isOffline?: () => boolean;
@@ -58,7 +71,7 @@ export function createRecordedProvider({
   const calls: CompletionRequest[] = [];
   let connectionFailure: ProviderErrorKind | null = null;
   return {
-    id: 'simulated',
+    id,
     kind,
     calls,
     variant,
@@ -88,7 +101,9 @@ export function createRecordedProvider({
       }
       const recorded = answer(request, index);
       if (recorded.error) {
-        throw new AiProviderError(recorded.error);
+        // Como la de verdad: un error que contestó la IA trae su código; un corte o un tiempo
+        // vencido, no (no se sabe si el pedido llegó).
+        throw new AiProviderError(recorded.error, STATUS_OF[recorded.error] ?? null);
       }
       return {
         text: recorded.text ?? null,

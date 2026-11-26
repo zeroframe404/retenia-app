@@ -28,7 +28,10 @@ export interface CompletionResponse {
 // Lo que puede fallar, dicho como lo que es: un fallo técnico nunca se muestra como una duda del
 // modelo. `offline`: no salió nada de la PC.
 export type ProviderErrorKind =
+  // La puerta de la PC no dejó salir nada (sin conexión o «Modo solo local»).
   | 'offline'
+  // La conexión se cortó con la puerta abierta: el pedido pudo haber llegado a la IA.
+  | 'connection'
   | 'auth'
   | 'billing'
   | 'busy'

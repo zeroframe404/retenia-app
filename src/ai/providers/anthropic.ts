@@ -34,6 +34,20 @@ function kindOfStatus(status: number): ProviderErrorKind {
   return status >= 500 ? 'server' : 'bad_request';
 }
 
+// La puerta única (src/main/net-gate.ts) falla con `OfflineError` (o `LocalOnlyError`) antes de
+// mandar nada. El SDK la envuelve; se busca en la cadena de causas, por nombre (esta carpeta no
+// importa del principal).
+function closedGate(error: unknown): boolean {
+  let cause: unknown = error;
+  for (let depth = 0; depth < 5 && cause instanceof Error; depth++) {
+    if (cause.name === 'OfflineError' || cause.name === 'LocalOnlyError') {
+      return true;
+    }
+    cause = cause.cause;
+  }
+  return false;
+}
+
 function translate(error: unknown): AiProviderError {
   if (error instanceof AiProviderError) {
     return error;
@@ -42,8 +56,10 @@ function translate(error: unknown): AiProviderError {
     return new AiProviderError('timeout');
   }
   if (error instanceof Anthropic.APIConnectionError) {
-    // No llegó a la IA: la puerta estaba cerrada o no hay red.
-    return new AiProviderError('offline');
+    // Si la puerta única de la PC no lo dejó salir, no salió nada: «sin conexión». Cualquier otro
+    // corte (la conexión que se cae mientras la IA piensa, un proxy que la cierra) pudo pasar
+    // después de mandar el pedido: no se sabe si llegó.
+    return closedGate(error) ? new AiProviderError('offline') : new AiProviderError('connection');
   }
   if (error instanceof Anthropic.APIError && typeof error.status === 'number') {
     return new AiProviderError(kindOfStatus(error.status), error.status);

@@ -829,6 +829,10 @@ export const aiQueue = sqliteTable(
     waiting: text('waiting').notNull().default('sending'),
     outcome: text('outcome'),
     finishedAt: text('finished_at'),
+    // Fase 19 (0019): con qué IA se pidió y con qué permiso ('local' la IA simulada, 'once' «Solo
+    // esta vez», 'always' «Siempre para este material»). Antes de salir se vuelve a mirar.
+    provider: text('provider').notNull().default(''),
+    allowedBy: text('allowed_by').notNull().default('once'),
   },
   (table) => [index('ai_queue_status_idx').on(table.status, table.createdAt)],
 );

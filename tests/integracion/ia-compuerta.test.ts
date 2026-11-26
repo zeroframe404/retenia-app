@@ -107,7 +107,7 @@ describe('[CA-170] «Modo solo local»', () => {
     }
     expect(await space.api['ai.outcome']({ requestId: asked.requestId })).toMatchObject({
       state: 'failed',
-      reason: 'cancelled',
+      reason: 'cancelled_local_only',
     });
     expect(space.remote.calls).toHaveLength(0);
   });
@@ -688,13 +688,16 @@ describe('lo que encontró el revisor: lo que espera en la cola', () => {
 describe('lo que encontró el revisor: restaurar una copia', () => {
   it('[CA-169] [CA-171] restaurar una copia no borra «Qué se envió» ni lo gastado en el mes (simulado)', async () => {
     const space = await open();
-    const copy = await space.api['backups.createNow']({});
+    const { created: copy } = await space.api['backups.createNow']({});
+    if (!copy.readable) {
+      throw new Error('la copia no se puede leer');
+    }
     await explainOnce(space);
     await explainOnce(space, TRAP_TEXT);
     const spent = (await space.api['ai.status']({})).spentMicros;
     const sent = (await space.api['ai.sentLog']({})).rows;
     expect(sent).toHaveLength(2);
-    await space.api['backups.restore']({ backupId: copy.created.id });
+    await space.api['backups.restore']({ backupId: copy.id });
     expect((await space.api['ai.status']({})).spentMicros).toBe(spent);
     expect((await space.api['ai.sentLog']({})).rows).toEqual(sent);
   });

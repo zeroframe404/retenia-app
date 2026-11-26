@@ -234,6 +234,8 @@ export function createAiService({
 
     deleteKey() {
       keys.remove();
+      // Lo que esperaba con tu clave ya no tiene con qué salir.
+      gate.reviewPending();
       return status();
     },
 
@@ -261,6 +263,7 @@ export function createAiService({
         next.delete(functionId);
       }
       prefs.set({ suspended: [...next] });
+      gate.reviewPending();
       return status();
     },
 
@@ -268,10 +271,16 @@ export function createAiService({
     permissions: () => store().permissions(),
     revokePermission({ materialId }) {
       store().revokePermission(materialId);
+      gate.reviewPending();
       return store().permissions();
     },
 
     explain({ materialId, selection, permission }) {
+      // Con la función suspendida, «Modo solo local» o sin IA, el pasaje ni se lee (CA-170).
+      const early = gate.precheck();
+      if (early !== null) {
+        return early;
+      }
       const { text, title } = fragmentOf({ materialId, selection });
       const outcome = gate.explain({
         materialId,
