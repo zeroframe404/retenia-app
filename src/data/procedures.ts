@@ -175,12 +175,13 @@ export function ladderOf(db: Writer, cardId: string, stepCount: number): LadderR
   return projectLadder(rungsOf(stepCount).length, ladderEvents(db, cardId));
 }
 
-// El escalón con que se practica hoy: sale de los días anteriores. Lo que ganes o falles hoy cambia
-// la próxima vez, no en la misma sesión.
+// El escalón con que se practica hoy: sale de los demás días. Lo que ganes o falles hoy cambia la
+// próxima vez, no en la misma sesión. (Si la fecha vuelve atrás, lo de los días «futuros» cuenta
+// igual: el escalón no retrocede.)
 function todaysRung(db: Writer, cardId: string, stepCount: number, today: string): number {
   return projectLadder(
     rungsOf(stepCount).length,
-    ladderEvents(db, cardId).filter((event) => event.studyDay < today),
+    ladderEvents(db, cardId).filter((event) => event.studyDay !== today),
   ).level;
 }
 

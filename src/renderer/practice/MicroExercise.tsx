@@ -189,9 +189,7 @@ export function MicroExerciseView({
             <h4 className={styles.diffTitle}>{text.givens}</h4>
             <ul className={styles.solutionList}>
               {item.givens.map((given) => (
-                <li key={given.position}>
-                  {given.prompt} {given.result}
-                </li>
+                <li key={given.position}>{text.given(given.prompt, given.result)}</li>
               ))}
             </ul>
           </section>

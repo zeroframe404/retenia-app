@@ -409,3 +409,13 @@
   padding-left: var(--espacio-24);
   font: var(--tipo-cuerpo);
 }
+
+/* Adentro de una tarjeta de paso, de un porqué o de la propuesta, el aire lo da la grilla. */
+.procedureStep p,
+.whys p,
+.proposal p,
+.proposal h3,
+.statement,
+.errorFound {
+  margin: 0;
+}

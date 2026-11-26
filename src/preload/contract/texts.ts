@@ -1033,13 +1033,14 @@ export const texts = {
     micro: {
       heading: 'Micro-ejercicio',
       proposal: (step: string, count: number) =>
-        `Se repitió el mismo error en el paso «${step}». Te propongo ${count} ítems cortos sobre ese paso.`,
+        `Se repitió el mismo error en el paso «${step.replace(/\.$/, '')}». Te propongo ${count} ítems cortos sobre ese paso.`,
       proposalProblem: (title: string, count: number) =>
         `Se repitió el mismo error en «${title}». Te propongo ${count} ítems cortos sobre eso.`,
       start: 'Hacer el micro-ejercicio',
-      about: (step: string) => `Sobre el paso «${step}»`,
+      about: (step: string) => `Sobre el paso «${step.replace(/\.$/, '')}»`,
       item: (position: number, total: number) => `Ítem ${position} de ${total}`,
       givens: 'Ya resuelto',
+      given: (prompt: string, result: string) => `${prompt.replace(/\.$/, '')}: ${result}`,
       numberAnswer: 'Tu resultado',
       textAnswer: 'Tu respuesta',
       check: 'Enviar',

@@ -167,7 +167,7 @@ test('[CA-166] el mismo paso mal en dos problemas: el cierre propone el micro-ej
   await finishPractice(page);
   await expect(
     page.getByText(
-      `Se repitió el mismo error en el paso «${UPPER}». Te propongo 7 ítems cortos sobre ese paso.`,
+      `Se repitió el mismo error en el paso «${UPPER.slice(0, -1)}». Te propongo 7 ítems cortos sobre ese paso.`,
     ),
   ).toBeVisible();
   await page.getByRole('button', { name: 'Hacer el micro-ejercicio' }).click();

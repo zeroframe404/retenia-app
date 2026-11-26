@@ -5,7 +5,8 @@
 // con nada (las capturas de referencia que sí se comparan viven en tests/e2e/capturas-de-referencia).
 // Fases: fase-03, fase-04 (estas dos describen la pantalla provisoria de tarjetas, que reemplazó la
 // Fase 08), fase-05 (esta usa los modelos de voz de desarrollo: «node tools/preparar.mjs --modelos»),
-// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14, fase-15, fase-16 y fase-17.
+// fase-06, fase-08, fase-09, fase-10, fase-11, fase-12, fase-13, fase-14, fase-15, fase-16, fase-17 y
+// fase-18.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -1118,6 +1119,137 @@ async function phase16(page) {
 // requisito en el panel y en Estudiar, el resultado con el diagnóstico, «Mis errores» y «Mejorar la
 // tarjeta» con «Dividir en dos».
 /** @param {import('@playwright/test').Page} page */
+async function phase18(page) {
+  await page.setViewportSize({ width: 1280, height: 1500 });
+  const procedure = 'Calcular un intervalo de confianza para la media';
+  const shop = 'Una tienda quiere saber qué talle de remera reponer primero';
+  const practice = async (text) => {
+    await page.keyboard.press('Control+K');
+    const dialog = page.getByRole('dialog', { name: 'Buscar' });
+    await dialog.getByRole('combobox', { name: /Buscar/ }).fill(text);
+    await dialog.getByRole('option').first().getByText(text.slice(0, 20)).first().waitFor();
+    await dialog.getByRole('button', { name: 'Practicar ahora' }).click();
+  };
+  const advance = async () => {
+    await goTo(page, 'Ajustes');
+    await page.getByRole('button', { name: '+1 día' }).click();
+  };
+  const statement = () =>
+    page
+      .getByText(/^(En una muestra de|Una fábrica pesó|Se midió cuánto tardan)/)
+      .first()
+      .innerText();
+  const rightUpper = async () => {
+    const [n = 0, mean = 0, deviation = 0] = ((await statement()).match(/\d+(?:,\d+)?/g) ?? []).map(
+      (v) => Number(v.replace(',', '.')),
+    );
+    return String(Number((mean + (1.96 * deviation) / Math.sqrt(n)).toFixed(4))).replace('.', ',');
+  };
+  const explain = async () => {
+    await page
+      .getByRole('textbox', { name: '¿Por qué este paso?' })
+      .fill('Porque achica el desvío.');
+    await page.getByRole('button', { name: 'Terminar el ejemplo' }).click();
+  };
+  const close = async () => {
+    await page.getByRole('button', { name: 'Terminar', exact: true }).click();
+    await page.getByRole('heading', { level: 3, name: 'Práctica terminada' }).waitFor();
+  };
+  const failUpper = async () => {
+    await page.getByRole('textbox', { name: 'Paso 4: tu resultado' }).fill('999');
+    await page.getByRole('button', { name: 'Enviar' }).click();
+    await page.getByText('Hay un error en el paso 4; ¿lo encontrás?').waitFor();
+  };
+  const seeResult = async () => {
+    await page.getByRole('button', { name: 'Ver la corrección' }).click();
+    await page.getByRole('button', { name: 'Ver el resultado' }).click();
+    await page.locator('[data-component="result"]').waitFor();
+  };
+  await practice(procedure);
+  await page.getByRole('textbox', { name: '¿Por qué este paso?' }).waitFor();
+  await shoot(page, '1-ejemplo-completo');
+  await explain();
+  await page.getByRole('button', { name: 'Otro problema' }).waitFor();
+  await shoot(page, '2-despues-del-ejemplo');
+  await close();
+  await advance();
+  await practice(procedure);
+  await explain();
+  await close();
+  await advance();
+  await practice(procedure);
+  await page.getByRole('textbox', { name: 'Paso 4: tu resultado' }).waitFor();
+  await shoot(page, '3-ultimo-paso-vacio');
+  await failUpper();
+  await shoot(page, '4-error-en-el-paso');
+  await page.getByRole('textbox', { name: 'Paso 4: probá de nuevo' }).fill(await rightUpper());
+  await page.getByRole('button', { name: 'Reintentar el paso 4' }).click();
+  await page.getByText('Ahora sí: el paso 4 quedó bien.').waitFor();
+  await seeResult();
+  await shoot(page, '5-correccion-y-resultado');
+  await page.getByRole('button', { name: 'Otro problema' }).click();
+  await failUpper();
+  await seeResult();
+  await close();
+  await page.getByRole('button', { name: 'Hacer el micro-ejercicio' }).waitFor();
+  await shoot(page, '6-cierre-con-micro');
+  await page.getByRole('button', { name: 'Hacer el micro-ejercicio' }).click();
+  await page.getByText('Ítem 1 de 7').waitFor();
+  await shoot(page, '7-micro-ejercicio');
+  await page.getByRole('textbox', { name: 'Tu resultado' }).fill(await rightUpper());
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('button', { name: 'Siguiente' }).waitFor();
+  await shoot(page, '8-micro-corregido');
+  await practice(shop);
+  const choices = page.getByRole('group', { name: '¿Qué método usarías? No lo resuelvas' });
+  await choices.getByRole('radio', { name: 'La media', exact: true }).check();
+  await shoot(page, '9-decision');
+  await page.getByRole('button', { name: 'Enviar' }).click();
+  await page.getByRole('heading', { name: 'El porqué de cada método' }).waitFor();
+  await shoot(page, '10-decision-con-el-porque');
+  await page.getByRole('button', { name: 'Siguiente' }).click();
+  await practice('Media, mediana y moda');
+  for (let item = 1; item <= 9; item += 1) {
+    await page.getByText(`Media, mediana y moda · Problema ${item} de 9`).waitFor();
+    await page.getByRole('textbox', { name: 'Tu respuesta, con coma o con punto' }).fill('2');
+    if (item === 1) {
+      await shoot(page, '11-conjunto-problema');
+    }
+    await page.getByRole('button', { name: 'Enviar' }).click();
+    await page.getByRole('button', { name: 'Siguiente' }).click();
+  }
+  await page.getByRole('heading', { level: 3, name: 'Conjunto terminado' }).waitFor();
+  await shoot(page, '12-conjunto-cierre');
+  await goToDestination(page, 'Progreso');
+  const sections = page.getByRole('navigation', { name: 'Secciones de Progreso' });
+  await sections.getByRole('button', { name: 'Mis errores' }).click();
+  await page.getByRole('button', { name: 'Crear tarjeta de contraste' }).first().click();
+  await page.getByText(/^Tarjeta creada: /).waitFor();
+  await shoot(page, '13-tarjeta-de-contraste');
+  await sections.getByRole('button', { name: 'Objetivos' }).click();
+  await page.getByRole('button', { name: 'Calcular la media y el desvío', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Calcular la media y el desvío' })
+    .getByRole('region', { name: 'Evidencias' })
+    .waitFor();
+  await shoot(page, '14-panel-aplicar');
+  await page.keyboard.press('Escape');
+  await goTo(page, 'Tarjetas');
+  await page.getByRole('button', { name: 'Nuevo ejercicio' }).click();
+  await page.getByRole('combobox', { name: 'Tipo de actividad' }).selectOption('procedure');
+  await page.getByRole('checkbox', { name: 'Con variantes (números que cambian)' }).check();
+  await shoot(page, '15-editor-procedimiento');
+  await page.getByRole('combobox', { name: 'Tipo de actividad' }).selectOption('decision');
+  await shoot(page, '16-editor-decision');
+  await page.getByRole('combobox', { name: 'Tipo de actividad' }).selectOption('interleaved');
+  await page
+    .getByRole('checkbox', { name: /^Cinco amigos/ })
+    .first()
+    .waitFor();
+  await shoot(page, '17-editor-conjunto');
+}
+
+/** @param {import('@playwright/test').Page} page */
 async function phase17(page) {
   await page.setViewportSize({ width: 1280, height: 1500 });
   const open =
@@ -1232,10 +1364,13 @@ let { app, page } = await launch(
     name !== 'fase-13' &&
     name !== 'fase-14' &&
     name !== 'fase-15' &&
-    name !== 'fase-17',
+    name !== 'fase-17' &&
+    name !== 'fase-18',
 );
 try {
-  if (name === 'fase-17') {
+  if (name === 'fase-18') {
+    await phase18(page);
+  } else if (name === 'fase-17') {
     await phase17(page);
   } else if (name === 'fase-16') {
     await phase16(page);

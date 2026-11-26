@@ -75,6 +75,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.practice.micro.proposal': ['Calculá el margen de error.', 7],
   'texts.practice.micro.proposalProblem': ['Sumar dos números', 7],
   'texts.practice.micro.about': ['Calculá el margen de error.'],
+  'texts.practice.micro.given': ['Calculá el margen de error.', '3,92'],
   'texts.practice.micro.item': [1, 7],
   'texts.practice.micro.expected': ['3,92'],
   'texts.practice.micro.score': [6, 7],
