@@ -383,6 +383,24 @@ describe('Ajustes › «Demostración»: la IA simulada', () => {
     await opened.user.click(screen.getByRole('checkbox', { name: 'IA simulada' }));
     await waitFor(async () => expect((await window.retenia['demo.ai']({})).simulated).toBe(true));
   });
+
+  it('[CA-167] un interruptor de la IA simulada se marca al tocarlo, aunque el programa tarde en contestar (como «Procesar despacio»)', async () => {
+    const opened = openWindow('prueba', undefined, { ai: {} });
+    await withSubject(opened);
+    render(<App />);
+    await screen.findByRole('navigation', { name: 'Riel lateral' });
+    await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
+    const box = (await screen.findByRole(
+      'checkbox',
+      { name: 'IA simulada: responder mal' },
+      SLOW,
+    )) as HTMLInputElement;
+    await waitFor(() => expect(box.disabled).toBe(false));
+    // El programa no contesta todavía: la casilla igual queda marcada.
+    window.retenia['demo.setAi'] = () => new Promise(() => undefined);
+    await opened.user.click(box);
+    expect(box.checked).toBe(true);
+  });
 });
 
 import { texts } from '../../src/preload/contract/texts';
