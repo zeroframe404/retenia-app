@@ -1,6 +1,7 @@
 import { z } from 'zod';
-import { type ConsequenceLevel, locateQuote, numbersAgree } from '../../core/ai';
+import { type ConsequenceLevel, locateQuote, maxCostMicros, numbersAgree } from '../../core/ai';
 import { AI_MODELS } from '../models';
+import { priceFor } from '../prices';
 import { EXPLAIN_PROMPT } from '../prompts/explicar-fragmento';
 import { fragmentBlock, neutralizeFragment } from '../request';
 
@@ -46,6 +47,18 @@ export function buildExplainRequest({
     system: EXPLAIN_PROMPT.system,
     user: `Explicá este pasaje de mi material.\n\n${fragmentBlock(materialTitle, fragment)}`,
   };
+}
+
+// Lo máximo que puede costar un pedido antes de mandarlo (CA-169): con eso se decide si entra en el
+// tope y, si no llega respuesta, es lo que se anota.
+export function maxCostOf(request: { system: string; user: string }): number {
+  return maxCostMicros(
+    {
+      inputChars: request.system.length + request.user.length,
+      maxOutputTokens: EXPLAIN_FRAGMENT.maxTokens,
+    },
+    priceFor(EXPLAIN_FRAGMENT.model),
+  );
 }
 
 // Los verificadores, antes de mostrar nada (CA-177): una cita que no está letra por letra en el

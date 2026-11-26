@@ -1,8 +1,14 @@
 import fc from 'fast-check';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { buildExplainRequest, verifyExplanation } from '../../src/ai/functions/explain-fragment';
+import {
+  buildExplainRequest,
+  EXPLAIN_FRAGMENT,
+  maxCostOf,
+  verifyExplanation,
+} from '../../src/ai/functions/explain-fragment';
+import { priceFor } from '../../src/ai/prices';
 import { EXPLAIN_PROMPT } from '../../src/ai/prompts/explicar-fragmento';
-import { fitsUnderCap, locateQuote } from '../../src/core/ai';
+import { costMicros, fitsUnderCap, locateQuote } from '../../src/core/ai';
 import { closeSpaces } from '../apoyo/espacio';
 import { type AiSpace, FIRST_SENTENCE, openAiSpace, TRAP_TEXT } from '../apoyo/ia';
 
@@ -80,6 +86,82 @@ describe('IA: el tope (propiedad)', () => {
         },
       ),
       runs(500),
+    );
+  });
+});
+
+describe('IA: lo máximo de un pedido (propiedad)', () => {
+  it('[CA-169] lo máximo calculado cubre lo que de verdad puede costar con cualquier texto (también chino, emojis o símbolos): ninguna unidad de texto ocupa menos de un byte', () => {
+    const bytes = (text: string) => new TextEncoder().encode(text).length;
+    fc.assert(
+      fc.property(
+        fc.string({ unit: 'binary', maxLength: 2000 }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        fc.double({ min: 0, max: 1, noNaN: true }),
+        (fragment, inShare, outShare) => {
+          const request = buildExplainRequest({ fragment, materialTitle: 'Apunte' });
+          const usage = {
+            inputTokens: Math.floor(bytes(request.system + request.user) * inShare),
+            outputTokens: Math.floor(EXPLAIN_FRAGMENT.maxTokens * outShare),
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+          };
+          expect(costMicros(usage, priceFor(EXPLAIN_FRAGMENT.model))).toBeLessThanOrEqual(
+            maxCostOf(request),
+          );
+        },
+      ),
+      runs(300),
+    );
+  });
+});
+
+describe('IA: las citas en un pasaje sin normalizar (propiedad)', () => {
+  it('[CA-177] con letras con la tilde aparte (sin NFC), la cita se ubica en el texto tal como está', () => {
+    const word = fc
+      .array(
+        fc.constantFrom(
+          'a',
+          'e',
+          'n',
+          's',
+          'r',
+          't',
+          'á',
+          'a\u0301',
+          'é',
+          'e\u0301',
+          'ñ',
+          'n\u0303',
+        ),
+        { minLength: 1, maxLength: 6 },
+      )
+      .map((letters) => letters.join(''));
+    fc.assert(
+      fc.property(
+        fc.array(word, { minLength: 4, maxLength: 20 }),
+        fc.nat(),
+        fc.integer({ min: 3, max: 6 }),
+        (words, at, size) => {
+          const fragment = words.join(' ');
+          const start = at % (words.length - 2);
+          const quote = words.slice(start, start + size).join(' ');
+          const found = locateQuote(fragment, quote.normalize('NFC'));
+          expect(found).not.toBeNull();
+          if (found) {
+            expect(fragment.slice(found.start, found.end).normalize('NFC')).toBe(
+              fragment
+                .normalize('NFC')
+                .slice(
+                  fragment.normalize('NFC').indexOf(quote.normalize('NFC')),
+                  fragment.normalize('NFC').indexOf(quote.normalize('NFC')) +
+                    quote.normalize('NFC').length,
+                ),
+            );
+          }
+        },
+      ),
+      runs(300),
     );
   });
 });

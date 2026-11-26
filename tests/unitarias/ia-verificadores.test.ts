@@ -57,6 +57,40 @@ describe('IA: los números citados', () => {
   });
 });
 
+describe('IA: los números que no se saben leer (objeción del revisor)', () => {
+  const SURVEY = 'El 40 % de 1.200 encuestados respondió.';
+
+  it('[CA-177] un número que no se sabe leer o que no está en el pasaje no pasa: versiones, dígitos de ancho completo, listas pegadas y potencias', () => {
+    for (const claim of [
+      'Fue la versión 2.1.3.',
+      'Respondieron ３００ personas.',
+      'Uno de cada 1,5,7.',
+      'Son 10⁶ personas.',
+    ]) {
+      expect(numbersAgree(claim, SURVEY), claim).toBe(false);
+    }
+  });
+
+  it('[CA-177] lo que sí está en el pasaje sigue pasando, escrito igual o con otra forma del mismo número', () => {
+    expect(numbersAgree('Respondió el 40 % de 1200.', SURVEY)).toBe(true);
+    expect(numbersAgree('Respondieron 1.200 personas.', SURVEY)).toBe(true);
+    expect(numbersAgree('Pasó en la versión 2.1.3.', 'La versión 2.1.3 corrige el error.')).toBe(
+      true,
+    );
+  });
+});
+
+describe('IA: las citas en un pasaje sin normalizar (objeción del revisor)', () => {
+  it('[CA-177] con una letra con la tilde aparte, la cita mostrada es la del texto, sin correrse', () => {
+    const fragment = 'La información es clave. La muestra aleatoria simple es la base.';
+    const found = locateQuote(fragment, 'La muestra aleatoria simple es la base.');
+    expect(found).not.toBeNull();
+    expect(found && fragment.slice(found.start, found.end)).toBe(
+      'La muestra aleatoria simple es la base.',
+    );
+  });
+});
+
 describe('IA: la forma de la respuesta de «Explicar un fragmento»', () => {
   const valid = {
     fromMaterial: [{ quote: 'El error estándar es s / raíz(n).', explanation: 'Define algo.' }],

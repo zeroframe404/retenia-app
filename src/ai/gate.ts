@@ -6,7 +6,6 @@ import {
   decideRequest,
   fitsUnderCap,
   functionState,
-  maxCostMicros,
   monthBounds,
   monthOf,
   type PermissionChoice,
@@ -21,6 +20,7 @@ import {
   EXPLAIN_FRAGMENT,
   type ExplainOutput,
   explainOutputSchema,
+  maxCostOf,
   verifyExplanation,
 } from './functions/explain-fragment';
 import { parseModelOutput } from './parse';
@@ -114,16 +114,7 @@ export function createAiGate({
 
   const requestOf = (fragment: string, materialTitle: string) => {
     const built = buildExplainRequest({ fragment, materialTitle });
-    return {
-      ...built,
-      maxCost: maxCostMicros(
-        {
-          inputChars: built.system.length + built.user.length,
-          maxOutputTokens: EXPLAIN_FRAGMENT.maxTokens,
-        },
-        priceFor(EXPLAIN_FRAGMENT.model),
-      ),
-    };
+    return { ...built, maxCost: maxCostOf(built) };
   };
 
   const cacheKeyOf = (current: AiProvider, materialTitle: string, fragment: string) =>
