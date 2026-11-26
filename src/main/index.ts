@@ -213,7 +213,6 @@ function start(): void {
     __VARIANTE__ === 'prueba'
       ? createDemoAi({
           dataDir,
-          samplesDir: samplesDirectory(),
           isOffline: () => netGate.isOffline(),
         })
       : null;

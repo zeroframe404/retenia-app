@@ -1,12 +1,14 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import grabaciones from '../../../datos-de-ejemplo/ia/explicar-fragmento.json';
 import { createRecordedProvider, type RecordedAnswer } from '../../ai/adapters/recorded';
 import type { AiProvider, CompletionRequest } from '../../ai/provider';
 
 // La IA simulada de «Retenia (prueba)» (Fase 19): Ajustes › «Demostración» › «IA simulada», «IA
 // simulada: responder mal» y «IA simulada: tardar 12 segundos». Contesta con las respuestas grabadas
-// de datos-de-ejemplo/ia/ (indexadas por lo que dice el pasaje) y, para cualquier otro pasaje, con
+// de datos-de-ejemplo/ia/ (indexadas por lo que dice el pasaje; viajan adentro del archivo de la
+// variante de prueba, como el elenco) y, para cualquier otro pasaje, con
 // una plantilla que cita su primera oración. No saca nada de la PC ni gasta: no pide permiso ni
 // figura en «Qué se envió». Respeta la conexión, como la de verdad. Los interruptores quedan en
 // ajustes.json, como «Procesar despacio».
@@ -74,11 +76,9 @@ const TYPICAL_USAGE = { inputTokens: 900, outputTokens: 450 };
 
 export function createDemoAi({
   dataDir,
-  samplesDir,
   isOffline,
 }: {
   dataDir: string;
-  samplesDir: string;
   isOffline: () => boolean;
 }): DemoAi {
   const file = join(dataDir, 'ajustes.json');
@@ -86,15 +86,8 @@ export function createDemoAi({
   let state: DemoAiState = parsed.success
     ? parsed.data
     : { simulated: false, bad: false, slow: false };
-  let loaded: Recordings | null = null;
-  const load = (): Recordings => {
-    loaded ??= recordings.parse(
-      JSON.parse(readFileSync(join(samplesDir, 'ia', 'explicar-fragmento.json'), 'utf8')),
-    );
-    return loaded;
-  };
+  const saved = recordings.parse(grabaciones);
   const answer = (request: CompletionRequest): RecordedAnswer => {
-    const saved = load();
     if (state.bad) {
       return { text: saved.mal, usage: TYPICAL_USAGE };
     }

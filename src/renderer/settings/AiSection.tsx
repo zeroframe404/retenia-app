@@ -151,7 +151,6 @@ export function AiSection({ focusTitle = false }: { focusTitle?: boolean }) {
         ) : null}
         <div className={content.actions}>
           <Boton
-            variant={askingKey ? 'primary' : 'secondary'}
             busy={testing}
             disabled={testing || (askingKey && key.trim() === '')}
             onClick={() => void testConnection()}

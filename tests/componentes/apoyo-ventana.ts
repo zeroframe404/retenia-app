@@ -1,4 +1,3 @@
-import { join } from 'node:path';
 import { cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
@@ -74,7 +73,6 @@ export function openWindow(
     const demo = createDemoDate(bridge.dataDir);
     demoAi = createDemoAi({
       dataDir: bridge.dataDir,
-      samplesDir: join(import.meta.dirname, '..', '..', 'datos-de-ejemplo'),
       isOffline: () => aiNet?.isOffline() ?? false,
     });
     const demoHandlers = createDemoHandlers(demo, undefined, demoAi);

@@ -71,6 +71,9 @@ extraResources:
     to: "datos-de-ejemplo/pagina.html"
   - from: "datos-de-ejemplo/trampa-script.html"
     to: "datos-de-ejemplo/trampa-script.html"
+  # El apunte con la orden escondida para la IA (Fase 19): un material del elenco.
+  - from: "datos-de-ejemplo/trampa.md"
+    to: "datos-de-ejemplo/trampa.md"
 npmRebuild: false
 compression: normal
 artifactName: Retenia-prueba-instalador-${version}.${ext}
