@@ -20,6 +20,7 @@
     "cerrar-fase": "node tools/cerrar-fase.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "0.133.0",
     "@mozilla/readability": "0.6.0",
     "@tesseract.js-data/eng": "1.0.0",
     "@tesseract.js-data/spa": "1.0.0",

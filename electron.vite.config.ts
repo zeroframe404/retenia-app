@@ -15,7 +15,8 @@ export default defineConfig({
       outDir: resolve(out, 'main'),
       // Todo va adentro del archivo menos los paquetes con partes nativas o archivos propios
       // (better-sqlite3, sherpa-onnx, tesseract.js y sus idiomas, pdf.js), que viajan aparte.
-      externalizeDeps: { exclude: ['drizzle-orm', 'ts-fsrs', 'zod'] },
+      // El SDK de Anthropic (Fase 19) también va adentro: lo usa solo la compuerta de IA.
+      externalizeDeps: { exclude: ['drizzle-orm', 'ts-fsrs', 'zod', '@anthropic-ai/sdk'] },
       rollupOptions: {
         // Los procesos de trabajo: el de materiales va en las dos variantes (Fase 13); el de voz,
         // por ahora, solo en la de prueba (lo usa el Laboratorio).
