@@ -201,7 +201,7 @@ test('[CA-172] [CA-171] [CA-169] [CA-170] (simulado) con tu clave: el permiso, e
     await toSettings(page);
     await expect(
       aiSection(page).getByText(
-        '15/03/2027 · Explicar un fragmento · 1 fragmento de “Inferencia — capítulos 1 a 4” · USD 0,01',
+        '15/03/2027 · Explicar un fragmento · 1 fragmento de “Inferencia — capítulos 1 a 4.pdf” · USD 0,01',
       ),
     ).toBeVisible();
     await expect(aiSection(page).getByText('Este mes: USD 0,01 de 10')).toBeVisible();

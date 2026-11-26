@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import Database from 'better-sqlite3';
 import {
   type CompletionRequest,
@@ -83,6 +86,19 @@ export interface AiSpace {
   rows: (table: string) => Record<string, unknown>[];
 }
 
+// Agrega el texto como un archivo con ese nombre, como si lo arrastraras a Materiales.
+async function addAsFile(bridge: TestBridge, subjectId: string, fileName: string, text: string) {
+  const folder = mkdtempSync(join(tmpdir(), 'retenia-ia-archivo-'));
+  const path = join(folder, fileName);
+  writeFileSync(path, text);
+  const { results } = await bridge.materials.addFiles({ paths: [path], subjectId });
+  const [result] = results;
+  if (!result) {
+    throw new Error('no se agregó el archivo de la prueba');
+  }
+  return result;
+}
+
 export async function openAiSpace({
   connected = true,
   demo = false,
@@ -90,6 +106,7 @@ export async function openAiSpace({
   clock,
   text = MATERIAL_TEXT,
   title = 'Apunte de inferencia.md',
+  fileName,
   withCast = false,
   hold,
 }: {
@@ -99,6 +116,8 @@ export async function openAiSpace({
   clock?: Clock;
   text?: string;
   title?: string;
+  // El material entra como un archivo con este nombre (arrastrado), en vez de pegado.
+  fileName?: string;
   withCast?: boolean | 'tarjetas';
   // (simulado) Frena cada respuesta de la IA hasta que la prueba suelte la promesa.
   hold?: () => Promise<void>;
@@ -140,7 +159,9 @@ export async function openAiSpace({
     name: 'Inferencia',
     makeActive: withCast === false,
   });
-  const added = await api['materials.addText']({ subjectId: subject.id, text, title });
+  const added = fileName
+    ? await addAsFile(bridge, subject.id, fileName, text)
+    : await api['materials.addText']({ subjectId: subject.id, text, title });
   if (added.outcome !== 'added') {
     throw new Error('no se agregó el material de la prueba');
   }

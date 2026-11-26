@@ -546,6 +546,19 @@ describe('[CA-171] «Qué se envió»', () => {
     ]);
   });
 
+  it('[CA-171] un material que vino de un archivo figura con el nombre del archivo, como «Inferencia — capítulos 1 a 4.pdf»; uno pegado, con su título (simulado)', async () => {
+    const fromFile = await open({ fileName: 'Apunte de muestreo.md' });
+    await explainOnce(fromFile);
+    expect((await fromFile.api['ai.sentLog']({})).rows.map((row) => row.materialTitle)).toEqual([
+      'Apunte de muestreo.md',
+    ]);
+    const pasted = await open({ title: 'Lo que pegué' });
+    await explainOnce(pasted);
+    expect((await pasted.api['ai.sentLog']({})).rows.map((row) => row.materialTitle)).toEqual([
+      'Lo que pegué',
+    ]);
+  });
+
   it('[CA-171] el registro solo se agrega: no se puede cambiar ni borrar (simulado)', async () => {
     const space = await open();
     await explainOnce(space);
