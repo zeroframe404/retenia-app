@@ -1420,7 +1420,7 @@ export function createMaterialsService({
     },
 
     // Lo que va a la IA. El nombre es el que queda en «Qué se envió» (CA-171): el del archivo que
-    // agregaste («Inferencia — capítulos 1 a 4.pdf»); un texto pegado o una página de internet no
+    // agregaste («Resumen de la unidad 2.pdf»); un texto pegado o una página de internet no
     // tienen archivo, así que van con su título.
     fragment({ materialId, selection }) {
       const { row, quote } = citeOf(materialId, selection);
