@@ -109,6 +109,17 @@ describe('la escalera de apoyo', () => {
     expect(open(space, cardId).view.rung).toEqual({ kind: 'blanks', blanks: 1 });
   });
 
+  it('[CA-159] si la fecha vuelve atrás («Restablecer fecha» o el reloj de Windows), el escalón no retrocede', () => {
+    const { clock, space, cardId } = setup();
+    practice(space, cardId);
+    clock.advance(1);
+    practice(space, cardId);
+    clock.advance(1);
+    practice(space, cardId, ['limite-superior']);
+    clock.advance(-2);
+    expect(open(space, cardId).view.rung).toEqual({ kind: 'blanks', blanks: 1 });
+  });
+
   it('[CA-159] un fallo aislado repite el escalón con otro problema; dos fallos seguidos del mismo paso traen más apoyo', () => {
     const { clock, space, cardId } = setup();
     for (let n = 0; n < 2; n += 1) {
