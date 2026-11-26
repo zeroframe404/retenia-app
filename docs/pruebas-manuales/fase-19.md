@@ -4,7 +4,7 @@ Preparación: tené a mano tu clave de la API de Anthropic. En una terminal del 
 
 Dónde está cada cosa:
 - «IA simulada», «IA simulada: responder mal», «IA simulada: tardar 12 segundos» y «Simular sin conexión»: Ajustes → «Demostración».
-- La clave, «Probar conexión», el tope, «Modo solo local», «Qué se envió» y los materiales con permiso: Ajustes → «Inteligencia artificial».
+- La clave, «Probar conexión», el tope, «Modo solo local», «Qué se envió», «Materiales que pueden ir a la IA» y «Materiales que no van a la IA»: Ajustes → «Inteligencia artificial».
 - «Explicame este fragmento»: en Materiales, abrí un material, tocá «Leer el original» y seleccioná un pasaje con el mouse. El botón aparece arriba del texto, al lado de «Crear tarjeta desde acá». La explicación se abre en el panel «Explicación», a la derecha.
 
 Hacé las pruebas en orden y sin reiniciar los datos entre una y otra. Los textos de abajo son los que muestra el programa. Los de tu lista salen letra por letra. Lo que cambia en los pasos está en «Qué difiere de tu plan», al final. Las capturas de cada pantalla, en claro y en oscuro, están en `docs/pruebas-manuales/capturas` con el prefijo `fase-19-`.
@@ -124,7 +124,7 @@ Ningún texto de tu lista cambió. Lo que conviene saber en los pasos:
 
 - **M19.2 a M19.4: la IA simulada no pregunta el permiso, no suma al contador y no figura en «Qué se envió».** No saca nada de la PC ni gasta. Por eso la pregunta del permiso aparece por primera vez en M19.6.
 - **M19.6 es una consulta real con tu clave**: cuesta centavos (con Opus 5.5, entre USD 0,01 y 0,03) y tarda de 5 a 15 segundos.
-- **M19.9:** como en M19.6 ya gastaste algo, apenas guardás USD 0,01 Ajustes ya dice «Llegaste al tope de este mes». El tope frena antes de una consulta que lo podría pasar: nunca se pasa.
+- **M19.9:** como en M19.6 ya gastaste algo, apenas guardás USD 0,01 Ajustes ya dice «Llegaste al tope de este mes». El tope frena antes de una consulta que lo podría pasar: nunca se pasa. Con el tope de USD 10, eso es entre 5 y 7 centavos antes.
 - **M19.10:**
   - Elegí un pasaje que no hayas pedido antes. Uno ya explicado sale de lo guardado sin conectarse («Sin costo: ya la habías pedido.») y no verías «Pendiente…».
   - Como en M19.6 elegiste «Solo esta vez», la pregunta del permiso vuelve a aparecer. Es lo esperado: elegí «Solo esta vez» de nuevo.
@@ -133,3 +133,4 @@ Ningún texto de tu lista cambió. Lo que conviene saber en los pasos:
   - Las claves de Anthropic empiezan casi todas igual («sk-ant-api03»), así que buscar los primeros 12 caracteres prueba poco. La búsqueda que pediste la hago igual.
   - Además podés buscar la clave entera sin pasármela por el chat. En una terminal del proyecto escribí `node tools/buscar-clave.mjs` y pegá la clave cuando te la pida; no se muestra. Te dice en qué archivo aparece, si aparece.
   - La carpeta de datos de `npm run iniciar` es `datos-locales\demostracion`, dentro del proyecto. Ahí quedan también las copias.
+- **Una captura de referencia para aprobar:** Materiales ahora muestra 3 materiales, con trampa.md. Mirá `docs/pruebas-manuales/capturas/fase-19-referencia-materiales-claro-nueva.png` (y la oscura). Si la aprobás, reemplazo la de referencia.
