@@ -127,6 +127,12 @@ export interface MaterialsService {
     quote: string;
     reference: string;
   };
+  // El pasaje de una selección tal como está guardado, y el título del material (Fase 19): lo que
+  // se le manda a la IA sale de acá, nunca del texto de la pantalla.
+  fragment(input: { materialId: string; selection: MaterialSelection }): {
+    text: string;
+    title: string;
+  };
   // La cola: arrancarla (vuelven a «pendiente» las tareas «en curso» de otro arranque), esperar a que
   // no quede nada, una tarea por vez (pruebas), pausarla y soltarla sin escribir nada (pruebas del
   // corte).
@@ -1406,6 +1412,11 @@ export function createMaterialsService({
     preview({ materialId, selection }) {
       const { reference, quote } = citeOf(materialId, selection);
       return { reference, quote };
+    },
+
+    fragment({ materialId, selection }) {
+      const { row, quote } = citeOf(materialId, selection);
+      return { text: quote, title: row.title };
     },
 
     createCard({ materialId, selection, question, answer }) {

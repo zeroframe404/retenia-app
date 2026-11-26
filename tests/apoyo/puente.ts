@@ -1,6 +1,10 @@
 import { join } from 'node:path';
-import { type Clock, demoClock, type Stopwatch } from '../../src/core/clock';
+import type { AiProvider } from '../../src/ai/provider';
+import { type Clock, demoClock, fixedClock, type Stopwatch } from '../../src/core/clock';
+import { newId } from '../../src/data/ids';
 import { openWorkspace, type Workspace } from '../../src/data/workspace';
+import type { SecretBox } from '../../src/main/ai/key-store';
+import { type AiService, createAiService } from '../../src/main/ai/service';
 import {
   createFileHandlers,
   createHandlers,
@@ -10,13 +14,13 @@ import {
 import type { Dialogs } from '../../src/main/imports/dialogs';
 import { createTransfersService } from '../../src/main/imports/service';
 import { createMaterialsService, type MaterialsService } from '../../src/main/materials/service';
-import type { NetGate } from '../../src/main/net-gate';
+import { createNetGate, type NetGate } from '../../src/main/net-gate';
 import { runMaterialsTask } from '../../src/main/workers/materials-tasks';
 import type { MaterialsTask } from '../../src/main/workers/protocol';
 import { runTransferTask } from '../../src/main/workers/transfers-tasks';
 import { buildApi, type Invoke } from '../../src/preload/api';
 import type { ApiOf, channels } from '../../src/preload/contract';
-import type { MaterialEvent } from '../../src/preload/contract/events';
+import type { AiEvent, ReteniaEvent } from '../../src/preload/contract/events';
 import { fileChannels } from '../../src/preload/contract/materials';
 import { tempDataFolder } from './base';
 import { type CastKind, copyCastInto } from './elenco';
@@ -30,8 +34,13 @@ export interface TestBridge {
   fileHandlers: ReturnType<typeof createFileHandlers>;
   workspace: Workspace;
   materials: MaterialsService;
-  // Los avisos del principal a la ventana (`material.progress`…).
-  subscribe: (listener: (event: MaterialEvent) => void) => () => void;
+  // Los avisos del principal a la ventana (`material.progress`, `ai.result`…).
+  subscribe: (listener: (event: ReteniaEvent) => void) => () => void;
+  // La IA (Fase 19): su servicio (para mandar la cola en la prueba), los avisos que dio y otra
+  // instancia sobre la misma carpeta, como al cerrar y abrir Retenia (`days`: con el reloj corrido).
+  ai: AiService;
+  aiEvents: AiEvent[];
+  reopenAi: (options?: { days?: number }) => AiService;
   dataDir: string;
   file: string;
   // Cada mensaje que salió de la ventana hacia el principal, en orden.
@@ -62,6 +71,7 @@ export function openBridge({
   withCast = false,
   holdExtraction,
   net,
+  ai: aiOptions,
 }: {
   // La puerta hacia internet (Fase 14): la de las pruebas de páginas web.
   net?: NetGate;
@@ -75,13 +85,21 @@ export function openBridge({
   stopwatch?: Stopwatch;
   // (simulado) Frena la extracción de cada unidad hasta que la promesa se cumpla.
   holdExtraction?: () => Promise<void>;
+  // La IA (Fase 19), con sus dobles declarados: el almacén seguro de prueba y la IA simulada (como IA
+  // remota con tu clave, `remote`, o la de la demostración, `simulated`). Sin esto, una IA apagada:
+  // sin almacén seguro y con la puerta cerrada.
+  ai?: {
+    box?: SecretBox;
+    remote?: (apiKey: string) => AiProvider;
+    simulated?: () => AiProvider | null;
+  };
 } = {}): TestBridge {
   const data = tempDataFolder();
   if (withCast !== false) {
     copyCastInto(data.folder, withCast === true ? 'completo' : withCast);
   }
   const workspace = openWorkspace({ dataDir: data.folder, clock, appVersion: '0.0.0-prueba' });
-  const listeners = new Set<(event: MaterialEvent) => void>();
+  const listeners = new Set<(event: ReteniaEvent) => void>();
   const materials = createMaterialsService({
     workspace,
     clock,
@@ -121,7 +139,44 @@ export function openBridge({
       return answers.save;
     },
   };
+  const aiEvents: AiEvent[] = [];
+  const closedNet = createNetGate({ offline: true });
+  const noBox: SecretBox = {
+    isEncryptionAvailable: () => false,
+    encryptString: () => {
+      throw new Error('(simulado) sin almacén seguro');
+    },
+    decryptString: () => {
+      throw new Error('(simulado) sin almacén seguro');
+    },
+  };
+  const buildAi = (aiClock: Clock) =>
+    createAiService({
+      store: () => workspace.ai,
+      clock: aiClock,
+      dataDir: data.folder,
+      box: aiOptions?.box ?? noBox,
+      net: aiOptions ? (net ?? createNetGate()) : closedNet,
+      newId,
+      fragmentOf: (input) => materials.fragment(input),
+      remote:
+        aiOptions?.remote ??
+        (() => {
+          throw new Error('(simulado) este puente no tiene IA remota');
+        }),
+      ...(aiOptions?.simulated ? { simulated: aiOptions.simulated } : {}),
+      emit: (event) => {
+        aiEvents.push(event);
+        for (const listener of listeners) {
+          listener(event);
+        }
+      },
+      // Sin relojes de verdad: la prueba manda la cola cuando quiere (`ai.drain()`).
+      timers: { every: () => () => undefined },
+    });
+  const ai = buildAi(clock);
   const handlers = createHandlers({
+    ai,
     transfers: createTransfersService({
       workspace,
       clock,
@@ -164,6 +219,10 @@ export function openBridge({
         listeners.delete(listener);
       };
     },
+    ai,
+    aiEvents,
+    reopenAi: ({ days = 0 } = {}) =>
+      buildAi(fixedClock(new Date(clock.now().getTime() + days * 86_400_000))),
     dataDir: data.folder,
     file: join(data.folder, 'retenia.db'),
     sent,

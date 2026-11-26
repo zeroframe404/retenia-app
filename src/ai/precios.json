@@ -1,0 +1,14 @@
+{
+  "version": "2026-11-26",
+  "checkedOn": "2026-11-26",
+  "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+  "unit": "USD por millón de unidades de texto",
+  "models": {
+    "claude-opus-5-5": {
+      "inputPerMTok": 4,
+      "outputPerMTok": 20,
+      "cacheReadPerMTok": 0.2,
+      "cacheWritePerMTok": 5
+    }
+  }
+}

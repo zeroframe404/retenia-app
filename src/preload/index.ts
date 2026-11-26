@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import { buildApi } from './api';
 import { demoChannels } from './contract/demo';
-import { EVENTS_CHANNEL, type MaterialEvent, materialEventSchema } from './contract/events';
+import { EVENTS_CHANNEL, eventSchema, type ReteniaEvent } from './contract/events';
 import { labChannels } from './contract/lab';
 import { fileChannels } from './contract/materials';
 import { pathsOfFiles } from './files';
@@ -66,10 +66,10 @@ contextBridge.exposeInMainWorld('reteniaArchivos', {
 });
 
 // Los avisos del principal: cada uno se valida; lo que no valida se descarta.
-type EventListener = (event: MaterialEvent) => void;
+type EventListener = (event: ReteniaEvent) => void;
 const eventListeners = new Set<EventListener>();
 ipcRenderer.on(EVENTS_CHANNEL, (_event, raw: unknown) => {
-  const parsed = materialEventSchema.safeParse(raw);
+  const parsed = eventSchema.safeParse(raw);
   if (!parsed.success) {
     console.error('La ventana descartó un aviso que no cumple el contrato');
     return;

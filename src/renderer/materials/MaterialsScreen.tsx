@@ -81,7 +81,11 @@ export function MaterialsScreen({
 
   // Los avisos del principal: avanzó, terminó o falló un material.
   useEffect(() => {
-    const stop = window.reteniaAvisos?.alRecibir(() => {
+    const stop = window.reteniaAvisos?.alRecibir((event) => {
+      // Los de la IA los escucha su panel.
+      if (!event.type.startsWith('material.')) {
+        return;
+      }
       setProgress((current) => current + 1);
       void load();
     });

@@ -204,6 +204,8 @@ describe('base de datos: apertura y migraciones', () => {
       { id: '0014_objetivos' },
       { id: '0015_objetivos_disparadores' },
       { id: '0016_dudas_version' },
+      { id: '0017_ia' },
+      { id: '0018_ia_disparadores' },
     ]);
     expect(tables).toEqual(
       expect.arrayContaining([

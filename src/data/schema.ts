@@ -758,3 +758,93 @@ export const cardAttachments = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.cardId, table.attachmentId] })],
 );
+
+// --- La compuerta de IA (Fase 19) ---
+
+// «Qué se envió»: cada envío a la IA que salió de la PC, con lo que costó (calculado en la PC con la
+// tabla de precios de src/ai/precios.json). Nunca el texto del pasaje ni la respuesta. Solo se
+// agrega (disparadores en 0018_ia_disparadores.sql). Alimenta el contador y el tope del mes.
+export const aiRequests = sqliteTable(
+  'ai_requests',
+  {
+    id: text('id').primaryKey(),
+    at: text('at').notNull(),
+    purpose: text('purpose').notNull(),
+    provider: text('provider').notNull(),
+    model: text('model').notNull(),
+    promptVersion: integer('prompt_version').notNull(),
+    rubricVersion: integer('rubric_version'),
+    priceVersion: text('price_version').notNull(),
+    // JSON: [{ materialId, title, chars, sha256 }].
+    fragments: text('fragments').notNull(),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    cacheReadTokens: integer('cache_read_tokens').notNull().default(0),
+    cacheWriteTokens: integer('cache_write_tokens').notNull().default(0),
+    // En millonésimas de dólar.
+    usdMicros: integer('usd_micros').notNull(),
+    // 'ok' · 'rejected_schema' (no cumplió el formato) · 'refused' · 'failed' (error técnico).
+    status: text('status').notNull(),
+    queueItemId: text('queue_item_id'),
+  },
+  (table) => [index('ai_requests_at_idx').on(table.at)],
+);
+
+// Lo que decidiste para cada material en «¿Permitir enviar fragmentos de este material a la IA?»:
+// 'always' o 'never'. «Solo esta vez» no se guarda.
+export const aiMaterialPermissions = sqliteTable('ai_material_permissions', {
+  materialId: text('material_id').primaryKey(),
+  scope: text('scope').notNull(),
+  decidedAt: text('decided_at').notNull(),
+});
+
+// Lo ya preguntado, para no volver a pagar: por huella de entrada, proveedor, modelo, versión del
+// prompt y de la rúbrica. Guarda la respuesta ya validada (no es un dato de aprendizaje).
+export const aiCache = sqliteTable('ai_cache', {
+  key: text('key').primaryKey(),
+  purpose: text('purpose').notNull(),
+  model: text('model').notNull(),
+  promptVersion: integer('prompt_version').notNull(),
+  rubricVersion: integer('rubric_version'),
+  output: text('output').notNull(),
+  createdAt: text('created_at').notNull(),
+});
+
+// La cola de pedidos a la IA: sin conexión esperan acá y salen solos al volver. El pasaje vive acá
+// solo hasta que el pedido termina.
+export const aiQueue = sqliteTable(
+  'ai_queue',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull(),
+    purpose: text('purpose').notNull(),
+    cacheKey: text('cache_key').notNull(),
+    materialId: text('material_id').notNull(),
+    materialTitle: text('material_title').notNull(),
+    fragment: text('fragment').notNull(),
+    // 'pending' · 'sending' · 'finished'.
+    status: text('status').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    // 'sending' · 'offline' · 'retrying'.
+    waiting: text('waiting').notNull().default('sending'),
+    outcome: text('outcome'),
+    finishedAt: text('finished_at'),
+  },
+  (table) => [index('ai_queue_status_idx').on(table.status, table.createdAt)],
+);
+
+// Las trazas técnicas de cada intento (sin textos): se borran a los 90 días.
+export const aiTraces = sqliteTable(
+  'ai_traces',
+  {
+    id: text('id').primaryKey(),
+    at: text('at').notNull(),
+    queueItemId: text('queue_item_id').notNull(),
+    event: text('event').notNull(),
+    errorKind: text('error_kind'),
+    httpStatus: integer('http_status'),
+    latencyMs: integer('latency_ms'),
+    attempt: integer('attempt').notNull(),
+  },
+  (table) => [index('ai_traces_at_idx').on(table.at)],
+);

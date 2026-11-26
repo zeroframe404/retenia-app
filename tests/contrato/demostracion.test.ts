@@ -159,6 +159,8 @@ describe('contrato: canales de demostración', () => {
       'demo.load10k',
       'demo.processing',
       'demo.setProcessing',
+      'demo.ai',
+      'demo.setAi',
     ]);
   });
 });

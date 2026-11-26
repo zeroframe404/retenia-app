@@ -7,12 +7,15 @@ import {
   ipcMain,
   Menu,
   nativeTheme,
+  safeStorage,
   session,
   shell,
 } from 'electron';
+import { createAnthropicProvider } from '../ai/providers/anthropic';
 import { systemClock } from '../core/clock';
 import { effectiveTheme, PAPER_COLOR, type ThemeChoice } from '../core/theme';
 import { zoomStep } from '../core/zoom';
+import { newId } from '../data/ids';
 import { openWorkspace } from '../data/workspace';
 import { channels, type Registry } from '../preload/contract';
 import { demoChannels } from '../preload/contract/demo';
@@ -20,10 +23,12 @@ import { EVENTS_CHANNEL } from '../preload/contract/events';
 import { labChannels } from '../preload/contract/lab';
 import { fileChannels } from '../preload/contract/materials';
 import { texts } from '../preload/contract/texts';
+import { createAiService } from './ai/service';
 import { createAppearanceStore } from './appearance';
 import { createFileHandlers, createHandlers, handleMessage, type Variant } from './bridge';
 import { createCloseGuard } from './close-guard';
 import { createDemoHandlers, demoExclusiveChannels } from './demo';
+import { createDemoAi, demoAiOrigin } from './demo/ai';
 import { createDemoDate } from './demo/clock';
 import { prepareLabSwitches, samplesDirectory, startLab } from './demo/lab-setup';
 import { createDemoWorkspace } from './demo/switcher';
@@ -202,9 +207,47 @@ function start(): void {
   });
   // Importar y exportar (Fase 15): su propio proceso aislado.
   const transfers = startTransfers({ workspace, clock });
+  // La IA (Fase 19): la compuerta, con la clave cifrada por el almacén seguro de Windows y la misma
+  // puerta a internet. En la variante de prueba, además, la IA simulada de Ajustes › «Demostración».
+  const demoAi =
+    __VARIANTE__ === 'prueba'
+      ? createDemoAi({
+          dataDir,
+          samplesDir: samplesDirectory(),
+          isOffline: () => netGate.isOffline(),
+        })
+      : null;
+  const aiOrigin = __VARIANTE__ === 'prueba' ? demoAiOrigin() : undefined;
+  const ai = createAiService({
+    store: () => workspace.ai,
+    clock,
+    dataDir,
+    box: safeStorage,
+    net: netGate,
+    newId,
+    fragmentOf: (input) => materials.service.fragment(input),
+    remote: (apiKey) =>
+      createAnthropicProvider({
+        apiKey,
+        fetch: (input, init) =>
+          netGate.fetch(
+            typeof input === 'string' ? input : input instanceof URL ? input.href : input.url,
+            init,
+          ),
+        ...(aiOrigin ? { baseURL: aiOrigin } : {}),
+      }),
+    ...(demoAi ? { simulated: () => demoAi.provider() } : {}),
+    emit: (event) => {
+      const contents = mainWindow?.webContents;
+      if (contents && !contents.isDestroyed()) {
+        contents.send(EVENTS_CHANNEL, event);
+      }
+    },
+  });
   app.on('before-quit', () => {
     void materials.stop();
     void transfers.stop();
+    ai.stop();
   });
   handleOriginalProtocol(workspace);
 
@@ -218,6 +261,7 @@ function start(): void {
     onFlushed: () => flushDone?.(),
     materials: materials.service,
     transfers: transfers.service,
+    ai,
     dialogs: electronDialogs(dialog, () => mainWindow),
     onAppearanceChange: (choice) => mainWindow?.setBackgroundColor(applyFrameTheme(choice)),
     zoom: (direction) => {
@@ -235,7 +279,11 @@ function start(): void {
   if (__VARIANTE__ === 'prueba' && demo && demoData) {
     const lab = startLab({ dataDir, bringToFront, gate: netGate });
     app.on('quit', lab.stop);
-    handlers = { ...handlers, ...createDemoHandlers(demo, demoData), ...lab.handlers };
+    handlers = {
+      ...handlers,
+      ...createDemoHandlers(demo, demoData, demoAi ?? undefined),
+      ...lab.handlers,
+    };
     registry = { ...channels, ...demoChannels(), ...labChannels() };
     exclusive = demoExclusiveChannels;
   }
@@ -249,9 +297,11 @@ function start(): void {
     if (original) {
       handlers[name] = async (request: never) => {
         await materials.service.pause();
+        await ai.pause();
         try {
           return await original(request);
         } finally {
+          ai.unpause();
           materials.service.unpause();
         }
       };
@@ -283,6 +333,8 @@ function start(): void {
   createWindow(paper);
   // La cola de los materiales sigue sola un segundo después de que se ve la ventana.
   mainWindow?.once('ready-to-show', materials.begin);
+  // Lo que quedó pendiente para la IA sale solo, también después de abrir.
+  mainWindow?.once('ready-to-show', () => ai.start());
 
   // Al abrir: la copia automática (si la última tiene 24 horas o más) y, recién después, lo que
   // venció en la Papelera; si la copia falla, lo vencido espera a la próxima vez.

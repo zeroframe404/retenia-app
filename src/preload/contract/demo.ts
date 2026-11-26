@@ -10,6 +10,11 @@ export function demoChannels() {
   // primera vez que se abre Retenia.
   const mode = z.strictObject({ mode: z.enum(['cast', 'first-time']) });
   const noRequest = z.strictObject({});
+  const simulatedAi = z.strictObject({
+    simulated: z.boolean(),
+    bad: z.boolean(),
+    slow: z.boolean(),
+  });
   return {
     'demo.state': { request: z.strictObject({}), response: today },
     'demo.advanceDays': {
@@ -31,6 +36,17 @@ export function demoChannels() {
     'demo.setProcessing': {
       request: z.strictObject({ slow: z.boolean() }),
       response: z.strictObject({ slow: z.boolean() }),
+    },
+    // La IA simulada (Fase 19): «IA simulada», «IA simulada: responder mal» y «IA simulada: tardar
+    // 12 segundos». Respuestas grabadas, sin clave, sin red y sin gastar.
+    'demo.ai': { request: noRequest, response: simulatedAi },
+    'demo.setAi': {
+      request: z.strictObject({
+        simulated: z.boolean().optional(),
+        bad: z.boolean().optional(),
+        slow: z.boolean().optional(),
+      }),
+      response: simulatedAi,
     },
   };
 }
