@@ -758,6 +758,10 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Lo que apareció después del revisor.**
   - La casilla «Modo solo local» se marcaba recién cuando contestaba el programa, igual que las de la IA simulada. Ahora se marca al tocarla.
   - Un comentario nombraba un material del elenco y la prueba del paquete real lo encontró. Ahora usa un nombre de ejemplo.
-- **Cierres lentos en la punta a punta (no es de esta fase, te lo dejo anotado).** A veces, con la PC cargada, el programa tarda más de un minuto en terminar después de cerrarlo y la prueba se corta al desarmar. Lo reproduje: pasó 1 vez en 60 cierres, 6 a la vez, y ninguna en 60 cuando antes se esperaba a que los materiales del elenco estuvieran «Listo».
-  - La causa viene de la Fase 13. El proceso que lee los materiales se cierra solo cuando ve que el programa ya no está, pero mientras lee un PDF o reconoce un escaneo no mira, y sigue vivo hasta terminar ese pedazo.
-  - El arreglo es cortarlo en el acto al cerrar. Es seguro: la cola retoma sola al abrir. Te lo propongo como tarea aparte. Está anotado en `docs/entorno.md`.
+- **Un cierre que a veces no termina, con la PC muy cargada (te lo dejo anotado).** En la punta a punta, 3 veces la prueba pasó pero el programa no terminó al cerrarlo, y la prueba se cortó al desarmar.
+  - **Lo que hice.** Lo reproduje con 6 programas a la vez: pasó 1 vez en 60 cierres.
+  - **Lo que vi.** El proceso principal quedó trabado en el cierre. No tenía ventana; seguían vivos el proceso de GPU y el de red. No usaba el procesador y no respondía ni al depurador: es un bloqueo en código nativo, no en el de Retenia en JavaScript.
+  - **Por qué no sé si es nuevo.** En una segunda tanda de 120 cierres no pasó ni en esta rama ni en main. 1 en unos 300 contra 0 en 120 no alcanza para saber si lo trajo esta fase.
+  - **Una hipótesis que descarté.** Primero pensé que era el proceso que lee los materiales, pero en el proceso trabado no estaba.
+  - **Por qué conviene seguirlo.** Si alguna vez pasara fuera de las pruebas, Retenia quedaría abierto sin ventana.
+  - **Qué falta.** Investigarlo necesita un depurador de Windows, que esta PC no tiene. Está anotado en `docs/entorno.md`.
