@@ -101,9 +101,12 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const content = useRef<HTMLElement>(null);
   const subjectsLoaded = useRef(false);
 
+  // «Configurar» de una función de IA (Fase 19): Ajustes con el foco en «Inteligencia artificial».
+  const [aiRequested, setAiRequested] = useState(false);
   const go = useCallback((next: Destination) => {
     setDestination(next);
     setSettingsView('settings');
+    setAiRequested(false);
     if (next === 'notes') {
       setNotesSection('notes');
     }
@@ -537,6 +540,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               request={materialRequest}
               onChangeSubject={() => setChangingSubject(true)}
               onInboxCount={setInboxCount}
+              onConfigureAi={() => {
+                go('settings');
+                setAiRequested(true);
+              }}
             />
           ) : null}
           {destination === 'languages' ? (
@@ -564,6 +571,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           {destination === 'settings' && settingsView === 'settings' ? (
             <SettingsScreen
               focusTitle={navigated}
+              focusAi={aiRequested}
               onSubjectsChanged={reloadShared}
               demo={
                 __VARIANTE__ === 'prueba' ? (

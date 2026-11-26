@@ -29,12 +29,15 @@ export type MaterialState =
   | { kind: 'partial'; read: number; total: number; cancelled?: true }
   | { kind: 'review' }
   | { kind: 'error'; problem: ErrorProblem }
-  | { kind: 'pendingNetwork' };
+  // `localOnly`: espera porque está prendido «Modo solo local» (Fase 19), no por falta de red.
+  | { kind: 'pendingNetwork'; localOnly?: true };
 
 export interface StatusInput {
   errorCode: string | null;
   // Una página web que espera a que haya conexión para bajarse (H-28).
   pendingNetwork?: boolean;
+  // «Modo solo local» prendido (Fase 19): nada sale de la PC.
+  localOnly?: boolean;
   unitCount: number | null;
   units: readonly { status: UnitStatus }[];
   tasks: readonly { stage: Stage; status: TaskStatus }[];
@@ -45,6 +48,7 @@ const isRead = (status: UnitStatus) => status === 'ready' || status === 'no_text
 export function materialState({
   errorCode,
   pendingNetwork = false,
+  localOnly = false,
   unitCount,
   units,
   tasks,
@@ -53,7 +57,7 @@ export function materialState({
     return { kind: 'error', problem: errorCode as ErrorProblem };
   }
   if (pendingNetwork) {
-    return { kind: 'pendingNetwork' };
+    return localOnly ? { kind: 'pendingNetwork', localOnly: true } : { kind: 'pendingNetwork' };
   }
   const read = units.filter((unit) => isRead(unit.status)).length;
   const total = unitCount ?? units.length;

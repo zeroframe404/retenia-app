@@ -36,6 +36,7 @@ export function MaterialsScreen({
   request,
   onChangeSubject,
   onInboxCount,
+  onConfigureAi,
 }: {
   subject: Subject | null;
   active: Subject | null;
@@ -44,6 +45,8 @@ export function MaterialsScreen({
   request: MaterialRequest | null;
   onChangeSubject: () => void;
   onInboxCount?: ((count: number) => void) | undefined;
+  // «Configurar» de la IA (Fase 19): lleva a Ajustes › «Inteligencia artificial».
+  onConfigureAi?: (() => void) | undefined;
 }) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -209,6 +212,7 @@ export function MaterialsScreen({
             backLabel={viewing.fromReview ? texts.materials.review.backToReview : undefined}
             onInboxCount={onInboxCount}
             onChanged={() => void load()}
+            onConfigureAi={onConfigureAi}
           />
         ) : reviewing ? (
           <ReviewView
@@ -326,7 +330,11 @@ function MaterialDetailPanel({
       <h3 className={styles.detailTitle}>{material.title}</h3>
       {waiting ? (
         <>
-          <BannerEstado tone="pending">{texts.materials.states.pendingNetwork}</BannerEstado>
+          <BannerEstado tone="pending">
+            {material.state.kind === 'pendingNetwork' && material.state.localOnly
+              ? texts.materials.states.pendingLocalOnly
+              : texts.materials.states.pendingNetwork}
+          </BannerEstado>
           {material.sourceUrl ? <p className={styles.webInfo}>{material.sourceUrl}</p> : null}
           <div className={styles.actions}>
             <Boton variant="quiet" onClick={onDismiss}>

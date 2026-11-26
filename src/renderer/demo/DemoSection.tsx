@@ -33,6 +33,13 @@ export function DemoSection({
   const [volumeCards, setVolumeCards] = useState(0);
   // «Procesar despacio» (Fase 13).
   const [slow, setSlow] = useState<boolean | null>(null);
+  // La IA simulada (Fase 19): «IA simulada», «responder mal» y «tardar 12 segundos».
+  const [simulatedAi, setSimulatedAi] = useState<{
+    simulated: boolean;
+    bad: boolean;
+    slow: boolean;
+  } | null>(null);
+  const [aiFailed, setAiFailed] = useState(false);
   const working = useRef(false);
 
   useEffect(() => {
@@ -72,6 +79,34 @@ export function DemoSection({
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    window.retenia['demo.ai']({}).then(
+      (state) => {
+        if (alive) {
+          setSimulatedAi(state);
+        }
+      },
+      () => {
+        if (alive) {
+          setSimulatedAi({ simulated: false, bad: false, slow: false });
+        }
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function toggleAi(change: { simulated?: boolean; bad?: boolean; slow?: boolean }) {
+    setAiFailed(false);
+    try {
+      setSimulatedAi(await window.retenia['demo.setAi'](change));
+    } catch {
+      setAiFailed(true);
+    }
+  }
 
   async function toggleSlow(next: boolean) {
     setSlow(next);
@@ -210,6 +245,30 @@ export function DemoSection({
           {demoTexts.slowProcessingHint}
         </p>
       </div>
+      {(
+        [
+          ['simulated', demoTexts.ai.simulated, demoTexts.ai.simulatedHint],
+          ['bad', demoTexts.ai.bad, demoTexts.ai.badHint],
+          ['slow', demoTexts.ai.slow, demoTexts.ai.slowHint],
+        ] as const
+      ).map(([field, label, hint]) => (
+        <div key={field}>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={simulatedAi?.[field] ?? false}
+              disabled={simulatedAi === null}
+              aria-describedby={`ia-simulada-${field}`}
+              onChange={(event) => void toggleAi({ [field]: event.target.checked })}
+            />
+            {label}
+          </label>
+          <p id={`ia-simulada-${field}`} className={styles.help}>
+            {hint}
+          </p>
+        </div>
+      ))}
+      {aiFailed ? <BannerEstado tone="attention">{demoTexts.ai.failed}</BannerEstado> : null}
       {dataFailed ? (
         <BannerEstado tone="attention">{demoTexts.firstTime.failed}</BannerEstado>
       ) : null}

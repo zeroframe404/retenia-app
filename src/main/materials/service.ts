@@ -230,6 +230,11 @@ export function createMaterialsService({
   const elapsed = stopwatch.start();
   const limits = { ...DEFAULT_TIMEOUTS, ...timeouts };
   const store = () => workspace.materials;
+  // Una página que espera la conexión porque está prendido «Modo solo local» (Fase 19) lo dice.
+  const withReason = <T extends { state: MaterialSummary['state'] }>(item: T): T =>
+    item.state.kind === 'pendingNetwork' && net.isLocalOnly()
+      ? { ...item, state: { kind: 'pendingNetwork', localOnly: true } }
+      : item;
   const dirs = () => ({
     tmpDir: join(workspace.dataDir, 'tmp'),
     originalsDir: workspace.originalsDir,
@@ -1278,9 +1283,9 @@ export function createMaterialsService({
       return { materialId };
     },
 
-    list: ({ subjectId }) => ({ materials: store().summaries(subjectId) }),
+    list: ({ subjectId }) => ({ materials: store().summaries(subjectId).map(withReason) }),
 
-    get: ({ materialId }) => store().detail(materialId),
+    get: ({ materialId }) => withReason(store().detail(materialId)),
 
     cancel({ materialId }) {
       store().cancel(materialId);
@@ -1288,14 +1293,14 @@ export function createMaterialsService({
         interrupt();
       }
       safeEmit({ type: 'material.progress', materialId });
-      return store().summary(materialId);
+      return withReason(store().summary(materialId));
     },
 
     resume({ materialId }) {
       store().resume(materialId);
       kick();
       safeEmit({ type: 'material.progress', materialId });
-      return store().summary(materialId);
+      return withReason(store().summary(materialId));
     },
 
     dismiss({ materialId }) {

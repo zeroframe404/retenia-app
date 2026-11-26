@@ -592,3 +592,95 @@
 .textColumn[hidden] {
   display: none;
 }
+
+/* «Explicame este fragmento» (Fase 19): el visor con el panel de la explicación al lado, sin taparlo. */
+.viewerWithPanel {
+  display: grid;
+  gap: var(--espacio-24);
+  align-items: start;
+  min-width: 0;
+}
+
+.viewerWithPanel[data-panel="open"] {
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+}
+
+.viewerWithPanel[data-panel="open"] > aside {
+  position: sticky;
+  top: 0;
+}
+
+@media (width < 900px) {
+  .viewerWithPanel[data-panel="open"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}
+
+.explanation {
+  display: grid;
+  gap: var(--espacio-16);
+}
+
+.aiMark {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}
+
+.explanationPart {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.explanationTitle {
+  margin: 0;
+  font: var(--tipo-cuerpo-fuerte);
+  color: var(--color-tinta);
+}
+
+.explanationList {
+  display: grid;
+  gap: var(--espacio-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.explanationList p {
+  margin: var(--espacio-4) 0 0;
+  font: var(--tipo-cuerpo);
+}
+
+.quoteButton {
+  display: block;
+  width: 100%;
+  padding: var(--espacio-8);
+  text-align: left;
+  font: var(--tipo-cuerpo);
+  color: var(--color-tinta);
+  background: var(--color-superficie-hundida);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+  cursor: pointer;
+}
+
+.quoteButton:focus-visible {
+  outline: var(--foco-ancho) solid var(--color-foco);
+  outline-offset: 2px;
+}
+
+.quote {
+  font-style: italic;
+}
+
+.explanationCost {
+  margin: 0;
+  font: var(--tipo-pequeno);
+  color: var(--color-tinta-suave);
+}

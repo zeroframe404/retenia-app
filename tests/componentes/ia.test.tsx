@@ -51,6 +51,10 @@ async function addMaterial(opened: Opened) {
 
 const rail = () => screen.getByRole('navigation', { name: 'Riel lateral' });
 
+// Con al menos una materia: si no, Retenia abre en la pantalla de la primera vez, sin el riel.
+const withSubject = (opened: Opened) =>
+  opened.api['subjects.create']({ name: 'Inferencia', makeActive: true });
+
 async function openViewer(opened: Opened) {
   await screen.findByRole('navigation', { name: 'Riel lateral' });
   await opened.user.click(within(rail()).getByRole('button', { name: 'Materiales' }));
@@ -221,6 +225,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
   it('[CA-168] (simulado) pegar la clave y tocar «Probar conexión» dice «Conexión correcta», la guarda y no la deja en la pantalla', async () => {
     const { provider } = remoteAi();
     const opened = openWindow('real', undefined, { ai: { remote: () => provider } });
+    await withSubject(opened);
     render(<App />);
     const heading = await toAiSettings(opened);
     const section = within(heading.closest('section') as HTMLElement);
@@ -312,6 +317,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
 
   it('cada función muestra su estado y se puede suspender', async () => {
     const opened = openWindow('real', undefined, { ai: {} });
+    await withSubject(opened);
     render(<App />);
     const heading = await toAiSettings(opened);
     const section = within(heading.closest('section') as HTMLElement);
@@ -324,6 +330,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
 
   it('[CA-170] «Modo solo local» se prende y se apaga desde la sección', async () => {
     const opened = openWindow('real', undefined, { ai: {} });
+    await withSubject(opened);
     render(<App />);
     const heading = await toAiSettings(opened);
     const section = within(heading.closest('section') as HTMLElement);
@@ -338,6 +345,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
 describe('Ajustes › «Demostración»: la IA simulada', () => {
   it('[CA-167] los tres interruptores están en la demostración y no en la versión real', async () => {
     const opened = openWindow('prueba', undefined, { ai: {} });
+    await withSubject(opened);
     render(<App />);
     await screen.findByRole('navigation', { name: 'Riel lateral' });
     await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));

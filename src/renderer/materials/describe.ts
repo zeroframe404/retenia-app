@@ -23,7 +23,9 @@ export function stateText(state: MaterialStateView): string {
     case 'error':
       return texts.materials.states.error;
     case 'pendingNetwork':
-      return texts.materials.states.pendingNetwork;
+      return state.localOnly
+        ? texts.materials.states.pendingLocalOnly
+        : texts.materials.states.pendingNetwork;
   }
 }
 

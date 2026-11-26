@@ -64,10 +64,12 @@ const castSchema = z.strictObject({
 // Los materiales del elenco (Fase 13): «Inferencia — capítulos 1 a 4.pdf», agregado el lunes
 // 08/03/2027, y «Apunte 3.pdf», el viernes 12/03/2027, los dos en «Estadística básica». Entran por
 // la misma cola que cualquier material: al abrir Retenia se leen de verdad, en segundo plano.
-const DEMO_MATERIALS = [
+// El título es el nombre sin la extensión, salvo «trampa.md» (Fase 19, CA-175), que se llama así.
+const DEMO_MATERIALS: readonly { file: string; addedAt: string; title?: string }[] = [
   { file: 'Inferencia — capítulos 1 a 4.pdf', addedAt: '2027-03-08T13:00:00.000Z' },
   { file: 'Apunte 3.pdf', addedAt: '2027-03-12T13:00:00.000Z' },
-] as const;
+  { file: 'trampa.md', addedAt: '2027-03-13T13:00:00.000Z', title: 'trampa.md' },
+];
 
 export interface DemoMaterials {
   inference?: { materialId: string; sha256: string; title: string };
@@ -86,7 +88,7 @@ export function seedDemoMaterials(workspace: Workspace, samplesDir: string | nul
     return {};
   }
   const seeded: DemoMaterials = {};
-  for (const { file, addedAt } of DEMO_MATERIALS) {
+  for (const { file, addedAt, title: fixedTitle } of DEMO_MATERIALS) {
     const source = join(samplesDir, file);
     if (!existsSync(source)) {
       continue;
@@ -108,7 +110,7 @@ export function seedDemoMaterials(workspace: Workspace, samplesDir: string | nul
       writeFileSync(target, data);
       chmodSync(target, 0o444);
     }
-    const title = file.replace(/\.[^.]+$/, '');
+    const title = fixedTitle ?? file.replace(/\.[^.]+$/, '');
     const materialId = workspace.materials.create({
       subjectId: subject.id,
       title,

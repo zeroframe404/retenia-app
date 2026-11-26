@@ -353,6 +353,7 @@ export const texts = {
       review: 'Requiere revisión',
       error: 'Error',
       pendingNetwork: 'Pendiente: se descarga cuando haya conexión',
+      pendingLocalOnly: 'Pendiente: el modo solo local está activado',
     },
     partialDetail: (read: number, total: number) => `Leímos ${read} de ${total} páginas`,
     version: (number: number) => `versión ${number}`,
