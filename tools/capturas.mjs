@@ -1186,6 +1186,8 @@ async function phase18(page) {
   await page.getByRole('button', { name: 'Reintentar el paso 4' }).click();
   await page.getByText('Ahora sí: el paso 4 quedó bien.').waitFor();
   await seeResult();
+  // Hasta los botones: así se ven la corrección, el resultado y «Discrepo».
+  await page.getByRole('button', { name: 'Discrepo' }).scrollIntoViewIfNeeded();
   await shoot(page, '5-correccion-y-resultado');
   await page.getByRole('button', { name: 'Otro problema' }).click();
   await failUpper();
