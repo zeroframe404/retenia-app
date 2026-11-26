@@ -1432,6 +1432,8 @@ async function phase19(page) {
     await goToDestination(page, 'Materiales');
     // Después de «Ver», Materiales vuelve a abrir esa explicación: primero, a la lista.
     const back = page.getByRole('button', { name: 'Volver a la lista' });
+    const list = page.getByRole('list', { name: 'Materiales de la materia' });
+    await list.or(back).first().waitFor(slow);
     if (await back.isVisible()) {
       await back.click();
     }
