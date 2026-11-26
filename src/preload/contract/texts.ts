@@ -1351,6 +1351,9 @@ export const texts = {
           ? 'Hay 1 repaso pospuesto para otro día.'
           : `Hay ${numberFormat.format(count)} repasos pospuestos para otro día.`,
       shortVersion: 'Versión corta (10 min)',
+      // Hay repasos vencidos y ninguno entra en ese tiempo (un procedimiento lleva más que 5 min).
+      nothingFits: (minutes: number) =>
+        `En ${minutes} minutos no entra ninguno de los repasos de hoy. Probá con más tiempo.`,
       // «Tengo: 5 10 25 45 min»: los minutos que elegís valen solo esta vez.
       have: 'Tengo:',
       haveUnit: 'min',

@@ -39,6 +39,7 @@ import { pendingReturnSteps } from './micro';
 import type { Writer } from './orm';
 import { recomputeCardSchedule } from './projections';
 import { cardVersions, evaluations, observations } from './schema';
+import { assertSessionActivity } from './session-state';
 import { isPending, stepStatesOf } from './step-states';
 import { isNewVariant, showVariant, variantOfOpening } from './variants';
 
@@ -70,6 +71,8 @@ interface ProcedureAttemptInput {
   shownAt: string;
   firstInputMs: number | null;
   submittedMs: number | null;
+  // La sesión de Estudiar desde la que se envía.
+  studySessionId?: string | undefined;
 }
 
 export interface ProceduresStore {
@@ -78,6 +81,7 @@ export interface ProceduresStore {
     cardId: string;
     openingId: string;
     why: readonly { stepId: string; text: string }[];
+    studySessionId?: string | undefined;
   }): { ladder: LadderValue };
   check(input: ProcedureAttemptInput): ProcedureCheck;
   retry(input: { attemptId: string; stepId: string; retryId: string; written: string }): {
@@ -394,9 +398,12 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
       });
     },
 
-    studied({ cardId, openingId, why }) {
+    studied({ cardId, openingId, why, studySessionId }) {
       return orm.transaction((tx) => {
         practicable(tx, cardId);
+        if (studySessionId !== undefined) {
+          assertSessionActivity(tx, studySessionId, cardId);
+        }
         // Solo se termina un ejemplo que se mostró, con el porqué de cada paso clave.
         const opened = requireOpened(tx, cardId, openingId);
         const procedure = procedureOf(versionOf(tx, opened.versionId));
@@ -411,6 +418,7 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
         const observation = appendObservation(tx, clock, {
           kind: 'procedure.studied',
           payload: {
+            ...(studySessionId === undefined ? {} : { studySessionId }),
             cardId,
             versionId: opened.versionId,
             openingId,
@@ -626,6 +634,9 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
   // El envío: los resultados de los pasos numéricos se comparan acá; la ventana no decide nada.
   function saveAttempt(tx: Writer, input: ProcedureAttemptInput): void {
     const row = practicable(tx, input.cardId);
+    if (input.studySessionId !== undefined) {
+      assertSessionActivity(tx, input.studySessionId, input.cardId);
+    }
     // Se corrige lo que se mostró: el escalón, los pasos vacíos y la variante de la apertura.
     const opened = requireOpened(tx, input.cardId, input.openingId);
     const procedure = procedureOf(versionOf(tx, opened.versionId));
@@ -664,6 +675,7 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
     const observation = appendObservation(tx, clock, {
       kind: 'attempt.submitted',
       payload: {
+        ...(input.studySessionId === undefined ? {} : { studySessionId: input.studySessionId }),
         cardId: input.cardId,
         versionId: opened.versionId,
         activityType: 'procedure',

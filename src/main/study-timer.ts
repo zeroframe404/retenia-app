@@ -14,9 +14,8 @@ type StudyMark = 'shown' | 'firstInteraction' | 'answerRequested';
 export interface StudyTimer {
   // Empieza (o retoma) a medir una sesión.
   begin(sessionId: string): void;
-  // Lo activo desde el paso anterior de esa sesión (como mucho el tope, o el que se le pase);
-  // vuelve a medir desde acá.
-  step(sessionId: string, cap?: number): number;
+  // Lo activo desde el paso anterior de esa sesión (como mucho el tope); vuelve a medir desde acá.
+  step(sessionId: string): number;
   // Deja de medir (al pausar o terminar) y devuelve lo que quedaba.
   stop(sessionId: string): number;
   // Lo que quedaba de la sesión que se estaba midiendo, sea cual sea (al cerrar la ventana).
@@ -31,7 +30,7 @@ export interface StudyTimer {
 export function createStudyTimer(
   clock: Clock,
   stopwatch: Stopwatch,
-  capMs: () => number = () => IDLE_CAP_MS,
+  capMs: (sessionId: string) => number = () => IDLE_CAP_MS,
 ): StudyTimer {
   let running: { sessionId: string; elapsed: () => number } | null = null;
   const marks = new Map<
@@ -45,14 +44,14 @@ export function createStudyTimer(
   >();
   const capped = (ms: number, cap: number) => Math.min(cap, Math.round(ms));
 
-  const take = (sessionId: string, restart: boolean, cap: number = capMs()): number => {
+  const take = (sessionId: string, restart: boolean): number => {
     if (running?.sessionId !== sessionId) {
       if (restart) {
         running = { sessionId, elapsed: stopwatch.start() };
       }
       return 0;
     }
-    const ms = capped(running.elapsed(), cap);
+    const ms = capped(running.elapsed(), capMs(sessionId));
     running = restart ? { sessionId, elapsed: stopwatch.start() } : null;
     return ms;
   };
@@ -61,7 +60,7 @@ export function createStudyTimer(
     begin(sessionId) {
       running = { sessionId, elapsed: stopwatch.start() };
     },
-    step: (sessionId, cap) => take(sessionId, true, cap),
+    step: (sessionId) => take(sessionId, true),
     stop: (sessionId) => take(sessionId, false),
     stopAny() {
       return running ? take(running.sessionId, false) : 0;

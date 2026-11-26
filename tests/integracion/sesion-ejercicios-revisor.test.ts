@@ -282,10 +282,12 @@ describe('objeción 7: un corte entre «Enviar» y «Siguiente»', () => {
     const due = nextReview(space, open_.id);
     const { sessionId } = startSession(space);
     const current = untilExercise(space, sessionId, open_.id);
+    // Lo calificado antes (la tarjeta) queda como estaba: el ejercicio no suma ningún resultado.
+    const before = resultsOf(space, sessionId);
     answer(space, open_.id, { sessionId, finalize: false });
     const resumed = resume(space, sessionId);
     expect(resumed.current?.activityId).not.toBe(current.activityId);
-    expect(resultsOf(space, sessionId)).toMatchObject({ good: 0, hard: 0, again: 0 });
+    expect(resultsOf(space, sessionId)).toEqual(before);
     expect(nextReview(space, open_.id)).toBe(due);
     // El mismo día no vuelve a entrar; al otro, sí.
     expect(space.workspace.study.overview().dueCount).toBe(0);

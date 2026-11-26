@@ -60,6 +60,7 @@ import type { Writer } from './orm';
 import { resultText } from './procedures';
 import { pendingCheckOf, recomputeCardSchedule } from './projections';
 import { cards, cardVersions, evaluations, observations } from './schema';
+import { assertSessionActivity } from './session-state';
 import { runIncludes } from './sets';
 import { stepStatesOf } from './step-states';
 import { isNewVariant, showVariant, variantOfOpening } from './variants';
@@ -160,6 +161,8 @@ interface SubmitInput {
   submittedMs: number | null;
   // Fase 18: la vuelta del conjunto intercalado en la que se resuelve.
   runId?: string | undefined;
+  // La sesión de Estudiar desde la que se envía.
+  studySessionId?: string | undefined;
 }
 
 export interface ActivitiesStore {
@@ -177,6 +180,10 @@ export interface ActivitiesStore {
   }): ActivityHelp;
   // «Enviar»: guarda el intento y devuelve lo que propone Retenia (todavía sin evaluación).
   submit(input: SubmitInput): SubmitResult;
+  // Para la sesión de Estudiar, dentro de su transacción: guarda lo propuesto de un envío que quedó
+  // sin guardar, o lo deja sin contar («La tarjeta está mal»).
+  settle(tx: Writer, attemptId: string): void;
+  discard(tx: Writer, attemptId: string): void;
   // Respuesta abierta: lo que propone Retenia según las unidades marcadas (no guarda nada).
   propose(input: {
     attemptId: string;
@@ -811,10 +818,44 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       };
     },
 
+    settle(tx, attemptId) {
+      ensureEvaluated(tx, attemptOf(tx, attemptId), undefined, []);
+    },
+
+    discard(tx, attemptId) {
+      const attempt = attemptOf(tx, attemptId);
+      const current = ensureEvaluated(tx, attempt, undefined, []);
+      if (current.affected === 1) {
+        return;
+      }
+      // La tarjeta estaba mal: ese envío queda anotado y no cuenta, así su próximo repaso vuelve
+      // al de antes (CA-077).
+      appendEvaluation(tx, clock, {
+        attemptId: attempt.id,
+        verdict: current.verdict as Verdict,
+        source: 'user',
+        proposedVerdict: current.proposedVerdict as Verdict | null,
+        rubricVersion: RUBRIC[attempt.activityType],
+        contentVersionId: attempt.versionId,
+        components: current.components === null ? null : JSON.parse(current.components),
+        engineSignal: engineSignal({
+          verdict: current.verdict as Verdict,
+          helpLevel: attempt.helpLevel,
+          optionsQuestion: attempt.optionsQuestion,
+        }),
+        cause: 'flagged',
+        affected: true,
+      });
+      recomputeCardSchedule(tx, attempt.cardId);
+    },
+
     submit(input) {
       return orm.transaction((tx) => {
         const row = activeCard(tx, input.cardId);
         assertPracticable(row);
+        if (input.studySessionId !== undefined) {
+          assertSessionActivity(tx, input.studySessionId, input.cardId);
+        }
         const activity = exerciseOf(row);
         const mode = asMode(row.mode);
         const shown =
@@ -844,6 +885,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         const observation = appendObservation(tx, clock, {
           kind: 'attempt.submitted',
           payload: {
+            ...(input.studySessionId === undefined ? {} : { studySessionId: input.studySessionId }),
             cardId: input.cardId,
             versionId: row.versionId,
             activityType: activity.type,

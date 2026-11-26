@@ -447,6 +447,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
             }}
             onToast={setToast}
             onOpenOriginal={setPanelOriginal}
+            onOpenObjective={openObjective}
+            onPracticeOther={practiceCard}
           />
         </div>
         {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}

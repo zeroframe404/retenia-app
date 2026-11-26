@@ -212,18 +212,25 @@ export function openWorkspace({
   const connect = () => {
     const db = openDatabase(dbFile, onStatement ? { clock, onStatement } : { clock });
     const cards = createCardsStore(db, clock, { fuzz });
+    const activities = createActivitiesStore(db, clock);
     return {
       db,
       cards,
       trash: createTrashStore(db, clock),
       activity: createActivityStore(db, clock),
-      activities: createActivitiesStore(db, clock),
+      activities,
       subjects: createSubjectsStore(db, clock),
       topics: createTopicsStore(db, clock),
       notes: createNotesStore(db, clock),
       inbox: createInboxStore(db, clock),
       images: createImagesStore(db, dataDir, clock),
-      study: createStudyStore(db, clock, () => cards, { fuzz }),
+      study: createStudyStore(
+        db,
+        clock,
+        () => cards,
+        () => activities,
+        { fuzz },
+      ),
       doubts: createDoubtsStore(db, clock),
       search: createSearchStore(db),
       materials: createMaterialsStore(db, clock),

@@ -153,7 +153,10 @@ export function StudyScreen({
     open(() => window.retenia['study.start']({ sessionId: crypto.randomUUID(), ...request }));
 
   const proposal = overview?.proposal ?? null;
-  const hasContent = proposal !== null && (proposal.reviews > 0 || proposal.newCards > 0);
+  const canFit = proposal !== null && (proposal.reviews > 0 || proposal.newCards > 0);
+  // Con algo vencido que no entra en ese tiempo, la propuesta sigue a la vista para elegir otro.
+  const nothingFits = proposal !== null && !canFit && proposal.forTomorrow > 0;
+  const hasContent = canFit || nothingFits;
   // Los minutos que se pidieron: valen aunque la propuesta todavía se esté recalculando.
   const chosenMinutes = minutes ?? proposal?.defaultMinutes ?? null;
 
@@ -211,6 +214,7 @@ export function StudyScreen({
       );
     } else {
       const canStart = !busy && !recalculating;
+      const canStartThis = canStart && !nothingFits;
       const brake = brakeText(proposal);
       const alternatives = proposal.alternatives.flatMap((alternative) => {
         const focus = alternativeFocus(alternative);
@@ -240,12 +244,14 @@ export function StudyScreen({
           )}
           <p className={styles.headline}>
             <span>
-              {texts.study.proposal.headline(
-                proposal.reviews,
-                proposal.newCards,
-                proposal.shownMinutes,
-                proposal.minutes === 5 && proposal.forTomorrow > 0,
-              )}
+              {nothingFits
+                ? texts.study.proposal.nothingFits(proposal.minutes)
+                : texts.study.proposal.headline(
+                    proposal.reviews,
+                    proposal.newCards,
+                    proposal.shownMinutes,
+                    proposal.minutes === 5 && proposal.forTomorrow > 0,
+                  )}
             </span>
             {proposal.initialEstimate ? (
               <span className={styles.tag}>{texts.study.proposal.initialEstimate}</span>
@@ -264,7 +270,7 @@ export function StudyScreen({
             {resume}
             <Boton
               variant={resumable ? 'secondary' : 'primary'}
-              disabled={!canStart}
+              disabled={!canStartThis}
               onClick={() => void start({ minutes: proposal.minutes })}
             >
               {texts.study.start}

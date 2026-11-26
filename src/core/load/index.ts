@@ -28,7 +28,10 @@ export function activitySeconds(activityType: string | null, reviewSeconds: numb
 
 // El orden de estudio con ejercicios: se empieza con una tarjeta y los ejercicios van repartidos
 // entre las demás. Las tarjetas no cambian de orden entre sí, ni los ejercicios.
-function spreadExercises(ids: readonly string[], isExercise: (id: string) => boolean): string[] {
+export function spreadExercises(
+  ids: readonly string[],
+  isExercise: (id: string) => boolean,
+): string[] {
   const cards = ids.filter((id) => !isExercise(id));
   const exercises = ids.filter(isExercise);
   const result: string[] = [];

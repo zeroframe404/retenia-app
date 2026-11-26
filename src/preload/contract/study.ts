@@ -39,6 +39,15 @@ export const sessionViewSchema = z.strictObject({
       retry: z.boolean(),
       card: cardDetailSchema,
       draft: draftSchema,
+      // Un procedimiento que enviaste en esta sesión y quedó sin terminar de corregir: se sigue
+      // con ese mismo envío.
+      resume: z
+        .strictObject({
+          openingId: z.uuid(),
+          requestId: z.uuid(),
+          written: z.array(z.strictObject({ stepId: z.string(), written: z.string() })),
+        })
+        .nullable(),
     })
     .nullable(),
   // La última calificación, si se puede deshacer.

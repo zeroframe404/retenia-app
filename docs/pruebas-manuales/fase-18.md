@@ -104,7 +104,7 @@ Esta la sumé yo: es lo que pediste el 26/11/2026.
 - Tenés que ver: la sesión empieza con una tarjeta; más adelante aparece «Ejercicio» ahí mismo, con «Pausar» arriba. «Enviar» lo corrige y «Siguiente» sigue con la sesión. Después de enviar no hay «Deshacer».
 - Lo que vi: una sesión de 67; el primer ejercicio apareció después de 21 tarjetas (el del sueldo), lo contesté mal a propósito, «Todavía no.» y «La correcta: La mediana», y «Siguiente» pasó de 21/67 a 22/67. Qué ejercicio te toque y en qué lugar depende de lo que hayas practicado.
 - Atajo sin hacer las otras: con los datos recién reiniciados, «+1 día» ya trae los 4 ejercicios del elenco que tienen historial.
-- También probé sobre un ejercicio de la sesión: «Esc» y continuar (vuelve al mismo), Espacio y números (no califican), «Más» → «Editar» → «Cancelar», «Saltar», «La tarjeta está mal», doble clic en «Enviar» y en «Siguiente» (suma una vez), y cerrar el programa después de «Enviar»: esto último fallaba y lo arreglé.
+- También probé sobre un ejercicio de la sesión: «Esc» y continuar (vuelve al mismo), Espacio y números (no califican), «Más» → «Editar» → «Cancelar», «Saltar» y «La tarjeta está mal» antes de enviar, doble clic en «Enviar» y en «Siguiente» (cuenta una vez), cerrar el programa después de «Enviar» (esto fallaba y lo arreglé) y, después de enviar, que «Más» ya no ofrece «Saltar» y que «La tarjeta está mal» sale sin contar. Pausar a mitad de un procedimiento, «Editar» con cambios, «Tengo: 5» con solo un procedimiento y «Practicar la diferencia» desde la sesión los cubren pruebas de pantalla; no los repetí en el programa armado.
 
 ## Libre · Uso libre
 

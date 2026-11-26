@@ -49,13 +49,14 @@ export function ExerciseView({
   onPracticeOther,
   runId,
   onNext,
-  inSession = false,
+  studySessionId,
   onSent,
 }: {
   cardId: string;
   onClose: () => void;
-  // Dentro de la sesión de Estudiar: se sale con «Pausar», y avisa cuando ya enviaste.
-  inSession?: boolean | undefined;
+  // Dentro de la sesión de Estudiar (cuál): lo que se envía queda anotado para ella, se sale con
+  // «Pausar» y avisa cuando ya enviaste.
+  studySessionId?: string | undefined;
   onSent?: (() => void) | undefined;
   // Fase 18: en un conjunto mezclado, la vuelta y qué hace «Siguiente».
   runId?: string | undefined;
@@ -68,6 +69,7 @@ export function ExerciseView({
   onPracticeOther?: ((cardId: string) => void) | undefined;
 }) {
   // En la sesión, el ejercicio va justo debajo del título de la pantalla.
+  const inSession = studySessionId !== undefined;
   const level = inSession ? 2 : 3;
   const [openingId] = useState(() => crypto.randomUUID());
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
@@ -223,6 +225,7 @@ export function ExerciseView({
         help: help.used,
         noIdea: help.noIdea,
         ...(runId === undefined ? {} : { runId }),
+        ...(studySessionId === undefined ? {} : { studySessionId }),
       });
       help.hidePanel();
       onSent?.();

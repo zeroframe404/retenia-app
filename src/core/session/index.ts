@@ -93,6 +93,10 @@ export type SessionEvent =
       readonly activeMs: number;
     };
 
+// Una sesión que todavía se puede seguir (en curso o en pausa, con algo pendiente).
+export const isOpenSession = (state: SessionState): boolean =>
+  (state.status === 'active' || state.status === 'paused') && !state.complete;
+
 // Primero la de menor probabilidad de recordarla; a igual probabilidad, la que venció antes; y
 // después el identificador, así el orden es siempre el mismo.
 function compareCandidates(a: QueueCandidate, b: QueueCandidate): number {

@@ -86,26 +86,42 @@ interface Tally {
   solved: number;
 }
 
+// Un envío de la sesión que quedó a mitad de la corrección.
+export interface PendingProcedure {
+  openingId: string;
+  requestId: string;
+  written: readonly { stepId: string; written: string }[];
+}
+
 // El procedimiento dentro de la sesión de Estudiar (Fase 18): una sola práctica y «Siguiente».
 export function SessionProcedure({
   cardId,
+  studySessionId,
+  resume,
   onNext,
   onSent,
   onEditReference,
+  onOpenObjective,
 }: {
   cardId: string;
+  studySessionId: string;
+  // Si pausaste a mitad de la corrección, se sigue con ese envío.
+  resume: PendingProcedure | null;
   onNext: () => void;
   onSent: () => void;
   onEditReference: (field: ReferenceField) => void;
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
 }) {
-  const [openingId] = useState(() => crypto.randomUUID());
+  const [pending] = useState(() => resume);
+  const [openingId] = useState(() => pending?.openingId ?? crypto.randomUUID());
   return (
     <ProcedureRun
       cardId={cardId}
       openingId={openingId}
-      session={{ onSent }}
+      session={{ id: studySessionId, onSent, resume: pending }}
       onClose={() => undefined}
       onEditReference={onEditReference}
+      onOpenObjective={onOpenObjective}
       onDone={onNext}
     />
   );
@@ -179,7 +195,7 @@ function ProcedureRun({
   openingId: string;
   onClose: () => void;
   // Dentro de la sesión: «Siguiente» en vez de «Terminar», sin «Otro problema» ni volver.
-  session?: { onSent: () => void } | undefined;
+  session?: { id: string; onSent: () => void; resume: PendingProcedure | null } | undefined;
   onEditReference: (field: ReferenceField) => void;
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onDone: (kind: keyof Tally, next: 'another' | 'finish') => void;
@@ -209,7 +225,10 @@ function ProcedureRun({
   const firstField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const retryField = useRef<HTMLInputElement>(null);
   const after = useRef<HTMLDivElement>(null);
-  const attemptRequest = useRef(crypto.randomUUID());
+  const attemptRequest = useRef(session?.resume?.requestId ?? crypto.randomUUID());
+  // Lo que había que retomar al abrir (no cambia mientras la práctica está a la vista).
+  const toResume = useRef(session?.resume ?? null);
+  const sessionRef = useRef(session?.id);
   const ids = useId();
   const help = useHelp({
     cardId,
@@ -225,10 +244,36 @@ function ProcedureRun({
     const load = async () => {
       const opened = await window.retenia['activities.start']({ cardId, openingId });
       const loaded = await window.retenia['procedure.open']({ cardId, openingId });
+      // El envío ya está guardado: pedir su corrección de nuevo dice en qué quedó.
+      const pending = toResume.current;
+      const checked =
+        pending === null
+          ? null
+          : await window.retenia['procedure.check']({
+              cardId,
+              openingId,
+              attemptId: pending.requestId,
+              answers: [],
+              help: [],
+              noIdea: false,
+              ...(sessionRef.current === undefined ? {} : { studySessionId: sessionRef.current }),
+            });
       if (alive) {
         setOpening(opened);
         resetHelp(opened);
         setView(loaded);
+        if (pending !== null && checked !== null) {
+          setAnswers(
+            Object.fromEntries(pending.written.map((item) => [item.stepId, item.written])),
+          );
+          if (checked.kind === 'error') {
+            setAttemptId(checked.attemptId);
+            setError(checked.step);
+          } else {
+            setAttemptId(checked.correction.attemptId);
+            setCorrection(checked.correction);
+          }
+        }
       }
     };
     load().catch(() => {
@@ -302,6 +347,7 @@ function ProcedureRun({
         cardId,
         openingId,
         why: keySteps.map((step) => ({ stepId: step.id, text: (why[step.id] ?? '').trim() })),
+        ...(session === undefined ? {} : { studySessionId: session.id }),
       });
       session?.onSent();
       setStudied(response.ladder);
@@ -316,6 +362,7 @@ function ProcedureRun({
         answers: blanks.map((step) => ({ stepId: step.id, written: answers[step.id] ?? '' })),
         help: help.used,
         noIdea: help.noIdea,
+        ...(session === undefined ? {} : { studySessionId: session.id }),
       });
       help.hidePanel();
       session?.onSent();

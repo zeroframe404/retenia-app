@@ -36,6 +36,10 @@ const GRADE_LABEL: Record<Grade, string> = {
   good: texts.cards.gradeGood,
 };
 
+// Lo que se ve y lo que se corrige de una tarjeta (para saber si «Editar» lo cambió).
+const contentOf = (card: CardDetail) =>
+  JSON.stringify([card.question, card.answer, card.activity, card.sheet, card.example, card.mode]);
+
 // La sesión de estudio (Fase 10): ocupa la ventana entera, sin el riel. Arriba, «PRÁCTICA
 // AUTÓNOMA», el progreso, «Más» y «Pausar»; en el medio, la pregunta con su camino de contexto y el
 // campo opcional «Tu respuesta…»; abajo, «Mostrar respuesta». Recién después aparecen la respuesta
@@ -50,10 +54,16 @@ export function SessionScreen({
   onExit,
   onToast,
   onOpenOriginal,
+  onOpenObjective,
+  onPracticeOther,
 }: {
   initial: SessionView;
   onExit: () => void;
   onToast: (text: string) => void;
+  // Tras un fallo en un ejercicio (CA-153): «Ir al requisito» y «Practicar la diferencia». La
+  // sesión queda en pausa.
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
+  onPracticeOther?: ((cardId: string) => void) | undefined;
   // «Ver en el original» de la tarjeta (Fase 13): se abre en el panel de la derecha, sin salir.
   onOpenOriginal?: ((target: { materialId: string; cardId: string }) => void) | undefined;
 }) {
@@ -73,6 +83,8 @@ export function SessionScreen({
   const [editing, setEditing] = useState<{ card: CardDetail; focus?: ReferenceField } | null>(null);
   // El ejercicio que ya enviaste (por su actividad): desde ahí no hay «Deshacer».
   const [sentActivity, setSentActivity] = useState<string | null>(null);
+  // Sube cuando «Editar» cambió un ejercicio sin enviar: se vuelve a abrir con lo nuevo.
+  const [revision, setRevision] = useState(0);
   const [shortcuts, setShortcuts] = useState(initial.showShortcuts);
   const inFlight = useRef(false);
   const interacted = useRef(false);
@@ -290,7 +302,7 @@ export function SessionScreen({
 
   const pause = useCallback(async () => {
     if (inFlight.current) {
-      return;
+      return false;
     }
     inFlight.current = true;
     setBusy(true);
@@ -298,12 +310,23 @@ export function SessionScreen({
       await autosaver.flush();
       await window.retenia['study.pause']({ sessionId });
       onExit();
+      return true;
     } catch {
       setFailed(texts.study.actionFailed);
       inFlight.current = false;
       setBusy(false);
+      return false;
     }
   }, [autosaver, onExit, sessionId]);
+
+  // Para ir a otra pantalla desde un ejercicio: primero se pausa la sesión.
+  const leaveFor = (go: () => void) => {
+    void pause().then((paused) => {
+      if (paused) {
+        go();
+      }
+    });
+  };
 
   const flag = () => {
     if (!current) {
@@ -332,9 +355,22 @@ export function SessionScreen({
 
   // «Editar»: la ficha en un panel; al guardar o cancelar, la misma tarjeta con lo escrito intacto.
   // Si la dejaste en pausa o fuera de los repasos, sale de la sesión como hecha.
+  // Si cambió un ejercicio que todavía no enviaste, se vuelve a abrir: se corrige lo que se ve.
   const closeEditor = () => {
+    const before = editing?.card;
     setEditing(null);
-    void run(() => window.retenia['study.view']({ sessionId }));
+    void run(async () => {
+      const next = await window.retenia['study.view']({ sessionId });
+      if (
+        before &&
+        next.current &&
+        !exerciseSent &&
+        contentOf(next.current.card) !== contentOf(before)
+      ) {
+        setRevision((value) => value + 1);
+      }
+      return next;
+    });
   };
 
   const firstInteraction = () => {
@@ -450,7 +486,8 @@ export function SessionScreen({
                 text: texts.study.edit,
                 onSelect: () => (current ? setEditing({ card: current.card }) : undefined),
               },
-              { key: 'skip', text: texts.study.skip, onSelect: skip },
+              // Un ejercicio ya enviado no se saltea: tiene su «Siguiente».
+              ...(exerciseSent ? [] : [{ key: 'skip', text: texts.study.skip, onSelect: skip }]),
             ]}
           />
           <Boton disabled={busy} onClick={() => void pause()}>
@@ -463,21 +500,26 @@ export function SessionScreen({
         <div ref={question as RefObject<HTMLDivElement>} tabIndex={-1} className={styles.exercise}>
           {current.card.activityType === 'procedure' ? (
             <SessionProcedure
-              key={current.activityId}
+              key={`${current.activityId}:${revision}`}
               cardId={current.cardId}
+              studySessionId={sessionId}
+              resume={current.resume}
               onNext={exerciseDone}
               onSent={exerciseSentNow}
               onEditReference={(focus) => setEditing({ card: current.card, focus })}
+              onOpenObjective={onOpenObjective && ((id) => leaveFor(() => onOpenObjective(id)))}
             />
           ) : (
             <ExerciseView
-              key={current.activityId}
+              key={`${current.activityId}:${revision}`}
               cardId={current.cardId}
-              inSession
+              studySessionId={sessionId}
               onClose={() => void pause()}
               onNext={exerciseDone}
               onSent={exerciseSentNow}
               onEditReference={(focus) => setEditing({ card: current.card, focus })}
+              onOpenObjective={onOpenObjective && ((id) => leaveFor(() => onOpenObjective(id)))}
+              onPracticeOther={onPracticeOther && ((id) => leaveFor(() => onPracticeOther(id)))}
             />
           )}
           {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}

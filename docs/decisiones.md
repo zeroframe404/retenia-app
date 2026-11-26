@@ -638,10 +638,26 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Cuáles vuelven:** los que ya practicaste, cuando les toca el repaso: respuesta corta, numérica, opciones, ordenar, abierta, decisión y procedimiento. Uno nuevo no se propone solo (la primera vez es con «Practicar ahora»), y el conjunto mezclado no tiene repaso propio: vuelven sus problemas. Un procedimiento tiene repaso recién desde que completaste algún paso; haber visto solo el ejemplo no lo programa.
 - **Dónde van:** la sesión empieza con una tarjeta y los ejercicios van repartidos entre las tarjetas. Qué entra se sigue eligiendo por riesgo de olvido, todos juntos.
 - **Cuánto tardan** para armar la sesión: 2 minutos un ejercicio y 8 un procedimiento (los valores iniciales de la especificación; todavía no aprenden de tus tiempos). Para los minutos estudiados, un ejercicio cuenta como máximo 2 minutos quieto, la regla de siempre. La política de carga pasa a la versión 2.
-- **Cómo cuentan:** «Correcto.» como «La sabía», «Vas bien.» como «Con dudas» y «Todavía no.» como «No la sabía» (vale el primer intento). Marcado con «Discrepo» como ambiguo o incorrecto, queda como «En revisión». De un procedimiento que ese día muestra el ejemplo, verlo lo da por hecho sin sumar un resultado, y sigue vencido.
+- **Cómo cuentan:** «Correcto.» como «La sabía», «Vas bien.» como «Con dudas» y «Todavía no.» como «No la sabía» (vale el primer intento). Marcado con «Discrepo» como ambiguo o incorrecto, queda como «En revisión». De un procedimiento que ese día muestra el ejemplo, verlo lo da por hecho sin sumar un resultado; sigue vencido y vuelve recién al otro día.
 - **Lo que cambia en la sesión:** un ejercicio mal contestado no vuelve en la misma sesión (lo trae su próximo repaso). Después de «Enviar» no hay «Deshacer» (para corregir están «Cambiar resultado» y «Discrepo»), y tampoco se deshace la tarjeta de antes una vez que lo pasaste. Espacio y 1, 2, 3 no hacen nada sobre un ejercicio. Si pausás o cerrás después de enviar, al continuar no te lo vuelve a pedir.
 - **Error de antes (Fase 16) que apareció al probarlo:** si cerrabas el programa después de «Enviar» y antes de «Siguiente», la corrección no se guardaba. Ahora el ejercicio la guarda antes de que se cierre la ventana, también en «Practicar ahora».
 - **La demostración:** los intentos sembrados pasaron al 14/03 (y sumé uno acertado en la decisión del sueldo, sin sacar el error del 12/03 que usa M18.7), así los 4 ejercicios con historial vencen el 16/03 y la propuesta del 15/03 sigue igual: 60 repasos y 10 nuevas.
 - **Pruebas de antes que cambié:** la de la Fase 16 que exigía que un ejercicio vencido no entrara al día siguiente ahora exige que entre (suma exactamente 1); otra cambió solo el título; los dos números de «Mañana vencen» suben en 4 (16 → 20, en pantalla y punta a punta; 30 → 34, en pantalla); las dos que fijaban la versión 1 de la política de carga esperan la 2; la lista de canales del puente suma el nuevo.
-- **Sin segunda revisión:** el revisor independiente corrió una vez, antes de este agregado (regla «Gastar poco»), así que esta parte no pasó por él. La corrida completa tampoco se repitió.
-
+- **Segunda revisión, sobre esta parte** (la pediste el 26/11/2026): 16 objeciones, 2 graves, 5 importantes y 9 menores. Cada error tiene su prueba, vista en rojo en un commit aparte antes del arreglo. La causa de varias era la misma: la sesión contaba cualquier intento de la tarjeta. Ahora cada envío anota desde qué sesión salió, y el programa rechaza uno que diga venir de una sesión que no está mostrando esa tarjeta.
+  1. Grave: «La tarjeta está mal» después de enviar cambiaba el próximo repaso (contra CA-077). Lo enviado queda sin contar.
+  2. Grave: los aplazamientos de un ejercicio no se reiniciaban nunca (quedaba obligatorio para siempre, u oculto hasta la fecha elegida). Un ejercicio contestado los reinicia, como una tarjeta.
+  3. «Tengo: 5» con solo un procedimiento decía que no había nada y no dejaba volver. Ahora dice «En 5 minutos no entra ninguno de los repasos de hoy. Probá con más tiempo.» con las opciones a la vista.
+  4. Después de «Editar», el ejercicio mostraba lo viejo y corregía contra lo nuevo. Se vuelve a abrir.
+  5. «Saltar» después de enviar lo mandaba al final y lo pedía de nuevo. Ya no se ofrece, y el programa lo ignora.
+  6. Pausar a mitad de un procedimiento lo daba por fallado sin dejar reintentar ni ver la corrección. Al continuar, sigue en esa misma corrección.
+  7. Un corte entre «Enviar» y «Siguiente» hacía valer la segunda respuesta. Lo que Retenia corrige sola queda anotado como lo propuso. Una respuesta abierta sin comparar no se vuelve a pedir ni cuenta, y vuelve otro día.
+  8. «Discrepo» y después «Saltar» no contaba como «En revisión». Cuenta.
+  9. El cierre podía mostrar lo hecho por fuera con la sesión en pausa. Solo cuenta lo enviado desde la sesión.
+  10. Un ejemplo visto volvía en cada sesión del mismo día. Vuelve recién al otro día.
+  11. Con tarjetas solo nuevas, la sesión podía empezar con un ejercicio. Los ejercicios se reparten entre todas.
+  12. El tope de 2 minutos valía solo con «Siguiente». Vale también al pausar, saltar, marcar o cerrar.
+  13. En la sesión faltaban «Ir al requisito» y «Practicar la diferencia». Están, y dejan la sesión en pausa.
+  14. «Después de enviar no se deshace» lo imponía solo la ventana. También el programa.
+  15. Una prueba de antes había quedado floja. Vuelve a comparar toda la propuesta con valores exactos y comprueba que lo que entra es ese ejercicio.
+  16. Faltaba la última línea de la verificación rápida en el estado. Está.
+- **Para tener presente (lo marcó el revisor):** al armar la sesión, un procedimiento cuenta 8 minutos. En una sesión de 10 minutos puede dejar entrar muy pocas tarjetas y pasar las demás a mañana. Es el valor inicial de la especificación; si te molesta, se puede bajar.

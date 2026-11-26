@@ -1,14 +1,16 @@
 import { and, eq, inArray, like } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
+import { currentEvaluation } from '../core/ledger';
 import { studyDayOf } from '../core/study-day';
 import { appendObservation, readPayload } from './ledger';
 import type { Writer } from './orm';
-import { observations } from './schema';
+import { evaluations, observations } from './schema';
 
 // Los aplazamientos (Fase 11, H-22). Posponer es un evento propio: guarda la fecha que sugería el
 // motor, la nueva fecha planificada y el motivo. Nunca califica ni mueve la agenda de la tarjeta
 // (no es de los tipos de evento que la recalculan): lo único que cambia es cuándo vuelve a
-// proponerse y cuánta prioridad gana. Un repaso de verdad (el día real) vuelve a empezar la cuenta.
+// proponerse y cuánta prioridad gana. Un repaso de verdad (el día real) vuelve a empezar la cuenta:
+// el de una tarjeta o el envío de un ejercicio que cuenta.
 
 export interface PostponementState {
   // Cuántas veces se pospuso desde el último repaso que valió.
@@ -41,11 +43,20 @@ export function postponementStates(
     .where(
       and(
         inArray(observations.cardId, [...cardIds]),
-        inArray(observations.kind, ['review.postponed', 'review.graded', 'review.annulled']),
+        inArray(observations.kind, [
+          'review.postponed',
+          'review.graded',
+          'review.annulled',
+          'attempt.submitted',
+        ]),
       ),
     )
     .orderBy(observations.seq)
     .all();
+  const counted = countedAttempts(
+    db,
+    rows.flatMap((row) => (row.kind === 'attempt.submitted' ? [row.id] : [])),
+  );
   const annulled = new Set(
     rows.flatMap((row) =>
       row.kind === 'review.annulled'
@@ -63,6 +74,12 @@ export function postponementStates(
       }
       continue;
     }
+    if (row.kind === 'attempt.submitted') {
+      if (counted.has(row.id)) {
+        states.set(row.cardId, NONE);
+      }
+      continue;
+    }
     const payload = readPayload('review.postponed', row.version, row.payload);
     const before = states.get(row.cardId) ?? NONE;
     // «Más tarde hoy» (la fecha planificada es el mismo día) se registra pero no cuenta para el
@@ -74,6 +91,29 @@ export function postponementStates(
     });
   }
   return states;
+}
+
+// De esos envíos, los que cuentan: con una evaluación vigente que no quedó afuera.
+function countedAttempts(db: Writer, attemptIds: readonly string[]): Set<string> {
+  if (attemptIds.length === 0) {
+    return new Set();
+  }
+  const versions = db
+    .select({
+      id: evaluations.id,
+      attemptId: evaluations.attemptId,
+      version: evaluations.version,
+      affected: evaluations.affected,
+    })
+    .from(evaluations)
+    .where(inArray(evaluations.attemptId, [...attemptIds]))
+    .all();
+  return new Set(
+    attemptIds.filter((attemptId) => {
+      const current = currentEvaluation(versions.filter((item) => item.attemptId === attemptId));
+      return current !== null && current.affected !== 1;
+    }),
+  );
 }
 
 // La fecha planificada vigente de una tarjeta (para guardarla junto al repaso real).

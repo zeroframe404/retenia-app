@@ -271,8 +271,9 @@ export const activitiesSubmitRequest = z.strictObject({
   answer: attemptAnswerSchema,
   help: helpList,
   noIdea: z.boolean(),
-  // Fase 18: el conjunto intercalado en el que se resuelve.
+  // Fase 18: el conjunto intercalado en el que se resuelve, o la sesión de Estudiar.
   runId: z.uuid().optional(),
+  studySessionId: z.uuid().optional(),
 });
 
 // La primera interacción con la actividad (escribir, elegir, mover): el principal mide el tiempo.

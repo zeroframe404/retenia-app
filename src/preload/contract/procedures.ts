@@ -67,6 +67,7 @@ export const procedureStudiedRequest = z.strictObject({
   why: z
     .array(z.strictObject({ stepId: itemId, text: z.string().trim().min(1).max(MAX_TEXT) }))
     .max(8),
+  studySessionId: z.uuid().optional(),
 });
 export const procedureStudiedResponse = z.strictObject({ ladder: ladderSchema });
 
@@ -96,6 +97,7 @@ export const procedureCheckRequest = z.strictObject({
   answers: z.array(z.strictObject({ stepId: itemId, written })).max(8),
   help: z.array(helpUseSchema).max(40),
   noIdea: z.boolean(),
+  studySessionId: z.uuid().optional(),
 });
 export const procedureCheckResponse = z.discriminatedUnion('kind', [
   // «Hay un error en el paso N; ¿lo encontrás?», sin mostrar la corrección todavía.

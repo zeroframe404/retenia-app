@@ -41,6 +41,33 @@ export interface Eligible extends QueueCandidate {
   readonly activityType: string | null;
 }
 
+const laterDay = (a: string, b: string) => (a > b ? a : b);
+
+// Los ejercicios que hoy quedaron hechos en una sesión sin un resultado que mueva su repaso: el
+// ejemplo de un procedimiento, o una respuesta abierta que no llegaste a comparar.
+function seenTodayOf(db: Writer, today: string): Set<string> {
+  return new Set(
+    db
+      .select({
+        at: observations.occurredAt,
+        payload: observations.payload,
+        version: observations.schemaVersion,
+      })
+      .from(observations)
+      .where(
+        and(
+          eq(observations.kind, 'session.exercise_done'),
+          gt(observations.occurredAt, dayStart(today)),
+        ),
+      )
+      .all()
+      .filter((row) => studyDayOf(new Date(row.at)) === today)
+      .map((row) => readPayload('session.exercise_done', row.version, row.payload))
+      .filter((payload) => payload.outcome === 'seen')
+      .map((payload) => payload.cardId),
+  );
+}
+
 // Las tarjetas y los ejercicios ya repasados de una materia que pueden entrar en una sesión: sin
 // pausar, sin borrar y con la ficha fuera de «En revisión» y «Retirada». Con su probabilidad de
 // recordarlos el día `today` y el día en que vencen.
@@ -79,6 +106,7 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
       ),
     )
     .all();
+  const seenToday = seenTodayOf(db, today);
   return rows.flatMap((row) => {
     const memory: CardMemory = {
       state: row.state,
@@ -99,7 +127,8 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
         retentionTarget: row.retentionTarget,
         reps: row.reps,
         activityType: row.activityType,
-        dueDay: studyDayOf(memory.dueAt),
+        // Visto hoy en una sesión sin que cuente: sigue vencido, pero vuelve recién mañana.
+        dueDay: laterDay(studyDayOf(memory.dueAt), seenToday.has(row.cardId) ? nextDay(today) : ''),
         recall: recallProbability(memory, today) ?? 0,
       },
     ];

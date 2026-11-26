@@ -170,6 +170,8 @@ const attemptSubmittedV1 = z.strictObject({
   // Fase 18, opcionales: los intentos de antes no los traen.
   variant: attemptVariant.optional(),
   procedure: attemptProcedure.optional(),
+  // La sesión de Estudiar desde la que se envió (nulo con «Practicar ahora»).
+  studySessionId: z.uuid().optional(),
 });
 const appealReason = z.enum([
   'answer_correct',
@@ -385,6 +387,7 @@ const PAYLOADS = {
       versionId: z.uuid(),
       openingId: z.uuid(),
       why: z.array(z.strictObject({ stepId: z.string(), answer: z.string() })),
+      studySessionId: z.uuid().optional(),
     }),
   },
   // «Reintentar» un paso antes de ver la corrección, y haberla visto.
@@ -634,7 +637,7 @@ export interface EvaluationFacts {
   readonly components?: unknown;
   readonly certainty?: 'certain' | 'uncertain';
   readonly engineSignal?: 'again' | 'hard' | 'good' | null;
-  readonly cause?: 'graded' | 'lowered' | 'appeal' | 'undo' | 'reference_incorrect';
+  readonly cause?: 'graded' | 'lowered' | 'appeal' | 'undo' | 'reference_incorrect' | 'flagged';
   readonly appealReason?: string | null;
   readonly affected?: boolean;
   readonly amendmentId?: string | null;
