@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 // Anthropic con el SDK de verdad, el permiso, el costo, «Qué se envió», el tope) sin llamar a la IA
 // real ni gastar. Las pruebas que lo usan lo dicen con «(simulado)».
 
-export interface FakeAiRequest {
+interface FakeAiRequest {
   readonly method: string;
   readonly path: string;
   readonly apiKey: string | null;

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gte, lt, sql } from 'drizzle-orm';
-import type { AiQueueItem, AiStorePort } from '../ai/ports';
+import type { AiQueueItem, AiStorePort } from '../core/ai/ports';
 import { localDateTime } from '../core/study-day';
 import type { AiPermissions, AiSentLog } from '../preload/contract/ai';
 import type { ReteniaDatabase } from './database';

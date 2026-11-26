@@ -10,11 +10,11 @@ import type { AiFunctionState } from './functions';
 // La IA simulada de la demostración (`local`) no saca nada de la PC ni gasta: no pregunta el
 // permiso ni mira el tope.
 
-export type ProviderReach = 'none' | 'remote' | 'local';
+type ProviderReach = 'none' | 'remote' | 'local';
 export type PermissionScope = 'always' | 'never';
 export type PermissionChoice = 'once' | 'always' | 'never';
 
-export type BlockReason =
+type BlockReason =
   | 'suspended'
   | 'local_only'
   | 'not_connected'

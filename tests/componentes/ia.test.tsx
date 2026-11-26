@@ -246,7 +246,7 @@ describe('«Explicame este fragmento»', () => {
     );
     await opened.user.keyboard('{Enter}');
     expect(await screen.findByText('Anotado en la Bandeja.', {}, SLOW)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Ver', exact: true })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Ver' })).toBeNull();
   });
 
   it('[CA-170] (simulado) con «Modo solo local» dice que está activado y no manda nada', async () => {

@@ -63,7 +63,7 @@ const moneyFormat = new Intl.NumberFormat('es-AR', {
 });
 const MICROS_PER_CENT = 10_000;
 const centsOf = (micros: number) => Math.floor((micros + MICROS_PER_CENT / 2) / MICROS_PER_CENT);
-export function formatUsd(micros: number): string {
+function formatUsd(micros: number): string {
   if (micros > 0 && centsOf(micros) === 0) {
     return 'menos de USD 0,01';
   }

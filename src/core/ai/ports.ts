@@ -1,14 +1,15 @@
-import type { PermissionScope, Usage } from '../core/ai';
+import type { Usage } from './cost';
+import type { PermissionScope } from './gate-rules';
 
 // Lo único que la compuerta de IA puede hacer con la base (Fase 19, CA-174): leer y escribir sus
 // propias tablas. No recibe nada que toque tarjetas, repasos, historial ni dominio, así que ninguna
 // respuesta de un modelo tiene cómo escribir ahí. Lo implementa src/data/ai.ts y lo arma el
-// principal.
+// principal; vive en el núcleo porque los datos no importan de la IA (regla de capas R4).
 
 export type AiRequestStatus = 'ok' | 'rejected_schema' | 'refused' | 'failed';
 
 // Un envío a la IA, para «Qué se envió» y el tope del mes: nunca el texto del pasaje ni la respuesta.
-export interface AiRequestRecord {
+interface AiRequestRecord {
   readonly id: string;
   readonly at: string;
   readonly purpose: string;
@@ -48,7 +49,7 @@ export interface AiQueueItem {
 }
 
 // Las trazas técnicas: qué pasó con cada intento, sin textos. Se borran a los 90 días.
-export interface AiTraceRecord {
+interface AiTraceRecord {
   readonly id: string;
   readonly at: string;
   readonly queueItemId: string;

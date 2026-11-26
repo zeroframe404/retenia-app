@@ -12,6 +12,7 @@ import {
   type PermissionChoice,
   percentUsed,
 } from '../core/ai';
+import type { AiQueueItem, AiRequestStatus, AiStorePort } from '../core/ai/ports';
 import { type Clock, type Stopwatch, systemStopwatch } from '../core/clock';
 import type { AiOutcome } from '../preload/contract/ai';
 import type { AiEvent } from '../preload/contract/events';
@@ -23,7 +24,6 @@ import {
   verifyExplanation,
 } from './functions/explain-fragment';
 import { parseModelOutput } from './parse';
-import type { AiQueueItem, AiRequestStatus, AiStorePort } from './ports';
 import { PRICES, priceFor } from './prices';
 import { type AiProvider, AiProviderError, type CompletionResponse } from './provider';
 import { toApiSchema } from './schema-api';

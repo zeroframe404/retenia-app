@@ -29,7 +29,7 @@ export interface KeyStore {
   secure(): boolean;
 }
 
-export const KEY_FILE = 'clave.bin';
+const KEY_FILE = 'clave.bin';
 
 export function createKeyStore({ dataDir, box }: { dataDir: string; box: SecretBox }): KeyStore {
   const file = join(dataDir, KEY_FILE);

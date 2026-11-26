@@ -15,7 +15,7 @@ import type { AiProvider, CompletionRequest } from '../../ai/provider';
 // También acá: `RETENIA_IA_ORIGEN`, la dirección del servidor de la IA en la PC para la punta a
 // punta (solo `http://127.0.0.1:<puerto>`; la versión real no tiene esto).
 
-export interface DemoAiState {
+interface DemoAiState {
   simulated: boolean;
   bad: boolean;
   slow: boolean;

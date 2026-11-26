@@ -4,7 +4,7 @@
 // alrededor; mayúsculas, tildes y signos tienen que coincidir. Una cita de menos de tres palabras no
 // cuenta: se encuentra en cualquier lado y no respalda nada.
 
-export const MIN_QUOTE_WORDS = 3;
+const MIN_QUOTE_WORDS = 3;
 
 const WRAPPERS = /^[\s«»“”"'‘’…]+|[\s«»“”"'‘’…]+$/gu;
 

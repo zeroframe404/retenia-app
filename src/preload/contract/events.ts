@@ -14,7 +14,7 @@ export const materialEventSchema = z.discriminatedUnion('type', [
 ]);
 export type MaterialEvent = z.output<typeof materialEventSchema>;
 
-export const aiEventSchema = z.discriminatedUnion('type', [
+const aiEventSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('ai.pending'), requestId: z.uuid() }),
   z.strictObject({ type: z.literal('ai.result'), requestId: z.uuid() }),
 ]);

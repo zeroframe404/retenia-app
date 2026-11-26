@@ -80,20 +80,21 @@ export function DemoSection({
     };
   }, []);
 
+  // Como «Procesar despacio»: si no se puede leer, las tres casillas arrancan apagadas.
   useEffect(() => {
     let alive = true;
-    window.retenia['demo.ai']({}).then(
-      (state) => {
+    void (async () => {
+      try {
+        const state = await window.retenia['demo.ai']({});
         if (alive) {
           setSimulatedAi(state);
         }
-      },
-      () => {
+      } catch {
         if (alive) {
           setSimulatedAi({ simulated: false, bad: false, slow: false });
         }
-      },
-    );
+      }
+    })();
     return () => {
       alive = false;
     };

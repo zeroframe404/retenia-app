@@ -12,7 +12,7 @@ export class OfflineError extends Error {
 }
 
 // «Modo solo local» prendido: nada sale de la PC.
-export class LocalOnlyError extends OfflineError {
+class LocalOnlyError extends OfflineError {
   constructor() {
     super('Modo solo local');
     this.name = 'LocalOnlyError';
