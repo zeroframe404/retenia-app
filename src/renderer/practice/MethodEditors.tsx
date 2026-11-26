@@ -2,7 +2,6 @@ import { useId } from 'react';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import formStyles from '../ui/Form.module.css';
-import type { ActivityDraft } from './ActivityEditor';
 import type { FamilyDraft } from './familyText';
 import styles from './Practice.module.css';
 
@@ -12,12 +11,12 @@ import styles from './Practice.module.css';
 const editor = texts.practice.editor;
 const newId = (): string => crypto.randomUUID();
 
-export const MAX_PROCEDURE_STEPS = 8;
-export const MIN_PROCEDURE_STEPS = 2;
-export const MAX_METHODS = 5;
-export const MIN_METHODS = 2;
-export const MAX_TYPES = 5;
-export const MIN_TYPES = 2;
+const MAX_PROCEDURE_STEPS = 8;
+const MIN_PROCEDURE_STEPS = 2;
+const MAX_METHODS = 5;
+const MIN_METHODS = 2;
+const MAX_TYPES = 5;
+const MIN_TYPES = 2;
 
 export const blankProcedureStep = (key = false) => ({
   id: newId(),
@@ -92,7 +91,7 @@ export function FamilyEditor({
   );
 }
 
-type Steps = ActivityDraft['procedureSteps'];
+type Steps = ReturnType<typeof blankProcedureStep>[];
 
 export function ProcedureEditor({
   steps,
@@ -180,7 +179,7 @@ export function ProcedureEditor({
   );
 }
 
-type Methods = ActivityDraft['methods'];
+type Methods = ReturnType<typeof blankMethod>[];
 
 export function DecisionEditor({
   methods,
@@ -237,7 +236,7 @@ export function DecisionEditor({
   );
 }
 
-type Types = ActivityDraft['types'];
+type Types = ReturnType<typeof blankType>[];
 
 export interface ExerciseChoice {
   id: string;

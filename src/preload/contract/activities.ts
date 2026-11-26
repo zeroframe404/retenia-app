@@ -30,7 +30,7 @@ const formula = z.string().trim().min(1).max(MAX_FORMULA);
 
 // Una familia de variantes (Fase 18): enunciados con «{dato}», los datos que cambian y los que salen
 // de una cuenta.
-export const variantFamilySchema = z.strictObject({
+const variantFamilySchema = z.strictObject({
   statements: z.array(itemText).min(1).max(6),
   parameters: z
     .array(z.strictObject({ name, values: z.array(z.number()).min(1).max(200) }))

@@ -25,10 +25,7 @@ const KINDS = ['variant.seen', 'attempt.submitted', 'procedure.studied'];
 
 // Las variantes vistas de una tarjeta, en orden, y las que ya se contestaron (con un intento o con
 // el ejemplo explicado).
-export function variantHistory(
-  db: Writer,
-  cardId: string,
-): { seen: Seen[]; practiced: Set<number> } {
+function variantHistory(db: Writer, cardId: string): { seen: Seen[]; practiced: Set<number> } {
   const rows = db
     .select({
       kind: observations.kind,

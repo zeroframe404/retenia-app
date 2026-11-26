@@ -8,7 +8,6 @@ import { inCanonicalOrder } from '../ledger';
 // Cuántos ítems tiene un bloque (entre 5 y 10: con 7 se puede fallar uno).
 export const MICRO_ITEMS = 7;
 export const MICRO_MIN_ITEMS = 5;
-export const MICRO_MAX_ITEMS = 10;
 const PASS_PERCENT = 85;
 const ERRORS_TO_START = 2;
 const SESSIONS_TO_PASS = 2;

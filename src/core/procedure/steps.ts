@@ -16,7 +16,7 @@ import type { Rung } from './ladder';
 // número esperado se escribe como cuenta: con los datos de la variante y los pasos de antes
 // («paso1», «paso2»…).
 
-export type StepExpected =
+type StepExpected =
   | {
       readonly type: 'number';
       readonly formula: string;
@@ -25,7 +25,7 @@ export type StepExpected =
     }
   | { readonly type: 'text'; readonly text: string };
 
-export interface ProcedureStep {
+interface ProcedureStep {
   readonly id: string;
   readonly prompt: string;
   readonly expected: StepExpected;
@@ -132,8 +132,8 @@ export type ProcedureProblem =
   | 'family'
   | 'formula';
 
-export const MIN_STEPS = 2;
-export const MAX_STEPS = 8;
+const MIN_STEPS = 2;
+const MAX_STEPS = 8;
 // Con cuántas variantes se prueba que las cuentas den un número.
 const CHECKED_VARIANTS = 50;
 

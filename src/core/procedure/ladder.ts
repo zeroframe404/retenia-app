@@ -59,9 +59,9 @@ export type LadderEvent =
     });
 
 // «less»: se retiró un escalón de apoyo. «more»: se sumó.
-export type SupportChange = 'less' | 'more';
+type SupportChange = 'less' | 'more';
 
-export interface LadderStep {
+interface LadderStep {
   readonly id: string;
   readonly studyDay: string;
   readonly counted: boolean;

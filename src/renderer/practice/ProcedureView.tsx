@@ -29,7 +29,7 @@ import { useHelp } from './useHelp';
 
 const text = texts.practice.procedure;
 
-export function rungName(rung: RungValue): string {
+function rungName(rung: RungValue): string {
   return rung.kind === 'blanks' ? text.rungNames.blanks(rung.blanks) : text.rungNames[rung.kind];
 }
 

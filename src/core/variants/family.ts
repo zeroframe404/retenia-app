@@ -5,12 +5,12 @@ import { evaluateFormula, FUNCTION_NAMES, NAME_PATTERN } from './formula';
 // valores posibles) y los datos que salen de una cuenta. La variante número N es siempre la misma
 // con la misma semilla, y dos números seguidos dan combinaciones distintas hasta agotar la familia.
 
-export interface FamilyParameter {
+interface FamilyParameter {
   readonly name: string;
   readonly values: readonly number[];
 }
 
-export interface FamilyDerived {
+interface FamilyDerived {
   readonly name: string;
   readonly formula: string;
 }
@@ -81,7 +81,7 @@ export function renderTemplate(template: string, values: VariantValues): string 
   });
 }
 
-export function placeholdersOf(template: string): string[] {
+function placeholdersOf(template: string): string[] {
   return [...template.matchAll(PLACEHOLDER)].map((match) => match[1] ?? '');
 }
 

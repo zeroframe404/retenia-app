@@ -2,7 +2,7 @@
 // los nombres de los datos, + − × ÷ ^, paréntesis y unas pocas funciones. Se lee acá mismo, sin
 // ejecutar código: lo que no es una cuenta se rechaza.
 
-export class FormulaError extends Error {
+class FormulaError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'FormulaError';

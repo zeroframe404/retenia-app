@@ -30,8 +30,8 @@ import { activeCard, type CardRow, findCard } from './content';
 import type { ReteniaDatabase } from './database';
 import { appendObservation, readPayload, type StoredPayload } from './ledger';
 import type { Writer } from './orm';
-import { stepStatesOf } from './procedures';
 import { cardVersions, evaluations, observations } from './schema';
+import { stepStatesOf } from './step-states';
 
 // El micro-ejercicio (Fase 18, CA-166). Un «punto» es un paso de un procedimiento o la cuenta de un
 // numérico con variantes: son los errores de los que Retenia puede armar de 5 a 10 ítems distintos
@@ -56,7 +56,7 @@ const KINDS = ['attempt.submitted', 'micro.finished'];
 
 // Los eventos de los puntos: cada intento con variantes (los pasos que se completaron y los que
 // salieron mal) y cada sesión terminada del micro-ejercicio. `cardId`: solo los de esa tarjeta.
-export function microEvents(db: Writer, cardId?: string): MicroEvent[] {
+function microEvents(db: Writer, cardId?: string): MicroEvent[] {
   const where =
     cardId === undefined
       ? inArray(observations.kind, KINDS)

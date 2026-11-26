@@ -18,7 +18,7 @@ export interface SetItem {
 export const MIN_TYPES = 2;
 export const MAX_TYPES = 5;
 // De cada tipo entran 3 como mucho: con media, mediana y moda, 9.
-export const PER_TYPE = 3;
+const PER_TYPE = 3;
 
 // Palabras sin mayúsculas ni tildes (la ñ es una letra: su virgulilla, U+0303, se queda).
 const wordsOf = (text: string): string[] =>

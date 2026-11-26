@@ -10,7 +10,7 @@ export interface FamilyDraft {
   derived: string;
 }
 
-export const EMPTY_FAMILY: FamilyDraft = { statements: '', parameters: '', derived: '' };
+const EMPTY_FAMILY: FamilyDraft = { statements: '', parameters: '', derived: '' };
 
 const lines = (text: string) =>
   text

@@ -38,6 +38,7 @@ import { pendingReturnSteps } from './micro';
 import type { Writer } from './orm';
 import { recomputeCardSchedule } from './projections';
 import { cardVersions, evaluations, observations } from './schema';
+import { stepStatesOf } from './step-states';
 import { isNewVariant, showVariant, variantOfOpening } from './variants';
 
 // El procedimiento (Fase 18, H-37): la escalera de apoyo sale del historial; cada envío es un
@@ -58,7 +59,7 @@ class ProcedureStepError extends Error {
   }
 }
 
-export interface ProcedureAttemptInput {
+interface ProcedureAttemptInput {
   cardId: string;
   openingId: string;
   attemptId: string;
@@ -91,30 +92,12 @@ export interface ProceduresStore {
 
 type Attempt = StoredPayload<'attempt.submitted'> & { id: string };
 
-export function procedureOf(row: { activity: string | null }): Procedure {
+function procedureOf(row: { activity: string | null }): Procedure {
   const activity = parsedActivity(row);
   if (activity?.type !== 'procedure') {
     throw new NotAProcedureError();
   }
   return activity;
-}
-
-// Cómo terminó cada paso vacío de un intento ya evaluado, según su evaluación vigente (nulo si
-// quedó sin evaluar o «Discrepo» lo dejó sin contar).
-export function stepStatesOf(
-  versions: readonly {
-    id: string;
-    version: number;
-    components: string | null;
-    affected: number;
-  }[],
-): { id: string; state: StepState }[] | null {
-  const current = currentEvaluation(versions);
-  if (current === null || current.affected === 1 || current.components === null) {
-    return null;
-  }
-  const parsed = JSON.parse(current.components) as { steps?: { id: string; state: StepState }[] };
-  return parsed.steps ?? null;
 }
 
 const LADDER_KINDS = ['procedure.studied', 'attempt.submitted'];
@@ -171,7 +154,7 @@ function ladderEvents(db: Writer, cardId: string): LadderEvent[] {
   return events;
 }
 
-export function ladderOf(db: Writer, cardId: string, stepCount: number): LadderResult {
+function ladderOf(db: Writer, cardId: string, stepCount: number): LadderResult {
   return projectLadder(rungsOf(stepCount).length, ladderEvents(db, cardId));
 }
 

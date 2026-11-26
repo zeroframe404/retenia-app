@@ -18,8 +18,9 @@ import { difficultyOf } from './difficulty';
 import type { EvidenceAttempt } from './evidence';
 import { appendObservation, readPayload } from './ledger';
 import { objectivesSnapshot, subjectFor } from './objectives';
-import { resultText, stepStatesOf } from './procedures';
+import { resultText } from './procedures';
 import { cardSchedule, cards, cardVersions, evaluations, observations } from './schema';
+import { stepStatesOf } from './step-states';
 
 // Progreso › «Mis errores» (CA-155) y «Mejorar la tarjeta» (CA-154), Fase 17.
 
