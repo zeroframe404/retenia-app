@@ -201,6 +201,19 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'materials.createCard',
       'materials.saveExcerpt',
       'materials.preview',
+      // La IA (Fase 19): la compuerta, la clave, el tope, el modo solo local y «Qué se envió».
+      'ai.status',
+      'ai.testConnection',
+      'ai.deleteKey',
+      'ai.setCap',
+      'ai.setLocalOnly',
+      'ai.setFunctionState',
+      'ai.sentLog',
+      'ai.permissions',
+      'ai.revokePermission',
+      'ai.explain',
+      'ai.outcome',
+      'ai.cancel',
       // El zoom con el teclado (Fase 06).
       'window.zoom',
       // El aviso de que la pantalla guardó antes de cerrar (Fase 07).
@@ -217,6 +230,9 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       // «Procesar despacio» (Fase 13).
       'demo.processing',
       'demo.setProcessing',
+      // Los interruptores de la IA simulada (Fase 19).
+      'demo.ai',
+      'demo.setAi',
       // «Simular sin conexión» y el Laboratorio (Fase 05).
       'demo.connection',
       'demo.setConnection',
