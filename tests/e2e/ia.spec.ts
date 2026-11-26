@@ -123,6 +123,38 @@ test('[CA-174] [CA-175] [CA-173] (simulado) con la IA simulada: la explicación 
   ).toHaveCount(0);
 });
 
+test('[CA-174] (simulado) el panel de la explicación va al lado del texto: no tapa el pasaje elegido ni sus botones, con la ventana del tamaño con que abre', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await goToDestination(page, 'Ajustes');
+  await check(page, 'IA simulada', true);
+  await openMaterial(page, /Inferencia — capítulos 1 a 4/);
+  await explain(page, SAMPLE);
+  const panel = explanationPanel(page);
+  await expect(panel.getByRole('heading', { name: 'Según tu material' })).toBeVisible(SLOW);
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  const passage = main(page).getByText(SAMPLE, { exact: false }).first();
+  const others = [
+    ['el pasaje', passage],
+    ['«Crear tarjeta desde acá»', page.getByRole('button', { name: 'Crear tarjeta desde acá' })],
+    ['«Explicame este fragmento»', page.getByRole('button', { name: 'Explicame este fragmento' })],
+  ] as const;
+  for (const [name, other] of others) {
+    const area = await other.boundingBox();
+    expect(area, name).not.toBeNull();
+    if (box && area) {
+      const apart =
+        area.x + area.width <= box.x ||
+        box.x + box.width <= area.x ||
+        area.y + area.height <= box.y ||
+        box.y + box.height <= area.y;
+      expect(apart, `el panel tapa ${name}`).toBe(true);
+    }
+  }
+});
+
 test('[CA-176] (simulado) sin conexión queda «Pendiente: se reanuda cuando haya conexión» y, al volver, llega sola', async ({
   launchFromStart,
 }) => {
