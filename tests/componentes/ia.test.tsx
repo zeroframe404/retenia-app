@@ -391,6 +391,134 @@ describe('Ajustes › «Inteligencia artificial»', () => {
   });
 });
 
+describe('lo que encontró el revisor: lo que se ve', () => {
+  async function connectedWindow() {
+    const { script, provider } = remoteAi();
+    const opened = openWindow('real', undefined, { ai: { remote: () => provider } });
+    await addMaterial(opened);
+    await opened.api['ai.testConnection']({ key: TEST_KEY });
+    return { opened, script };
+  }
+
+  async function answerQuestion(opened: Opened, name: string) {
+    const question = await screen.findByRole(
+      'dialog',
+      { name: '¿Permitir enviar fragmentos de este material a la IA?' },
+      SLOW,
+    );
+    await opened.user.click(within(question).getByRole('button', { name }));
+  }
+
+  it('[CA-169] (simulado) desde el 80 % del tope, el panel y Ajustes avisan «Ya usaste el 80 % del tope de este mes.»', async () => {
+    const { opened, script } = await connectedWindow();
+    await opened.api['ai.setCap']({ capCents: 10 });
+    // Una consulta de USD 0,08 con un tope de USD 0,10.
+    script.push({
+      text: explanation({ own: ['Un aporte.'] }),
+      usage: { inputTokens: 20_000, outputTokens: 0 },
+    });
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await answerQuestion(opened, 'Solo esta vez');
+    await opened.bridge.ai.drain();
+    const side = await panel();
+    expect(
+      await within(side).findByText('Ya usaste el 80 % del tope de este mes.', {}, SLOW),
+    ).toBeTruthy();
+    const heading = await toAiSettings(opened);
+    const section = within(heading.closest('section') as HTMLElement);
+    expect(await section.findByText('Ya usaste el 80 % del tope de este mes.')).toBeTruthy();
+  });
+
+  it('[CA-177] (simulado) una cita que no está en el pasaje se muestra en «Aporte del modelo, no verificado», nunca como cita', async () => {
+    const { opened, script } = await connectedWindow();
+    script.push({
+      text: explanation({
+        quotes: [['El error estándar es la varianza dividida por n.', 'Lo define así.']],
+        own: [],
+      }),
+      usage: { inputTokens: 1000, outputTokens: 500 },
+    });
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await answerQuestion(opened, 'Solo esta vez');
+    await opened.bridge.ai.drain();
+    const side = await panel();
+    expect(
+      await within(side).findByText('Ninguna cita de tu material pasó la comprobación.', {}, SLOW),
+    ).toBeTruthy();
+    const own = within(side).getByRole('heading', { name: 'Aporte del modelo, no verificado' });
+    expect(within(own.parentElement as HTMLElement).getByText('Lo define así.')).toBeTruthy();
+    expect(within(side).queryByText(/El error estándar es la varianza/)).toBeNull();
+  });
+
+  it('[CA-176] (simulado) si lo que esperaba se cancela (por ejemplo, al prender «Modo solo local»), no avisa «Llegó la explicación que estaba pendiente.»', async () => {
+    const opened = openWindow('prueba', undefined, { ai: {} });
+    await addMaterial(opened);
+    await window.retenia['demo.setAi']({ simulated: true });
+    opened.net?.setOffline(true);
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await within(await panel()).findByText('Pendiente: se reanuda cuando haya conexión', {}, SLOW);
+    await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
+    await opened.api['ai.setLocalOnly']({ on: true });
+    await screen.findByRole('heading', { name: 'Inteligencia artificial' }, SLOW);
+    await waitFor(() =>
+      expect(opened.bridge.aiEvents.some((e) => e.type === 'ai.result')).toBe(true),
+    );
+    // Le da tiempo a la ventana a mirar cómo terminó.
+    await new Promise((settle) => setTimeout(settle, 50));
+    expect(screen.queryByText('Llegó la explicación que estaba pendiente.')).toBeNull();
+  });
+
+  it('[CA-176] (simulado) si lo que esperaba termina sin explicación, avisa que no se pudo completar y «Ver» muestra por qué', async () => {
+    const opened = openWindow('prueba', undefined, { ai: {} });
+    await addMaterial(opened);
+    await window.retenia['demo.setAi']({ simulated: true, bad: true });
+    opened.net?.setOffline(true);
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await within(await panel()).findByText('Pendiente: se reanuda cuando haya conexión', {}, SLOW);
+    await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
+    opened.net?.setOffline(false);
+    await opened.bridge.ai.drain();
+    expect(
+      await screen.findByText(
+        'La explicación que estaba pendiente no se pudo completar.',
+        {},
+        SLOW,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Llegó la explicación que estaba pendiente.')).toBeNull();
+    await opened.user.click(screen.getByRole('button', { name: 'Ver' }));
+    expect(
+      await within(await panel()).findByText('No pude completar esto. Reintentá.', {}, SLOW),
+    ).toBeTruthy();
+  });
+
+  it('[CA-172] (simulado) «Materiales que pueden ir a la IA» lista solo los de «Siempre»; los de «No» van aparte, con «Volver a preguntar»', async () => {
+    const { opened } = await connectedWindow();
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await answerQuestion(opened, 'No');
+    await within(await panel()).findByText('Elegiste no enviar este material a la IA.', {}, SLOW);
+    const heading = await toAiSettings(opened);
+    const section = within(heading.closest('section') as HTMLElement);
+    expect(section.getByText('Ningún material tiene un permiso guardado.')).toBeTruthy();
+    const refused = section.getByRole('list', { name: 'Materiales que no van a la IA' });
+    expect(within(refused).getByText('Apunte de inferencia')).toBeTruthy();
+    await opened.user.click(within(refused).getByRole('button', { name: 'Volver a preguntar' }));
+    await waitFor(async () =>
+      expect((await opened.api['ai.permissions']({})).rows).toHaveLength(0),
+    );
+  });
+});
+
 describe('Ajustes › «Demostración»: la IA simulada', () => {
   it('[CA-167] los tres interruptores están en la demostración y no en la versión real', async () => {
     const opened = openWindow('prueba', undefined, { ai: {} });
