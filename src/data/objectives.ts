@@ -142,6 +142,7 @@ function attemptEvent(attempt: EvidenceAttempt): MasteryEvent {
     helpLevel: attempt.helpLevel,
     optionsQuestion: attempt.optionsQuestion,
     valid: attempt.valid && attempt.verdict !== null,
+    newVariant: attempt.newVariant,
   };
 }
 
@@ -402,7 +403,8 @@ export function objectivesSnapshot(db: Writer, subjectId: string): ObjectivesSna
       conceptKey: row.conceptKey,
       conceptName: conceptNameOf(row.content === '' ? row.title : row.content),
       postponed: postponed.has(row.id),
-      mastery: projectMastery(eventsOf.get(row.id) ?? []),
+      // En «Aplicar», «Consolidado» pide además una variante nueva (CA-165).
+      mastery: projectMastery(eventsOf.get(row.id) ?? [], { needsVariant: row.kind === 'apply' }),
       activities,
       previousAttempts: previousOf(row.id, activities),
     });

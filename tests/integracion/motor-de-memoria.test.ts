@@ -113,10 +113,11 @@ describe('motor de memoria: el elenco entero', () => {
     const { workspace, file } = seeded();
     expect(workspace.verifyData()).toEqual([]);
     const before = readRows(file, 'SELECT * FROM card_schedule ORDER BY card_id');
-    // Las 192 tarjetas y, desde la Fase 16, los 5 ejercicios del elenco: también tienen agenda.
-    expect(before).toHaveLength(197);
+    // Las 192 tarjetas y los ejercicios del elenco (5 desde la Fase 16 y 13 desde la 18): también
+    // tienen agenda.
+    expect(before).toHaveLength(210);
     runRaw(file, 'DELETE FROM card_schedule');
-    expect(workspace.verifyData()).toHaveLength(197);
+    expect(workspace.verifyData()).toHaveLength(210);
     expect(workspace.repairData()).toEqual([]);
     expect(readRows(file, 'SELECT * FROM card_schedule ORDER BY card_id')).toEqual(before);
     expect(before.every((row) => row.engine_version === MEMORY_ENGINE_VERSION)).toBe(true);

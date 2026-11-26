@@ -5,7 +5,17 @@ import { day } from './common';
 // «Enviar», el resultado, «Discrepo» y el aviso de evaluación corregida. La ventana nunca recibe la
 // respuesta de referencia antes de enviar o de confirmar que quiere ver la solución.
 
-const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
+const ACTIVITY_TYPES = [
+  'short',
+  'numeric',
+  'options',
+  'order',
+  'open',
+  // Fase 18: el procedimiento, la decisión y el conjunto intercalado.
+  'procedure',
+  'decision',
+  'interleaved',
+] as const;
 export const activityTypeSchema = z.enum(ACTIVITY_TYPES);
 
 const MAX_TEXT = 100_000;
@@ -13,6 +23,45 @@ const itemId = z.string().min(1).max(64);
 const itemText = z.string().trim().min(1).max(MAX_TEXT);
 
 const MAX_UNIT_LENGTH = 20;
+const MAX_NAME = 40;
+const MAX_FORMULA = 500;
+const name = z.string().trim().min(1).max(MAX_NAME);
+const formula = z.string().trim().min(1).max(MAX_FORMULA);
+
+// Una familia de variantes (Fase 18): enunciados con «{dato}», los datos que cambian y los que salen
+// de una cuenta.
+const variantFamilySchema = z.strictObject({
+  statements: z.array(itemText).min(1).max(6),
+  parameters: z
+    .array(z.strictObject({ name, values: z.array(z.number()).min(1).max(200) }))
+    .min(1)
+    .max(8),
+  derived: z.array(z.strictObject({ name, formula })).max(8),
+});
+export type VariantFamilyValue = z.output<typeof variantFamilySchema>;
+
+const procedureStepSchema = z.strictObject({
+  id: itemId,
+  prompt: itemText,
+  expected: z.discriminatedUnion('type', [
+    z.strictObject({
+      type: z.literal('number'),
+      formula,
+      tolerance: z.number().nonnegative(),
+      unit: z.string().trim().min(1).max(MAX_UNIT_LENGTH).nullable(),
+    }),
+    z.strictObject({ type: z.literal('text'), text: itemText }),
+  ]),
+  explanation: itemText,
+  key: z.boolean(),
+});
+
+const choice = z.strictObject({
+  id: itemId,
+  text: itemText,
+  correct: z.boolean(),
+  explanation: z.string().trim().max(MAX_TEXT),
+});
 
 // Lo propio de cada tipo, como se guarda en la ficha (el editor lo valida igual que el núcleo).
 export const activitySchema = z.discriminatedUnion('type', [
@@ -22,19 +71,31 @@ export const activitySchema = z.discriminatedUnion('type', [
     value: z.number(),
     tolerance: z.number().nonnegative(),
     unit: z.string().trim().min(1).max(MAX_UNIT_LENGTH).nullable(),
+    family: variantFamilySchema.nullable().optional(),
+    formula: formula.nullable().optional(),
   }),
   z.strictObject({
     type: z.literal('options'),
-    options: z
+    options: z.array(choice).length(3),
+  }),
+  z.strictObject({
+    type: z.literal('procedure'),
+    steps: z.array(procedureStepSchema).min(2).max(8),
+    family: variantFamilySchema.nullable(),
+  }),
+  z.strictObject({ type: z.literal('decision'), options: z.array(choice).min(2).max(5) }),
+  z.strictObject({
+    type: z.literal('interleaved'),
+    types: z
       .array(
         z.strictObject({
           id: itemId,
-          text: itemText,
-          correct: z.boolean(),
-          explanation: z.string().trim().max(MAX_TEXT),
+          name: itemText,
+          cardIds: z.array(z.uuid()).min(1).max(30),
         }),
       )
-      .length(3),
+      .min(2)
+      .max(5),
   }),
   z.strictObject({
     type: z.literal('order'),
@@ -101,6 +162,13 @@ const activityInputSchema = z.discriminatedUnion('type', [
     steps: z.array(z.strictObject({ id: itemId, text: z.string() })),
   }),
   z.strictObject({ type: z.literal('open') }),
+  z.strictObject({
+    type: z.literal('decision'),
+    options: z.array(z.strictObject({ id: itemId, text: z.string() })),
+  }),
+  // El procedimiento y el conjunto tienen sus propios canales.
+  z.strictObject({ type: z.literal('procedure') }),
+  z.strictObject({ type: z.literal('interleaved') }),
 ]);
 
 export const activityOpeningSchema = z.strictObject({
@@ -118,8 +186,18 @@ export const activityOpeningSchema = z.strictObject({
     retry: availabilitySchema,
   }),
   hints: z.number().int().min(0).max(3),
+  // En una numérica con variantes, el enunciado con los números de esta vez.
+  statement: z.string().optional(),
 });
 export type ActivityOpening = z.output<typeof activityOpeningSchema>;
+
+// Fase 18: lo que está mal en un ejercicio antes de guardarlo (las cuentas y los conjuntos solo
+// los puede comprobar el principal).
+export const activitiesValidateRequest = z.strictObject({
+  activity: activitySchema,
+  subjectId: z.uuid().nullable(),
+});
+export const activitiesValidateResponse = z.strictObject({ problems: z.array(z.string()) });
 
 // Una ayuda de la barra (CA-136): la próxima pista, el ejemplo, la fuente o la solución. Para la
 // solución hace falta haber confirmado la pregunta.
@@ -144,6 +222,8 @@ const solutionSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('options'), answer: z.string() }),
   z.strictObject({ type: z.literal('order'), steps: z.array(z.string()) }),
   z.strictObject({ type: z.literal('open'), units: z.array(z.string()) }),
+  z.strictObject({ type: z.literal('decision'), answer: z.string() }),
+  z.strictObject({ type: z.literal('procedure'), steps: z.array(z.string()) }),
 ]);
 export const activitiesHelpResponse = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('confirmSolution') }),
@@ -175,6 +255,11 @@ const attemptAnswerSchema = z.discriminatedUnion('type', [
     initial: z.array(itemId).max(8),
   }),
   z.strictObject({ type: z.literal('open'), text: z.string().max(MAX_TEXT) }),
+  z.strictObject({
+    type: z.literal('decision'),
+    optionId: itemId,
+    shown: z.array(itemId).max(5),
+  }),
 ]);
 export type AttemptAnswer = z.output<typeof attemptAnswerSchema>;
 
@@ -186,6 +271,9 @@ export const activitiesSubmitRequest = z.strictObject({
   answer: attemptAnswerSchema,
   help: helpList,
   noIdea: z.boolean(),
+  // Fase 18: el conjunto intercalado en el que se resuelve, o la sesión de Estudiar.
+  runId: z.uuid().optional(),
+  studySessionId: z.uuid().optional(),
 });
 
 // La primera interacción con la actividad (escribir, elegir, mover): el principal mide el tiempo.
@@ -229,7 +317,7 @@ export type DiffStepValue = z.output<typeof diffStepSchema>;
 
 // El diagnóstico tras un fallo (Fase 17, CA-153): una sola acción siguiente con su motivo, en el
 // orden del criterio. Nulo si no es un fallo.
-const diagnosisSchema = z.discriminatedUnion('action', [
+export const diagnosisSchema = z.discriminatedUnion('action', [
   z.strictObject({
     action: z.literal('checkUnaided'),
     reason: z.enum(['previousAided', 'previousOptions']),
@@ -283,6 +371,22 @@ const attemptDetailSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('open'),
     units: z.array(z.strictObject({ id: z.string(), text: z.string() })),
+  }),
+  // «¿Qué método usarías?»: lo elegido, el correcto y el porqué de cada uno.
+  z.strictObject({
+    type: z.literal('decision'),
+    chosenId: z.string(),
+    correctId: z.string(),
+    correctText: z.string(),
+    explanation: z.string().nullable(),
+    options: z.array(
+      z.strictObject({
+        id: z.string(),
+        text: z.string(),
+        why: z.string(),
+        correct: z.boolean(),
+      }),
+    ),
   }),
 ]);
 export type AttemptDetail = z.output<typeof attemptDetailSchema>;

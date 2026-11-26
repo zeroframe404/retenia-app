@@ -176,7 +176,9 @@ describe('contrato del puente: «Mis errores» y «Mejorar la tarjeta»', () => 
     expect(sent.diagnosis).toEqual({ action: 'forgotten', reason: 'forgotten' });
     await api['activities.finalize']({ attemptId: sent.attemptId, verdict: 'incorrect' });
     const errors = await api['progress.errors']({});
+    // El primero es el de la demostración (Fase 18); el otro, el de recién.
     expect(errors.groups.flatMap((g) => g.items)).toEqual([
+      expect.objectContaining({ written: 'La media', correct: 'La mediana', type: 'confusion' }),
       expect.objectContaining({ written: 'asdf', correct: 'París', type: 'forgotten' }),
     ]);
     await api['progress.errors.setType']({

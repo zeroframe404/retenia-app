@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import type { ActivityOpening } from '../../preload/contract/activities';
 import type { CardDetail } from '../../preload/contract/cards';
 import { DRAFT_SAVE_MS, MAX_ANSWER_LENGTH, type SessionView } from '../../preload/contract/study';
@@ -7,8 +7,10 @@ import { CardFace } from '../cards/CardFace';
 import { CardPath } from '../cards/CardPath';
 import { SheetForm } from '../cards/SheetForm';
 import { Autosaver } from '../notes/editor/autosave';
+import { ExerciseView, type ReferenceField } from '../practice/ExerciseView';
 import { ConfirmSolution, HelpPanel } from '../practice/HelpPanel';
 import practiceStyles from '../practice/Practice.module.css';
+import { SessionProcedure } from '../practice/ProcedureView';
 import { useHelp } from '../practice/useHelp';
 import { landOnReviews } from '../progress/landing';
 import { Boton } from '../ui/Boton';
@@ -34,21 +36,34 @@ const GRADE_LABEL: Record<Grade, string> = {
   good: texts.cards.gradeGood,
 };
 
+// Lo que se ve y lo que se corrige de una tarjeta (para saber si «Editar» lo cambió).
+const contentOf = (card: CardDetail) =>
+  JSON.stringify([card.question, card.answer, card.activity, card.sheet, card.example, card.mode]);
+
 // La sesión de estudio (Fase 10): ocupa la ventana entera, sin el riel. Arriba, «PRÁCTICA
 // AUTÓNOMA», el progreso, «Más» y «Pausar»; en el medio, la pregunta con su camino de contexto y el
 // campo opcional «Tu respuesta…»; abajo, «Mostrar respuesta». Recién después aparecen la respuesta
 // (al lado de lo que escribiste) y los tres botones para calificar. Cada vez que se muestra una
 // tarjeta se genera el identificador del intento: un doble clic o un pedido repetido no duplican.
 // Teclas: Espacio muestra, 1, 2 y 3 califican, Esc pausa y Ctrl+Z deshace la última calificación.
+// Desde la Fase 18 también vuelven los ejercicios: se contestan acá mismo, con su corrección, y
+// «Siguiente» sigue con la sesión. Un ejercicio enviado no se deshace (para eso están «Cambiar
+// resultado» y «Discrepo»).
 export function SessionScreen({
   initial,
   onExit,
   onToast,
   onOpenOriginal,
+  onOpenObjective,
+  onPracticeOther,
 }: {
   initial: SessionView;
   onExit: () => void;
   onToast: (text: string) => void;
+  // Tras un fallo en un ejercicio (CA-153): «Ir al requisito» y «Practicar la diferencia». La
+  // sesión queda en pausa.
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
+  onPracticeOther?: ((cardId: string) => void) | undefined;
   // «Ver en el original» de la tarjeta (Fase 13): se abre en el panel de la derecha, sin salir.
   onOpenOriginal?: ((target: { materialId: string; cardId: string }) => void) | undefined;
 }) {
@@ -65,7 +80,11 @@ export function SessionScreen({
   );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState('');
-  const [editing, setEditing] = useState<CardDetail | null>(null);
+  const [editing, setEditing] = useState<{ card: CardDetail; focus?: ReferenceField } | null>(null);
+  // El ejercicio que ya enviaste (por su actividad): desde ahí no hay «Deshacer».
+  const [sentActivity, setSentActivity] = useState<string | null>(null);
+  // Sube cuando «Editar» cambió un ejercicio sin enviar: se vuelve a abrir con lo nuevo.
+  const [revision, setRevision] = useState(0);
   const [shortcuts, setShortcuts] = useState(initial.showShortcuts);
   const inFlight = useRef(false);
   const interacted = useRef(false);
@@ -78,7 +97,10 @@ export function SessionScreen({
   const [citedMaterial, setCitedMaterial] = useState<string | null>(null);
   // «El origen cambió»: el texto del material se corrigió y esta tarjeta no se actualizó.
   const [sourceChanged, setSourceChanged] = useState(false);
-  const cardId = current?.cardId ?? null;
+  const exercise = current !== null && current.card.activityType !== null;
+  const exerciseSent = exercise && sentActivity === current.activityId;
+  // La tarjeta de siempre: un ejercicio trae su propia ayuda y su propia apertura.
+  const cardId = current && !exercise ? current.cardId : null;
   // La barra de ayuda (Fase 16, H-32): cada tarjeta que aparece abre su apertura, y la ayuda que se
   // usa viaja con la calificación. La solución vista (A4) es «Mostrar respuesta».
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
@@ -231,7 +253,7 @@ export function SessionScreen({
   );
 
   const showAnswer = useCallback(() => {
-    if (!current || answerShown) {
+    if (!current || answerShown || current.card.activityType !== null) {
       return;
     }
     setAnswerShown(true);
@@ -272,15 +294,15 @@ export function SessionScreen({
 
   const undo = useCallback(() => {
     const last = view.undoable;
-    if (!last) {
+    if (!last || exerciseSent) {
       return;
     }
     void run(() => window.retenia['study.undo']({ sessionId, activityId: last.activityId }), true);
-  }, [run, sessionId, view.undoable]);
+  }, [exerciseSent, run, sessionId, view.undoable]);
 
   const pause = useCallback(async () => {
     if (inFlight.current) {
-      return;
+      return false;
     }
     inFlight.current = true;
     setBusy(true);
@@ -288,12 +310,23 @@ export function SessionScreen({
       await autosaver.flush();
       await window.retenia['study.pause']({ sessionId });
       onExit();
+      return true;
     } catch {
       setFailed(texts.study.actionFailed);
       inFlight.current = false;
       setBusy(false);
+      return false;
     }
   }, [autosaver, onExit, sessionId]);
+
+  // Para ir a otra pantalla desde un ejercicio: primero se pausa la sesión.
+  const leaveFor = (go: () => void) => {
+    void pause().then((paused) => {
+      if (paused) {
+        go();
+      }
+    });
+  };
 
   const flag = () => {
     if (!current) {
@@ -322,9 +355,22 @@ export function SessionScreen({
 
   // «Editar»: la ficha en un panel; al guardar o cancelar, la misma tarjeta con lo escrito intacto.
   // Si la dejaste en pausa o fuera de los repasos, sale de la sesión como hecha.
+  // Si cambió un ejercicio que todavía no enviaste, se vuelve a abrir: se corrige lo que se ve.
   const closeEditor = () => {
+    const before = editing?.card;
     setEditing(null);
-    void run(() => window.retenia['study.view']({ sessionId }));
+    void run(async () => {
+      const next = await window.retenia['study.view']({ sessionId });
+      if (
+        before &&
+        next.current &&
+        !exerciseSent &&
+        contentOf(next.current.card) !== contentOf(before)
+      ) {
+        setRevision((value) => value + 1);
+      }
+      return next;
+    });
   };
 
   const firstInteraction = () => {
@@ -340,10 +386,20 @@ export function SessionScreen({
     }
   };
 
+  // «Siguiente» sobre un ejercicio.
+  const exerciseDone = () => {
+    if (current) {
+      void run(() =>
+        window.retenia['study.exerciseDone']({ sessionId, activityId: current.activityId }),
+      );
+    }
+  };
+  const exerciseSentNow = () => setSentActivity(current?.activityId ?? null);
+
   // Las teclas de la sesión.
   const closing = view.status === 'finished' || view.complete;
-  const keys = useRef({ showAnswer, grade, undo, pause, closing });
-  keys.current = { showAnswer, grade, undo, pause, closing };
+  const keys = useRef({ showAnswer, grade, undo, pause, closing, exercise });
+  keys.current = { showAnswer, grade, undo, pause, closing, exercise };
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const action = sessionKeyAction(event, {
@@ -352,6 +408,10 @@ export function SessionScreen({
       });
       // En el cierre solo queda Ctrl+Z (deshacer la última calificación).
       if (action === null || (keys.current.closing && action.kind !== 'undo')) {
+        return;
+      }
+      // En un ejercicio no se muestra ni se califica con teclas: cada una hace lo de siempre.
+      if (keys.current.exercise && (action.kind === 'show' || action.kind === 'grade')) {
         return;
       }
       event.preventDefault();
@@ -399,7 +459,7 @@ export function SessionScreen({
     <main className={styles.session} aria-label={texts.study.title}>
       <h1 className="visually-hidden">{texts.study.title}</h1>
       <div className={styles.bar}>
-        <RotuloModo mode={help.label} />
+        {exercise ? null : <RotuloModo mode={help.label} />}
         <span
           className={styles.progress}
           role="status"
@@ -408,7 +468,7 @@ export function SessionScreen({
           {texts.study.progress(view.progress.done, view.progress.total)}
         </span>
         <div className={styles.barActions}>
-          {view.undoable ? (
+          {view.undoable && !exerciseSent ? (
             <span className={styles.previous}>
               {texts.study.previous(GRADE_LABEL[view.undoable.grade])}
               <Boton variant="quiet" disabled={busy} onClick={undo}>
@@ -424,9 +484,10 @@ export function SessionScreen({
               {
                 key: 'edit',
                 text: texts.study.edit,
-                onSelect: () => (current ? setEditing(current.card) : undefined),
+                onSelect: () => (current ? setEditing({ card: current.card }) : undefined),
               },
-              { key: 'skip', text: texts.study.skip, onSelect: skip },
+              // Un ejercicio ya enviado no se saltea: tiene su «Siguiente».
+              ...(exerciseSent ? [] : [{ key: 'skip', text: texts.study.skip, onSelect: skip }]),
             ]}
           />
           <Boton disabled={busy} onClick={() => void pause()}>
@@ -434,148 +495,188 @@ export function SessionScreen({
           </Boton>
         </div>
       </div>
-      <div className={practiceStyles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
-        <div className={styles.main}>
-          {shortcuts ? (
-            <div className={styles.shortcuts}>
-              <p>{texts.study.shortcuts}</p>
-              <Boton
-                variant="quiet"
-                onClick={() => {
-                  setShortcuts(false);
-                  window.retenia['study.dismissShortcuts']({}).catch(() => undefined);
-                }}
-              >
-                {texts.study.shortcutsOk}
-              </Boton>
-            </div>
-          ) : null}
-          {current ? (
-            <>
-              <section
-                ref={question}
-                tabIndex={-1}
-                className={styles.question}
-                aria-label={texts.study.questionLabel}
-              >
-                <CardPath card={current.card} />
-                <div className={styles.prompt}>
-                  <CardFace content={current.card.questionContent} />
-                </div>
-              </section>
-              {answerShown ? (
-                <section
-                  ref={answer}
-                  tabIndex={-1}
-                  className={styles.answer}
-                  aria-label={texts.study.referenceAnswer}
-                >
-                  <div className={styles.compare} data-compare={text.trim() === '' ? 'one' : 'two'}>
-                    {text.trim() === '' ? null : (
-                      <div className={styles.side}>
-                        <h2 className={styles.sideTitle}>{texts.study.yourAnswer}</h2>
-                        <p className={styles.written}>{text}</p>
-                      </div>
-                    )}
-                    <div className={styles.side}>
-                      <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
-                      <CardFace content={current.card.answerContent} />
-                      {sourceChanged ? (
-                        <p className={styles.sourceChanged} role="note">
-                          {texts.materials.sourceChanged}
-                        </p>
-                      ) : null}
-                      {citedMaterial && onOpenOriginal ? (
-                        <Boton
-                          variant="quiet"
-                          onClick={() =>
-                            onOpenOriginal({ materialId: citedMaterial, cardId: current.cardId })
-                          }
-                        >
-                          {texts.materials.viewOriginal}
-                        </Boton>
-                      ) : null}
-                    </div>
-                  </div>
-                  <fieldset className={styles.grades}>
-                    <legend className={styles.legend}>{texts.cards.gradeGroup}</legend>
-                    <div className={styles.gradeButtons}>
-                      {GRADES.map(({ grade: value, label }) => (
-                        <Boton key={value} disabled={busy} onClick={() => grade(value)}>
-                          {label}
-                        </Boton>
-                      ))}
-                    </div>
-                  </fieldset>
-                </section>
-              ) : (
-                <div className={styles.attempt}>
-                  <label className={styles.field}>
-                    <span className="visually-hidden">{texts.study.answerLabel}</span>
-                    <textarea
-                      ref={answerField}
-                      className={styles.textarea}
-                      placeholder={texts.study.answerPlaceholder}
-                      value={text}
-                      rows={3}
-                      maxLength={MAX_ANSWER_LENGTH}
-                      onFocus={firstInteraction}
-                      onChange={(event) => {
-                        firstInteraction();
-                        if (event.target.value.trim() !== '') {
-                          startAttempt();
-                        }
-                        setText(event.target.value);
-                        latest.current = { ...latest.current, text: event.target.value };
-                        autosaver.touch();
-                      }}
-                      onBlur={() => void autosaver.flush()}
-                    />
-                  </label>
-                  <BarraAyuda
-                    tutor={false}
-                    noIdea={help.availability.noIdea}
-                    hintDisabled={!help.availability.hint}
-                    exampleDisabled={!help.availability.example}
-                    sourceDisabled={!help.availability.source}
-                    example={help.offers.example}
-                    source={help.offers.source}
-                    onHint={help.hint}
-                    onExample={help.example}
-                    onSource={help.source}
-                    onNoIdea={() => {
-                      firstInteraction();
-                      help.chooseNoIdea();
-                    }}
-                  />
-                  {help.problem === '' ? null : (
-                    <BannerEstado tone="attention">{help.problem}</BannerEstado>
-                  )}
-                  <div className={styles.attemptFooter}>
-                    {draft ? <IndicadorBorrador state={draft} /> : <span />}
-                    <Boton variant="primary" disabled={busy} onClick={showAnswer}>
-                      {texts.cards.showAnswer}
-                    </Boton>
-                  </div>
-                </div>
-              )}
-            </>
-          ) : null}
+      {current && exercise ? (
+        // Sin nombre propio: el ejercicio ya trae su zona «Ejercicio».
+        <div ref={question as RefObject<HTMLDivElement>} tabIndex={-1} className={styles.exercise}>
+          {current.card.activityType === 'procedure' ? (
+            <SessionProcedure
+              key={`${current.activityId}:${revision}`}
+              cardId={current.cardId}
+              studySessionId={sessionId}
+              resume={current.resume}
+              onNext={exerciseDone}
+              onSent={exerciseSentNow}
+              onEditReference={(focus) => setEditing({ card: current.card, focus })}
+              onOpenObjective={onOpenObjective && ((id) => leaveFor(() => onOpenObjective(id)))}
+            />
+          ) : (
+            <ExerciseView
+              key={`${current.activityId}:${revision}`}
+              cardId={current.cardId}
+              studySessionId={sessionId}
+              onClose={() => void pause()}
+              onNext={exerciseDone}
+              onSent={exerciseSentNow}
+              onEditReference={(focus) => setEditing({ card: current.card, focus })}
+              onOpenObjective={onOpenObjective && ((id) => leaveFor(() => onOpenObjective(id)))}
+              onPracticeOther={onPracticeOther && ((id) => leaveFor(() => onPracticeOther(id)))}
+            />
+          )}
           {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
         </div>
-        <HelpPanel
-          help={help}
-          onOpenOriginal={
-            onOpenOriginal && current
-              ? (materialId) => onOpenOriginal({ materialId, cardId: current.cardId })
-              : undefined
-          }
-        />
-      </div>
+      ) : null}
+      {exercise ? null : (
+        <div className={practiceStyles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
+          <div className={styles.main}>
+            {shortcuts ? (
+              <div className={styles.shortcuts}>
+                <p>{texts.study.shortcuts}</p>
+                <Boton
+                  variant="quiet"
+                  onClick={() => {
+                    setShortcuts(false);
+                    window.retenia['study.dismissShortcuts']({}).catch(() => undefined);
+                  }}
+                >
+                  {texts.study.shortcutsOk}
+                </Boton>
+              </div>
+            ) : null}
+            {current && !exercise ? (
+              <>
+                <section
+                  ref={question}
+                  tabIndex={-1}
+                  className={styles.question}
+                  aria-label={texts.study.questionLabel}
+                >
+                  <CardPath card={current.card} />
+                  <div className={styles.prompt}>
+                    <CardFace content={current.card.questionContent} />
+                  </div>
+                </section>
+                {answerShown ? (
+                  <section
+                    ref={answer}
+                    tabIndex={-1}
+                    className={styles.answer}
+                    aria-label={texts.study.referenceAnswer}
+                  >
+                    <div
+                      className={styles.compare}
+                      data-compare={text.trim() === '' ? 'one' : 'two'}
+                    >
+                      {text.trim() === '' ? null : (
+                        <div className={styles.side}>
+                          <h2 className={styles.sideTitle}>{texts.study.yourAnswer}</h2>
+                          <p className={styles.written}>{text}</p>
+                        </div>
+                      )}
+                      <div className={styles.side}>
+                        <h2 className={styles.sideTitle}>{texts.study.referenceAnswer}</h2>
+                        <CardFace content={current.card.answerContent} />
+                        {sourceChanged ? (
+                          <p className={styles.sourceChanged} role="note">
+                            {texts.materials.sourceChanged}
+                          </p>
+                        ) : null}
+                        {citedMaterial && onOpenOriginal ? (
+                          <Boton
+                            variant="quiet"
+                            onClick={() =>
+                              onOpenOriginal({ materialId: citedMaterial, cardId: current.cardId })
+                            }
+                          >
+                            {texts.materials.viewOriginal}
+                          </Boton>
+                        ) : null}
+                      </div>
+                    </div>
+                    <fieldset className={styles.grades}>
+                      <legend className={styles.legend}>{texts.cards.gradeGroup}</legend>
+                      <div className={styles.gradeButtons}>
+                        {GRADES.map(({ grade: value, label }) => (
+                          <Boton key={value} disabled={busy} onClick={() => grade(value)}>
+                            {label}
+                          </Boton>
+                        ))}
+                      </div>
+                    </fieldset>
+                  </section>
+                ) : (
+                  <div className={styles.attempt}>
+                    <label className={styles.field}>
+                      <span className="visually-hidden">{texts.study.answerLabel}</span>
+                      <textarea
+                        ref={answerField}
+                        className={styles.textarea}
+                        placeholder={texts.study.answerPlaceholder}
+                        value={text}
+                        rows={3}
+                        maxLength={MAX_ANSWER_LENGTH}
+                        onFocus={firstInteraction}
+                        onChange={(event) => {
+                          firstInteraction();
+                          if (event.target.value.trim() !== '') {
+                            startAttempt();
+                          }
+                          setText(event.target.value);
+                          latest.current = { ...latest.current, text: event.target.value };
+                          autosaver.touch();
+                        }}
+                        onBlur={() => void autosaver.flush()}
+                      />
+                    </label>
+                    <BarraAyuda
+                      tutor={false}
+                      noIdea={help.availability.noIdea}
+                      hintDisabled={!help.availability.hint}
+                      exampleDisabled={!help.availability.example}
+                      sourceDisabled={!help.availability.source}
+                      example={help.offers.example}
+                      source={help.offers.source}
+                      onHint={help.hint}
+                      onExample={help.example}
+                      onSource={help.source}
+                      onNoIdea={() => {
+                        firstInteraction();
+                        help.chooseNoIdea();
+                      }}
+                    />
+                    {help.problem === '' ? null : (
+                      <BannerEstado tone="attention">{help.problem}</BannerEstado>
+                    )}
+                    <div className={styles.attemptFooter}>
+                      {draft ? <IndicadorBorrador state={draft} /> : <span />}
+                      <Boton variant="primary" disabled={busy} onClick={showAnswer}>
+                        {texts.cards.showAnswer}
+                      </Boton>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : null}
+            {failed === '' ? null : <BannerEstado tone="attention">{failed}</BannerEstado>}
+          </div>
+          <HelpPanel
+            help={help}
+            onOpenOriginal={
+              onOpenOriginal && current
+                ? (materialId) => onOpenOriginal({ materialId, cardId: current.cardId })
+                : undefined
+            }
+          />
+        </div>
+      )}
       <ConfirmSolution help={help} />
       {editing ? (
         <Dialog title={texts.study.editTitle} placement="side" onClose={closeEditor}>
-          <SheetForm card={editing} onSaved={closeEditor} onCancel={closeEditor} />
+          <SheetForm
+            card={editing.card}
+            focusField={editing.focus}
+            onSaved={closeEditor}
+            onCancel={closeEditor}
+          />
         </Dialog>
       ) : null}
     </main>

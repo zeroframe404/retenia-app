@@ -56,7 +56,10 @@ export function reviewText(
     case 'unreadable':
       return review.unreadable;
     case 'optionExplanation':
-      return review.optionExplanation(detail?.type === 'options' ? detail.explanation : null);
+      // En una decisión, el porqué de cada método está arriba: acá va cuál convenía.
+      return detail?.type === 'decision'
+        ? texts.practice.correctOption(detail.correctText)
+        : review.optionExplanation(detail?.type === 'options' ? detail.explanation : null);
     case 'steps':
       return review.steps;
     case 'missingUnits':

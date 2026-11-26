@@ -773,6 +773,10 @@ export const texts = {
     stateLabel: 'Estado de la ficha',
     editedInNote: 'El texto de esta tarjeta se edita en su nota.',
     variantsLine: (list: string) => `Variantes aceptables: ${list}`,
+    // Fase 18: un numérico con familia de variantes no tiene una respuesta fija.
+    variantAnswer: 'Cambia con cada variante.',
+    variantNumericLine: (tolerance: string, unit: string | null) =>
+      `Con variantes: la respuesta se calcula en cada una · margen ${tolerance}${unit === null ? '' : ` · en ${unit}`}`,
     hintLine: (index: number, hint: string) => `Pista ${index}: ${hint}`,
     essentialsLine: (list: string) => `Componentes esenciales: ${list}`,
     referenceLine: (text: string) => `Respuesta de referencia: ${text}`,
@@ -937,6 +941,133 @@ export const texts = {
       sendToReview: 'Mandar a revisión',
       practiceDifference: 'Practicar la diferencia',
     },
+    // Fase 18: «¿Qué método usarías?» (CA-161).
+    decision: {
+      question: '¿Qué método usarías? No lo resuelvas',
+      whyHeading: 'El porqué de cada método',
+      chosen: 'El que elegiste',
+      right: 'El que conviene',
+    },
+    // Fase 18: el procedimiento por pasos (H-37).
+    procedure: {
+      exampleHeading: 'Ejemplo resuelto',
+      exampleIntro: 'Seguí el ejemplo paso a paso. No se califica.',
+      blanksIntro: (count: number) =>
+        count === 1
+          ? 'Completá el último paso; los demás ya están resueltos.'
+          : `Completá los ${count} últimos pasos; los demás ya están resueltos.`,
+      wholeIntro: 'Resolvé el problema entero, paso por paso.',
+      someBlanksIntro: 'Completá los pasos vacíos; los demás ya están resueltos.',
+      variantIntro: 'Una variante: el mismo método, en otra situación.',
+      stepsLabel: 'Los pasos',
+      step: (position: number) => `Paso ${position}`,
+      result: (value: string) => `Resultado: ${value}`,
+      why: '¿Por qué este paso?',
+      previousWhy: (answer: string) => `La vez pasada escribiste: «${answer}»`,
+      whyHelp: 'Tu respuesta queda guardada y no se califica.',
+      finishExample: 'Terminar el ejemplo',
+      numberAnswer: (position: number) => `Paso ${position}: tu resultado`,
+      textAnswer: (position: number) => `Paso ${position}: tu respuesta`,
+      errorFound: (position: number) => `Hay un error en el paso ${position}; ¿lo encontrás?`,
+      retryAnswer: (position: number) => `Paso ${position}: probá de nuevo`,
+      retry: (position: number) => `Reintentar el paso ${position}`,
+      retryStill: (position: number) =>
+        `El paso ${position} todavía no sale. Probá otra vez o mirá la corrección.`,
+      retryFixed: (position: number) => `Ahora sí: el paso ${position} quedó bien.`,
+      seeCorrection: 'Ver la corrección',
+      correctionHeading: 'Corrección',
+      yourAnswer: (answer: string) => `Tu respuesta: ${answer}`,
+      yourRetry: (answer: string) => `Al reintentar escribiste: ${answer}`,
+      expected: (value: string) => `El resultado: ${value}`,
+      modelStep: (value: string) => `El paso modelo: ${value}`,
+      states: {
+        ok: 'Bien',
+        fixed: 'Corregido al reintentar',
+        wrong: 'Para revisar',
+      },
+      selfLegend: (position: number) => `Paso ${position}: ¿coincide con el paso modelo?`,
+      selfYes: 'Sí, coincide',
+      selfNo: 'No, me equivoqué',
+      seeResult: 'Ver el resultado',
+      review: {
+        correct: 'Todos los pasos que completaste salieron bien.',
+        partial: (position: number) => `Corregiste el paso ${position} al reintentar.`,
+        incorrect: (position: number) => `Revisá el paso ${position}.`,
+      },
+      // Cómo viene la próxima vez (CA-158, CA-159).
+      rungNames: {
+        example: 'el ejemplo completo',
+        blanks: (count: number) =>
+          count === 1 ? 'con el último paso vacío' : `con los ${count} últimos pasos vacíos`,
+        whole: 'el problema entero',
+        variant: 'una variante del problema',
+      },
+      next: (name: string) => `La próxima vez, otro día: ${name}.`,
+      lessSupport: 'Un paso menos de apoyo: te salió bien en 2 días distintos.',
+      moreSupport: 'Un paso más de apoyo: se repitió el mismo error 2 veces seguidas.',
+      notCounted: 'Hoy ya había contado un intento: este no cambia cómo viene la próxima.',
+      another: 'Otro problema',
+      finish: 'Terminar',
+      loading: 'Abriendo el procedimiento…',
+      loadFailed: 'No pude abrir el procedimiento. Probá de nuevo.',
+      failed: 'No pude guardar. Probá de nuevo.',
+      closingTitle: 'Práctica terminada',
+      closingStudied: 'Viste el ejemplo completo.',
+      closingSolved: (count: number) =>
+        count === 1 ? 'Resolviste 1 problema.' : `Resolviste ${count} problemas.`,
+    },
+    // Fase 18: el conjunto mezclado (CA-162).
+    set: {
+      progress: (position: number, total: number) => `Problema ${position} de ${total}`,
+      loading: 'Armando el conjunto…',
+      failed: 'No pude abrir el conjunto. Probá de nuevo.',
+      notReady: (names: readonly string[]) =>
+        `Todavía no practicaste por separado: ${names.join(', ')}. Practicá esos problemas y después volvé.`,
+      invalid: {
+        namesType:
+          'Un enunciado del conjunto nombra un tipo: así no habría que elegir. Corregilo en la ficha de ese problema.',
+        subjects: 'El conjunto mezcla materias: sus problemas tienen que ser de una sola.',
+        empty: 'Al conjunto le faltan problemas: necesita al menos 2 tipos.',
+      },
+      closingTitle: 'Conjunto terminado',
+      orderHeading: 'Los tipos, en el orden en que salieron',
+      orderItem: (typeName: string, result: string) => `${typeName} · ${result}`,
+      unanswered: 'Sin contestar',
+    },
+    // Fase 18: el micro-ejercicio (CA-166).
+    micro: {
+      heading: 'Micro-ejercicio',
+      proposal: (step: string, count: number) =>
+        `Se repitió el mismo error en el paso «${step.replace(/\.$/, '')}». Te propongo ${count} ítems cortos sobre ese paso.`,
+      proposalProblem: (title: string, count: number) =>
+        `Se repitió el mismo error en «${title}». Te propongo ${count} ítems cortos sobre eso.`,
+      start: 'Hacer el micro-ejercicio',
+      about: (step: string) => `Sobre el paso «${step.replace(/\.$/, '')}»`,
+      item: (position: number, total: number) => `Ítem ${position} de ${total}`,
+      givens: 'Ya resuelto',
+      given: (prompt: string, result: string) => `${prompt.replace(/\.$/, '')}: ${result}`,
+      numberAnswer: 'Tu resultado',
+      textAnswer: 'Tu respuesta',
+      check: 'Enviar',
+      right: 'Correcto.',
+      wrong: 'Todavía no.',
+      expected: (value: string) => `El resultado: ${value}`,
+      selfLegend: '¿Tu respuesta coincide con el paso modelo?',
+      selfYes: 'Sí, coincide',
+      selfNo: 'No, me equivoqué',
+      next: 'Siguiente',
+      seeResult: 'Ver el resultado',
+      score: (correct: number, total: number) => `Acertaste ${correct} de ${total}.`,
+      good: 'Esta sesión cuenta: 85 % o más, sin pistas.',
+      notGood: 'Esta sesión no cuenta: hace falta el 85 % o más.',
+      progress: (done: number) =>
+        `Llevás ${done} de 2 sesiones buenas. Se supera con 2, en días distintos.`,
+      passed: 'Superado: 2 sesiones buenas en días distintos.',
+      done: 'Terminar',
+      failed: 'No pude guardar tu respuesta. Probá de nuevo.',
+      loadFailed: 'No pude abrir el micro-ejercicio. Probá de nuevo.',
+      loading: 'Armando el micro-ejercicio…',
+    },
     // La diferencia letra por letra (CA-131), dicha también en palabras para el lector de pantalla.
     diffLabel: 'Diferencia letra por letra',
     yourAnswer: 'Tu respuesta',
@@ -984,7 +1115,49 @@ export const texts = {
         options: 'Opciones',
         order: 'Ordenar pasos',
         open: 'Respuesta abierta',
+        // Fase 18.
+        procedure: 'Procedimiento por pasos',
+        decision: 'Elegir el método',
+        interleaved: 'Conjunto mezclado',
       },
+      // Las familias de variantes (Fase 18).
+      withVariants: 'Con variantes (números que cambian)',
+      familyLegend: 'La familia de variantes',
+      statements: 'Enunciados, uno por renglón (con {dato} donde va cada número)',
+      statementsHelp:
+        'El primero es el de siempre. Los demás se usan en el último escalón de apoyo.',
+      parameters: 'Datos que cambian, uno por renglón: nombre = 10; 20; 30',
+      derived: 'Datos que se calculan (opcional): total = precio * cantidad',
+      formula: 'Fórmula de la respuesta',
+      // El procedimiento.
+      procedureLegend: 'Los pasos, en orden (de 2 a 8)',
+      procedurePrompt: (index: number) => `Paso ${index}: qué hay que hacer`,
+      resultType: (index: number) => `Paso ${index}: el resultado es`,
+      numberResult: 'Un número',
+      textResult: 'Un texto',
+      expectedNumber: (index: number) => `Paso ${index}: resultado esperado`,
+      expectedHelp:
+        'En un número podés escribir una cuenta con los datos y los pasos de antes: total / cantidad, paso1 * 2.',
+      stepTolerance: (index: number) => `Paso ${index}: margen`,
+      stepUnit: (index: number) => `Paso ${index}: unidad (opcional)`,
+      stepExplanation: (index: number) => `Paso ${index}: explicación`,
+      keyStep: (index: number) => `El paso ${index} es un paso clave`,
+      removeProcedureStep: (index: number) => `Quitar el paso ${index}`,
+      // La decisión.
+      methodsLegend: 'Los métodos (de 2 a 5; se muestran mezclados)',
+      method: (index: number) => `Método ${index}`,
+      methodCorrect: (index: number) => `El método ${index} es el que conviene`,
+      methodWhy: (index: number) => `El porqué del método ${index}`,
+      removeMethod: (index: number) => `Quitar el método ${index}`,
+      addMethod: 'Agregar método',
+      // El conjunto mezclado.
+      typesLegend: 'Los tipos de problema que se confunden (de 2 a 5)',
+      typesHelp: 'Ningún enunciado puede nombrar un tipo: así hay que elegir el método.',
+      typeName: (index: number) => `Nombre del tipo ${index}`,
+      typeProblems: (index: number) => `Problemas del tipo ${index}`,
+      removeType: (index: number) => `Quitar el tipo ${index}`,
+      addType: 'Agregar tipo',
+      noExercises: 'Esta materia todavía no tiene ejercicios para armar un conjunto.',
       shortHelp:
         'Se compara sin mayúsculas, tildes ni espacios. Las variantes aceptables también valen.',
       value: 'Valor',
@@ -1020,6 +1193,27 @@ export const texts = {
         unitsBlank: 'Completá cada unidad de idea o quitala.',
         optionsRepeated: 'Hay dos opciones iguales.',
         stepsRepeated: 'Hay dos pasos iguales.',
+        // Fase 18.
+        optionsCount: 'Revisá cuántas opciones hay.',
+        family:
+          'Revisá la familia de variantes: cada nombre tiene que estar en los datos, las cuentas tienen que dar en todas las combinaciones, y tiene que haber más de una (hasta 10.000).',
+        unknownName: 'Hay un «{dato}» que no está en los datos de la familia.',
+        unsupported:
+          'Un conjunto lleva ejercicios que se contestan en el momento: ni tarjetas, ni procedimientos, ni otros conjuntos.',
+        formula: 'Hay una cuenta que no se puede calcular. Revisá los nombres y los signos.',
+        stepCount: 'Un procedimiento lleva de 2 a 8 pasos.',
+        emptyStep: 'Cada paso lleva qué hacer, el resultado esperado y la explicación.',
+        keyStep: 'Marcá al menos un paso clave.',
+        repeatedId: 'Hay dos pasos iguales.',
+        methodsBlank: 'Completá cada método y su porqué.',
+        typesCount: 'Un conjunto lleva de 2 a 5 tipos.',
+        typesBlank: 'Poné el nombre de cada tipo.',
+        typesRepeated: 'Hay dos tipos con el mismo nombre.',
+        typesEmpty: 'Cada tipo lleva al menos un problema, y cada problema va en un solo tipo.',
+        namesType: 'Un enunciado nombra uno de los tipos. Corregilo en la ficha de ese problema.',
+        subjects: 'Los problemas tienen que ser de la misma materia que el conjunto.',
+        parameters: 'Escribí cada dato como «nombre = 10; 20; 30».',
+        derived: 'Escribí cada cuenta como «nombre = cuenta».',
       },
     },
   },
@@ -1157,6 +1351,9 @@ export const texts = {
           ? 'Hay 1 repaso pospuesto para otro día.'
           : `Hay ${numberFormat.format(count)} repasos pospuestos para otro día.`,
       shortVersion: 'Versión corta (10 min)',
+      // Hay repasos vencidos y ninguno entra en ese tiempo (un procedimiento lleva más que 5 min).
+      nothingFits: (minutes: number) =>
+        `En ${minutes} minutos no entra ninguno de los repasos de hoy. Probá con más tiempo.`,
       // «Tengo: 5 10 25 45 min»: los minutos que elegís valen solo esta vez.
       have: 'Tengo:',
       haveUnit: 'min',
@@ -1255,17 +1452,22 @@ export const texts = {
           : `Qué falta para «Suficiente para avanzar»: ${remaining} aciertos sin ayuda en días distintos.`,
       recover: 'Qué falta para volver a «Suficiente para avanzar»: un acierto sin ayuda otro día.',
       check: (date: string) => `Qué falta: la comprobación sin ayuda, desde el ${date}.`,
-      toConsolidated: (remaining: number, from: string | null) => {
-        const count =
-          remaining === 1
+      toConsolidated: (remaining: number, from: string | null, needsVariant = false) => {
+        // En «Aplicar», además una variante nueva (CA-165).
+        if (needsVariant && remaining === 0 && from === null) {
+          return 'Qué falta para «Consolidado»: un acierto sin ayuda en una variante nueva.';
+        }
+        const days =
+          remaining <= 1
             ? 'un acierto sin ayuda más'
             : `${remaining} aciertos sin ayuda más, en días distintos`;
+        const variant = needsVariant ? ' y uno en una variante nueva' : '';
         if (from === null) {
-          return `Qué falta para «Consolidado»: ${count}.`;
+          return `Qué falta para «Consolidado»: ${days}${variant}.`;
         }
-        return remaining === 1
-          ? `Qué falta para «Consolidado»: ${count}, desde el ${from}.`
-          : `Qué falta para «Consolidado»: ${count}, uno desde el ${from}.`;
+        return remaining <= 1
+          ? `Qué falta para «Consolidado»: ${days}, desde el ${from}${variant}.`
+          : `Qué falta para «Consolidado»: ${days}, uno desde el ${from}${variant}.`;
       },
       kept: 'Consolidado: los repasos lo mantienen.',
       estimate: (concept: string, outOfTen: number, observations: number) =>
@@ -1338,6 +1540,8 @@ export const texts = {
         other: 'Otro',
       },
       on: (date: string) => `El ${date}`,
+      // Fase 18: en un procedimiento, qué paso fue.
+      step: (position: number, value: string) => `Paso ${position}: ${value}`,
       practice: 'Practicar ahora',
       typeSaved: 'Tipo de error guardado.',
       loading: 'Cargando tus errores…',
@@ -1365,6 +1569,23 @@ export const texts = {
       loading: 'Cargando las tarjetas para mejorar…',
       loadFailed: 'No pude leer las tarjetas para mejorar. Probá de nuevo.',
       failed: 'No pude hacer eso. Probá de nuevo.',
+    },
+    // Fase 18: «Crear tarjeta de contraste» desde un error de confusión (CA-163).
+    contrast: {
+      create: 'Crear tarjeta de contraste',
+      question: (first: string, second: string) => `¿En qué se diferencian ${first} y ${second}?`,
+      fillAnswer: 'Completá la diferencia en la ficha, con tus palabras.',
+      created: (question: string) => `Tarjeta creada: ${question}`,
+      exists: (question: string) => `Ya tenías esa tarjeta: ${question}`,
+      open: 'Abrir la tarjeta',
+      title: 'Crear tarjeta de contraste',
+      help: 'Escribí los dos conceptos que confundiste.',
+      first: 'Primer concepto',
+      second: 'Segundo concepto',
+      preview: (question: string) => `La tarjeta va a preguntar: ${question}`,
+      save: 'Crear la tarjeta',
+      cancel: 'Cancelar',
+      failed: 'No pude crear la tarjeta. Probá de nuevo.',
     },
     doubtsHeading: 'Dudas guardadas',
     noDoubts: 'Todavía no guardaste dudas.',

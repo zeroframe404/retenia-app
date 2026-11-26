@@ -28,13 +28,14 @@ Estudiar · Apuntes · Materiales · Idiomas · Progreso · Ajustes. Arriba, «B
 ## Actividad
 
 - «Pausar». Progreso «3/10». Rótulo de modo: PRÁCTICA CON AYUDA · PRÁCTICA AUTÓNOMA · EVALUACIÓN.
+- Un ejercicio vencido (desde la Fase 18) aparece entre las tarjetas, con su propia pantalla («Enviar», su corrección y «Siguiente»); la sesión empieza con una tarjeta.
 - Campo «Tu respuesta…». «Borrador guardado». «Enviar».
 - En tarjetas: «Mostrar respuesta» y después «No la sabía» · «Con dudas» · «La sabía». «Deshacer». «¿Por qué hoy?».
 - Barra de ayuda: «Pista» · «Ver un ejemplo» · «Fuente» · «Preguntar al tutor». «No sé por dónde empezar». Antes de la solución: «La próxima pista muestra la respuesta completa. ¿Querés intentarlo una vez más?».
 - Menú «Más»: «La tarjeta está mal» · «Editar» · «Saltar».
 - Confianza (1 de cada 5 intentos): «¿Cuánta confianza tenés?» → «Adivinando» · «Creo que sí» · «Seguro».
 - Tutor: «Pista» · «Ver un ejemplo» · «Explicame» · «Dejame pensar» · «Sigo solo» · «Mostrame la solución». Ícono «Pista disponible». Bloques «Según tu material» y «Aporte del modelo, no verificado». «Esta cita no dice eso». «Hay un error; ¿lo encontrás?».
-- Procedimientos y métodos: «¿Por qué este paso?»; «Hay un error en el paso 3; ¿lo encontrás?»; «¿Qué método usarías? No lo resuelvas».
+- Procedimientos y métodos: «¿Por qué este paso?»; «Hay un error en el paso 3; ¿lo encontrás?»; «¿Qué método usarías? No lo resuelvas». Al terminar un procedimiento, «Práctica terminada»; un conjunto, «Conjunto terminado» con «Los tipos, en el orden en que salieron».
 - Panel lateral del buscador (Ctrl+K) sin salir de la sesión.
 - Teclado: Espacio muestra la respuesta; 1, 2, 3 califican; Esc pausa; Ctrl+Z deshace.
 

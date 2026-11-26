@@ -2,13 +2,20 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Clock } from '../core/clock';
 import type { HelpUse } from '../core/evaluation';
-import { LOAD_POLICY_VERSION, postponeOutcome } from '../core/load';
-import type { Grade } from '../core/memory';
+import { currentEvaluation } from '../core/ledger';
+import {
+  INITIAL_SECONDS,
+  inactivityCapSeconds,
+  LOAD_POLICY_VERSION,
+  postponeOutcome,
+  spreadExercises,
+} from '../core/load';
+import type { Grade, Verdict } from '../core/memory';
 import {
   activeMinutes,
   chooseSessionCards,
-  projectSession,
-  type SessionEvent,
+  type ExerciseOutcome,
+  isOpenSession,
   type SessionState,
   summarizeSession,
 } from '../core/session';
@@ -23,6 +30,7 @@ import type {
   SessionView,
   StudyOverview,
 } from '../preload/contract/study';
+import type { ActivitiesStore } from './activities';
 import { annulReview, type CardsStore, flagCardVersion, recordReview } from './cards';
 import type { ReteniaDatabase } from './database';
 import { newId } from './ids';
@@ -38,8 +46,18 @@ import {
 } from './load';
 import type { Writer } from './orm';
 import { appendPostponement, postponementStates, recordedPostponements } from './postponements';
-import { cards, cardVersions, observations, sessionDrafts, subjects, topics } from './schema';
+import {
+  cards,
+  cardVersions,
+  evaluations,
+  observations,
+  sessionDrafts,
+  subjects,
+  topics,
+} from './schema';
+import { sentFromSession, sessionRows, stateOf } from './session-state';
 import { readSetting, writeSetting } from './settings';
+import { isPending } from './step-states';
 import { eligibleCards, nextDay, OUT_OF_REVIEWS, studiedGroupsOf } from './study-queue';
 
 // La sesión de estudio (Fase 10, H-16 a H-18). La sesión no se guarda como una fila que se pisa:
@@ -53,13 +71,6 @@ class NothingToStudyError extends Error {
   constructor() {
     super('Hoy no hay repasos vencidos para armar una sesión');
     this.name = 'NothingToStudyError';
-  }
-}
-
-class SessionNotFoundError extends Error {
-  constructor() {
-    super('No encontré esa sesión');
-    this.name = 'SessionNotFoundError';
   }
 }
 
@@ -104,8 +115,9 @@ export interface StudyStore {
   }): PostponeResult;
   // El tiempo de siempre (25 minutos hasta que «Mi meta» lo cambie): lo usa la propuesta.
   setDefaultMinutes(minutes: SessionMinutes): void;
-  // El corte de inactividad de cada paso de una sesión, en milisegundos.
-  inactivityCapMs(): number;
+  // El corte de inactividad de cada paso de una sesión, en milisegundos: el de una tarjeta, o el
+  // de un ejercicio si es lo que se está mostrando.
+  inactivityCapMs(sessionId?: string): number;
   view(input: { sessionId: string }): SessionView;
   resume(input: { sessionId: string; activeMs?: number }): SessionView;
   grade(input: {
@@ -123,6 +135,9 @@ export interface StudyStore {
   // Deshace la calificación de esa actividad si es la última: el mismo pedido dos veces deshace una.
   undo(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   skip(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
+  // «Siguiente» sobre un ejercicio: queda hecho si desde que empezó la sesión lo enviaste (o, en un
+  // procedimiento, terminaste el ejemplo). Repetirlo no suma.
+  exerciseDone(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   flag(input: {
     sessionId: string;
     activityId: string;
@@ -145,6 +160,14 @@ export interface StudyStore {
   dismissShortcuts(): void;
 }
 
+type Sent =
+  | { state: 'done'; attemptId: string | null; outcome: ExerciseOutcome }
+  | { state: 'unsaved'; attemptId: string; type: string }
+  | { state: 'pending'; resume: NonNullable<NonNullable<SessionView['current']>['resume']> };
+
+// Cómo cuenta en el cierre el resultado de un ejercicio, como los tres botones de una tarjeta.
+const OUTCOMES: Record<Verdict, Grade> = { correct: 'good', partial: 'hard', incorrect: 'again' };
+
 const SHORTCUTS_SEEN = 'session.shortcutsSeen';
 const PLAN_PREFERENCES = 'plan.preferences';
 const planSchema = z.object({
@@ -158,87 +181,7 @@ const NO_PREFERENCES: PlanPreferences = {
   pausedTopicIds: [],
 };
 
-type ObservationRow = typeof observations.$inferSelect;
-
-function sessionEventOf(row: ObservationRow): SessionEvent | null {
-  switch (row.kind) {
-    case 'session.started': {
-      const p = readPayload('session.started', row.schemaVersion, row.payload);
-      return { kind: 'started', ...p };
-    }
-    case 'review.graded': {
-      const p = readPayload('review.graded', row.schemaVersion, row.payload);
-      if (!('activityId' in p) || p.activityId === undefined) {
-        return null;
-      }
-      return {
-        kind: 'graded',
-        reviewId: row.id,
-        activityId: p.activityId,
-        grade: p.grade,
-        retryActivityId: p.retryActivityId ?? null,
-        activeMs: p.activeMs ?? 0,
-      };
-    }
-    case 'review.annulled': {
-      const p = readPayload('review.annulled', row.schemaVersion, row.payload);
-      return {
-        kind: 'annulled',
-        reviewId: p.reviewId,
-        activeMs: 'activeMs' in p ? (p.activeMs ?? 0) : 0,
-      };
-    }
-    case 'card.flagged': {
-      const p = readPayload('card.flagged', row.schemaVersion, row.payload);
-      return { kind: 'flagged', activityId: p.activityId, activeMs: p.activeMs };
-    }
-    case 'session.skipped': {
-      const p = readPayload('session.skipped', row.schemaVersion, row.payload);
-      return { kind: 'skipped', activityId: p.activityId, activeMs: p.activeMs };
-    }
-    case 'session.dropped': {
-      const p = readPayload('session.dropped', row.schemaVersion, row.payload);
-      return { kind: 'dropped', activityId: p.activityId, activeMs: p.activeMs };
-    }
-    case 'session.paused':
-    case 'session.resumed':
-    case 'session.finished':
-    case 'session.abandoned': {
-      const p = readPayload(row.kind, row.schemaVersion, row.payload);
-      const kind = row.kind.slice('session.'.length) as
-        | 'paused'
-        | 'resumed'
-        | 'finished'
-        | 'abandoned';
-      return { kind, activeMs: p.activeMs };
-    }
-    default:
-      return null;
-  }
-}
-
-function sessionRows(db: Writer, sessionId: string): ObservationRow[] {
-  return db
-    .select()
-    .from(observations)
-    .where(eq(observations.sessionId, sessionId))
-    .orderBy(observations.seq)
-    .all();
-}
-
-function stateOf(db: Writer, sessionId: string): SessionState {
-  const events = sessionRows(db, sessionId).flatMap((row) => {
-    const event = sessionEventOf(row);
-    return event === null ? [] : [event];
-  });
-  if (events[0]?.kind !== 'started') {
-    throw new SessionNotFoundError();
-  }
-  return projectSession(events);
-}
-
-const isOpen = (state: SessionState) =>
-  (state.status === 'active' || state.status === 'paused') && !state.complete;
+const isOpen = isOpenSession;
 
 // La última sesión empezada este día de estudio.
 function latestSessionOf(db: Writer, today: string): string | null {
@@ -262,6 +205,7 @@ export function createStudyStore(
   db: ReteniaDatabase,
   clock: Clock,
   cardsStore: () => CardsStore,
+  activitiesStore: () => ActivitiesStore,
   { fuzz = false }: { fuzz?: boolean } = {},
 ): StudyStore {
   const { orm } = db;
@@ -301,6 +245,121 @@ export function createStudyStore(
     }
   }
 
+  const activityTypeOf = (tx: Writer, cardId: string) =>
+    tx
+      .select({ activityType: cardVersions.activityType })
+      .from(cards)
+      .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+      .where(eq(cards.id, cardId))
+      .get()?.activityType ?? null;
+
+  // Cómo quedó ese ejercicio con lo que enviaste desde la sesión (vale el primer envío):
+  // «done», ya tiene resultado; «unsaved», se envió y no llegó a guardarse; «pending», un
+  // procedimiento a mitad de la corrección. Nulo si no enviaste nada.
+  function exerciseResult(tx: Writer, sessionId: string, cardId: string): Sent | null {
+    const sent = sentFromSession(tx, sessionId, cardId);
+    const attempt = sent.find((row) => row.kind === 'attempt.submitted');
+    if (!attempt) {
+      return sent.length > 0 ? { state: 'done', attemptId: null, outcome: 'seen' } : null;
+    }
+    const current = currentEvaluation(
+      tx.select().from(evaluations).where(eq(evaluations.attemptId, attempt.id)).all(),
+    );
+    const payload = readPayload('attempt.submitted', attempt.schemaVersion, attempt.payload);
+    if (!current) {
+      return { state: 'unsaved', attemptId: attempt.id, type: payload.activityType };
+    }
+    if (current.affected === 1) {
+      return { state: 'done', attemptId: attempt.id, outcome: 'flagged' };
+    }
+    if (isPending(current.components) && payload.answer.type === 'procedure') {
+      return {
+        state: 'pending',
+        resume: {
+          openingId: payload.openingId,
+          requestId: attempt.key.slice('attempt:'.length),
+          written: payload.answer.steps.map((step) => ({
+            stepId: step.stepId,
+            written: step.written,
+          })),
+        },
+      };
+    }
+    return { state: 'done', attemptId: attempt.id, outcome: OUTCOMES[current.verdict as Verdict] };
+  }
+
+  // El ejercicio que la sesión está mostrando, si lo es.
+  function currentExercise(tx: Writer, state: SessionState) {
+    const current = state.pending[0];
+    return current && isOpen(state) && activityTypeOf(tx, current.cardId) !== null ? current : null;
+  }
+
+  function appendExercise(
+    tx: Writer,
+    sessionId: string,
+    activity: { activityId: string; cardId: string },
+    result: { attemptId: string | null; outcome: ExerciseOutcome },
+    activeMs: number,
+  ): void {
+    appendObservation(tx, clock, {
+      kind: 'session.exercise_done',
+      payload: {
+        sessionId,
+        activityId: activity.activityId,
+        cardId: activity.cardId,
+        attemptId: result.attemptId,
+        outcome: result.outcome,
+        activeMs,
+      },
+      idempotencyKey: `exercise:${sessionId}:${activity.activityId}`,
+      source: 'user',
+    });
+    finishIfComplete(tx, sessionId);
+  }
+
+  // Anota el ejercicio actual como hecho, si ya tiene resultado.
+  function recordExercise(
+    tx: Writer,
+    sessionId: string,
+    activityId: string,
+    activeMs: number,
+  ): boolean {
+    const current = currentExercise(tx, stateOf(tx, sessionId));
+    if (current?.activityId !== activityId) {
+      return false;
+    }
+    const result = exerciseResult(tx, sessionId, current.cardId);
+    if (result?.state !== 'done') {
+      return false;
+    }
+    appendExercise(tx, sessionId, current, result, activeMs);
+    return true;
+  }
+
+  // Lo que enviaste antes de pausar o de un corte no se vuelve a pedir. Lo que Retenia corrige
+  // solo queda guardado como lo propuso; una respuesta abierta sin comparar queda sin contar (y
+  // vuelve otro día). Un procedimiento a mitad de la corrección se sigue donde estaba.
+  function settleExercise(tx: Writer, sessionId: string): void {
+    const current = currentExercise(tx, stateOf(tx, sessionId));
+    if (!current) {
+      return;
+    }
+    const result = exerciseResult(tx, sessionId, current.cardId);
+    if (result?.state === 'unsaved') {
+      if (result.type === 'open') {
+        appendExercise(tx, sessionId, current, { attemptId: result.attemptId, outcome: 'seen' }, 0);
+        return;
+      }
+      activitiesStore().settle(tx, result.attemptId);
+    }
+    recordExercise(tx, sessionId, current.activityId, 0);
+  }
+
+  const hasSent = (tx: Writer, state: SessionState) => {
+    const current = currentExercise(tx, state);
+    return current !== null && sentFromSession(tx, state.sessionId, current.cardId).length > 0;
+  };
+
   // La actividad actual tiene que ser una tarjeta que todavía se puede estudiar; si se borró, se
   // pausó o su ficha pasó a «En revisión» o «Retirada» (desde «Editar» o desde Apuntes), sale de
   // la sesión como hecha.
@@ -329,6 +388,10 @@ export function createStudyStore(
       if (available) {
         return;
       }
+      // Un ejercicio que ya contestaste (aunque haya quedado «En revisión») cuenta como hecho.
+      if (recordExercise(tx, sessionId, current.activityId, 0)) {
+        continue;
+      }
       append(
         tx,
         'session.dropped',
@@ -337,6 +400,12 @@ export function createStudyStore(
       );
       finishIfComplete(tx, sessionId);
     }
+  }
+
+  function resumeOf(tx: Writer, sessionId: string, cardId: string) {
+    const result =
+      activityTypeOf(tx, cardId) === null ? null : exerciseResult(tx, sessionId, cardId);
+    return result?.state === 'pending' ? result.resume : null;
   }
 
   function viewOf(tx: Writer, sessionId: string): SessionView {
@@ -360,6 +429,7 @@ export function createStudyStore(
         retry: pending.retry,
         card: cardsStore().get({ cardId: pending.cardId }),
         draft: { text: draft?.text ?? '', answerShown: (draft?.answerShown ?? 0) === 1 },
+        resume: resumeOf(tx, sessionId, pending.cardId),
       };
     }
     return {
@@ -502,6 +572,16 @@ export function createStudyStore(
     };
   }
 
+  // Para el reloj: sin sesión (o si ya no está) vale el tope de una tarjeta.
+  function currentOpenExercise(sessionId: string) {
+    const started = orm
+      .select({ id: observations.id })
+      .from(observations)
+      .where(eq(observations.idempotencyKey, `session:${sessionId}`))
+      .get();
+    return started ? currentExercise(orm, stateOf(orm, sessionId)) : null;
+  }
+
   return {
     overview(input = {}) {
       return orm.transaction((tx) => overviewOf(tx, input.minutes));
@@ -511,8 +591,12 @@ export function createStudyStore(
       writeDefaultMinutes(orm, clock, minutes);
     },
 
-    inactivityCapMs() {
-      return inactivityCapMs(orm, clock);
+    inactivityCapMs(sessionId) {
+      // Un ejercicio lleva más que una tarjeta: su paso quieto cuenta hasta 2 minutos.
+      const exercise = sessionId === undefined ? null : currentOpenExercise(sessionId);
+      return exercise
+        ? inactivityCapSeconds(INITIAL_SECONDS.comprehension) * 1000
+        : inactivityCapMs(orm, clock);
     },
 
     postpone({ requestId, minutes, when, day: chosenDay }) {
@@ -582,7 +666,13 @@ export function createStudyStore(
         const day = gathered.today;
         const chosenMinutes = minutes ?? gathered.defaultMinutes;
         const plan = composeFor(gathered, chosenMinutes, only);
-        const chosen = [...plan.reviews, ...plan.newCards];
+        // Los ejercicios van repartidos entre todas las tarjetas, también las nuevas.
+        const exercises = new Set(
+          gathered.reviews.filter((card) => card.exercise === true).map((card) => card.cardId),
+        );
+        const chosen = spreadExercises([...plan.reviews, ...plan.newCards], (cardId) =>
+          exercises.has(cardId),
+        );
         if (chosen.length === 0) {
           throw new NothingToStudyError();
         }
@@ -632,21 +722,41 @@ export function createStudyStore(
     },
 
     resume({ sessionId, activeMs = 0 }) {
-      return change(sessionId, (tx, state) => {
+      return orm.transaction((tx) => {
+        const before = stateOf(tx, sessionId);
         // Una sesión pausada vale hasta el cambio de día de estudio (04:00).
-        if (state.studyDay !== today()) {
+        if (before.studyDay !== today()) {
           throw new SessionClosedError();
         }
+        // Va antes de sacar lo que no se puede estudiar: uno marcado con «Discrepo» igual cuenta.
+        settleExercise(tx, sessionId);
+        dropUnavailable(tx, sessionId);
+        const state = stateOf(tx, sessionId);
         if (state.status === 'paused' && !state.complete) {
           append(tx, 'session.resumed', { sessionId, activeMs }, `resume:${newId()}`);
         }
+        return viewOf(tx, sessionId);
+      });
+    },
+
+    exerciseDone({ sessionId, activityId, activeMs = 0 }) {
+      // Sin sacar antes la actividad actual: si quedó «En revisión» con «Discrepo», igual cuenta.
+      return orm.transaction((tx) => {
+        recordExercise(tx, sessionId, activityId, activeMs);
+        dropUnavailable(tx, sessionId);
+        return viewOf(tx, sessionId);
       });
     },
 
     grade({ sessionId, activityId, attemptId, grade, answer, marks, activeMs = 0, help, noIdea }) {
       return change(sessionId, (tx, state) => {
         const current = state.pending[0];
-        if (!isOpen(state) || current?.activityId !== activityId) {
+        // Un ejercicio no se califica con los tres botones: tiene su «Siguiente».
+        if (
+          !isOpen(state) ||
+          current?.activityId !== activityId ||
+          activityTypeOf(tx, current.cardId) !== null
+        ) {
           return;
         }
         const recorded = recordReview(tx, clock, fuzz, {
@@ -680,6 +790,10 @@ export function createStudyStore(
         if (state.status === 'abandoned') {
           throw new SessionClosedError();
         }
+        // Con el ejercicio ya enviado no se deshace lo de antes: se sigue con «Siguiente».
+        if (hasSent(tx, state)) {
+          return viewOf(tx, sessionId);
+        }
         const last = state.undoable;
         if (last?.activityId === activityId) {
           annulReview(tx, clock, {
@@ -707,7 +821,8 @@ export function createStudyStore(
 
     skip({ sessionId, activityId, activeMs = 0 }) {
       return change(sessionId, (tx, state) => {
-        if (isOpen(state) && state.pending[0]?.activityId === activityId) {
+        // Un ejercicio ya enviado no se saltea: se sigue con «Siguiente».
+        if (isOpen(state) && state.pending[0]?.activityId === activityId && !hasSent(tx, state)) {
           append(tx, 'session.skipped', { sessionId, activityId, activeMs }, `skip:${newId()}`);
         }
       });
@@ -718,6 +833,12 @@ export function createStudyStore(
         const current = state.pending[0];
         if (!isOpen(state) || current?.activityId !== activityId) {
           return;
+        }
+        // Lo que enviaste de ese ejercicio deja de contar: la tarjeta estaba mal (CA-077).
+        for (const sent of sentFromSession(tx, sessionId, current.cardId)) {
+          if (sent.kind === 'attempt.submitted') {
+            activitiesStore().discard(tx, sent.id);
+          }
         }
         const versionId = flagCardVersion(tx, clock, current.cardId);
         appendObservation(tx, clock, {

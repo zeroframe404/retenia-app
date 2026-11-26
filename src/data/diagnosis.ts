@@ -186,7 +186,7 @@ export function diagnosisFor(
     previous: previous
       ? {
           verdict: previous.verdict ?? 'incorrect',
-          helpLevel: previous.helpLevel,
+          helpLevel: previous.barHelp,
           optionsQuestion: previous.optionsQuestion,
         }
       : null,

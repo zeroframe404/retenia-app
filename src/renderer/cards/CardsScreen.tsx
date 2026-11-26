@@ -3,6 +3,9 @@ import type { ActivationCost, Card, CardDetail } from '../../preload/contract/ca
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { ExerciseView, type ReferenceField } from '../practice/ExerciseView';
+import { PracticeClosing } from '../practice/PracticeClosing';
+import { ProcedureView } from '../practice/ProcedureView';
+import { SetView } from '../practice/SetView';
 import { Boton } from '../ui/Boton';
 import { Dialog, ScreenFrame, Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -29,6 +32,8 @@ type View =
     }
   | { kind: 'newExercise' }
   | { kind: 'review'; card: Card }
+  // El cierre de un ejercicio cuando hay un micro-ejercicio para proponer (CA-166).
+  | { kind: 'closing' }
   | { kind: 'history'; card: Card };
 
 type Topic = { id: string; name: string };
@@ -54,6 +59,7 @@ export function CardsScreen({
   onOpenNote,
   onOpenOriginal,
   cardRequest = null,
+  onPracticeStarted,
   onOpenObjective,
 }: {
   subject?: Subject | undefined;
@@ -66,6 +72,9 @@ export function CardsScreen({
     practice?: boolean | undefined;
     edit?: 'rephrase' | 'hint' | undefined;
   } | null;
+  // El pedido de «Practicar ahora» vale una sola vez: volver a «Tarjetas» muestra la lista, no
+  // reabre la actividad (que anotaría otra variante u otra vuelta sin que la pidas).
+  onPracticeStarted?: (() => void) | undefined;
   // «Ir al requisito» tras un fallo (Fase 17).
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
 }) {
@@ -143,6 +152,7 @@ export function CardsScreen({
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
   useEffect(() => {
     if (cardRequest?.practice) {
+      onPracticeStarted?.();
       window.retenia['cards.get']({ cardId: cardRequest.cardId }).then(
         (card) =>
           // Una en pausa, «En revisión» o «Retirada» no se practica: se abre su pantalla.
@@ -240,12 +250,57 @@ export function CardsScreen({
     // «Practicar ahora» (Fase 16): un ejercicio tiene su pantalla; la tarjeta de siempre, el repaso.
     // La fuente se lee en el panel: «Ver en el original» llevaría a Materiales y se perdería lo
     // escrito, así que acá no se ofrece.
+    const editReference = (cardId: string, field: ReferenceField) => {
+      window.retenia['cards.get']({ cardId }).then(
+        (detail) => {
+          setNotice(texts.practice.editAfterAppeal);
+          setView({ kind: 'edit', card: detail, focus: field });
+        },
+        () => setProblem(texts.cards.loadFailed),
+      );
+    };
+    // Después de «Siguiente»: si se repitió un error en este ejercicio, el cierre lo propone.
+    const closeExercise = () => {
+      window.retenia['micro.proposal']({}).then(
+        ({ proposal }) => {
+          if (proposal !== null && proposal.cardId === card.id) {
+            setView({ kind: 'closing' });
+          } else {
+            backToList();
+          }
+        },
+        () => backToList(),
+      );
+    };
+    // Fase 18: el procedimiento y el conjunto mezclado tienen su pantalla.
+    if (card.activityType === 'procedure') {
+      return (
+        <ProcedureView
+          key={card.id}
+          cardId={card.id}
+          onClose={backToList}
+          onEditReference={(field) => editReference(card.id, field)}
+          onOpenObjective={onOpenObjective}
+        />
+      );
+    }
+    if (card.activityType === 'interleaved') {
+      return (
+        <SetView
+          key={card.id}
+          cardId={card.id}
+          onClose={backToList}
+          onEditReference={editReference}
+        />
+      );
+    }
     if (card.activityType !== null) {
       return (
         <ExerciseView
           key={card.id}
           cardId={card.id}
           onClose={backToList}
+          onNext={closeExercise}
           onOpenObjective={onOpenObjective}
           onPracticeOther={(otherId) => {
             window.retenia['cards.get']({ cardId: otherId }).then(
@@ -253,19 +308,15 @@ export function CardsScreen({
               () => setProblem(texts.cards.loadFailed),
             );
           }}
-          onEditReference={(field) => {
-            window.retenia['cards.get']({ cardId: card.id }).then(
-              (detail) => {
-                setNotice(texts.practice.editAfterAppeal);
-                setView({ kind: 'edit', card: detail, focus: field });
-              },
-              () => setProblem(texts.cards.loadFailed),
-            );
-          }}
+          onEditReference={(field) => editReference(card.id, field)}
         />
       );
     }
     return <ReviewView card={card} onReviewed={() => undefined} onClose={backToList} />;
+  }
+
+  if (view.kind === 'closing') {
+    return <PracticeClosing onClose={backToList} />;
   }
 
   if (view.kind === 'newExercise') {
@@ -295,6 +346,7 @@ export function CardsScreen({
         <Toast>{notice}</Toast>
         <SheetForm
           card={card}
+          subjectId={subjectId ?? null}
           focusField={view.focus}
           improve={view.improve}
           onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}

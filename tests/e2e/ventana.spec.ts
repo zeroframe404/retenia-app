@@ -59,6 +59,8 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'cards.activationCost',
       'cards.activate',
       // Ejercicios, ayuda, «Discrepo» y el aviso de evaluación corregida (Fase 16).
+      // El ejercicio antes de guardarlo (Fase 18).
+      'activities.validate',
       'activities.start',
       'activities.help',
       'activities.mark',
@@ -80,6 +82,7 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'study.grade',
       'study.undo',
       'study.skip',
+      'study.exerciseDone',
       'study.flag',
       'study.pause',
       'study.saveDraft',
@@ -103,6 +106,21 @@ test('la ventana está aislada: sin Node, con sandbox y sin integración de Node
       'objectives.resume',
       'progress.errors',
       'progress.errors.setType',
+      'progress.errors.contrast',
+      // El procedimiento, el conjunto mezclado y el micro-ejercicio (Fase 18).
+      'procedure.open',
+      'procedure.studied',
+      'procedure.check',
+      'procedure.retry',
+      'procedure.correction',
+      'procedure.finish',
+      'sets.open',
+      'sets.summary',
+      'micro.proposal',
+      'micro.open',
+      'micro.check',
+      'micro.self',
+      'micro.finish',
       'progress.improveCard.list',
       'progress.improveCard.split',
       // Materias, temas, notas, imágenes y Bandeja (Fase 07).

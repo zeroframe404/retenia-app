@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import type { MicroProposal } from '../../preload/contract/procedures';
 import type { SessionRating, SessionSummary } from '../../preload/contract/study';
 import { texts } from '../../preload/contract/texts';
+import { MicroExerciseView, MicroProposalCard } from '../practice/MicroExercise';
 import { CierreSesion } from '../ui/Session';
 import { ViewState } from '../ui/ViewStates';
 import { AdjustPlanDialog } from './AdjustPlanDialog';
@@ -41,6 +43,7 @@ export function SessionClosing({
   const [rating, setRating] = useState<SessionRating | null>(null);
   const [dialog, setDialog] = useState<'doubt' | 'adjust' | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [micro, setMicro] = useState<MicroProposal | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `attempt` vuelve a pedir el cierre después de «Reintentar».
   useEffect(() => {
@@ -64,6 +67,9 @@ export function SessionClosing({
     };
   }, [sessionId, attempt]);
 
+  if (micro !== null) {
+    return <MicroExerciseView proposal={micro} onDone={() => setMicro(null)} />;
+  }
   if (failed) {
     return (
       <ViewState
@@ -108,6 +114,7 @@ export function SessionClosing({
         onSaveDoubt={() => setDialog('doubt')}
         onAdjustPlan={() => setDialog('adjust')}
       />
+      <MicroProposalCard onStart={setMicro} />
       {dialog === 'doubt' ? (
         <DoubtDialog
           cards={summary.cards}

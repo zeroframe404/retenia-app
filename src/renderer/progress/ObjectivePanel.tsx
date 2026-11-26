@@ -47,6 +47,7 @@ function nextStepText(step: NextStepValue): string {
       return panel.toConsolidated(
         step.remaining,
         step.delayedFrom === null ? null : formatShortDate(step.delayedFrom),
+        step.needsVariant === true,
       );
     case 'kept':
       return panel.kept;

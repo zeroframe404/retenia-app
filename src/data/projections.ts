@@ -32,6 +32,7 @@ import { readPayload } from './ledger';
 import type { Writer } from './orm';
 import { postponementsOf } from './postponements';
 import { cardSchedule, cards, cardVersions, evaluations, observations, subjects } from './schema';
+import { isPending } from './step-states';
 
 // La agenda de cada tarjeta es una proyección (docs/modelo-de-datos.md, sección 1.3): se
 // recalcula entera desde sus eventos con la misma función pura de core, al guardar un repaso y
@@ -268,6 +269,7 @@ function attemptEvaluationsOf(db: Writer, cardId: string): Map<string, AttemptEv
       version: evaluations.version,
       verdict: evaluations.verdict,
       cause: evaluations.cause,
+      components: evaluations.components,
     })
     .from(evaluations)
     .innerJoin(observations, eq(observations.id, evaluations.attemptId))
@@ -277,7 +279,11 @@ function attemptEvaluationsOf(db: Writer, cardId: string): Map<string, AttemptEv
   return new Map(
     submitted.map((row) => {
       const attempt = readPayload('attempt.submitted', row.version, row.payload);
-      const own = versions.filter((version) => version.attemptId === row.id);
+      const all = versions.filter((version) => version.attemptId === row.id);
+      // En un procedimiento, la calificación provisoria que después se completó no se muestra.
+      const own = all.filter(
+        (version, index) => index === all.length - 1 || !isPending(version.components),
+      );
       return [
         row.id,
         {

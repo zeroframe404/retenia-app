@@ -30,7 +30,7 @@ export interface StudyTimer {
 export function createStudyTimer(
   clock: Clock,
   stopwatch: Stopwatch,
-  capMs: () => number = () => IDLE_CAP_MS,
+  capMs: (sessionId: string) => number = () => IDLE_CAP_MS,
 ): StudyTimer {
   let running: { sessionId: string; elapsed: () => number } | null = null;
   const marks = new Map<
@@ -42,7 +42,7 @@ export function createStudyTimer(
       answerRequestedMs: number | null;
     }
   >();
-  const capped = (ms: number) => Math.min(capMs(), Math.round(ms));
+  const capped = (ms: number, cap: number) => Math.min(cap, Math.round(ms));
 
   const take = (sessionId: string, restart: boolean): number => {
     if (running?.sessionId !== sessionId) {
@@ -51,7 +51,7 @@ export function createStudyTimer(
       }
       return 0;
     }
-    const ms = capped(running.elapsed());
+    const ms = capped(running.elapsed(), capMs(sessionId));
     running = restart ? { sessionId, elapsed: stopwatch.start() } : null;
     return ms;
   };

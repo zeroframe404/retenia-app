@@ -3,6 +3,18 @@
 
 import type { Grade } from '../memory/types';
 
+// Los ejercicios que vuelven en Estudiar cuando les toca el repaso (Fase 18). El conjunto
+// mezclado no tiene repaso propio: vuelven sus problemas.
+export const SESSION_EXERCISES: readonly string[] = [
+  'short',
+  'numeric',
+  'options',
+  'order',
+  'open',
+  'decision',
+  'procedure',
+];
+
 // Cuántas tarjetas entran en una sesión (la composición por minutos llega en la Fase 11).
 export const SESSION_SIZE = 10;
 // Una tarjeta fallada vuelve después de al menos estas otras (o al final si quedan menos).
@@ -21,7 +33,9 @@ interface SessionActivity {
   readonly retry: boolean;
 }
 
-type SessionOutcome = Grade | 'flagged' | 'dropped';
+// «seen»: de un procedimiento se vio el ejemplo (no es un resultado).
+type SessionOutcome = Grade | 'flagged' | 'dropped' | 'seen';
+export type ExerciseOutcome = Grade | 'flagged' | 'seen';
 
 interface DoneActivity extends SessionActivity {
   readonly outcome: SessionOutcome;
@@ -63,6 +77,13 @@ export type SessionEvent =
       readonly retryActivityId: string | null;
       readonly activeMs: number;
     }
+  // Un ejercicio contestado en la sesión (Fase 18): su resultado lo dio el ejercicio.
+  | {
+      readonly kind: 'exercise';
+      readonly activityId: string;
+      readonly outcome: ExerciseOutcome;
+      readonly activeMs: number;
+    }
   | { readonly kind: 'annulled'; readonly reviewId: string; readonly activeMs: number }
   | { readonly kind: 'skipped'; readonly activityId: string; readonly activeMs: number }
   | { readonly kind: 'flagged'; readonly activityId: string; readonly activeMs: number }
@@ -71,6 +92,10 @@ export type SessionEvent =
       readonly kind: 'paused' | 'resumed' | 'finished' | 'abandoned';
       readonly activeMs: number;
     };
+
+// Una sesión que todavía se puede seguir (en curso o en pausa, con algo pendiente).
+export const isOpenSession = (state: SessionState): boolean =>
+  (state.status === 'active' || state.status === 'paused') && !state.complete;
 
 // Primero la de menor probabilidad de recordarla; a igual probabilidad, la que venció antes; y
 // después el identificador, así el orden es siempre el mismo.
@@ -201,14 +226,16 @@ function applyEvent(draft: Draft, event: SessionEvent): void {
       return;
     }
     case 'flagged':
-    case 'dropped': {
+    case 'dropped':
+    case 'exercise': {
       if (!current || current.activityId !== event.activityId) {
         return;
       }
       draft.pending.shift();
+      // Sin repaso para anular: ni esto ni lo de antes se puede deshacer.
       draft.done.push({
         ...current,
-        outcome: event.kind,
+        outcome: event.kind === 'exercise' ? event.outcome : event.kind,
         reviewId: null,
         retryActivityId: null,
       });
@@ -258,7 +285,8 @@ export function projectSession(events: readonly SessionEvent[]): SessionState {
     last &&
     last.reviewId !== null &&
     last.outcome !== 'flagged' &&
-    last.outcome !== 'dropped'
+    last.outcome !== 'dropped' &&
+    last.outcome !== 'seen'
       ? {
           reviewId: last.reviewId,
           activityId: last.activityId,
@@ -311,7 +339,7 @@ export function summarizeSession(
   const failedByTopic = new Map<string | null, string[]>();
   const cardsByTopic = new Map<string | null, number>();
   for (const entry of state.done) {
-    if (entry.retry || entry.outcome === 'dropped') {
+    if (entry.retry || entry.outcome === 'dropped' || entry.outcome === 'seen') {
       continue;
     }
     results[entry.outcome] += 1;

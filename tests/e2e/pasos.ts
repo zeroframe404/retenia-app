@@ -114,3 +114,21 @@ export async function createCard(page: Page, question: string, answer: string) {
   await page.getByRole('button', { name: 'Guardar' }).click();
   await expect(page.getByText('Tarjeta guardada')).toBeVisible();
 }
+
+// En la sesión de Estudiar: contesta tarjetas hasta que aparezca un ejercicio. Con clics y no con
+// teclas: el clic espera a que el botón esté listo, sin depender de dónde quedó el foco.
+export async function untilExercise(page: Page) {
+  const exercise = page.getByRole('region', { name: 'Ejercicio' });
+  const show = page.getByRole('button', { name: 'Mostrar respuesta' });
+  for (let turn = 0; turn < 40; turn += 1) {
+    await expect(show.or(exercise)).toBeVisible();
+    if (await exercise.isVisible()) {
+      return exercise;
+    }
+    const progress = await page.getByRole('status', { name: /^Llevás/ }).innerText();
+    await show.click();
+    await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+    await expect(page.getByRole('status', { name: /^Llevás/ })).not.toHaveText(progress);
+  }
+  throw new Error('No apareció ningún ejercicio');
+}

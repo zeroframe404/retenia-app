@@ -17,6 +17,7 @@ import {
   referenceText,
   validateActivity,
 } from '../core/evaluation';
+import { SET_ACTIVITIES, setProblems } from '../core/interleave';
 import { newCardsCost } from '../core/load';
 import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
@@ -34,6 +35,7 @@ import type {
   CardSheetInput,
   SheetStateValue,
 } from '../preload/contract/cards';
+import { texts } from '../preload/contract/texts';
 import {
   CardOutOfReviewsError,
   CardPausedError,
@@ -57,7 +59,14 @@ import {
   trashCard,
 } from './content';
 import type { ReteniaDatabase } from './database';
-import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './demo-cards';
+import {
+  plantAttempt,
+  plantCard,
+  plantHistoryOf,
+  type SeedAttempt,
+  type SeedCard,
+  type SeedReview,
+} from './demo-cards';
 import { newId } from './ids';
 import {
   appendEvaluation,
@@ -110,9 +119,11 @@ interface ListInput {
 // La actividad no cumple lo que pide su editor (Fase 16): opciones, pasos o unidades de más o de
 // menos, sin explicación en una opción equivocada…
 class InvalidActivityError extends Error {
+  readonly problems: readonly string[];
   constructor(problems: readonly string[]) {
     super(`La actividad no es válida: ${problems.join(', ')}`);
     this.name = 'InvalidActivityError';
+    this.problems = problems;
   }
 }
 
@@ -130,9 +141,52 @@ function activityJson(activity: Activity | null | undefined): {
   return { activityType: activity.type, activity: JSON.stringify(activity) };
 }
 
+// Todo lo que un problema puede mostrar como enunciado: su pregunta y los de sus variantes.
+export function shownStatements(row: { question: string; activity: string | null }): string {
+  const activity = parsedActivity(row);
+  const family = activity?.type === 'numeric' ? activity.family : null;
+  return [row.question, ...(family?.statements ?? [])].join(' ¦ ');
+}
+
+// Un conjunto intercalado (CA-162): sus problemas son ejercicios de la misma materia y ninguno
+// nombra un tipo en el enunciado.
+function assertSetProblems(tx: Writer, activity: Activity, subjectId: string | null): void {
+  if (activity.type !== 'interleaved') {
+    return;
+  }
+  const subjectsOf = new Map<string, string | null>();
+  const statements = new Map<string, string>();
+  for (const cardId of activity.types.flatMap((type) => type.cardIds)) {
+    const row = findCard(tx, cardId);
+    if (!row || row.deletedAt !== null) {
+      throw new InvalidActivityError(['typesEmpty']);
+    }
+    if (!SET_ACTIVITIES.includes(row.activityType ?? '')) {
+      throw new InvalidActivityError(['unsupported']);
+    }
+    subjectsOf.set(cardId, row.subjectId);
+    statements.set(cardId, shownStatements(row));
+  }
+  const problems = setProblems(activity.types, { subjects: subjectsOf, statements });
+  if ([...subjectsOf.values()].some((own) => own !== subjectId)) {
+    problems.push('subjects');
+  }
+  if (problems.length > 0) {
+    throw new InvalidActivityError(problems);
+  }
+}
+
 function answerFor(activity: Activity | null | undefined, given: string): string {
+  // Con variantes no hay una respuesta fija (y la cuenta no es para mostrar).
+  if (activity?.type === 'numeric' && activity.family) {
+    return texts.cards.variantAnswer;
+  }
   return activity ? (referenceText(activity) ?? given) : given;
 }
+
+// El procedimiento y el conjunto son siempre de práctica: la escalera ya decide cuánta ayuda hay.
+const alwaysPractice = (activityType: string | null | undefined) =>
+  activityType === 'procedure' || activityType === 'interleaved';
 
 export function parsedActivity(row: { activity: string | null }): ActivityValue | null {
   return row.activity === null ? null : (JSON.parse(row.activity) as ActivityValue);
@@ -231,6 +285,12 @@ export interface CardsStore {
   // Solo para la demostración: tarjetas sueltas con su historial, y el historial de una que nació
   // en una nota. Devuelven cuántas tarjetas hay después.
   plantCast(entries: readonly SeedCard[]): number;
+  // Lo que está mal en un ejercicio antes de guardarlo (Fase 18).
+  validateActivity(input: { activity: Activity; subjectId: string | null }): {
+    problems: string[];
+  };
+  // Intentos de otros días sobre ejercicios, solo de la demostración (Fase 18).
+  plantAttempts(attempts: readonly SeedAttempt[]): void;
   plantHistory(
     entries: readonly { cardId: string; createdAt: Date; reviews: readonly SeedReview[] }[],
   ): void;
@@ -582,6 +642,9 @@ export function createCardsStore(
                 .get()?.id ?? null)
             : input.subjectId;
         assertPlace(tx, subjectId, topicId);
+        if (input.activity) {
+          assertSetProblems(tx, input.activity, subjectId);
+        }
         tx.insert(cards)
           .values({ id: cardId, currentVersionId: versionId, createdAt: now, subjectId, topicId })
           .run();
@@ -599,7 +662,10 @@ export function createCardsStore(
             ...activityJson(input.activity),
             example: input.example?.trim() ?? '',
             // La tarjeta de siempre es siempre de práctica.
-            mode: input.activity ? (input.mode ?? 'practice') : 'practice',
+            mode:
+              input.activity && !alwaysPractice(input.activity.type)
+                ? (input.mode ?? 'practice')
+                : 'practice',
           })
           .run();
         recomputeCardSchedule(tx, cardId);
@@ -773,6 +839,9 @@ export function createCardsStore(
             ? { activityType: current.activityType, activity: current.activity }
             : activityJson(activity);
         const nextExample = example === undefined ? current.example : example.trim();
+        if (activity) {
+          assertSetProblems(tx, activity, current.subjectId);
+        }
         const answer =
           nextActivity.activity === null
             ? given
@@ -780,7 +849,9 @@ export function createCardsStore(
         const textChanged = current.question !== question || current.answer !== answer;
         // Volver a la tarjeta de siempre deja el modo en práctica (no hay dónde verlo).
         const nextMode =
-          nextActivity.activity === null ? 'practice' : (mode ?? asMode(current.mode));
+          nextActivity.activity === null || alwaysPractice(nextActivity.activityType)
+            ? 'practice'
+            : (mode ?? asMode(current.mode));
         const sheetChanged =
           sheetKey(currentSheet) !== sheetKey(nextSheet) ||
           nextActivity.activity !== current.activity ||
@@ -1111,6 +1182,29 @@ export function createCardsStore(
           .where(isNull(cardVersions.activityType))
           .get()?.total ?? 0
       );
+    },
+
+    validateActivity({ activity, subjectId }) {
+      const problems: string[] = [...validateActivity(activity)];
+      if (problems.length === 0 && activity.type === 'interleaved') {
+        try {
+          assertSetProblems(orm, activity, subjectId);
+        } catch (error) {
+          if (!(error instanceof InvalidActivityError)) {
+            throw error;
+          }
+          problems.push(...error.problems);
+        }
+      }
+      return { problems };
+    },
+
+    plantAttempts(attempts) {
+      orm.transaction((tx) => {
+        for (const [index, attempt] of attempts.entries()) {
+          plantAttempt(tx, clock, attempt, index);
+        }
+      });
     },
 
     plantCast(entries) {

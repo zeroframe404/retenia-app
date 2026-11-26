@@ -1,7 +1,7 @@
-import { and, eq, gt, inArray, isNull, notInArray } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNull, notInArray, or } from 'drizzle-orm';
 import type { CardMemory } from '../core/memory';
 import { recallProbability } from '../core/memory';
-import type { QueueCandidate } from '../core/session';
+import { type QueueCandidate, SESSION_EXERCISES } from '../core/session';
 import { studyDayOf } from '../core/study-day';
 import { difficultyOf } from './difficulty';
 import { readPayload } from './ledger';
@@ -37,11 +37,40 @@ export interface Eligible extends QueueCandidate {
   readonly scheduledDays: number;
   readonly retentionTarget: number;
   readonly reps: number;
+  // Nulo en una tarjeta; en un ejercicio, su tipo.
+  readonly activityType: string | null;
 }
 
-// Las tarjetas ya repasadas de una materia que pueden entrar en una sesión: sin pausar, sin
-// borrar y con la ficha fuera de «En revisión» y «Retirada». Con su
-// probabilidad de recordarlas el día `today` y el día en que vencen.
+const laterDay = (a: string, b: string) => (a > b ? a : b);
+
+// Los ejercicios que hoy quedaron hechos en una sesión sin un resultado que mueva su repaso: el
+// ejemplo de un procedimiento, o una respuesta abierta que no llegaste a comparar.
+function seenTodayOf(db: Writer, today: string): Set<string> {
+  return new Set(
+    db
+      .select({
+        at: observations.occurredAt,
+        payload: observations.payload,
+        version: observations.schemaVersion,
+      })
+      .from(observations)
+      .where(
+        and(
+          eq(observations.kind, 'session.exercise_done'),
+          gt(observations.occurredAt, dayStart(today)),
+        ),
+      )
+      .all()
+      .filter((row) => studyDayOf(new Date(row.at)) === today)
+      .map((row) => readPayload('session.exercise_done', row.version, row.payload))
+      .filter((payload) => payload.outcome === 'seen')
+      .map((payload) => payload.cardId),
+  );
+}
+
+// Las tarjetas y los ejercicios ya repasados de una materia que pueden entrar en una sesión: sin
+// pausar, sin borrar y con la ficha fuera de «En revisión» y «Retirada». Con su probabilidad de
+// recordarlos el día `today` y el día en que vencen.
 export function eligibleCards(db: Writer, subjectId: string, today: string): Eligible[] {
   const rows = db
     .select({
@@ -57,6 +86,7 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
       lapses: cardSchedule.lapses,
       scheduledDays: cardSchedule.scheduledDays,
       retentionTarget: cardSchedule.retentionTarget,
+      activityType: cardVersions.activityType,
     })
     .from(cards)
     .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
@@ -68,12 +98,15 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
         isNull(cards.pausedAt),
         gt(cardSchedule.reps, 0),
         notInArray(cardVersions.sheetState, OUT_OF_REVIEWS),
-        // Los ejercicios (Fase 16) se practican con «Practicar ahora»; entran en la sesión con la
-        // Fase 18.
-        isNull(cardVersions.activityType),
+        // Un ejercicio vuelve solo cuando ya lo practicaste y le toca el repaso (Fase 18).
+        or(
+          isNull(cardVersions.activityType),
+          inArray(cardVersions.activityType, [...SESSION_EXERCISES]),
+        ),
       ),
     )
     .all();
+  const seenToday = seenTodayOf(db, today);
   return rows.flatMap((row) => {
     const memory: CardMemory = {
       state: row.state,
@@ -93,7 +126,9 @@ export function eligibleCards(db: Writer, subjectId: string, today: string): Eli
         scheduledDays: row.scheduledDays,
         retentionTarget: row.retentionTarget,
         reps: row.reps,
-        dueDay: studyDayOf(memory.dueAt),
+        activityType: row.activityType,
+        // Visto hoy en una sesión sin que cuente: sigue vencido, pero vuelve recién mañana.
+        dueDay: laterDay(studyDayOf(memory.dueAt), seenToday.has(row.cardId) ? nextDay(today) : ''),
         recall: recallProbability(memory, today) ?? 0,
       },
     ];
@@ -171,8 +206,7 @@ export function newCardsOf(
         isNull(cards.pausedAt),
         eq(cardSchedule.reps, 0),
         notInArray(cardVersions.sheetState, OUT_OF_REVIEWS),
-        // Los ejercicios (Fase 16) se practican con «Practicar ahora»; entran en la sesión con la
-        // Fase 18.
+        // Un ejercicio nuevo no se propone solo: la primera vez es con «Practicar ahora».
         isNull(cardVersions.activityType),
       ),
     )

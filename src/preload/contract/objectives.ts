@@ -113,8 +113,10 @@ const nextStepSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('check'), from: day }),
   z.strictObject({
     kind: z.literal('toConsolidated'),
-    remaining: z.number().int().positive(),
+    // 0 solo si lo único que falta es el acierto en una variante nueva («Aplicar»).
+    remaining: z.number().int().nonnegative(),
     delayedFrom: day.nullable(),
+    needsVariant: z.boolean().optional(),
   }),
   z.strictObject({ kind: z.literal('kept') }),
 ]);
@@ -229,6 +231,25 @@ export const progressErrorsResponse = z.strictObject({
   ),
 });
 export type ProgressErrors = z.output<typeof progressErrorsResponse>;
+
+// «Crear tarjeta de contraste» (Fase 18, CA-163), desde un error de confusión.
+const concept = z.string().trim().min(1).max(60);
+export const progressContrastRequest = z.strictObject({
+  // El mismo pedido dos veces crea una sola tarjeta.
+  requestId: z.uuid(),
+  attemptId: z.uuid(),
+  // Si no se pudieron sacar del error, los escribís vos.
+  concepts: z.tuple([concept, concept]).optional(),
+});
+export const progressContrastResponse = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.enum(['created', 'exists']),
+    cardId: z.uuid(),
+    question: z.string(),
+  }),
+  z.strictObject({ kind: z.literal('needsConcepts'), first: z.string(), second: z.string() }),
+]);
+export type ContrastResult = z.output<typeof progressContrastResponse>;
 
 export const progressErrorsSetTypeRequest = z.strictObject({
   // El mismo pedido dos veces se anota una sola vez.

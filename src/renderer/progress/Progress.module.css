@@ -179,3 +179,17 @@
 .select {
   max-width: 260px;
 }
+
+/* Fase 18: la tarjeta de contraste creada desde «Mis errores». */
+.contrast {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+  align-items: center;
+}
+
+.dialogActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+}

@@ -47,9 +47,20 @@ export function ExerciseView({
   onOpenOriginal,
   onOpenObjective,
   onPracticeOther,
+  runId,
+  onNext,
+  studySessionId,
+  onSent,
 }: {
   cardId: string;
   onClose: () => void;
+  // Dentro de la sesión de Estudiar (cuál): lo que se envía queda anotado para ella, se sale con
+  // «Pausar» y avisa cuando ya enviaste.
+  studySessionId?: string | undefined;
+  onSent?: (() => void) | undefined;
+  // Fase 18: en un conjunto mezclado, la vuelta y qué hace «Siguiente».
+  runId?: string | undefined;
+  onNext?: (() => void) | undefined;
   // «La referencia está incompleta»: abrir la ficha en esa parte.
   onEditReference: (field: ReferenceField) => void;
   onOpenOriginal?: ((materialId: string) => void) | undefined;
@@ -57,6 +68,9 @@ export function ExerciseView({
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onPracticeOther?: ((cardId: string) => void) | undefined;
 }) {
+  // En la sesión, el ejercicio va justo debajo del título de la pantalla.
+  const inSession = studySessionId !== undefined;
+  const level = inSession ? 2 : 3;
   const [openingId] = useState(() => crypto.randomUUID());
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -124,22 +138,27 @@ export function ExerciseView({
     };
   }, [cardId, openingId, resetHelp]);
 
-  // Lo último en pantalla, para guardar la evaluación al salir sin tocar «Siguiente».
+  // Lo último en pantalla, para guardar la evaluación al salir sin tocar «Siguiente»: al cambiar
+  // de pantalla y también al cerrar la ventana (el principal espera a que termine).
   const latest = useRef({ submitted, final, verdict, marked });
   latest.current = { submitted, final, verdict, marked };
-  useEffect(
-    () => () => {
-      const { submitted: open, final: saved, verdict: last, marked: units } = latest.current;
-      if (open && !saved) {
-        window.retenia['activities.finalize']({
-          attemptId: open.attemptId,
-          verdict: last,
-          marked: [...units],
-        }).catch(() => undefined);
-      }
-    },
-    [],
-  );
+  const saveOpen = useCallback(async () => {
+    const { submitted: open, final: saved, verdict: last, marked: units } = latest.current;
+    if (open && !saved) {
+      await window.retenia['activities.finalize']({
+        attemptId: open.attemptId,
+        verdict: last,
+        marked: [...units],
+      }).catch(() => undefined);
+    }
+  }, []);
+  useEffect(() => {
+    const unregister = window.reteniaCierre?.alCerrar(saveOpen);
+    return () => {
+      unregister?.();
+      void saveOpen();
+    };
+  }, [saveOpen]);
 
   const started = () => {
     if (!help.started) {
@@ -157,10 +176,11 @@ export function ExerciseView({
       case 'open':
         return { type: 'open', text };
       case 'options':
+      case 'decision':
         return chosen === null
           ? null
           : {
-              type: 'options',
+              type: opening.input.type,
               optionId: chosen,
               shown: opening.input.options.map((option) => option.id),
             };
@@ -204,8 +224,11 @@ export function ExerciseView({
         answer,
         help: help.used,
         noIdea: help.noIdea,
+        ...(runId === undefined ? {} : { runId }),
+        ...(studySessionId === undefined ? {} : { studySessionId }),
       });
       help.hidePanel();
+      onSent?.();
       setSubmitted(result);
       setProposal(result);
       setVerdict(result.proposed);
@@ -273,7 +296,7 @@ export function ExerciseView({
   const next = () =>
     guarded(async () => {
       await finalize();
-      onClose();
+      (onNext ?? onClose)();
     });
 
   const retry = () =>
@@ -338,15 +361,15 @@ export function ExerciseView({
 
   if (loadFailed) {
     return (
-      <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
         <BannerEstado tone="attention">{texts.practice.loadFailed}</BannerEstado>
-        <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>
+        {inSession ? null : <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>}
       </ScreenFrame>
     );
   }
   if (opening === null) {
     return (
-      <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
         {null}
       </ScreenFrame>
     );
@@ -359,7 +382,11 @@ export function ExerciseView({
   const missing = proposal?.missing ?? submitted?.missing ?? [];
   const evaluation = opening.mode === 'evaluation' && attemptNo === 1;
   const canSubmit =
-    input.type === 'options' ? chosen !== null : input.type === 'order' ? true : text.trim() !== '';
+    input.type === 'options' || input.type === 'decision'
+      ? chosen !== null
+      : input.type === 'order'
+        ? true
+        : text.trim() !== '';
   const primary = shownParts?.action ?? 'next';
   // Tras un fallo, la tercera línea es el diagnóstico (CA-153): una sola acción con su motivo.
   const diagnosis =
@@ -413,7 +440,7 @@ export function ExerciseView({
   const label = evaluation ? 'evaluation' : help.label === 'evaluation' ? 'autonomous' : help.label;
 
   return (
-    <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+    <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
       <Toast>{toast}</Toast>
       <div className={styles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
         <div className={styles.activity}>
@@ -424,6 +451,9 @@ export function ExerciseView({
             <p className={styles.evaluationNotice}>{texts.practice.evaluationNotice}</p>
           ) : null}
           <p className={styles.prompt}>{opening.question}</p>
+          {opening.statement === undefined ? null : (
+            <p className={styles.statement}>{opening.statement}</p>
+          )}
           {input.type === 'short' || input.type === 'open' ? (
             <TextAnswer
               inputRef={textField}
@@ -450,6 +480,18 @@ export function ExerciseView({
           ) : null}
           {input.type === 'options' ? (
             <ChoiceAnswer
+              options={input.options}
+              chosen={chosen}
+              locked={submitted !== null}
+              onChoose={(id) => {
+                started();
+                setChosen(id);
+              }}
+            />
+          ) : null}
+          {input.type === 'decision' ? (
+            <ChoiceAnswer
+              legend={texts.practice.decision.question}
               options={input.options}
               chosen={chosen}
               locked={submitted !== null}
@@ -503,9 +545,11 @@ export function ExerciseView({
                 <Boton variant="primary" disabled={!canSubmit} onClick={() => void submit()}>
                   {texts.practice.submit}
                 </Boton>
-                <Boton variant="quiet" onClick={onClose}>
-                  {texts.practice.backToCards}
-                </Boton>
+                {inSession ? null : (
+                  <Boton variant="quiet" onClick={onClose}>
+                    {texts.practice.backToCards}
+                  </Boton>
+                )}
               </div>
             </>
           ) : null}
@@ -538,6 +582,31 @@ export function ExerciseView({
               ) : null}
               {detail?.type === 'options' && shownVerdict !== 'correct' ? (
                 <p>{texts.practice.correctOption(detail.correctText)}</p>
+              ) : null}
+              {detail?.type === 'decision' ? (
+                <section>
+                  <h3 className={styles.diffTitle}>{texts.practice.decision.whyHeading}</h3>
+                  <ul className={styles.whys}>
+                    {detail.options.map((option) => (
+                      <li
+                        key={option.id}
+                        data-chosen={option.id === detail.chosenId}
+                        data-right={option.correct}
+                      >
+                        <p className={styles.whyName}>
+                          <span>{option.text}</span>
+                          {option.id === detail.chosenId ? (
+                            <span className={styles.whyMark}>{texts.practice.decision.chosen}</span>
+                          ) : null}
+                          {option.correct ? (
+                            <span className={styles.whyMark}>{texts.practice.decision.right}</span>
+                          ) : null}
+                        </p>
+                        <p>{option.why}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
               {detail?.type === 'order' && shownVerdict !== 'correct' ? (
                 <section>

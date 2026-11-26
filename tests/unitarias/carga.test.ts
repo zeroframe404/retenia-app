@@ -88,7 +88,7 @@ describe('valores iniciales y preparación', () => {
   });
 
   it('la política de carga tiene una versión, que se registra en cada sesión', () => {
-    expect(LOAD_POLICY_VERSION).toBe(1);
+    expect(LOAD_POLICY_VERSION).toBe(2);
   });
 });
 

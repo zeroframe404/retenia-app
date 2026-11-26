@@ -13,7 +13,16 @@ export type MistakeType =
   | 'other';
 
 export interface MistakeInput {
-  readonly activityType: 'card' | 'short' | 'numeric' | 'options' | 'order' | 'open';
+  readonly activityType:
+    | 'card'
+    | 'short'
+    | 'numeric'
+    | 'options'
+    | 'order'
+    | 'open'
+    | 'procedure'
+    | 'decision'
+    | 'interleaved';
   readonly written: string;
   readonly expected: string;
   // Lo escrito es la respuesta de otra tarjeta de la materia.
@@ -27,7 +36,11 @@ const TYPO_MIN_LENGTH = 3;
 export function mistakeTypeOf(input: MistakeInput): MistakeType {
   switch (input.activityType) {
     case 'numeric':
+    // En un procedimiento, el paso que se calcula (el de texto lo cambia quien muestra la lista).
+    case 'procedure':
       return 'calculation';
+    // Elegir otro método (Fase 18) es confundir dos conceptos, como en las opciones.
+    case 'decision':
     case 'options':
       return 'confusion';
     case 'order':

@@ -14,7 +14,8 @@ import type { MasteryAttempt, MasteryEvent, MasteryState, Outcome } from './type
 //   como para el motor de memoria.
 // - «Suficiente para avanzar»: 2 aciertos sin ayuda en días distintos (o uno, desde «A revisar»).
 // - «Consolidado»: 3 aciertos sin ayuda en días distintos, al menos uno con 7 días o más desde la
-//   práctica anterior, contados desde el último fallo que bajó el estado.
+//   práctica anterior, contados desde el último fallo que bajó el estado. En un objetivo de tipo
+//   «Aplicar», además uno en una variante nueva (CA-165, Fase 18).
 // - Un fallo desde «Suficiente» o «Consolidado» lleva a «A revisar»; nunca a «Sin iniciar».
 // - «Ya lo sé» desde «Sin iniciar»: «Suficiente para avanzar (por verificar)». Un acierto sin ayuda
 //   de un día posterior quita la marca; un fallo lleva a «En práctica».
@@ -51,6 +52,8 @@ export interface MasteryResult {
   // Aciertos sin ayuda (en días distintos) desde el último fallo que bajó el estado, y si alguno
   // fue demorado: lo que mira «Consolidado».
   readonly sinceFall: { readonly days: number; readonly delayed: boolean };
+  // En «Aplicar», todavía falta el acierto sin ayuda en una variante nueva.
+  readonly needsVariant?: boolean | undefined;
   readonly lastPracticeDay: string | null;
   readonly steps: readonly MasteryStep[];
 }
@@ -83,7 +86,10 @@ const plusDays = (day: string, days: number) => {
   return date.toISOString().slice(0, 10);
 };
 
-export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
+export function projectMastery(
+  events: readonly MasteryEvent[],
+  { needsVariant = false }: { needsVariant?: boolean | undefined } = {},
+): MasteryResult {
   let state: MasteryState = 'not-started';
   // Desde qué día vale la comprobación de «Ya lo sé» (nula si no hay marca «(por verificar)»).
   let checkFrom: string | null = null;
@@ -92,9 +98,11 @@ export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
   let unaidedDays = 0;
   let sinceFallDays = 0;
   let sinceFallDelayed = false;
+  let sinceFallVariant = false;
   const unaided: Counter = { count: 0, lastDay: null };
   const aided: Counter = { count: 0, lastDay: null };
   const delayed: Counter = { count: 0, lastDay: null };
+  const variants: Counter = { count: 0, lastDay: null };
   const steps: MasteryStep[] = [];
 
   // Un fallo que baja el estado (o el de la comprobación de «Ya lo sé»): se saca la marca y
@@ -103,6 +111,7 @@ export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
     checkFrom = null;
     sinceFallDays = 0;
     sinceFallDelayed = false;
+    sinceFallVariant = false;
   };
 
   for (const event of inCanonicalOrder(events)) {
@@ -148,6 +157,10 @@ export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
       if (isDelayed) {
         bump(delayed, event.studyDay);
       }
+      if (event.newVariant === true) {
+        sinceFallVariant = true;
+        bump(variants, event.studyDay);
+      }
       if (checkFrom !== null) {
         if (event.studyDay >= checkFrom) {
           checkFrom = null;
@@ -156,7 +169,12 @@ export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
         state = unaidedDays >= 2 ? 'enough' : 'in-practice';
       } else if (state === 'to-review') {
         state = 'enough';
-      } else if (state === 'enough' && sinceFallDays >= 3 && sinceFallDelayed) {
+      } else if (
+        state === 'enough' &&
+        sinceFallDays >= 3 &&
+        sinceFallDelayed &&
+        (!needsVariant || sinceFallVariant)
+      ) {
         state = 'consolidated';
       }
     } else {
@@ -180,10 +198,10 @@ export function projectMastery(events: readonly MasteryEvent[]): MasteryResult {
       unaided: { ...unaided },
       aided: { ...aided },
       delayed: { ...delayed },
-      // Los aciertos en una variante nueva llegan con las familias de variantes (Fase 18).
-      variants: { count: 0, lastDay: null },
+      variants: { ...variants },
     },
     sinceFall: { days: sinceFallDays, delayed: sinceFallDelayed },
+    ...(needsVariant && !sinceFallVariant ? { needsVariant: true } : {}),
     lastPracticeDay,
     steps,
   };
@@ -200,6 +218,7 @@ export type NextStep =
       readonly remaining: number;
       // Desde qué día un acierto sin ayuda cuenta como demorado (nulo si ya hubo uno).
       readonly delayedFrom: string | null;
+      readonly needsVariant?: boolean | undefined;
     }
   | { readonly kind: 'kept' };
 
@@ -220,10 +239,12 @@ export function nextStepOf(result: MasteryResult): NextStep {
       // Sin la marca, a «Suficiente» se llegó con aciertos: hay una práctica anterior.
       return {
         kind: 'toConsolidated',
-        remaining: Math.max(1, 3 - result.sinceFall.days),
+        // Con la variante pendiente, puede no faltar ningún día: solo ella.
+        remaining: Math.max(result.needsVariant ? 0 : 1, 3 - result.sinceFall.days),
         delayedFrom: result.sinceFall.delayed
           ? null
           : plusDays(result.lastPracticeDay as string, DELAY_DAYS),
+        ...(result.needsVariant ? { needsVariant: true } : {}),
       };
   }
 }

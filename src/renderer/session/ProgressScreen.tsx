@@ -96,7 +96,11 @@ export function ProgressScreen({
         />
       ) : null}
       {section === 'mistakes' ? (
-        <MistakesSection subjectId={subjectId} onPractice={onPractice} />
+        <MistakesSection
+          subjectId={subjectId}
+          onPractice={onPractice}
+          onOpenCard={(cardId) => onOpenCard(subjectId, cardId)}
+        />
       ) : null}
       {section === 'improve' ? (
         <ImproveSection subjectId={subjectId} onEdit={onEditCard} onOpenOriginal={onOpenOriginal} />

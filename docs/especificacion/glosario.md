@@ -44,7 +44,10 @@ Vocabulario del producto. Los textos de pantalla, los errores, la documentación
 - **Mejorar la tarjeta**: la sección de Progreso con las tarjetas que fallaron 4 veces, o 3 dentro de 30 días, desde su última mejora; salen de la cola hasta que las arregles.
 - **Ejercicio**: una actividad más larga que una tarjeta: explicar, calcular, resolver. Se lista en la pestaña «Tarjetas» con la marca «Ejercicio» y no suma al contador de tarjetas.
 - **Respuesta modelo** y **unidad de idea**: la respuesta de referencia de un ejercicio, desglosada en 2 a 4 partes que se marcan como cubierta, parcial o faltante.
-- **Procedimiento**: un ejercicio de varios pasos con ejemplo resuelto que se va vaciando.
+- **Procedimiento**: un ejercicio de varios pasos con ejemplo resuelto que se va vaciando. Cada paso tiene enunciado, resultado esperado (texto o número con margen), explicación y, si es el caso, la marca de «paso clave».
+- **Escalera de apoyo**: del ejemplo completo a la variante, con un paso más vacío cada vez. 2 aciertos sin ayuda en días distintos sacan un escalón de apoyo; 2 fallos seguidos del mismo paso suman uno.
+- **Decisión**: «¿Qué método usarías? No lo resuelvas», de 2 a 5 métodos con el porqué de cada uno.
+- **Conjunto mezclado**: problemas de 2 a 5 tipos que se confunden, nunca dos seguidos del mismo tipo y sin que el enunciado lo nombre.
 - **Variante** (de un problema): el mismo problema con otros números. Una **familia de variantes** las agrupa.
 - **Tarjeta de contraste**: «¿En qué se diferencian X e Y?», creada desde «Mis errores».
 - **Micro-ejercicio**: 5 a 10 ítems sobre un tipo de error repetido; superado con 2 sesiones al 85 % o más sin pistas, separadas por un día o más.

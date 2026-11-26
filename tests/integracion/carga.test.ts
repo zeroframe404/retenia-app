@@ -127,7 +127,7 @@ describe('la propuesta con el elenco', () => {
     const { workspace, file } = seeded();
     workspace.study.start({ sessionId: id(), minutes: 45 });
     const started = JSON.parse(String(observationsOf(file, 'session.started')[0]?.payload));
-    expect(started).toMatchObject({ minutes: 45, loadPolicyVersion: 1 });
+    expect(started).toMatchObject({ minutes: 45, loadPolicyVersion: 2 });
   });
 
   it('[CA-094] las alternativas son hasta 3 y mirarlas no cambia la propuesta', () => {

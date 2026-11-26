@@ -447,6 +447,8 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
             }}
             onToast={setToast}
             onOpenOriginal={setPanelOriginal}
+            onOpenObjective={openObjective}
+            onPracticeOther={practiceCard}
           />
         </div>
         {searching ? <SearchDialog onClose={() => setSearching(false)} onOpen={openHit} /> : null}
@@ -520,6 +522,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onOpenOriginal={(materialId, cardId) => openOriginal({ materialId, cardId })}
               onNoteRequestHandled={() => setNoteRequest(null)}
               cardRequest={cardRequest}
+              onPracticeStarted={() => setCardRequest(null)}
               onOpenObjective={openObjective}
               topicRequest={topicRequest}
               onTopicRequestHandled={() => setTopicRequest(null)}
