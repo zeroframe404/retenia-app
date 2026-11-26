@@ -28,6 +28,8 @@ export interface MasteryAttempt {
   readonly helpLevel: HelpLevel;
   readonly optionsQuestion: boolean;
   readonly valid: boolean;
+  // Fase 18: era una variante que no habías visto (después de haber visto otra del problema).
+  readonly newVariant?: boolean | undefined;
 }
 
 // «Ya lo sé» sobre el objetivo.

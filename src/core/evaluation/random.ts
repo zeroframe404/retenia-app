@@ -1,7 +1,7 @@
 // Mezclas con semilla: el mismo intento da siempre el mismo orden (pruebas deterministas) y dos
 // intentos distintos, en general, órdenes distintos.
 
-function hash(text: string): number {
+export function seedNumber(text: string): number {
   let h = 2166136261;
   for (const char of text) {
     h ^= char.codePointAt(0) ?? 0;
@@ -11,7 +11,7 @@ function hash(text: string): number {
 }
 
 function generator(seed: string): () => number {
-  let state = hash(seed);
+  let state = seedNumber(seed);
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;
     let t = state;

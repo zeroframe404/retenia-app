@@ -8,6 +8,9 @@ export function referenceText(activity: Activity): string | null {
     case 'short':
       return null;
     case 'numeric':
+      if (activity.family) {
+        return activity.formula ?? null;
+      }
       return `${String(activity.value).replace('.', ',')}${activity.unit === null ? '' : ` ${activity.unit}`}`;
     case 'options':
       return activity.options.find((option) => option.correct)?.text ?? null;
@@ -15,5 +18,11 @@ export function referenceText(activity: Activity): string | null {
       return activity.steps.map((step) => step.text).join(' · ');
     case 'open':
       return activity.units.map((unit) => unit.text).join(' · ');
+    case 'procedure':
+      return activity.steps.map((step, n) => `${n + 1}. ${step.prompt}`).join(' · ');
+    case 'decision':
+      return activity.options.find((option) => option.correct)?.text ?? null;
+    case 'interleaved':
+      return activity.types.map((type) => type.name).join(' · ');
   }
 }

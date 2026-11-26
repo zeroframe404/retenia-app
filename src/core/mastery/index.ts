@@ -4,6 +4,7 @@
 // puras: sin pantalla, sin base y sin reloj. El progreso vive en el objetivo y en el concepto,
 // nunca en cada tarjeta.
 
+export { conceptName, conceptPair } from './contrast';
 export {
   confusionOf,
   type Diagnosis,

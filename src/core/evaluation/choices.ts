@@ -20,6 +20,18 @@ export function evaluateOptions(
   return { verdict: 'incorrect', explanation: chosen?.explanation ?? null };
 }
 
+// «¿Qué método usarías?» (CA-161): el porqué de lo elegido, también si era el correcto.
+export function evaluateDecision(
+  chosenId: string,
+  options: readonly OptionItem[],
+): { verdict: Verdict; explanation: string | null } {
+  const chosen = options.find((option) => option.id === chosenId);
+  return {
+    verdict: chosen?.correct === true ? 'correct' : 'incorrect',
+    explanation: chosen?.explanation ?? null,
+  };
+}
+
 const same = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && a.every((id, n) => id === b[n]);
 
