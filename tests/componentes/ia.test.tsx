@@ -377,6 +377,19 @@ describe('Ajustes › «Inteligencia artificial»', () => {
     expect(await section.findByText('Explicar un fragmento · Habilitada')).toBeTruthy();
   });
 
+  it('[CA-170] «Modo solo local» se marca apenas lo tocás, antes de que el programa conteste (simulado)', async () => {
+    const opened = openWindow('real', undefined, { ai: {} });
+    await withSubject(opened);
+    render(<App />);
+    const heading = await toAiSettings(opened);
+    const section = within(heading.closest('section') as HTMLElement);
+    const toggle = section.getByRole('checkbox', { name: 'Modo solo local' }) as HTMLInputElement;
+    await waitFor(() => expect(toggle.disabled).toBe(false));
+    fireEvent.click(toggle);
+    expect(toggle.checked).toBe(true);
+    await waitFor(async () => expect((await opened.api['ai.status']({})).localOnly).toBe(true));
+  });
+
   it('[CA-170] «Modo solo local» se prende y se apaga desde la sección (simulado)', async () => {
     const opened = openWindow('real', undefined, { ai: {} });
     await withSubject(opened);
