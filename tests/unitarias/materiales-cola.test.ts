@@ -130,6 +130,14 @@ describe('estado de un material', () => {
     ...Array.from({ length: pending }, () => ({ status: 'pending' as const })),
   ];
 
+  it('[CA-170] una página web que espera la conexión dice si es porque está prendido «Modo solo local»', () => {
+    expect(materialState({ ...base, pendingNetwork: true })).toEqual({ kind: 'pendingNetwork' });
+    expect(materialState({ ...base, pendingNetwork: true, localOnly: true })).toEqual({
+      kind: 'pendingNetwork',
+      localOnly: true,
+    });
+  });
+
   it('«Recibido»: guardado, sin ninguna tarea empezada', () => {
     expect(
       materialState({
