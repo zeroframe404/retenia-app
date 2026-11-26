@@ -1948,9 +1948,10 @@ export const texts = {
     enable: 'Habilitar',
     permissionsTitle: 'Materiales que pueden ir a la IA',
     permissionsEmpty: 'Ningún material tiene un permiso guardado.',
-    permissionScopes: { always: 'Siempre', never: 'Nunca' },
-    permissionRow: (title: string, scope: string) => `${title} · ${scope}`,
     revokePermission: 'Quitar permiso',
+    // Los materiales a los que dijiste «No»: «Volver a preguntar» borra la respuesta.
+    refusedTitle: 'Materiales que no van a la IA',
+    askAgain: 'Volver a preguntar',
     failedSettings: 'No pude cambiar este ajuste. Probá de nuevo.',
     // El visor de un material.
     explain: 'Explicame este fragmento',
@@ -1995,6 +1996,7 @@ export const texts = {
     unavailable: 'No pude pedir la explicación. Probá de nuevo.',
     goToQuote: (quote: string) => `Ir al pasaje: «${quote}»`,
     arrived: 'Llegó la explicación que estaba pendiente.',
+    notCompleted: 'La explicación que estaba pendiente no se pudo completar.',
     viewArrived: 'Ver',
   },
   // «Exportar todo» e «Importar exportación» (Fase 15, H-30).

@@ -77,9 +77,12 @@ const TYPICAL_USAGE = { inputTokens: 900, outputTokens: 450 };
 export function createDemoAi({
   dataDir,
   isOffline,
+  sleep,
 }: {
   dataDir: string;
   isOffline: () => boolean;
+  // La espera de «tardar 12 segundos» (las pruebas la simulan).
+  sleep?: (ms: number) => Promise<void>;
 }): DemoAi {
   const file = join(dataDir, 'ajustes.json');
   const parsed = stateSchema.safeParse(readSettings(file).demoAi);
@@ -100,6 +103,7 @@ export function createDemoAi({
     answer,
     isOffline,
     delayMs: () => (state.slow ? SLOW_MS : 0),
+    ...(sleep ? { sleep } : {}),
     variant: () => (state.bad ? 'mal' : 'grabada'),
   });
   return {

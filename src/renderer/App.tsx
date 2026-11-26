@@ -316,12 +316,27 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
-  // Una explicación de la IA que estaba pendiente (sin conexión) llegó con su panel cerrado: un aviso
-  // con «Ver» la abre en su material, sin volver a pedirla (Fase 19, CA-176).
+  // Una explicación de la IA que estaba pendiente (sin conexión) terminó con su panel cerrado (Fase
+  // 19, CA-176): si llegó, «Llegó la explicación que estaba pendiente.»; si no se pudo completar, lo
+  // dice. En los dos casos, «Ver» la abre en su material sin volver a pedirla. Si se canceló por algo
+  // que hiciste vos (el modo solo local, quitar el permiso), no avisa nada.
   useEffect(() => {
     if (pendingExplain === null) {
       return;
     }
+    const open = () => {
+      setToast('');
+      setToastAction(undefined);
+      requests.current += 1;
+      setMaterialRequest({
+        materialId: pendingExplain.materialId,
+        explain: { selection: pendingExplain.selection, requestId: pendingExplain.requestId },
+        nonce: requests.current,
+      });
+      setDestination('materials');
+      setSettingsView('settings');
+      setNavigated(true);
+    };
     const stop = window.reteniaAvisos?.alRecibir((event) => {
       if (event.type !== 'ai.result' || event.requestId !== pendingExplain.requestId) {
         return;
@@ -330,24 +345,20 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
       if (watchingExplain.current === event.requestId) {
         return;
       }
-      setToast(texts.ai.arrived);
-      setToastAction({
-        message: texts.ai.arrived,
-        text: texts.ai.viewArrived,
-        onClick: () => {
-          setToast('');
-          setToastAction(undefined);
-          requests.current += 1;
-          setMaterialRequest({
-            materialId: pendingExplain.materialId,
-            explain: { selection: pendingExplain.selection, requestId: pendingExplain.requestId },
-            nonce: requests.current,
-          });
-          setDestination('materials');
-          setSettingsView('settings');
-          setNavigated(true);
+      window.retenia['ai.outcome']({ requestId: event.requestId }).then(
+        (outcome) => {
+          if (
+            outcome.state === 'pending' ||
+            (outcome.state === 'failed' && outcome.reason.startsWith('cancelled'))
+          ) {
+            return;
+          }
+          const message = outcome.state === 'done' ? texts.ai.arrived : texts.ai.notCompleted;
+          setToast(message);
+          setToastAction({ message, text: texts.ai.viewArrived, onClick: open });
         },
-      });
+        () => undefined,
+      );
     });
     return () => stop?.();
   }, [pendingExplain]);

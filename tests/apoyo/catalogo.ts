@@ -189,7 +189,6 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.ai.fragments': [1],
   'texts.ai.sentRow': ['15/03/2027', 'Explicar un fragmento', 1, 'Apunte.pdf', 20_000, null],
   'texts.ai.functionRow': ['Explicar un fragmento', 'Habilitada'],
-  'texts.ai.permissionRow': ['Apunte.pdf', 'Siempre'],
   'texts.ai.cost': [20_000],
   'texts.ai.suspended': ['Explicar un fragmento'],
   'texts.ai.goToQuote': ['El error estándar es s / raíz(n).'],

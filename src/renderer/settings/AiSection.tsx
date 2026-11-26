@@ -124,6 +124,15 @@ export function AiSection({ focusTitle = false }: { focusTitle?: boolean }) {
 
   const askingKey = status !== null && (!status.keySaved || changingKey);
 
+  // Los permisos guardados: «Siempre» por un lado y «No» por otro. Borrar cualquiera de los dos hace
+  // que la pregunta vuelva la próxima vez.
+  const allowed = (permissions ?? []).filter((row) => row.scope === 'always');
+  const refused = (permissions ?? []).filter((row) => row.scope === 'never');
+  const forget = (materialId: string) =>
+    void window.retenia['ai.revokePermission']({ materialId }).then(
+      (next) => setPermissions(next.rows),
+      () => setFailed(true),
+    );
   return (
     <ScreenFrame level={3} title={texts.ai.title} focusTitle={focusTitle}>
       <p className={content.help}>{texts.ai.intro}</p>
@@ -279,32 +288,37 @@ export function AiSection({ focusTitle = false }: { focusTitle?: boolean }) {
 
       <div className={content.section}>
         <h4>{texts.ai.permissionsTitle}</h4>
-        {permissions !== null && permissions.length === 0 ? (
+        {permissions !== null && allowed.length === 0 ? (
           <p className={content.help}>{texts.ai.permissionsEmpty}</p>
         ) : (
           <ItemList label={texts.ai.permissionsTitle}>
-            {(permissions ?? []).map((row) => (
+            {allowed.map((row) => (
               <ListItem
                 key={row.materialId}
-                text={texts.ai.permissionRow(row.title, texts.ai.permissionScopes[row.scope])}
+                text={row.title}
                 actions={
-                  <Boton
-                    onClick={() =>
-                      void window.retenia['ai.revokePermission']({
-                        materialId: row.materialId,
-                      }).then(
-                        (next) => setPermissions(next.rows),
-                        () => setFailed(true),
-                      )
-                    }
-                  >
-                    {texts.ai.revokePermission}
-                  </Boton>
+                  <Boton onClick={() => forget(row.materialId)}>{texts.ai.revokePermission}</Boton>
                 }
               />
             ))}
           </ItemList>
         )}
+        {refused.length > 0 ? (
+          <>
+            <h4>{texts.ai.refusedTitle}</h4>
+            <ItemList label={texts.ai.refusedTitle}>
+              {refused.map((row) => (
+                <ListItem
+                  key={row.materialId}
+                  text={row.title}
+                  actions={
+                    <Boton onClick={() => forget(row.materialId)}>{texts.ai.askAgain}</Boton>
+                  }
+                />
+              ))}
+            </ItemList>
+          </>
+        ) : null}
       </div>
 
       {deleting ? (

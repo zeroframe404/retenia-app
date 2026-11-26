@@ -364,7 +364,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
     ).toBeTruthy();
   });
 
-  it('cada función muestra su estado y se puede suspender', async () => {
+  it('cada función muestra su estado y se puede suspender (simulado)', async () => {
     const opened = openWindow('real', undefined, { ai: {} });
     await withSubject(opened);
     render(<App />);
@@ -377,7 +377,7 @@ describe('Ajustes › «Inteligencia artificial»', () => {
     expect(await section.findByText('Explicar un fragmento · Habilitada')).toBeTruthy();
   });
 
-  it('[CA-170] «Modo solo local» se prende y se apaga desde la sección', async () => {
+  it('[CA-170] «Modo solo local» se prende y se apaga desde la sección (simulado)', async () => {
     const opened = openWindow('real', undefined, { ai: {} });
     await withSubject(opened);
     render(<App />);
@@ -520,24 +520,32 @@ describe('lo que encontró el revisor: lo que se ve', () => {
 });
 
 describe('Ajustes › «Demostración»: la IA simulada', () => {
-  it('[CA-167] los tres interruptores están en la demostración y no en la versión real', async () => {
+  const SWITCHES = ['IA simulada', 'IA simulada: responder mal', 'IA simulada: tardar 12 segundos'];
+
+  it('los tres interruptores están en la demostración y prenden la IA simulada (simulado)', async () => {
     const opened = openWindow('prueba', undefined, { ai: {} });
     await withSubject(opened);
     render(<App />);
     await screen.findByRole('navigation', { name: 'Riel lateral' });
     await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
-    for (const name of [
-      'IA simulada',
-      'IA simulada: responder mal',
-      'IA simulada: tardar 12 segundos',
-    ]) {
+    for (const name of SWITCHES) {
       expect(await screen.findByRole('checkbox', { name }, SLOW)).toBeTruthy();
     }
     await opened.user.click(screen.getByRole('checkbox', { name: 'IA simulada' }));
     await waitFor(async () => expect((await window.retenia['demo.ai']({})).simulated).toBe(true));
   });
 
-  it('[CA-167] un interruptor de la IA simulada se marca al tocarlo, aunque el programa tarde en contestar (como «Procesar despacio»)', async () => {
+  it('en la versión real no hay interruptores de la IA simulada (simulado)', async () => {
+    const opened = openWindow('real', undefined, { ai: {} });
+    await withSubject(opened);
+    render(<App />);
+    await toAiSettings(opened);
+    for (const name of SWITCHES) {
+      expect(screen.queryByRole('checkbox', { name })).toBeNull();
+    }
+  });
+
+  it('un interruptor de la IA simulada se marca apenas lo tocás, antes de que el programa conteste (como «Procesar despacio») (simulado)', async () => {
     const opened = openWindow('prueba', undefined, { ai: {} });
     await withSubject(opened);
     render(<App />);
@@ -549,10 +557,10 @@ describe('Ajustes › «Demostración»: la IA simulada', () => {
       SLOW,
     )) as HTMLInputElement;
     await waitFor(() => expect(box.disabled).toBe(false));
-    // El programa no contesta todavía: la casilla igual queda marcada.
-    window.retenia['demo.setAi'] = () => new Promise(() => undefined);
-    await opened.user.click(box);
+    // Un toque sin esperar: la respuesta del programa todavía no llegó.
+    fireEvent.click(box);
     expect(box.checked).toBe(true);
+    await waitFor(async () => expect((await window.retenia['demo.ai']({})).bad).toBe(true));
   });
 });
 

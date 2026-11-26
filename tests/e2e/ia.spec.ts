@@ -81,7 +81,7 @@ test('[CA-174] [CA-175] [CA-173] (simulado) con la IA simulada: la explicación 
   ).toHaveCount(0);
 });
 
-test('[CA-174] (simulado) el panel de la explicación va al lado del texto: no tapa el pasaje elegido ni sus botones, con la ventana del tamaño con que abre', async ({
+test('(simulado) el panel de la explicación va al lado del texto: no tapa el pasaje elegido ni sus botones, con la ventana del tamaño con que abre', async ({
   launchFromStart,
 }) => {
   const { page } = await launchFromStart();
@@ -125,6 +125,13 @@ test('[CA-176] (simulado) sin conexión queda «Pendiente: se reanuda cuando hay
   await expect(
     explanationPanel(page).getByText('Pendiente: se reanuda cuando haya conexión'),
   ).toBeVisible(SLOW);
+  // Mientras espera, se sigue estudiando: una tarjeta calificada.
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+  await expect(page.getByRole('status', { name: /^Llevás 1 de \d+$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Pausar' }).click();
   await goToDestination(page, 'Ajustes');
   await check(page, 'Simular sin conexión', false);
   await expect(page.getByText('Llegó la explicación que estaba pendiente.')).toBeVisible(SLOW);

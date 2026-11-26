@@ -121,7 +121,7 @@ describe('[CA-168] la clave de la IA', () => {
     expect(existsSync(join(space.bridge.dataDir, 'clave.bin'))).toBe(false);
   });
 
-  it('[CA-168] una clave con espacios se rechaza sin repetirla en el error', async () => {
+  it('[CA-168] una clave con espacios se rechaza sin repetirla en el error (simulado)', async () => {
     const space = await open({ connected: false });
     const pasted = `${TEST_KEY} con espacios`;
     await expect(space.api['ai.testConnection']({ key: pasted })).rejects.toThrow(
