@@ -100,9 +100,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const requests = useRef(0);
   const [toast, setToast] = useState('');
   // «Ver» de una explicación de la IA que estaba pendiente y llegó con su panel cerrado (Fase 19).
-  const [toastAction, setToastAction] = useState<{ text: string; onClick: () => void } | undefined>(
-    undefined,
-  );
+  // Va atado a su aviso (`message`): si el cartel cambia o se va solo, el botón no pasa al siguiente.
+  const [toastAction, setToastAction] = useState<
+    { message: string; text: string; onClick: () => void } | undefined
+  >(undefined);
   const [pendingExplain, setPendingExplain] = useState<{
     materialId: string;
     selection: MaterialSelection;
@@ -331,6 +332,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
       }
       setToast(texts.ai.arrived);
       setToastAction({
+        message: texts.ai.arrived,
         text: texts.ai.viewArrived,
         onClick: () => {
           setToast('');
@@ -466,7 +468,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           setToast('');
           setToastAction(undefined);
         }}
-        action={toastAction}
+        action={toastAction?.message === toast ? toastAction : undefined}
       >
         {toast}
       </Toast>
