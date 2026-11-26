@@ -1,13 +1,18 @@
+import { join } from 'node:path';
 import { cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
+import type { AiProvider } from '../../src/ai/provider';
 import type { Clock } from '../../src/core/clock';
+import type { SecretBox } from '../../src/main/ai/key-store';
 import { handleMessage } from '../../src/main/bridge';
 import { createDemoHandlers } from '../../src/main/demo';
+import { createDemoAi, type DemoAi } from '../../src/main/demo/ai';
 import { createDemoDate } from '../../src/main/demo/clock';
-import type { NetGate } from '../../src/main/net-gate';
+import { createNetGate, type NetGate } from '../../src/main/net-gate';
 import { buildApi } from '../../src/preload/api';
 import { demoChannels } from '../../src/preload/contract/demo';
+import { testSecretBox } from '../apoyo/caja-segura';
 import { sample } from '../apoyo/materiales';
 import { openBridge, type TestBridge } from '../apoyo/puente';
 
@@ -23,18 +28,33 @@ export function openWindow(
     withCast = false,
     holdExtraction,
     net,
+    ai,
   }: {
     withCast?: boolean | 'tarjetas';
     holdExtraction?: () => Promise<void>;
     net?: NetGate;
+    // La IA (Fase 19), con sus dobles declarados: el almacén seguro de prueba, la IA simulada «como
+    // IA remota» con tu clave (`remote`) y, en la variante de prueba, la de la demostración.
+    ai?: { remote?: (apiKey: string) => AiProvider; box?: SecretBox };
   } = {},
 ) {
   vi.stubGlobal('__VARIANTE__', variant);
+  let demoAi: DemoAi | null = null;
+  const aiNet = ai ? (net ?? createNetGate()) : net;
   const bridge = openBridge({
     ...(clock === undefined ? {} : { clock }),
     withCast,
     ...(holdExtraction ? { holdExtraction } : {}),
-    ...(net ? { net } : {}),
+    ...(aiNet ? { net: aiNet } : {}),
+    ...(ai
+      ? {
+          ai: {
+            box: ai.box ?? testSecretBox(),
+            ...(ai.remote ? { remote: ai.remote } : {}),
+            simulated: () => demoAi?.provider() ?? null,
+          },
+        }
+      : {}),
   });
   bridges.push(bridge);
   // El puente de archivos (simulado): en jsdom un archivo elegido no tiene ruta en el disco, así
@@ -52,7 +72,12 @@ export function openWindow(
   let api: unknown = bridge.api;
   if (variant === 'prueba') {
     const demo = createDemoDate(bridge.dataDir);
-    const demoHandlers = createDemoHandlers(demo);
+    demoAi = createDemoAi({
+      dataDir: bridge.dataDir,
+      samplesDir: join(import.meta.dirname, '..', '..', 'datos-de-ejemplo'),
+      isOffline: () => aiNet?.isOffline() ?? false,
+    });
+    const demoHandlers = createDemoHandlers(demo, undefined, demoAi);
     const registry = demoChannels();
     const demoApi = buildApi(
       (channel, request) => handleMessage(demoHandlers, channel, request, registry),
@@ -66,7 +91,7 @@ export function openWindow(
     };
   }
   window.retenia = api as typeof window.retenia;
-  return { bridge, api: bridge.api, user: userEvent.setup() };
+  return { bridge, api: bridge.api, user: userEvent.setup(), net: aiNet };
 }
 
 // Un puente más con su propia carpeta de datos: para probar el cambio de datos de la demostración.
