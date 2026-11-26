@@ -16,6 +16,8 @@ import {
   activitiesSubmitRequest,
   activitiesSubmitResponse,
   activitiesUndoResponse,
+  activitiesValidateRequest,
+  activitiesValidateResponse,
   activityOpeningSchema,
 } from './activities';
 import { activityRecentResponse, activityUndoRequest, activityUndoResponse } from './activity';
@@ -256,6 +258,10 @@ export const channels = {
   },
   'cards.activate': { request: cardsActivateRequest, response: cardsActivateResponse },
   // Fase 16: «Practicar ahora», la ayuda, el resultado, «Discrepo» y el aviso de evaluación corregida.
+  'activities.validate': {
+    request: activitiesValidateRequest,
+    response: activitiesValidateResponse,
+  },
   'activities.start': { request: activitiesStartRequest, response: activityOpeningSchema },
   'activities.help': { request: activitiesHelpRequest, response: activitiesHelpResponse },
   'activities.mark': { request: activitiesMarkRequest, response: okResponse },

@@ -82,7 +82,10 @@ export function ChoiceAnswer({
   chosen,
   locked,
   onChoose,
+  legend = texts.practice.optionsLegend,
 }: {
+  // En una decisión (Fase 18), «¿Qué método usarías? No lo resuelvas».
+  legend?: string | undefined;
   options: readonly { id: string; text: string }[];
   chosen: string | null;
   locked: boolean;
@@ -91,7 +94,7 @@ export function ChoiceAnswer({
   const name = useId();
   return (
     <fieldset className={styles.choices}>
-      <legend>{texts.practice.optionsLegend}</legend>
+      <legend>{legend}</legend>
       {options.map((option) => (
         <label key={option.id} className={styles.choice}>
           <input

@@ -47,9 +47,14 @@ export function ExerciseView({
   onOpenOriginal,
   onOpenObjective,
   onPracticeOther,
+  runId,
+  onNext,
 }: {
   cardId: string;
   onClose: () => void;
+  // Fase 18: en un conjunto mezclado, la vuelta y qué hace «Siguiente».
+  runId?: string | undefined;
+  onNext?: (() => void) | undefined;
   // «La referencia está incompleta»: abrir la ficha en esa parte.
   onEditReference: (field: ReferenceField) => void;
   onOpenOriginal?: ((materialId: string) => void) | undefined;
@@ -157,10 +162,11 @@ export function ExerciseView({
       case 'open':
         return { type: 'open', text };
       case 'options':
+      case 'decision':
         return chosen === null
           ? null
           : {
-              type: 'options',
+              type: opening.input.type,
               optionId: chosen,
               shown: opening.input.options.map((option) => option.id),
             };
@@ -204,6 +210,7 @@ export function ExerciseView({
         answer,
         help: help.used,
         noIdea: help.noIdea,
+        ...(runId === undefined ? {} : { runId }),
       });
       help.hidePanel();
       setSubmitted(result);
@@ -273,7 +280,7 @@ export function ExerciseView({
   const next = () =>
     guarded(async () => {
       await finalize();
-      onClose();
+      (onNext ?? onClose)();
     });
 
   const retry = () =>
@@ -359,7 +366,11 @@ export function ExerciseView({
   const missing = proposal?.missing ?? submitted?.missing ?? [];
   const evaluation = opening.mode === 'evaluation' && attemptNo === 1;
   const canSubmit =
-    input.type === 'options' ? chosen !== null : input.type === 'order' ? true : text.trim() !== '';
+    input.type === 'options' || input.type === 'decision'
+      ? chosen !== null
+      : input.type === 'order'
+        ? true
+        : text.trim() !== '';
   const primary = shownParts?.action ?? 'next';
   // Tras un fallo, la tercera línea es el diagnóstico (CA-153): una sola acción con su motivo.
   const diagnosis =
@@ -424,6 +435,9 @@ export function ExerciseView({
             <p className={styles.evaluationNotice}>{texts.practice.evaluationNotice}</p>
           ) : null}
           <p className={styles.prompt}>{opening.question}</p>
+          {opening.statement === undefined ? null : (
+            <p className={styles.statement}>{opening.statement}</p>
+          )}
           {input.type === 'short' || input.type === 'open' ? (
             <TextAnswer
               inputRef={textField}
@@ -450,6 +464,18 @@ export function ExerciseView({
           ) : null}
           {input.type === 'options' ? (
             <ChoiceAnswer
+              options={input.options}
+              chosen={chosen}
+              locked={submitted !== null}
+              onChoose={(id) => {
+                started();
+                setChosen(id);
+              }}
+            />
+          ) : null}
+          {input.type === 'decision' ? (
+            <ChoiceAnswer
+              legend={texts.practice.decision.question}
               options={input.options}
               chosen={chosen}
               locked={submitted !== null}
@@ -538,6 +564,31 @@ export function ExerciseView({
               ) : null}
               {detail?.type === 'options' && shownVerdict !== 'correct' ? (
                 <p>{texts.practice.correctOption(detail.correctText)}</p>
+              ) : null}
+              {detail?.type === 'decision' ? (
+                <section>
+                  <h3 className={styles.diffTitle}>{texts.practice.decision.whyHeading}</h3>
+                  <ul className={styles.whys}>
+                    {detail.options.map((option) => (
+                      <li
+                        key={option.id}
+                        data-chosen={option.id === detail.chosenId}
+                        data-right={option.correct}
+                      >
+                        <p className={styles.whyName}>
+                          <span>{option.text}</span>
+                          {option.id === detail.chosenId ? (
+                            <span className={styles.whyMark}>{texts.practice.decision.chosen}</span>
+                          ) : null}
+                          {option.correct ? (
+                            <span className={styles.whyMark}>{texts.practice.decision.right}</span>
+                          ) : null}
+                        </p>
+                        <p>{option.why}</p>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
               {detail?.type === 'order' && shownVerdict !== 'correct' ? (
                 <section>

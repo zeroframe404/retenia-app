@@ -266,3 +266,146 @@
   font: var(--tipo-pequeno);
   color: var(--color-tinta-suave);
 }
+
+/* Fase 18: el procedimiento, la decisión, el conjunto mezclado y el micro-ejercicio. */
+.statement {
+  max-width: var(--ancho-lectura);
+  font: var(--tipo-cuerpo);
+}
+
+.procedure {
+  display: grid;
+  gap: var(--espacio-12);
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.procedureStep {
+  display: grid;
+  gap: var(--espacio-8);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+/* Un paso para completar se distingue por el borde, no solo por el color. */
+.procedureStep[data-blank="true"] {
+  border-color: var(--color-marca);
+}
+
+.procedureStep[data-state="wrong"],
+.procedureStep[data-state="fixed"] {
+  border-style: dashed;
+  border-color: var(--color-parcial);
+}
+
+.procedureStep[data-state="ok"] {
+  border-color: var(--color-correcta);
+}
+
+.procedureHead {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.stepResult {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.stateLine {
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  color: var(--color-tinta-suave);
+  text-transform: uppercase;
+}
+
+.errorFound {
+  max-width: var(--ancho-lectura);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo-fuerte);
+  background: var(--color-parcial-suave);
+  border: var(--trazo-lleno) var(--color-parcial);
+  border-radius: var(--radio-8);
+}
+
+.whys {
+  display: grid;
+  gap: var(--espacio-12);
+  max-width: var(--ancho-lectura);
+  margin: var(--espacio-8) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.whys li {
+  display: grid;
+  gap: var(--espacio-4);
+  padding: var(--espacio-12) var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  background: var(--color-superficie);
+  border: var(--trazo-lleno) var(--color-linea);
+  border-radius: var(--radio-8);
+}
+
+.whys li[data-right="true"] {
+  border-color: var(--color-correcta);
+}
+
+.whys li[data-chosen="true"][data-right="false"] {
+  border-style: dashed;
+  border-color: var(--color-parcial);
+}
+
+.whyName {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-8);
+  align-items: baseline;
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.whyMark {
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  color: var(--color-tinta-suave);
+  text-transform: uppercase;
+}
+
+.proposal {
+  display: grid;
+  gap: var(--espacio-8);
+  max-width: var(--ancho-lectura);
+  padding: var(--espacio-16);
+  font: var(--tipo-cuerpo);
+  background: var(--color-marca-suave);
+  border: var(--trazo-lleno) var(--color-marca);
+  border-radius: var(--radio-8);
+}
+
+.verdictLine {
+  font: var(--tipo-cuerpo-fuerte);
+}
+
+.setRun {
+  display: grid;
+  gap: var(--espacio-8);
+}
+
+.setProgress {
+  font: var(--tipo-rotulo);
+  letter-spacing: var(--rotulo-espaciado);
+  color: var(--color-tinta-suave);
+  text-transform: uppercase;
+}
+
+.setOrder {
+  display: grid;
+  gap: var(--espacio-8);
+  max-width: var(--ancho-lectura);
+  margin: 0;
+  padding-left: var(--espacio-24);
+  font: var(--tipo-cuerpo);
+}

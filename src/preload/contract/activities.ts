@@ -191,6 +191,14 @@ export const activityOpeningSchema = z.strictObject({
 });
 export type ActivityOpening = z.output<typeof activityOpeningSchema>;
 
+// Fase 18: lo que está mal en un ejercicio antes de guardarlo (las cuentas y los conjuntos solo
+// los puede comprobar el principal).
+export const activitiesValidateRequest = z.strictObject({
+  activity: activitySchema,
+  subjectId: z.uuid().nullable(),
+});
+export const activitiesValidateResponse = z.strictObject({ problems: z.array(z.string()) });
+
 // Una ayuda de la barra (CA-136): la próxima pista, el ejemplo, la fuente o la solución. Para la
 // solución hace falta haber confirmado la pregunta.
 export const activitiesHelpRequest = z.strictObject({

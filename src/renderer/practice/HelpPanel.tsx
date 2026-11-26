@@ -82,7 +82,7 @@ function Solution({
 }: {
   solution: Extract<NonNullable<HelpController['panel']>, { kind: 'solution' }>['solution'];
 }) {
-  if (solution.type === 'order') {
+  if (solution.type === 'order' || solution.type === 'procedure') {
     return (
       <ol className={styles.solutionList}>
         {solution.steps.map((step) => (

@@ -21,6 +21,19 @@ const STATES = ['reviewed', 'verified', 'in_review', 'retired'] as const;
 const ESSENTIAL_SLOTS = ['primero', 'segundo', 'tercero', 'cuarto'] as const;
 const HINT_SLOTS = ['primera', 'segunda', 'tercera'] as const;
 
+// Lo que dice el editor por cada problema que encuentra el principal.
+const SET_PROBLEMS: Record<string, keyof typeof texts.practice.editor.problems> = {
+  typeName: 'typesBlank',
+  repeatedName: 'typesRepeated',
+  emptyType: 'typesEmpty',
+  repeatedCard: 'typesEmpty',
+};
+
+function problemText(code: string): string {
+  const problems: Record<string, string> = texts.practice.editor.problems;
+  return problems[SET_PROBLEMS[code] ?? code] ?? texts.cards.saveFailed;
+}
+
 const lines = (text: string) =>
   text
     .split('\n')
@@ -106,9 +119,12 @@ export function SheetForm({
   onCancel,
   focusField,
   improve,
+  subjectId,
 }: {
   card?: CardDetail | undefined;
   create?: { subjectId: string | null } | undefined;
+  // La materia de la tarjeta que se edita (para armar un conjunto mezclado).
+  subjectId?: string | null | undefined;
   onSaved: (card: CardDetail) => void;
   onCancel: () => void;
   // La parte de la referencia a corregir: se abre con el foco ahí.
@@ -137,6 +153,34 @@ export function SheetForm({
   const [example, setExample] = useState(card.example);
   const [mode, setMode] = useState(card.mode);
   const [activityProblem, setActivityProblem] = useState('');
+  const place = create ? create.subjectId : (subjectId ?? null);
+  // Los ejercicios de la materia, para el conjunto mezclado.
+  const [exercises, setExercises] = useState<{ id: string; question: string }[]>([]);
+  const choosing = draft.type === 'interleaved';
+  useEffect(() => {
+    if (!choosing) {
+      return;
+    }
+    let live = true;
+    window.retenia['cards.list']({
+      ...(place === null ? {} : { subjectId: place }),
+      kind: 'exercise',
+    }).then(
+      ({ cards }) => {
+        if (live) {
+          setExercises(
+            cards
+              .filter((item) => item.activityType !== 'interleaved')
+              .map((item) => ({ id: item.id, question: item.question })),
+          );
+        }
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [choosing, place]);
   // En los ejercicios que no son de respuesta corta, la respuesta sale de la actividad.
   const derivedAnswer = draft.type !== 'card' && draft.type !== 'short';
   const [question, setQuestion] = useState(card.question);
@@ -268,9 +312,38 @@ export function SheetForm({
     }
   }
 
-  function submit(event: { preventDefault: () => void }) {
+  // Las cuentas y los conjuntos solo los puede comprobar el principal.
+  async function checkedByMain(): Promise<boolean> {
+    const built = activityOf(draft);
+    const activity = 'activity' in built ? built.activity : null;
+    const computed =
+      activity?.type === 'procedure' ||
+      activity?.type === 'decision' ||
+      activity?.type === 'interleaved' ||
+      (activity?.type === 'numeric' && Boolean(activity.family));
+    if (!activity || !computed) {
+      return true;
+    }
+    try {
+      const { problems } = await window.retenia['activities.validate']({
+        activity,
+        subjectId: place,
+      });
+      const [first] = problems;
+      if (first === undefined) {
+        return true;
+      }
+      setActivityProblem(problemText(first));
+      return false;
+    } catch {
+      setFailed(true);
+      return false;
+    }
+  }
+
+  async function submit(event: { preventDefault: () => void }) {
     event.preventDefault();
-    if (inFlight.current || !validate()) {
+    if (inFlight.current || !validate() || !(await checkedByMain())) {
       return;
     }
     // Con historial, cambiar la pregunta o la respuesta pide decidir si cambió lo que hay que
@@ -283,7 +356,12 @@ export function SheetForm({
   }
 
   return (
-    <form className={styles.form} aria-label={texts.cards.sheetTitle} onSubmit={submit} noValidate>
+    <form
+      className={styles.form}
+      aria-label={texts.cards.sheetTitle}
+      onSubmit={(event) => void submit(event)}
+      noValidate
+    >
       <div className={styles.field}>
         <label htmlFor={`${ids}-pregunta`}>{texts.cards.questionLabel}</label>
         <textarea
@@ -297,7 +375,12 @@ export function SheetForm({
         />
         {errors.question ? <p className={styles.fieldNotice}>{errors.question}</p> : null}
       </div>
-      <ActivityEditor draft={draft} onChange={setDraft} focusField={focusField} />
+      <ActivityEditor
+        draft={draft}
+        onChange={setDraft}
+        focusField={focusField}
+        exercises={exercises}
+      />
       {activityProblem === '' ? null : (
         <p className={styles.fieldNotice} role="alert">
           {activityProblem}

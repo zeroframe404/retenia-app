@@ -4,6 +4,17 @@ import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
 import formStyles from '../ui/Form.module.css';
 import type { ReferenceField } from './ExerciseView';
+import { type FamilyDraft, familyDraftOf, familyOf } from './familyText';
+import {
+  blankMethod,
+  blankProcedureStep,
+  blankType,
+  DecisionEditor,
+  type ExerciseChoice,
+  FamilyEditor,
+  ProcedureEditor,
+  SetEditor,
+} from './MethodEditors';
 import { readEditorNumber } from './numbers';
 import styles from './Practice.module.css';
 
@@ -22,10 +33,27 @@ export interface ActivityDraft {
   steps: { id: string; text: string }[];
   units: { id: string; text: string }[];
   acceptedOrders: string[][];
+  // Fase 18: las variantes (de un numérico o un procedimiento), los pasos, los métodos y los tipos.
+  withVariants: boolean;
+  family: FamilyDraft;
+  formula: string;
+  procedureSteps: ReturnType<typeof blankProcedureStep>[];
+  methods: ReturnType<typeof blankMethod>[];
+  types: ReturnType<typeof blankType>[];
 }
 
 const newId = () => crypto.randomUUID();
-const KINDS: readonly ActivityKind[] = ['card', 'short', 'numeric', 'options', 'order', 'open'];
+const KINDS: readonly ActivityKind[] = [
+  'card',
+  'short',
+  'numeric',
+  'options',
+  'order',
+  'open',
+  'procedure',
+  'decision',
+  'interleaved',
+];
 const MAX_STEPS = 8;
 const MIN_STEPS = 3;
 const MAX_UNITS = 4;
@@ -48,6 +76,12 @@ export function draftOf(activity: ActivityValue | null): ActivityDraft {
     steps: [0, 1, 2].map(() => ({ id: newId(), text: '' })),
     units: [0, 1].map(() => ({ id: newId(), text: '' })),
     acceptedOrders: [],
+    withVariants: false,
+    family: familyDraftOf(null),
+    formula: '',
+    procedureSteps: [blankProcedureStep(true), blankProcedureStep()],
+    methods: [blankMethod(true), blankMethod()],
+    types: [blankType(), blankType()],
   };
   switch (activity?.type) {
     case 'numeric':
@@ -56,6 +90,9 @@ export function draftOf(activity: ActivityValue | null): ActivityDraft {
         value: decimal.format(activity.value),
         tolerance: decimal.format(activity.tolerance),
         unit: activity.unit ?? '',
+        withVariants: Boolean(activity.family),
+        family: familyDraftOf(activity.family),
+        formula: activity.formula ?? '',
       };
     case 'options':
       return { ...empty, options: activity.options.map((option) => ({ ...option })) };
@@ -67,6 +104,38 @@ export function draftOf(activity: ActivityValue | null): ActivityDraft {
       };
     case 'open':
       return { ...empty, units: activity.units.map((unit) => ({ ...unit })) };
+    case 'procedure':
+      return {
+        ...empty,
+        withVariants: activity.family !== null,
+        family: familyDraftOf(activity.family),
+        procedureSteps: activity.steps.map((step) => ({
+          id: step.id,
+          prompt: step.prompt,
+          resultType: step.expected.type,
+          expected: step.expected.type === 'number' ? step.expected.formula : step.expected.text,
+          tolerance:
+            step.expected.type === 'number' ? decimal.format(step.expected.tolerance) : '0',
+          unit: step.expected.type === 'number' ? (step.expected.unit ?? '') : '',
+          explanation: step.explanation,
+          key: step.key,
+        })),
+      };
+    case 'decision':
+      return {
+        ...empty,
+        methods: activity.options.map((option) => ({
+          id: option.id,
+          text: option.text,
+          why: option.explanation,
+          correct: option.correct,
+        })),
+      };
+    case 'interleaved':
+      return {
+        ...empty,
+        types: activity.types.map((type) => ({ ...type, cardIds: [...type.cardIds] })),
+      };
     default:
       return empty;
   }
@@ -91,7 +160,8 @@ export function activityOf(
     case 'short':
       return { activity: { type: 'short' } };
     case 'numeric': {
-      const value = readEditorNumber(draft.value);
+      // Con variantes, la respuesta de cada una sale de la fórmula: no se escribe un valor.
+      const value = draft.withVariants ? 0 : readEditorNumber(draft.value);
       const tolerance = readEditorNumber(draft.tolerance === '' ? '0' : draft.tolerance);
       if (value === null) {
         return { problem: 'value' };
@@ -103,7 +173,23 @@ export function activityOf(
       if (unit.length > 20) {
         return { problem: 'unit' };
       }
-      return { activity: { type: 'numeric', value, tolerance, unit: unit === '' ? null : unit } };
+      const base = {
+        type: 'numeric' as const,
+        value,
+        tolerance,
+        unit: unit === '' ? null : unit,
+      };
+      if (!draft.withVariants) {
+        return { activity: base };
+      }
+      const built = familyOf(draft.family);
+      if ('problem' in built) {
+        return { problem: built.problem };
+      }
+      if (blank(draft.formula)) {
+        return { problem: 'formula' };
+      }
+      return { activity: { ...base, family: built.family, formula: draft.formula.trim() } };
     }
     case 'options': {
       if (draft.options.some((option) => blank(option.text))) {
@@ -166,6 +252,97 @@ export function activityOf(
         },
       };
     }
+    case 'procedure': {
+      const incomplete = draft.procedureSteps.some(
+        (step) => blank(step.prompt) || blank(step.expected) || blank(step.explanation),
+      );
+      if (incomplete) {
+        return { problem: 'emptyStep' };
+      }
+      if (!draft.procedureSteps.some((step) => step.key)) {
+        return { problem: 'keyStep' };
+      }
+      const steps = [];
+      for (const step of draft.procedureSteps) {
+        const base = {
+          id: step.id,
+          prompt: step.prompt.trim(),
+          explanation: step.explanation.trim(),
+          key: step.key,
+        };
+        if (step.resultType === 'text') {
+          steps.push({
+            ...base,
+            expected: { type: 'text' as const, text: step.expected.trim() },
+          });
+          continue;
+        }
+        const tolerance = readEditorNumber(step.tolerance === '' ? '0' : step.tolerance);
+        if (tolerance === null || tolerance < 0) {
+          return { problem: 'tolerance' };
+        }
+        const unit = step.unit.trim();
+        steps.push({
+          ...base,
+          expected: {
+            type: 'number' as const,
+            formula: step.expected.trim(),
+            tolerance,
+            unit: unit === '' ? null : unit,
+          },
+        });
+      }
+      if (!draft.withVariants) {
+        return { activity: { type: 'procedure', steps, family: null } };
+      }
+      const built = familyOf(draft.family);
+      return 'problem' in built
+        ? { problem: built.problem }
+        : { activity: { type: 'procedure', steps, family: built.family } };
+    }
+    case 'decision': {
+      if (draft.methods.some((method) => blank(method.text) || blank(method.why))) {
+        return { problem: 'methodsBlank' };
+      }
+      if (repeated(draft.methods.map((method) => method.text))) {
+        return { problem: 'optionsRepeated' };
+      }
+      if (draft.methods.filter((method) => method.correct).length !== 1) {
+        return { problem: 'optionsCorrect' };
+      }
+      return {
+        activity: {
+          type: 'decision',
+          options: draft.methods.map((method) => ({
+            id: method.id,
+            text: method.text.trim(),
+            correct: method.correct,
+            explanation: method.why.trim(),
+          })),
+        },
+      };
+    }
+    case 'interleaved': {
+      if (draft.types.some((type) => blank(type.name))) {
+        return { problem: 'typesBlank' };
+      }
+      if (repeated(draft.types.map((type) => type.name))) {
+        return { problem: 'typesRepeated' };
+      }
+      if (draft.types.some((type) => type.cardIds.length === 0)) {
+        return { problem: 'typesEmpty' };
+      }
+      return {
+        activity: {
+          type: 'interleaved',
+          types: draft.types.map((type) => ({
+            id: type.id,
+            name: type.name.trim(),
+            cardIds: type.cardIds,
+          })),
+        },
+      };
+    }
   }
 }
 
@@ -181,6 +358,13 @@ export function answerOf(activity: ActivityValue): string | null {
       return activity.steps.map((step) => step.text).join(' · ');
     case 'open':
       return activity.units.map((unit) => unit.text).join(' · ');
+    // La de un procedimiento, un conjunto o una decisión la arma el principal desde la actividad.
+    case 'procedure':
+      return activity.steps.map((step, n) => `${n + 1}. ${step.prompt}`).join(' · ');
+    case 'decision':
+      return activity.options.find((option) => option.correct)?.text ?? null;
+    case 'interleaved':
+      return activity.types.map((type) => type.name).join(' · ');
     default:
       return null;
   }
@@ -190,9 +374,12 @@ export function ActivityEditor({
   draft,
   onChange,
   focusField,
+  exercises = [],
 }: {
   draft: ActivityDraft;
   onChange: (draft: ActivityDraft) => void;
+  // Para el conjunto mezclado: los ejercicios de la materia.
+  exercises?: readonly ExerciseChoice[] | undefined;
   // La parte de la referencia a corregir («La referencia está incompleta»): recibe el foco al abrir.
   focusField?: ReferenceField | undefined;
 }) {
@@ -236,16 +423,36 @@ export function ActivityEditor({
       {draft.type === 'numeric' ? (
         <fieldset className={styles.editorGroup}>
           <legend>{editor.types.numeric}</legend>
-          <div className={formStyles.field}>
-            <label htmlFor={`${ids}-valor`}>{editor.value}</label>
+          <label className={styles.editorInline}>
             <input
-              id={`${ids}-valor`}
-              type="text"
-              inputMode="decimal"
-              value={draft.value}
-              onChange={(event) => set({ value: event.target.value })}
+              type="checkbox"
+              checked={draft.withVariants}
+              onChange={(event) => set({ withVariants: event.target.checked })}
             />
-          </div>
+            {editor.withVariants}
+          </label>
+          {draft.withVariants ? (
+            <div className={formStyles.field}>
+              <label htmlFor={`${ids}-formula`}>{editor.formula}</label>
+              <input
+                id={`${ids}-formula`}
+                type="text"
+                value={draft.formula}
+                onChange={(event) => set({ formula: event.target.value })}
+              />
+            </div>
+          ) : (
+            <div className={formStyles.field}>
+              <label htmlFor={`${ids}-valor`}>{editor.value}</label>
+              <input
+                id={`${ids}-valor`}
+                type="text"
+                inputMode="decimal"
+                value={draft.value}
+                onChange={(event) => set({ value: event.target.value })}
+              />
+            </div>
+          )}
           <div className={formStyles.field}>
             <label htmlFor={`${ids}-margen`}>{editor.tolerance}</label>
             <input
@@ -266,6 +473,31 @@ export function ActivityEditor({
             />
           </div>
         </fieldset>
+      ) : null}
+      {draft.type === 'procedure' ? (
+        <>
+          <ProcedureEditor
+            steps={draft.procedureSteps}
+            onChange={(procedureSteps) => set({ procedureSteps })}
+          />
+          <label className={styles.editorInline}>
+            <input
+              type="checkbox"
+              checked={draft.withVariants}
+              onChange={(event) => set({ withVariants: event.target.checked })}
+            />
+            {editor.withVariants}
+          </label>
+        </>
+      ) : null}
+      {draft.withVariants && (draft.type === 'numeric' || draft.type === 'procedure') ? (
+        <FamilyEditor family={draft.family} onChange={(family) => set({ family })} />
+      ) : null}
+      {draft.type === 'decision' ? (
+        <DecisionEditor methods={draft.methods} onChange={(methods) => set({ methods })} />
+      ) : null}
+      {draft.type === 'interleaved' ? (
+        <SetEditor types={draft.types} exercises={exercises} onChange={(types) => set({ types })} />
       ) : null}
       {draft.type === 'options' ? (
         <fieldset className={styles.editorGroup}>

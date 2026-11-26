@@ -3,6 +3,8 @@ import type { ActivationCost, Card, CardDetail } from '../../preload/contract/ca
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { ExerciseView, type ReferenceField } from '../practice/ExerciseView';
+import { ProcedureView } from '../practice/ProcedureView';
+import { SetView } from '../practice/SetView';
 import { Boton } from '../ui/Boton';
 import { Dialog, ScreenFrame, Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
@@ -240,6 +242,29 @@ export function CardsScreen({
     // «Practicar ahora» (Fase 16): un ejercicio tiene su pantalla; la tarjeta de siempre, el repaso.
     // La fuente se lee en el panel: «Ver en el original» llevaría a Materiales y se perdería lo
     // escrito, así que acá no se ofrece.
+    const editReference = (cardId: string, field: ReferenceField) => {
+      window.retenia['cards.get']({ cardId }).then(
+        (detail) => {
+          setNotice(texts.practice.editAfterAppeal);
+          setView({ kind: 'edit', card: detail, focus: field });
+        },
+        () => setProblem(texts.cards.loadFailed),
+      );
+    };
+    // Fase 18: el procedimiento y el conjunto mezclado tienen su pantalla.
+    if (card.activityType === 'procedure') {
+      return <ProcedureView key={card.id} cardId={card.id} onClose={backToList} />;
+    }
+    if (card.activityType === 'interleaved') {
+      return (
+        <SetView
+          key={card.id}
+          cardId={card.id}
+          onClose={backToList}
+          onEditReference={editReference}
+        />
+      );
+    }
     if (card.activityType !== null) {
       return (
         <ExerciseView
@@ -253,15 +278,7 @@ export function CardsScreen({
               () => setProblem(texts.cards.loadFailed),
             );
           }}
-          onEditReference={(field) => {
-            window.retenia['cards.get']({ cardId: card.id }).then(
-              (detail) => {
-                setNotice(texts.practice.editAfterAppeal);
-                setView({ kind: 'edit', card: detail, focus: field });
-              },
-              () => setProblem(texts.cards.loadFailed),
-            );
-          }}
+          onEditReference={(field) => editReference(card.id, field)}
         />
       );
     }
@@ -295,6 +312,7 @@ export function CardsScreen({
         <Toast>{notice}</Toast>
         <SheetForm
           card={card}
+          subjectId={subjectId ?? null}
           focusField={view.focus}
           improve={view.improve}
           onCancel={() => setView({ kind: 'detail', cardId: card.id, version: nextVersion() })}

@@ -125,6 +125,7 @@ export function createHandlers({
     'cards.undoReview': async (request) => workspace.cards.undoReview(request),
     'cards.whyToday': async (request) => workspace.cards.whyToday(request),
     'cards.edit': async (request) => workspace.cards.edit(request),
+    'activities.validate': async (request) => workspace.cards.validateActivity(request),
     'activities.start': async (request) => {
       activityTimer.open(request.openingId);
       return workspace.activities.start(request);

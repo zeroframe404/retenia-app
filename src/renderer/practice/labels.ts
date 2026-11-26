@@ -56,7 +56,9 @@ export function reviewText(
     case 'unreadable':
       return review.unreadable;
     case 'optionExplanation':
-      return review.optionExplanation(detail?.type === 'options' ? detail.explanation : null);
+      return review.optionExplanation(
+        detail?.type === 'options' || detail?.type === 'decision' ? detail.explanation : null,
+      );
     case 'steps':
       return review.steps;
     case 'missingUnits':

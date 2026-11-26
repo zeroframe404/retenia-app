@@ -118,9 +118,11 @@ interface ListInput {
 // La actividad no cumple lo que pide su editor (Fase 16): opciones, pasos o unidades de más o de
 // menos, sin explicación en una opción equivocada…
 class InvalidActivityError extends Error {
+  readonly problems: readonly string[];
   constructor(problems: readonly string[]) {
     super(`La actividad no es válida: ${problems.join(', ')}`);
     this.name = 'InvalidActivityError';
+    this.problems = problems;
   }
 }
 
@@ -264,6 +266,10 @@ export interface CardsStore {
   // Solo para la demostración: tarjetas sueltas con su historial, y el historial de una que nació
   // en una nota. Devuelven cuántas tarjetas hay después.
   plantCast(entries: readonly SeedCard[]): number;
+  // Lo que está mal en un ejercicio antes de guardarlo (Fase 18).
+  validateActivity(input: { activity: Activity; subjectId: string | null }): {
+    problems: string[];
+  };
   // Intentos de otros días sobre ejercicios, solo de la demostración (Fase 18).
   plantAttempts(attempts: readonly SeedAttempt[]): void;
   plantHistory(
@@ -1152,6 +1158,21 @@ export function createCardsStore(
           .where(isNull(cardVersions.activityType))
           .get()?.total ?? 0
       );
+    },
+
+    validateActivity({ activity, subjectId }) {
+      const problems: string[] = [...validateActivity(activity)];
+      if (problems.length === 0 && activity.type === 'interleaved') {
+        try {
+          assertSetProblems(orm, activity, subjectId);
+        } catch (error) {
+          if (!(error instanceof InvalidActivityError)) {
+            throw error;
+          }
+          problems.push(...error.problems);
+        }
+      }
+      return { problems };
     },
 
     plantAttempts(attempts) {
