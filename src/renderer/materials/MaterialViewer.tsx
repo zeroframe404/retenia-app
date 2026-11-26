@@ -14,6 +14,7 @@ import { BannerEstado } from '../ui/Process';
 import { PdfPage } from '../visor/PdfPage';
 import { CreateCardFromQuote } from './CreateCardFromQuote';
 import { ExplainPanel } from './ExplainPanel';
+import { headingTags } from './headings';
 import styles from './Materials.module.css';
 import { useOriginal } from './original';
 
@@ -85,11 +86,14 @@ function referenceFor(page: MaterialPage, block: MaterialBlockView | undefined):
 
 function BlockText({
   block,
+  heading,
   highlighted,
   onHover,
   onPick,
 }: {
   block: MaterialBlockView;
+  // El nivel de título de una sección, sin saltear niveles (`headingTags`).
+  heading: 'h3' | 'h4' | null;
   highlighted: boolean;
   onHover: (block: MaterialBlockView | null) => void;
   onPick: (block: MaterialBlockView) => void;
@@ -104,7 +108,7 @@ function BlockText({
     onClick: () => onPick(block),
   };
   if (block.type === 'section') {
-    const Heading = block.level <= 1 ? 'h3' : 'h4';
+    const Heading = heading ?? 'h4';
     return (
       <Heading className={styles.heading} {...shared}>
         {block.text}
@@ -333,6 +337,7 @@ export function MaterialViewer({
   const total = detail.units.length || pagesInFile || 1;
   const visible =
     page?.blocks.filter((block) => !HIDDEN.includes(block.type) && block.text !== '') ?? [];
+  const headings = headingTags(visible);
   const unread = page !== null && page.status === 'pending' && visible.length === 0;
   const readingText = !page?.working
     ? texts.materials.notReadCancelled
@@ -481,10 +486,11 @@ export function MaterialViewer({
               onKeyUp={readSelection}
             >
               {unread ? <p className={styles.reading}>{readingText}</p> : null}
-              {visible.map((block) => (
+              {visible.map((block, index) => (
                 <BlockText
                   key={block.id}
                   block={block}
+                  heading={headings[index] ?? null}
                   highlighted={openedHere?.blockId === block.id || located === block.id}
                   onHover={(entered) =>
                     setHovered(entered && entered.boxes.length > 0 ? entered : null)

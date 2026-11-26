@@ -595,6 +595,7 @@
 
 /* «Explicame este fragmento» (Fase 19): el visor con el panel de la explicación al lado, sin taparlo. */
 .viewerWithPanel {
+  container: visor / inline-size;
   display: grid;
   gap: var(--espacio-24);
   align-items: start;
@@ -613,6 +614,23 @@
 @media (width < 900px) {
   .viewerWithPanel[data-panel="open"] {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Con el panel abierto, si no entran la página, el texto y el panel uno al lado del otro, la página
+   del PDF pasa abajo del texto: el pasaje elegido queda arriba, al lado de su explicación, y nada
+   se superpone. */
+@container visor (width < 1110px) {
+  .viewerWithPanel[data-panel="open"] .viewerBody[data-columns="2"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .viewerWithPanel[data-panel="open"] .viewerBody[data-columns="2"] > .textColumn {
+    order: -1;
+  }
+
+  .viewerWithPanel[data-panel="open"] .original {
+    position: static;
   }
 }
 

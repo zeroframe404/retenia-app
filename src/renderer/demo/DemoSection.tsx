@@ -99,11 +99,15 @@ export function DemoSection({
     };
   }, []);
 
+  // Como «Procesar despacio»: la casilla cambia al tocarla y después se confirma con lo guardado.
   async function toggleAi(change: { simulated?: boolean; bad?: boolean; slow?: boolean }) {
     setAiFailed(false);
+    const before = simulatedAi;
+    setSimulatedAi((current) => (current ? { ...current, ...change } : current));
     try {
       setSimulatedAi(await window.retenia['demo.setAi'](change));
     } catch {
+      setSimulatedAi(before);
       setAiFailed(true);
     }
   }

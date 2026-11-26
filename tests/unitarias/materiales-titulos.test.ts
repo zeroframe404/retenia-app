@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { headingTags } from '../../src/core/materials/headings';
+import { headingTags } from '../../src/renderer/materials/headings';
 
 // Los títulos del visor (Fase 13, accesibilidad que encontró la Fase 19): cada sección de la página
 // va como título de nivel 3 o 4 sin saltear niveles. Una página que empieza con un subtítulo (la
