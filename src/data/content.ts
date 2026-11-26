@@ -85,7 +85,16 @@ function asSheetState(value: string): SheetState {
   return SHEET_STATES.find((state) => state === value) ?? 'reviewed';
 }
 
-const ACTIVITY_TYPES = ['short', 'numeric', 'options', 'order', 'open'] as const;
+const ACTIVITY_TYPES = [
+  'short',
+  'numeric',
+  'options',
+  'order',
+  'open',
+  'procedure',
+  'decision',
+  'interleaved',
+] as const;
 type ActivityTypeName = (typeof ACTIVITY_TYPES)[number];
 
 function asActivityType(value: string | null): ActivityTypeName | null {

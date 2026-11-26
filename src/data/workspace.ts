@@ -41,12 +41,15 @@ import { createImportsStore, type ImportsStore } from './imports';
 import { createInboxStore, type InboxStore } from './inbox';
 import { continueSequence, readLedgerState } from './ledger';
 import { createMaterialsStore, type MaterialsStore } from './materials';
+import { createMicroStore, type MicroStore } from './micro';
 import { migrationIds } from './migrations';
 import { createNotesStore, type NotesStore } from './notes';
 import { createObjectivesStore, type ObjectivesStore } from './objectives';
+import { createProceduresStore, type ProceduresStore } from './procedures';
 import { createProgressStore, type ProgressStore } from './progress';
 import { repairData, verifyData } from './projections';
 import { createSearchStore, type SearchStore } from './search';
+import { createSetsStore, type SetsStore } from './sets';
 import { createStudyStore, type StudyStore } from './study';
 import { createSubjectsStore, type SubjectsStore } from './subjects';
 import { createTopicsStore, type TopicsStore } from './topics';
@@ -83,6 +86,10 @@ export interface Workspace {
   readonly objectives: ObjectivesStore;
   // Progreso › «Mis errores» y «Mejorar la tarjeta» (Fase 17).
   readonly progress: ProgressStore;
+  // Fase 18: el procedimiento, el conjunto intercalado y el micro-ejercicio.
+  readonly procedures: ProceduresStore;
+  readonly sets: SetsStore;
+  readonly micro: MicroStore;
   // «Exportar todo»: arma los archivos de datos en la carpeta `staging` y dice qué va al comprimido.
   stageExport(staging: string): StagedExport;
   exportCounts(): ExportCounts;
@@ -223,6 +230,9 @@ export function openWorkspace({
       imports: createImportsStore(db, clock, dataDir),
       objectives: createObjectivesStore(db, clock),
       progress: createProgressStore(db, clock, () => cards),
+      procedures: createProceduresStore(db, clock),
+      sets: createSetsStore(db, clock),
+      micro: createMicroStore(db, clock),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -286,6 +296,15 @@ export function openWorkspace({
     },
     get activities() {
       return current().activities;
+    },
+    get procedures() {
+      return current().procedures;
+    },
+    get sets() {
+      return current().sets;
+    },
+    get micro() {
+      return current().micro;
     },
     get subjects() {
       return current().subjects;

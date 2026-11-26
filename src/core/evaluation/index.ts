@@ -18,6 +18,7 @@ export {
   purposeOf,
 } from './help';
 export { evaluateNumeric, parseNumber } from './numeric';
+export { seedNumber } from './random';
 export { referenceText } from './reference';
 export { engineSignal, hasPendingCheck, type ResultParts, resultParts } from './result';
 export { evaluateShort, letterDiff, normalizeShortAnswer } from './short';

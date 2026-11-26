@@ -5,6 +5,7 @@ import {
   allowedVerdicts,
   canSetVerdict,
   engineSignal,
+  evaluateDecision,
   evaluateNumeric,
   evaluateOptions,
   evaluateOrder,
@@ -26,6 +27,8 @@ import {
 import { currentEvaluation } from '../core/ledger';
 import type { Diagnosis } from '../core/mastery';
 import type { Verdict } from '../core/memory';
+import { resolveSteps } from '../core/procedure';
+import { evaluateFormula, renderTemplate, type VariantValues } from '../core/variants';
 import type {
   ActivityHelp,
   ActivityOpening,
@@ -54,8 +57,11 @@ import {
 } from './ledger';
 import { describeCite } from './materials';
 import type { Writer } from './orm';
+import { resultText } from './procedures';
 import { pendingCheckOf, recomputeCardSchedule } from './projections';
 import { cards, cardVersions, evaluations, observations } from './schema';
+import { runIncludes } from './sets';
+import { isNewVariant, showVariant, variantOfOpening } from './variants';
 
 // Las actividades de la Fase 16 (H-31 a H-33). Cada intento sobre un ejercicio es una observación
 // `attempt.submitted` (al tocar «Enviar»); su evaluación se guarda al salir del resultado
@@ -135,6 +141,9 @@ const RUBRIC: Record<Activity['type'], string> = {
   options: 'options-1',
   order: 'order-1',
   open: 'units-1',
+  procedure: 'steps-1',
+  decision: 'decision-1',
+  interleaved: 'set-1',
 };
 
 interface SubmitInput {
@@ -148,6 +157,8 @@ interface SubmitInput {
   shownAt: string;
   firstInputMs: number | null;
   submittedMs: number | null;
+  // Fase 18: la vuelta del conjunto intercalado en la que se resuelve.
+  runId?: string | undefined;
 }
 
 export interface ActivitiesStore {
@@ -229,14 +240,18 @@ interface Evaluated {
 // las unidades marcadas).
 function evaluate(
   version: Pick<VersionRow, 'answer' | 'variants' | 'activity'>,
-  answer: AttemptAnswer,
+  answer: StoredAttempt['answer'],
   marked: readonly string[] = [],
+  // En un numérico con variantes, los datos de la que se resolvió.
+  values?: VariantValues,
 ): Evaluated {
-  const activity = exerciseOf(version);
-  if (answer.type !== activity.type) {
+  const activity = asVariant(exerciseOf(version), values);
+  // El procedimiento y el conjunto tienen sus propios caminos (procedures.ts y sets.ts).
+  if (answer.type !== activity.type || answer.type === 'procedure') {
     throw new AnswerTypeMismatchError();
   }
-  const variants = listOf(version.variants);
+  const hasFamily = activity.type === 'numeric' && Boolean(activity.family);
+  const variants = hasFamily ? [] : listOf(version.variants);
   switch (activity.type) {
     case 'short': {
       const text = answer.type === 'short' ? answer.text : '';
@@ -305,6 +320,32 @@ function evaluate(
         missing: [],
       };
     }
+    case 'decision': {
+      const chosenId = answer.type === 'decision' ? answer.optionId : '';
+      const result = evaluateDecision(chosenId, activity.options);
+      const correct = activity.options.find((option) => option.correct);
+      return {
+        proposed: result.verdict,
+        detail: {
+          type: 'decision',
+          chosenId,
+          correctId: correct?.id ?? '',
+          correctText: correct?.text ?? '',
+          explanation: result.explanation,
+          options: activity.options.map((option) => ({
+            id: option.id,
+            text: option.text,
+            why: option.explanation,
+            correct: option.correct,
+          })),
+        },
+        components: { chosenId, correctId: correct?.id ?? null },
+        numericReason: null,
+        missing: [],
+      };
+    }
+    case 'procedure':
+      throw new AnswerTypeMismatchError();
     case 'open': {
       const ids = new Set(activity.units.map((unit) => unit.id));
       const covered = [...new Set(marked)].filter((id) => ids.has(id));
@@ -322,6 +363,14 @@ function evaluate(
       };
     }
   }
+}
+
+// Un numérico con variantes, con el resultado de la variante que se muestra.
+function asVariant(activity: Activity, values: VariantValues | undefined): Activity {
+  if (activity.type !== 'numeric' || !activity.family || !activity.formula || !values) {
+    return activity;
+  }
+  return { ...activity, value: evaluateFormula(activity.formula, values) };
 }
 
 export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): ActivitiesStore {
@@ -437,7 +486,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       return existing;
     }
     const version = versionOf(tx, attempt.versionId);
-    const evaluated = evaluate(version, attempt.answer, marked);
+    const evaluated = evaluate(version, attempt.answer, marked, attempt.variant?.values);
     const chosen = verdict ?? evaluated.proposed;
     if (!canSetVerdict(evaluated.proposed, chosen)) {
       throw new VerdictAboveProposalError();
@@ -530,11 +579,25 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
     );
   }
 
+  // El enunciado con los números de esta vez, en un numérico con variantes.
+  function statementFor(row: CardRow, openingId: string): string | undefined {
+    const activity = parsedActivity(row);
+    if (activity?.type !== 'numeric' || !activity.family) {
+      return undefined;
+    }
+    const family = activity.family;
+    const shown = orm.transaction((tx) =>
+      showVariant(tx, clock, { cardId: row.id, versionId: row.versionId, family, openingId }),
+    );
+    return renderTemplate(family.statements[0] ?? '', shown.values);
+  }
+
   return {
     start({ cardId, openingId }) {
       const row = activeCard(orm, cardId);
       assertPracticable(row);
       const activity = parsedActivity(row);
+      const statement = statementFor(row, openingId);
       const sheet = sheetOf(row);
       const mode = asMode(row.mode);
       const base = {
@@ -574,6 +637,19 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
               })),
             };
           }
+          case 'decision': {
+            const byId = new Map(activity.options.map((option) => [option.id, option.text]));
+            return {
+              type: 'decision',
+              options: shuffledOptions([...byId.keys()], openingId).map((id) => ({
+                id,
+                text: byId.get(id) ?? '',
+              })),
+            };
+          }
+          case 'procedure':
+          case 'interleaved':
+            return { type: activity.type };
         }
       })();
       return {
@@ -588,6 +664,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           retry: helpAvailability({ ...base, mode: 'practice', started: true }),
         },
         hints: Math.min(3, sheet.hints.length),
+        ...(statement === undefined ? {} : { statement }),
       };
     },
 
@@ -630,8 +707,20 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         }
         const activity = parsedActivity(row);
         const use = { kind: 'solution' as const, level: 'A4' as const };
+        // Con variantes, la solución es la de los números que estás viendo.
+        const shown = variantOfOpening(orm, cardId, openingId);
         const solution = ((): Extract<ActivityHelp, { kind: 'help' }>['content'] => {
           switch (activity?.type) {
+            case 'procedure':
+              return {
+                kind: 'solution',
+                solution: {
+                  type: 'procedure',
+                  steps: resolveSteps(activity, shown?.values ?? {}).map(
+                    (step) => `${step.prompt} ${resultText(step)}`,
+                  ),
+                },
+              };
             case 'order':
               return {
                 kind: 'solution',
@@ -642,11 +731,24 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
                 kind: 'solution',
                 solution: { type: 'open', units: activity.units.map((unit) => unit.text) },
               };
-            default:
+            case 'interleaved':
+              throw new HelpNotAvailableError();
+            default: {
+              const computed =
+                activity?.type === 'numeric' && activity.family && shown
+                  ? asVariant(activity, shown.values)
+                  : null;
               return {
                 kind: 'solution',
-                solution: { type: activity?.type ?? 'card', answer: row.answer },
+                solution: {
+                  type: activity?.type ?? 'card',
+                  answer:
+                    computed?.type === 'numeric'
+                      ? `${renderTemplate('{v}', { v: computed.value })}${computed.unit === null ? '' : ` ${computed.unit}`}`
+                      : row.answer,
+                },
               };
+            }
           }
         })();
         return { kind: 'help', use, label: label(use), content: solution };
@@ -694,7 +796,17 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         assertPracticable(row);
         const activity = exerciseOf(row);
         const mode = asMode(row.mode);
-        const evaluated = evaluate(row, input.answer);
+        const shown =
+          activity.type === 'numeric' && activity.family
+            ? variantOfOpening(tx, input.cardId, input.openingId)
+            : null;
+        const evaluated = evaluate(row, input.answer, [], shown?.values);
+        if (activity.type === 'procedure' || activity.type === 'interleaved') {
+          throw new AnswerTypeMismatchError();
+        }
+        if (input.runId !== undefined && !runIncludes(tx, input.runId, input.cardId)) {
+          throw new AttemptConflictError();
+        }
         const help = normalizedHelp(input.help);
         const repeated = tx
           .select({ id: observations.id })
@@ -718,11 +830,22 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             help,
             helpLevel: maxHelpLevel(help),
             noIdea: input.noIdea,
-            optionsQuestion: activity.type === 'options',
+            optionsQuestion: activity.type === 'options' || activity.type === 'decision',
             confidence: null,
             shownAt: input.shownAt,
             firstInputMs: input.firstInputMs,
             submittedMs: input.submittedMs,
+            // En un conjunto intercalado, la vuelta; con variantes, la que se resolvió.
+            ...(input.runId === undefined ? {} : { sessionId: input.runId }),
+            ...(shown === null || shown === undefined
+              ? {}
+              : {
+                  variant: {
+                    n: shown.n,
+                    values: { ...shown.values },
+                    isNew: isNewVariant(tx, input.cardId, shown.n),
+                  },
+                }),
           },
           idempotencyKey: `attempt:${input.attemptId}`,
           source: 'user',
@@ -746,7 +869,12 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
 
     propose({ attemptId, marked, verdict }) {
       const attempt = attemptOf(orm, attemptId);
-      const evaluated = evaluate(versionOf(orm, attempt.versionId), attempt.answer, marked);
+      const evaluated = evaluate(
+        versionOf(orm, attempt.versionId),
+        attempt.answer,
+        marked,
+        attempt.variant?.values,
+      );
       // Nunca más alto que lo propuesto: un resultado elegido de más queda en lo propuesto.
       const shown =
         verdict !== undefined && canSetVerdict(evaluated.proposed, verdict)
@@ -769,6 +897,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           versionOf(tx, attempt.versionId),
           attempt.answer,
           markedOf(saved.components),
+          attempt.variant?.values,
         );
         const final = saved.verdict as Verdict;
         const nextReviewDay = nextDayOf(tx, attempt.cardId);
@@ -802,6 +931,9 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
               options: 'options',
               order: 'steps',
               open: 'units',
+              procedure: 'steps',
+              decision: 'options',
+              interleaved: 'options',
             } as const
           )[attempt.activityType];
           return { kind: 'editor', field };
@@ -820,7 +952,11 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         if (reason === 'answer_correct') {
           const version = versionOf(tx, card.versionId);
           const answer = attempt.answer;
-          if (answer.type === 'short' || answer.type === 'numeric') {
+          // Con variantes no se guarda tu respuesta como variante: la próxima trae otros números.
+          if (
+            attempt.variant === undefined &&
+            (answer.type === 'short' || answer.type === 'numeric')
+          ) {
             const text = (answer.type === 'short' ? answer.text : answer.raw).trim();
             const known = [version.answer, ...listOf(version.variants)].map(normalizeShortAnswer);
             if (text !== '' && !known.includes(normalizeShortAnswer(text))) {
@@ -867,6 +1003,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             versionOf(tx, latest.versionId),
             attempt.answer,
             markedOf(before.components),
+            attempt.variant?.values,
           );
           const byRule = reevaluated.proposed === 'correct' && attempt.activityType !== 'open';
           appendEvaluation(tx, clock, {
@@ -957,6 +1094,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           versionOf(tx, attempt.versionId),
           attempt.answer,
           markedOf(before.components),
+          attempt.variant?.values,
         );
         return {
           kind: 'amended',

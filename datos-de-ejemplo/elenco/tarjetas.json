@@ -1128,6 +1128,388 @@
       ],
       "ejemplo": "Con 9, 1 y 4: ordenados son 1, 4 y 9; hay 3; el del medio es el segundo: 4.",
       "explicacion": "Primero se ordenan los datos (3, 5, 7), se cuenta cuántos hay (3), se ubica la posición del medio (la segunda) y se lee ese dato: 5."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Intervalos de confianza",
+      "pregunta": "Calcular un intervalo de confianza para la media",
+      "actividad": {
+        "type": "procedure",
+        "steps": [
+          {
+            "id": "error-estandar",
+            "prompt": "Calculá el error estándar de la media.",
+            "expected": {
+              "type": "number",
+              "formula": "s / raiz(n)",
+              "tolerance": 0.01,
+              "unit": null
+            },
+            "explanation": "El error estándar es el desvío dividido por la raíz de la cantidad de datos: {s} ÷ √{n}.",
+            "key": true
+          },
+          {
+            "id": "valor-critico",
+            "prompt": "Elegí el valor crítico z para una confianza del 95 %.",
+            "expected": {
+              "type": "number",
+              "formula": "1,96",
+              "tolerance": 0.005,
+              "unit": null
+            },
+            "explanation": "Para el 95 %, z es 1,96: deja un 2,5 % en cada cola.",
+            "key": false
+          },
+          {
+            "id": "margen",
+            "prompt": "Calculá el margen de error.",
+            "expected": {
+              "type": "number",
+              "formula": "paso2 * paso1",
+              "tolerance": 0.05,
+              "unit": null
+            },
+            "explanation": "El margen de error es el valor crítico por el error estándar.",
+            "key": false
+          },
+          {
+            "id": "limite-superior",
+            "prompt": "Calculá el límite superior del intervalo.",
+            "expected": {
+              "type": "number",
+              "formula": "media + paso3",
+              "tolerance": 0.05,
+              "unit": null
+            },
+            "explanation": "El límite superior es la media más el margen; el inferior, la media menos el margen.",
+            "key": false
+          }
+        ],
+        "family": {
+          "statements": [
+            "En una muestra de {n} datos, la media es {media} y el desvío estándar es {s}. Calculá un intervalo de confianza del 95 % para la media.",
+            "Una fábrica pesó {n} paquetes: en promedio pesan {media} gramos, con un desvío estándar de {s} gramos. Calculá un intervalo de confianza del 95 % para el peso medio.",
+            "Se midió cuánto tardan {n} entregas: la media es de {media} minutos y el desvío estándar, de {s}. Calculá un intervalo de confianza del 95 % para la media."
+          ],
+          "parameters": [
+            {
+              "name": "media",
+              "values": [40, 45, 50, 55, 60, 65, 70, 75, 80]
+            },
+            {
+              "name": "n",
+              "values": [16, 25, 36, 64, 100]
+            },
+            {
+              "name": "ee",
+              "values": [0.5, 1, 1.5, 2, 2.5, 3]
+            }
+          ],
+          "derived": [
+            {
+              "name": "s",
+              "formula": "ee * raiz(n)"
+            }
+          ]
+        }
+      },
+      "pistas": [
+        "¿Qué te dice cuánto puede cambiar la media de una muestra a otra?",
+        "El margen de error junta dos cosas: el valor crítico y el error estándar.",
+        "Empezá por el error estándar: el desvío dividido por la raíz de la cantidad de datos."
+      ],
+      "ejemplo": "Con 25 datos, media 20 y desvío 5: el error estándar es 1, el margen es 1,96 y el intervalo va de 18,04 a 21,96.",
+      "explicacion": "El intervalo es la media ± z × error estándar, y el error estándar es s ÷ √n. Para el 95 %, z es 1,96."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Cinco amigos juntaron 4, 6, 7, 8 y 10 pesos. Si repartieran todo en partes iguales, ¿cuántos pesos tendría cada uno?",
+      "actividad": {
+        "type": "numeric",
+        "value": 7,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Qué pasaría si todos tuvieran lo mismo?",
+        "El total no cambia: solo cambia cómo se reparte.",
+        "Sumá todo y dividí por cuántos son."
+      ],
+      "ejemplo": "Con 2 y 8 pesos, en partes iguales son 5 cada uno.",
+      "explicacion": "Es la media: (4 + 6 + 7 + 8 + 10) ÷ 5 = 35 ÷ 5 = 7."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Un ciclista hizo 12, 18, 15 y 19 km en cuatro días. Con el mismo total y la misma distancia todos los días, ¿cuántos km habría hecho por día?",
+      "actividad": {
+        "type": "numeric",
+        "value": 16,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Qué pasaría si todos tuvieran lo mismo?",
+        "El total no cambia: solo cambia cómo se reparte.",
+        "Sumá todo y dividí por cuántos son."
+      ],
+      "ejemplo": "Con 10 y 20 km, en dos días iguales son 15 por día.",
+      "explicacion": "Es la media: (12 + 18 + 15 + 19) ÷ 4 = 64 ÷ 4 = 16."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "En seis días hizo 21, 24, 19, 22, 26 y 20 grados. Con la misma suma y la misma temperatura todos los días, ¿cuántos grados habría hecho cada día?",
+      "actividad": {
+        "type": "numeric",
+        "value": 22,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Qué pasaría si todos tuvieran lo mismo?",
+        "El total no cambia: solo cambia cómo se reparte.",
+        "Sumá todo y dividí por cuántos son."
+      ],
+      "ejemplo": "Con 18 y 22 grados, dos días iguales son de 20.",
+      "explicacion": "Es la media: la suma, 132, dividida por 6 es 22."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Los sueldos de cinco personas son 560, 500, 2000, 540 y 520. ¿Qué sueldo tiene dos por debajo y dos por encima?",
+      "actividad": {
+        "type": "numeric",
+        "value": 540,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Importa el orden en que están escritos los datos?",
+        "Primero ordenalos de menor a mayor.",
+        "Buscá el lugar que deja la misma cantidad de datos de cada lado."
+      ],
+      "ejemplo": "En 9, 1 y 4, ordenados 1, 4 y 9, el que queda con uno de cada lado es 4.",
+      "explicacion": "Es la mediana: ordenados son 500, 520, 540, 560 y 2000; el del centro es 540."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Siete corredores tardaron 41, 38, 55, 47, 39, 90 y 44 minutos. ¿Qué tiempo separa a los tres más rápidos de los tres más lentos?",
+      "actividad": {
+        "type": "numeric",
+        "value": 44,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Importa el orden en que están escritos los datos?",
+        "Primero ordenalos de menor a mayor.",
+        "Buscá el lugar que deja la misma cantidad de datos de cada lado."
+      ],
+      "ejemplo": "En 7, 3 y 5, el que separa al menor del mayor es 5.",
+      "explicacion": "Es la mediana: ordenados son 38, 39, 41, 44, 47, 55 y 90; el cuarto es 44."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Hay departamentos de 35, 40, 48, 52, 61 y 150 metros cuadrados. ¿Qué superficie deja tres departamentos por debajo y tres por encima, a la misma distancia de los dos vecinos?",
+      "actividad": {
+        "type": "numeric",
+        "value": 50,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Importa el orden en que están escritos los datos?",
+        "Primero ordenalos de menor a mayor.",
+        "Buscá el lugar que deja la misma cantidad de datos de cada lado."
+      ],
+      "ejemplo": "En 2, 4, 6 y 8, el punto que deja dos de cada lado, entre 4 y 6, es 5.",
+      "explicacion": "Es la mediana: con una cantidad par, se toma el punto entre 48 y 52, que es 50."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Una zapatería vendió hoy los talles 38, 40, 40, 41, 40, 39 y 41. ¿Qué talle se pidió más veces?",
+      "actividad": {
+        "type": "numeric",
+        "value": 40,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Hay valores que aparecen más de una vez?",
+        "Anotá cuántas veces aparece cada uno.",
+        "El que buscás es el que más veces aparece, no el más grande."
+      ],
+      "ejemplo": "En 1, 2, 2 y 3, el que más aparece es 2.",
+      "explicacion": "Es la moda: el 40 aparece 3 veces, más que cualquier otro."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "En un curso, cada alumno dijo cuántos hermanos tiene: 1, 2, 2, 0, 3, 2, 1 y 4. ¿Qué respuesta se repitió más?",
+      "actividad": {
+        "type": "numeric",
+        "value": 2,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Hay valores que aparecen más de una vez?",
+        "Anotá cuántas veces aparece cada uno.",
+        "El que buscás es el que más veces aparece, no el más grande."
+      ],
+      "ejemplo": "En 5, 5, 6 y 7, el que más se repite es 5.",
+      "explicacion": "Es la moda: el 2 aparece 3 veces."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Un kiosco anotó cuántos alfajores llevó cada cliente: 3, 1, 3, 2, 3, 6, 2 y 3. ¿Qué cantidad fue la más habitual?",
+      "actividad": {
+        "type": "numeric",
+        "value": 3,
+        "tolerance": 0.01,
+        "unit": null
+      },
+      "pistas": [
+        "¿Hay valores que aparecen más de una vez?",
+        "Anotá cuántas veces aparece cada uno.",
+        "El que buscás es el que más veces aparece, no el más grande."
+      ],
+      "ejemplo": "En 1, 4, 4 y 9, la cantidad más habitual es 4.",
+      "explicacion": "Es la moda: el 3 aparece 4 veces."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "En una empresa, cinco personas ganan entre 500 y 560 y el gerente gana veinte veces más. Querés contar cuál es el sueldo típico.",
+      "actividad": {
+        "type": "decision",
+        "options": [
+          {
+            "id": "media",
+            "text": "La media",
+            "correct": false,
+            "explanation": "El sueldo del gerente es un valor extremo: la arrastra muy arriba y deja de representar a la mayoría."
+          },
+          {
+            "id": "mediana",
+            "text": "La mediana",
+            "correct": true,
+            "explanation": "Queda en el centro de los sueldos ordenados: un sueldo enorme casi no la mueve."
+          },
+          {
+            "id": "moda",
+            "text": "La moda",
+            "correct": false,
+            "explanation": "Casi no hay sueldos repetidos: el más frecuente no dice cuál es el sueldo típico."
+          }
+        ]
+      },
+      "pistas": [
+        "¿Qué hace el sueldo del gerente con cada medida?",
+        "Pensá cuál depende del orden y cuál del tamaño de cada dato.",
+        "Probá con 1, 2, 3, 4 y 100: ¿cuál queda cerca de la mayoría?"
+      ],
+      "ejemplo": "Para el precio típico de las casas de un barrio con una mansión, conviene mirar la que queda en el centro.",
+      "explicacion": "Con un valor extremo, la mediana representa mejor lo típico que la media."
+    },
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Una tienda quiere saber qué talle de remera reponer primero, con la lista de los talles que vendió el mes pasado.",
+      "actividad": {
+        "type": "decision",
+        "options": [
+          {
+            "id": "media",
+            "text": "La media",
+            "correct": false,
+            "explanation": "Un talle promedio puede no existir: nadie compra un talle 40,3."
+          },
+          {
+            "id": "mediana",
+            "text": "La mediana",
+            "correct": false,
+            "explanation": "Te dice el talle del centro, no el que más se vendió."
+          },
+          {
+            "id": "moda",
+            "text": "La moda",
+            "correct": true,
+            "explanation": "Es el valor que más se repite: el talle que más se vendió."
+          }
+        ]
+      },
+      "pistas": [
+        "¿Qué necesita saber la tienda: un valor del medio o el más pedido?",
+        "Pensá qué medida cuenta repeticiones.",
+        "El talle que más veces aparece en la lista es el que conviene reponer."
+      ],
+      "ejemplo": "Para saber qué gusto de helado comprar más, se mira el que más se pidió.",
+      "explicacion": "Cuando importa lo que más se repite, se usa la moda."
+    }
+  ],
+  "conjuntos": [
+    {
+      "materia": "Estadística básica",
+      "tema": "Media y dispersión",
+      "pregunta": "Media, mediana y moda",
+      "tipos": [
+        {
+          "id": "media",
+          "nombre": "Media",
+          "problemas": [
+            "Cinco amigos juntaron 4, 6, 7, 8 y 10 pesos. Si repartieran todo en partes iguales, ¿cuántos pesos tendría cada uno?",
+            "Un ciclista hizo 12, 18, 15 y 19 km en cuatro días. Con el mismo total y la misma distancia todos los días, ¿cuántos km habría hecho por día?",
+            "En seis días hizo 21, 24, 19, 22, 26 y 20 grados. Con la misma suma y la misma temperatura todos los días, ¿cuántos grados habría hecho cada día?"
+          ]
+        },
+        {
+          "id": "mediana",
+          "nombre": "Mediana",
+          "problemas": [
+            "Los sueldos de cinco personas son 560, 500, 2000, 540 y 520. ¿Qué sueldo tiene dos por debajo y dos por encima?",
+            "Siete corredores tardaron 41, 38, 55, 47, 39, 90 y 44 minutos. ¿Qué tiempo separa a los tres más rápidos de los tres más lentos?",
+            "Hay departamentos de 35, 40, 48, 52, 61 y 150 metros cuadrados. ¿Qué superficie deja tres departamentos por debajo y tres por encima, a la misma distancia de los dos vecinos?"
+          ]
+        },
+        {
+          "id": "moda",
+          "nombre": "Moda",
+          "problemas": [
+            "Una zapatería vendió hoy los talles 38, 40, 40, 41, 40, 39 y 41. ¿Qué talle se pidió más veces?",
+            "En un curso, cada alumno dijo cuántos hermanos tiene: 1, 2, 2, 0, 3, 2, 1 y 4. ¿Qué respuesta se repitió más?",
+            "Un kiosco anotó cuántos alfajores llevó cada cliente: 3, 1, 3, 2, 3, 6, 2 y 3. ¿Qué cantidad fue la más habitual?"
+          ]
+        }
+      ]
+    }
+  ],
+  "intentos": [
+    {
+      "pregunta": "Cinco amigos juntaron 4, 6, 7, 8 y 10 pesos. Si repartieran todo en partes iguales, ¿cuántos pesos tendría cada uno?",
+      "fecha": "2027-03-09T14:00:00.000Z",
+      "respuesta": "7"
+    },
+    {
+      "pregunta": "Los sueldos de cinco personas son 560, 500, 2000, 540 y 520. ¿Qué sueldo tiene dos por debajo y dos por encima?",
+      "fecha": "2027-03-10T14:00:00.000Z",
+      "respuesta": "540"
+    },
+    {
+      "pregunta": "Una zapatería vendió hoy los talles 38, 40, 40, 41, 40, 39 y 41. ¿Qué talle se pidió más veces?",
+      "fecha": "2027-03-11T14:00:00.000Z",
+      "respuesta": "40"
+    },
+    {
+      "pregunta": "En una empresa, cinco personas ganan entre 500 y 560 y el gerente gana veinte veces más. Querés contar cuál es el sueldo típico.",
+      "fecha": "2027-03-12T14:00:00.000Z",
+      "respuesta": "media"
     }
   ],
   "objetivos": [

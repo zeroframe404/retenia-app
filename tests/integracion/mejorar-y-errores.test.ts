@@ -182,7 +182,12 @@ describe('«Mis errores»', () => {
     const sent = answerShort(space, capital.id, 'asdf');
     space.workspace.activities.finalize({ attemptId: sent.attemptId, verdict: 'incorrect' });
     const errors = space.workspace.progress.errors({ subjectId: statistics(space).id });
-    expect(errors.groups).toEqual([
+    // Desde la Fase 18 la demostración trae un error de confusión en «Media y dispersión».
+    expect(errors.groups.map((group) => [group.topicName, group.items.length])).toEqual([
+      ['Media y dispersión', 1],
+      [null, 1],
+    ]);
+    expect(errors.groups.slice(1)).toEqual([
       {
         topicId: null,
         topicName: null,
@@ -336,6 +341,9 @@ describe('el diagnóstico tras un fallo', () => {
       confusedWith: { cardId: italy.id, question: 'Capital de Italia' },
     });
     const errors = space.workspace.progress.errors({ subjectId: statistics(space).id });
-    expect(errors.groups.flatMap((group) => group.items)).toEqual([]);
+    // Solo queda el de la demostración (Fase 18): lo de recién, sin evaluar, no se anota.
+    expect(errors.groups.flatMap((group) => group.items).map((item) => item.written)).toEqual([
+      'La media',
+    ]);
   });
 });

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
-import { type Grade, verdictOfGrade } from '../core/memory';
+import { engineSignal, purposeOf } from '../core/evaluation';
+import { type Grade, type Verdict, verdictOfGrade } from '../core/memory';
 import { hasHistoryOf } from './content';
 import { newId } from './ids';
 import { appendEvaluation, appendObservation, appendOperation } from './ledger';
@@ -39,6 +40,68 @@ export interface SeedCard {
 // Cuánto tardaron los repasos sembrados (el primero de cada tarjeta, no): la mediana es 12 segundos,
 // como dice el elenco, así la estimación por repaso empieza en 12 y no lleva «estimación inicial».
 const SEED_DURATIONS_MS = [12_000, 9_000, 15_000] as const;
+
+// Un intento sobre un ejercicio en otro día (Fase 18): el mismo registro que un «Enviar», con su
+// evaluación, con origen «demostración».
+export interface SeedAttempt {
+  readonly cardId: string;
+  readonly at: Date;
+  readonly activityType: 'numeric' | 'decision';
+  readonly answer:
+    | { readonly type: 'numeric'; readonly raw: string }
+    | { readonly type: 'decision'; readonly optionId: string; readonly shown: string[] };
+  readonly verdict: Verdict;
+}
+
+export function plantAttempt(tx: Writer, clock: Clock, attempt: SeedAttempt, index: number): void {
+  const card = tx
+    .select({ versionId: cards.currentVersionId })
+    .from(cards)
+    .where(eq(cards.id, attempt.cardId))
+    .get();
+  if (!card) {
+    throw new Error('No encontré el ejercicio para sembrarle un intento');
+  }
+  const optionsQuestion = attempt.activityType === 'decision';
+  const observation = appendObservation(tx, clock, {
+    kind: 'attempt.submitted',
+    payload: {
+      cardId: attempt.cardId,
+      versionId: card.versionId,
+      activityType: attempt.activityType,
+      openingId: newId(),
+      attemptNo: 1,
+      rule: 'chosen',
+      purpose: purposeOf({ mode: 'practice', used: [], attemptNo: 1 }),
+      answer: attempt.answer,
+      help: [],
+      helpLevel: 'A0',
+      noIdea: false,
+      optionsQuestion,
+      confidence: null,
+      shownAt: attempt.at.toISOString(),
+      firstInputMs: null,
+      submittedMs: null,
+    },
+    idempotencyKey: `demo:attempt:${index}:${attempt.cardId}`,
+    source: 'demo',
+    occurredAt: attempt.at,
+  });
+  appendEvaluation(tx, clock, {
+    attemptId: observation.id,
+    verdict: attempt.verdict,
+    source: 'demo',
+    proposedVerdict: attempt.verdict,
+    contentVersionId: card.versionId,
+    engineSignal: engineSignal({
+      verdict: attempt.verdict,
+      helpLevel: 'A0',
+      optionsQuestion,
+    }),
+    cause: 'graded',
+  });
+  recomputeCardSchedule(tx, attempt.cardId);
+}
 
 // Los repasos de una tarjeta, en orden: cada uno con la versión que evaluó, y la agenda recalculada
 // desde el historial al terminar.

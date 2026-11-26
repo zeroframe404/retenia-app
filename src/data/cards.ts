@@ -17,6 +17,7 @@ import {
   referenceText,
   validateActivity,
 } from '../core/evaluation';
+import { setProblems } from '../core/interleave';
 import { newCardsCost } from '../core/load';
 import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
@@ -57,7 +58,14 @@ import {
   trashCard,
 } from './content';
 import type { ReteniaDatabase } from './database';
-import { plantCard, plantHistoryOf, type SeedCard, type SeedReview } from './demo-cards';
+import {
+  plantAttempt,
+  plantCard,
+  plantHistoryOf,
+  type SeedAttempt,
+  type SeedCard,
+  type SeedReview,
+} from './demo-cards';
 import { newId } from './ids';
 import {
   appendEvaluation,
@@ -128,6 +136,31 @@ function activityJson(activity: Activity | null | undefined): {
     throw new InvalidActivityError(problems);
   }
   return { activityType: activity.type, activity: JSON.stringify(activity) };
+}
+
+// Un conjunto intercalado (CA-162): sus problemas son ejercicios de la misma materia y ninguno
+// nombra un tipo en el enunciado.
+function assertSetProblems(tx: Writer, activity: Activity, subjectId: string | null): void {
+  if (activity.type !== 'interleaved') {
+    return;
+  }
+  const subjectsOf = new Map<string, string | null>();
+  const statements = new Map<string, string>();
+  for (const cardId of activity.types.flatMap((type) => type.cardIds)) {
+    const row = findCard(tx, cardId);
+    if (!row || row.deletedAt !== null || row.activityType === null) {
+      throw new InvalidActivityError(['typesEmpty']);
+    }
+    subjectsOf.set(cardId, row.subjectId);
+    statements.set(cardId, row.question);
+  }
+  const problems = setProblems(activity.types, { subjects: subjectsOf, statements });
+  if ([...subjectsOf.values()].some((own) => own !== subjectId)) {
+    problems.push('subjects');
+  }
+  if (problems.length > 0) {
+    throw new InvalidActivityError(problems);
+  }
 }
 
 function answerFor(activity: Activity | null | undefined, given: string): string {
@@ -231,6 +264,8 @@ export interface CardsStore {
   // Solo para la demostración: tarjetas sueltas con su historial, y el historial de una que nació
   // en una nota. Devuelven cuántas tarjetas hay después.
   plantCast(entries: readonly SeedCard[]): number;
+  // Intentos de otros días sobre ejercicios, solo de la demostración (Fase 18).
+  plantAttempts(attempts: readonly SeedAttempt[]): void;
   plantHistory(
     entries: readonly { cardId: string; createdAt: Date; reviews: readonly SeedReview[] }[],
   ): void;
@@ -582,6 +617,9 @@ export function createCardsStore(
                 .get()?.id ?? null)
             : input.subjectId;
         assertPlace(tx, subjectId, topicId);
+        if (input.activity) {
+          assertSetProblems(tx, input.activity, subjectId);
+        }
         tx.insert(cards)
           .values({ id: cardId, currentVersionId: versionId, createdAt: now, subjectId, topicId })
           .run();
@@ -773,6 +811,9 @@ export function createCardsStore(
             ? { activityType: current.activityType, activity: current.activity }
             : activityJson(activity);
         const nextExample = example === undefined ? current.example : example.trim();
+        if (activity) {
+          assertSetProblems(tx, activity, current.subjectId);
+        }
         const answer =
           nextActivity.activity === null
             ? given
@@ -1111,6 +1152,14 @@ export function createCardsStore(
           .where(isNull(cardVersions.activityType))
           .get()?.total ?? 0
       );
+    },
+
+    plantAttempts(attempts) {
+      orm.transaction((tx) => {
+        for (const [index, attempt] of attempts.entries()) {
+          plantAttempt(tx, clock, attempt, index);
+        }
+      });
     },
 
     plantCast(entries) {

@@ -1,5 +1,6 @@
 import { forgetting_curve } from 'ts-fsrs';
 import { afterEach, describe, expect, it } from 'vitest';
+import cardCast from '../../datos-de-ejemplo/elenco/tarjetas.json';
 import { newCardMemory, reviewCard } from '../../src/core/memory';
 import { MEMORY_PARAMETERS } from '../../src/core/memory/engine';
 import { studyDayOf } from '../../src/core/study-day';
@@ -50,6 +51,18 @@ const exercisesOf = (workspace: Workspace, name: string) =>
     .list({ subjectId: subjectNamed(workspace, name).id })
     .filter((card) => card.activityType !== null);
 
+// Las preguntas de los ejercicios que sumó la Fase 18.
+const PHASE_18 = new Set(
+  (cardCast.ejercicios as { pregunta: string; actividad: { type: string } }[])
+    .filter((exercise) => ['procedure', 'decision'].includes(exercise.actividad.type))
+    .map((exercise) => exercise.pregunta)
+    .concat(
+      (cardCast.conjuntos as { pregunta: string; tipos: { problemas: string[] }[] }[]).flatMap(
+        (set) => [set.pregunta, ...set.tipos.flatMap((type) => type.problemas)],
+      ),
+    ),
+);
+
 const named = (workspace: Workspace, subject: string, question: string) => {
   const found = cardsOf(workspace, subject).find((card) => card.question === question);
   if (!found) {
@@ -92,7 +105,10 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
 
   it('Fase 16: Estadística básica trae además los 5 ejercicios del elenco, sin historial y con 3 pistas cada uno', () => {
     const { workspace } = sown();
-    const exercises = exercisesOf(workspace, 'Estadística básica');
+    // Los de la Fase 18 se comprueban aparte, abajo.
+    const exercises = exercisesOf(workspace, 'Estadística básica').filter(
+      (exercise) => !PHASE_18.has(exercise.question),
+    );
     expect(exercises.map((exercise) => [exercise.question, exercise.activityType]).sort()).toEqual(
       [
         ['Capital de Francia', 'short'],
@@ -115,6 +131,50 @@ describe('elenco de tarjetas: conteos exactos al 15/03/2027', () => {
       units: [{ id: 'idea-1' }, { id: 'idea-2' }, { id: 'idea-3' }],
     });
     expect(exercisesOf(workspace, 'Historia argentina')).toHaveLength(0);
+  });
+
+  it('[CA-157] [CA-162] [CA-161] Fase 18: el procedimiento de 4 pasos con variantes, 9 problemas de 3 tipos que se confunden, 2 decisiones y el conjunto', () => {
+    const { workspace } = sown();
+    const exercises = exercisesOf(workspace, 'Estadística básica').filter((exercise) =>
+      PHASE_18.has(exercise.question),
+    );
+    expect(exercises).toHaveLength(PHASE_18.size);
+    const counts = new Map<string | null, number>();
+    for (const exercise of exercises) {
+      counts.set(exercise.activityType, (counts.get(exercise.activityType) ?? 0) + 1);
+    }
+    expect(Object.fromEntries(counts)).toEqual({
+      procedure: 1,
+      numeric: 9,
+      decision: 2,
+      interleaved: 1,
+    });
+    const detail = (question: string) =>
+      workspace.cards.get({
+        cardId: exercises.find((exercise) => exercise.question === question)?.id ?? '',
+      });
+    const procedure = detail('Calcular un intervalo de confianza para la media').activity;
+    expect(procedure?.type === 'procedure' && procedure.steps).toHaveLength(4);
+    expect(procedure?.type === 'procedure' && procedure.steps.filter((s) => s.key)).toHaveLength(1);
+    expect(procedure?.type === 'procedure' && procedure.family).toBeTruthy();
+    const set = detail('Media, mediana y moda').activity;
+    expect(set?.type === 'interleaved' && set.types.map((t) => [t.name, t.cardIds.length])).toEqual(
+      [
+        ['Media', 3],
+        ['Mediana', 3],
+        ['Moda', 3],
+      ],
+    );
+    // Solo un problema de cada tipo trae historial: «ya lo practicaste por separado».
+    const practiced = exercises.filter(
+      (exercise) => exercise.activityType === 'numeric' && exercise.nextReviewDay !== null,
+    );
+    expect(practiced).toHaveLength(3);
+    for (const exercise of exercises) {
+      if (exercise.activityType !== 'interleaved') {
+        expect(detail(exercise.question).sheet.hints).toHaveLength(3);
+      }
+    }
   });
 
   it('Estadística básica: 60 vencidas, 30 nuevas y 90 programadas', () => {

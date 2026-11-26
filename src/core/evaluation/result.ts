@@ -105,6 +105,9 @@ const NOT_YET_REVIEW: Record<ActivityType, ReviewKey> = {
   options: 'optionExplanation',
   order: 'steps',
   open: 'missingUnits',
+  procedure: 'steps',
+  decision: 'optionExplanation',
+  interleaved: 'nothing',
 };
 
 export function resultParts(input: {

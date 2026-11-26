@@ -1,18 +1,42 @@
 import { and, eq, gte, inArray, isNull, ne } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
-import { confusionOf, type MistakeType, mistakeTypeOf } from '../core/mastery';
-import type { ImproveCards, ProgressErrors } from '../preload/contract/objectives';
+import {
+  conceptName,
+  conceptPair,
+  confusionOf,
+  type MistakeType,
+  mistakeTypeOf,
+} from '../core/mastery';
+import { resolveSteps } from '../core/procedure';
+import { evaluateFormula, formatValue } from '../core/variants';
+import type { ActivityValue } from '../preload/contract/activities';
+import type { ContrastResult, ImproveCards, ProgressErrors } from '../preload/contract/objectives';
+import { texts } from '../preload/contract/texts';
 import type { CardsStore } from './cards';
 import type { ReteniaDatabase } from './database';
 import { difficultyOf } from './difficulty';
 import type { EvidenceAttempt } from './evidence';
 import { appendObservation, readPayload } from './ledger';
 import { objectivesSnapshot, subjectFor } from './objectives';
-import { cardSchedule, cards, cardVersions, observations } from './schema';
+import { resultText, stepStatesOf } from './procedures';
+import { cardSchedule, cards, cardVersions, evaluations, observations } from './schema';
 
 // Progreso › «Mis errores» (CA-155) y «Mejorar la tarjeta» (CA-154), Fase 17.
 
 const OUT_OF_PRACTICE = ['in_review', 'retired'];
+
+// Sin mayúsculas, tildes ni signos, con los espacios juntos.
+const plain = (text: string) =>
+  text
+    .toLocaleLowerCase('es')
+    .normalize('NFD')
+    .replace(/(?!\u0303)\p{M}/gu, '')
+    .normalize('NFC')
+    .replace(/[¿?¡!.,;:«»"“”]/gu, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+
+const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 class AttemptNotFoundError extends Error {
   constructor() {
@@ -24,6 +48,12 @@ class AttemptNotFoundError extends Error {
 export interface ProgressStore {
   errors(input: { subjectId?: string | undefined }): ProgressErrors;
   setErrorType(input: { changeId: string; attemptId: string; type: MistakeType }): void;
+  // «Crear tarjeta de contraste» desde un error de confusión (CA-163).
+  contrast(input: {
+    requestId: string;
+    attemptId: string;
+    concepts?: readonly [string, string] | undefined;
+  }): ContrastResult;
   improveCards(input?: { subjectId?: string | undefined }): ImproveCards;
   split(input: {
     splitId: string;
@@ -31,6 +61,53 @@ export interface ProgressStore {
     parts: readonly { question: string; answer: string }[];
   }): { cardIds: string[] };
 }
+
+// Lo que se mostró y lo que era, en un intento sobre un procedimiento o un numérico con variantes:
+// salen de los números de la variante que se resolvió.
+function variantMistake(
+  db: ReteniaDatabase['orm'],
+  attemptId: string,
+  activity: string | null,
+): { written: string; correct: string; textStep: boolean } | null {
+  const row = db
+    .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+    .from(observations)
+    .where(eq(observations.id, attemptId))
+    .get();
+  if (!row || activity === null) {
+    return null;
+  }
+  const attempt = readPayload('attempt.submitted', row.schemaVersion, row.payload);
+  const parsed = JSON.parse(activity) as ActivityValue;
+  const values = attempt.variant?.values ?? {};
+  if (parsed.type === 'numeric' && parsed.family && parsed.formula) {
+    const value = formatValue(evaluateFormula(parsed.formula, values));
+    return {
+      written: attempt.answer.type === 'numeric' ? attempt.answer.raw : '',
+      correct: parsed.unit === null ? value : `${value} ${parsed.unit}`,
+      textStep: false,
+    };
+  }
+  if (parsed.type !== 'procedure' || attempt.answer.type !== 'procedure') {
+    return null;
+  }
+  const states = stepStatesOf(
+    db.select().from(evaluations).where(eq(evaluations.attemptId, attemptId)).all(),
+  );
+  const failed = states?.find((step) => step.state !== 'ok');
+  const step = resolveSteps(parsed, values).find((candidate) => candidate.id === failed?.id);
+  if (!step) {
+    return null;
+  }
+  const written = attempt.answer.steps.find((item) => item.stepId === step.id)?.written ?? '';
+  return {
+    written: texts.progress.mistakesSection.step(step.position, written),
+    correct: texts.progress.mistakesSection.step(step.position, resultText(step)),
+    textStep: step.expected.type === 'text',
+  };
+}
+
+const capitalized = (text: string) => `${text.charAt(0).toLocaleUpperCase('es')}${text.slice(1)}`;
 
 const optionText = (activity: string | null, optionId: string): string => {
   if (activity === null) {
@@ -57,7 +134,109 @@ export function createProgressStore(
   cardsStore: () => CardsStore,
 ): ProgressStore {
   const { orm } = db;
-  return {
+
+  // La definición de un concepto en las tarjetas de la materia: «¿Qué es la mediana?» (o «¿Qué es la
+  // media muestral?»). La pregunta más corta que empieza así.
+  function definitionOf(subjectId: string, concept: string): string | null {
+    const wanted = new RegExp(`^que es ${escaped(plain(concept))}(?![\\p{L}\\p{N}])`, 'u');
+    const matches = orm
+      .select({ question: cardVersions.question, answer: cardVersions.answer })
+      .from(cards)
+      .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+      .where(
+        and(
+          eq(cards.subjectId, subjectId),
+          isNull(cards.deletedAt),
+          isNull(cardVersions.activityType),
+        ),
+      )
+      .all()
+      .filter((row) => wanted.test(plain(row.question)))
+      .sort((a, b) => a.question.length - b.question.length);
+    return matches[0]?.answer ?? null;
+  }
+
+  // El porqué de la opción que decía ese concepto, en la versión que se contestó.
+  function optionWhy(activity: string | null, text: string): string | null {
+    if (activity === null) {
+      return null;
+    }
+    const parsed = JSON.parse(activity) as { options?: { text: string; explanation: string }[] };
+    const option = parsed.options?.find((item) => plain(item.text) === plain(text));
+    return option?.explanation.trim() || null;
+  }
+
+  const store: ProgressStore = {
+    contrast({ attemptId, concepts }) {
+      const row = orm
+        .select({
+          cardId: observations.cardId,
+          payload: observations.payload,
+        })
+        .from(observations)
+        .where(eq(observations.id, attemptId))
+        .get();
+      const source = row?.cardId
+        ? orm
+            .select({
+              subjectId: cards.subjectId,
+              topicId: cards.topicId,
+              versionId: cards.currentVersionId,
+            })
+            .from(cards)
+            .where(eq(cards.id, row.cardId))
+            .get()
+        : undefined;
+      if (!source?.subjectId) {
+        throw new AttemptNotFoundError();
+      }
+      const subjectId = source.subjectId;
+      const mistake = store
+        .errors({ subjectId })
+        .groups.flatMap((group) => group.items)
+        .find((item) => item.attemptId === attemptId);
+      if (!mistake) {
+        throw new AttemptNotFoundError();
+      }
+      const pair = concepts ?? conceptPair(mistake.written, mistake.correct);
+      if (pair === null) {
+        return {
+          kind: 'needsConcepts',
+          first: conceptName(mistake.written) ?? '',
+          second: conceptName(mistake.correct) ?? '',
+        };
+      }
+      const question = texts.progress.contrast.question(pair[0], pair[1]);
+      const existing = cardsStore()
+        .list({ subjectId })
+        .find((card) => plain(card.question) === plain(question));
+      if (existing) {
+        return { kind: 'exists', cardId: existing.id, question: existing.question };
+      }
+      const versionId = (JSON.parse(row?.payload ?? '{}') as { versionId?: string }).versionId;
+      const answered =
+        versionId === undefined
+          ? null
+          : (orm
+              .select({ activity: cardVersions.activity })
+              .from(cardVersions)
+              .where(eq(cardVersions.id, versionId))
+              .get()?.activity ?? null);
+      // La respuesta sale de lo que ya tenés (tus definiciones o el porqué de cada opción): no se
+      // inventa nada.
+      const lines = pair.flatMap((concept) => {
+        const known = definitionOf(subjectId, concept) ?? optionWhy(answered, concept);
+        return known === null ? [] : [`${capitalized(concept)}: ${known}`];
+      });
+      const card = cardsStore().create({
+        question,
+        answer: lines.length === 0 ? texts.progress.contrast.fillAnswer : lines.join('\n'),
+        subjectId,
+        topicId: source.topicId,
+      });
+      return { kind: 'created', cardId: card.id, question: card.question };
+    },
+
     errors({ subjectId }) {
       const id = subjectFor(orm, subjectId);
       const snapshot = id === null ? null : objectivesSnapshot(orm, id);
@@ -115,14 +294,20 @@ export function createProgressStore(
         .map((attempt) => {
           const card = snapshot.cards.get(attempt.cardId);
           const version = attempt.versionId === null ? undefined : versions.get(attempt.versionId);
-          const correct = version?.answer ?? card?.answer ?? '';
+          const activity = version?.activity ?? card?.activity ?? null;
+          const computed =
+            attempt.activityType === 'procedure' || attempt.activityType === 'numeric'
+              ? variantMistake(orm, attempt.id, activity)
+              : null;
+          const correct = computed?.correct ?? version?.answer ?? card?.answer ?? '';
           const rawWritten = attempt.written ?? '';
           const written =
-            attempt.activityType === 'options'
-              ? optionText(version?.activity ?? card?.activity ?? null, rawWritten)
+            computed?.written ??
+            (attempt.activityType === 'options' || attempt.activityType === 'decision'
+              ? optionText(activity, rawWritten)
               : attempt.activityType === 'order'
-                ? stepsText(version?.activity ?? card?.activity ?? null, rawWritten)
-                : rawWritten;
+                ? stepsText(activity, rawWritten)
+                : rawWritten);
           const confused =
             confusionOf(
               written,
@@ -146,12 +331,14 @@ export function createProgressStore(
               correct,
               type:
                 own ??
-                mistakeTypeOf({
-                  activityType: attempt.activityType ?? 'card',
-                  written,
-                  expected: correct,
-                  confused,
-                }),
+                (computed?.textStep
+                  ? 'forgotten'
+                  : mistakeTypeOf({
+                      activityType: attempt.activityType ?? 'card',
+                      written,
+                      expected: correct,
+                      confused,
+                    })),
               typeChosen: own !== undefined,
               day: attempt.studyDay,
               practicable:
@@ -258,4 +445,5 @@ export function createProgressStore(
       return cardsStore().split(input);
     },
   };
+  return store;
 }

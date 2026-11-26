@@ -126,11 +126,32 @@ const attemptAnswer = z.discriminatedUnion('type', [
     initial: z.array(z.string()),
   }),
   z.strictObject({ type: z.literal('open'), text: z.string() }),
+  // Fase 18.
+  z.strictObject({ type: z.literal('decision'), optionId: z.string(), shown: z.array(z.string()) }),
+  z.strictObject({
+    type: z.literal('procedure'),
+    steps: z.array(z.strictObject({ stepId: z.string(), written: z.string() })),
+  }),
 ]);
+const variantValues = z.record(z.string(), z.number());
+// La variante que se resolvió (Fase 18): su número, sus datos y si era una que no habías visto
+// (después de haber visto otra del mismo problema).
+const attemptVariant = z.strictObject({
+  n: z.number().int().nonnegative(),
+  values: variantValues,
+  isNew: z.boolean(),
+});
+// En un procedimiento (Fase 18): el escalón, los pasos vacíos y lo que dio la cuenta de cada uno
+// («self»: de texto, se compara con el paso modelo).
+const attemptProcedure = z.strictObject({
+  rung: z.number().int().nonnegative(),
+  blanks: z.array(z.string()),
+  checks: z.array(z.strictObject({ stepId: z.string(), state: z.enum(['ok', 'wrong', 'self']) })),
+});
 const attemptSubmittedV1 = z.strictObject({
   cardId: z.uuid(),
   versionId: z.uuid(),
-  activityType: z.enum(['short', 'numeric', 'options', 'order', 'open']),
+  activityType: z.enum(['short', 'numeric', 'options', 'order', 'open', 'procedure', 'decision']),
   openingId: z.uuid(),
   attemptNo: z.number().int().positive(),
   sessionId: z.uuid().optional(),
@@ -146,6 +167,9 @@ const attemptSubmittedV1 = z.strictObject({
   shownAt: z.iso.datetime(),
   firstInputMs: milliseconds,
   submittedMs: milliseconds,
+  // Fase 18, opcionales: los intentos de antes no los traen.
+  variant: attemptVariant.optional(),
+  procedure: attemptProcedure.optional(),
 });
 const appealReason = z.enum([
   'answer_correct',
@@ -315,6 +339,79 @@ const PAYLOADS = {
       ]),
     }),
   },
+  // Fase 18. La variante que se mostró al abrir un problema con variantes (en un día cuenta la
+  // primera que viste).
+  'variant.seen': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      versionId: z.uuid(),
+      openingId: z.uuid(),
+      n: z.number().int().nonnegative(),
+      values: variantValues,
+    }),
+  },
+  // El ejemplo completo de un procedimiento, con lo que contestaste en «¿Por qué este paso?» (se
+  // guarda; no se califica).
+  'procedure.studied': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      versionId: z.uuid(),
+      openingId: z.uuid(),
+      why: z.array(z.strictObject({ stepId: z.string(), answer: z.string() })),
+    }),
+  },
+  // «Reintentar» un paso antes de ver la corrección, y haberla visto.
+  'procedure.step_retried': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      attemptId: z.uuid(),
+      stepId: z.string(),
+      written: z.string(),
+      ok: z.boolean(),
+    }),
+  },
+  'procedure.revealed': { 1: z.strictObject({ cardId: z.uuid(), attemptId: z.uuid() }) },
+  // El conjunto intercalado (CA-162): los problemas en el orden en que van a salir, con su tipo.
+  // `cardId` es el del conjunto.
+  'set.started': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      runId: z.uuid(),
+      title: z.string(),
+      items: z.array(
+        z.strictObject({ cardId: z.uuid(), typeId: z.string(), typeName: z.string() }),
+      ),
+    }),
+  },
+  // El micro-ejercicio (CA-166) sobre un punto: un paso de un procedimiento o la cuenta de un
+  // problema con variantes (`stepId` nulo). `cardId` es el del problema.
+  'micro.started': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      versionId: z.uuid(),
+      microId: z.uuid(),
+      stepId: z.string().nullable(),
+      items: z.array(z.strictObject({ n: z.number().int().nonnegative(), values: variantValues })),
+    }),
+  },
+  'micro.item': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      microId: z.uuid(),
+      index: z.number().int().nonnegative(),
+      written: z.string(),
+      // Nulo mientras no compares un paso de texto con el modelo.
+      ok: z.boolean().nullable(),
+    }),
+  },
+  'micro.finished': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      microId: z.uuid(),
+      stepId: z.string().nullable(),
+      items: z.array(z.strictObject({ ok: z.boolean(), hinted: z.boolean() })),
+    }),
+  },
   // «La tarjeta está mal» (CA-077): la ficha pasa a «En revisión» (esa versión) y el intento no
   // mueve la agenda (no es de los tipos que la mueven).
   'card.flagged': {
@@ -358,6 +455,14 @@ const CURRENT_VERSION = {
   'requirement.dismissed': 1,
   'card.improved': 1,
   'mistake.type_set': 1,
+  'variant.seen': 1,
+  'procedure.studied': 1,
+  'procedure.step_retried': 1,
+  'procedure.revealed': 1,
+  'set.started': 1,
+  'micro.started': 1,
+  'micro.item': 1,
+  'micro.finished': 1,
 } as const;
 
 type Payloads = typeof PAYLOADS;

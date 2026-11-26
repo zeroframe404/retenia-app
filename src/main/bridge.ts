@@ -150,6 +150,27 @@ export function createHandlers({
       return ok;
     },
     'activities.notices': async (request) => workspace.activities.notices(request),
+    // Fase 18: el procedimiento, el conjunto intercalado y el micro-ejercicio.
+    'procedure.open': async (request) => {
+      activityTimer.open(request.openingId);
+      return workspace.procedures.open(request);
+    },
+    'procedure.studied': async (request) => workspace.procedures.studied(request),
+    'procedure.check': async (request) =>
+      workspace.procedures.check({ ...request, ...activityTimer.submitted(request.openingId) }),
+    'procedure.retry': async (request) => workspace.procedures.retry(request),
+    'procedure.correction': async (request) => workspace.procedures.correction(request),
+    'procedure.finish': async (request) => workspace.procedures.finish(request),
+    'sets.open': async (request) => workspace.sets.open(request),
+    'sets.summary': async (request) => workspace.sets.summary(request),
+    'micro.proposal': async () => workspace.micro.proposal(),
+    'micro.open': async (request) => workspace.micro.open(request),
+    'micro.check': async (request) => workspace.micro.check(request),
+    'micro.self': async (request) => {
+      workspace.micro.self(request);
+      return ok;
+    },
+    'micro.finish': async (request) => workspace.micro.finish(request),
     'cards.history': async (request) => workspace.cards.history(request),
     'cards.delete': async (request) => workspace.cards.remove(request),
     'cards.activationCost': async (request) => workspace.cards.activationCost(request),
@@ -237,6 +258,7 @@ export function createHandlers({
       return ok;
     },
     'progress.errors': async (request) => workspace.progress.errors(request),
+    'progress.errors.contrast': async (request) => workspace.progress.contrast(request),
     'progress.errors.setType': async (request) => {
       workspace.progress.setErrorType(request);
       return ok;

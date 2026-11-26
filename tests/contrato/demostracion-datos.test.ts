@@ -116,9 +116,10 @@ describe('contrato: canales de los datos de la demostración', () => {
       cards: { question: string; activityType: string | null }[];
     };
     expect(cards.map((card) => card.question)).not.toContain('P');
-    // Desde la Fase 16 la lista trae también los 5 ejercicios del elenco, que no son tarjetas.
+    // Desde la Fase 16 la lista trae también los ejercicios del elenco, que no son tarjetas: los 5
+    // de entonces y los 13 de la Fase 18.
     expect(cards.filter((card) => card.activityType === null)).toHaveLength(192);
-    expect(cards.filter((card) => card.activityType !== null)).toHaveLength(5);
+    expect(cards.filter((card) => card.activityType !== null)).toHaveLength(18);
   });
 
   it('los canales de cambio de modo no aceptan datos de más', async () => {

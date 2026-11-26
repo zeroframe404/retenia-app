@@ -148,6 +148,15 @@ export function createDemoWorkspace({
     get activity() {
       return active.activity;
     },
+    get procedures() {
+      return active.procedures;
+    },
+    get sets() {
+      return active.sets;
+    },
+    get micro() {
+      return active.micro;
+    },
     get activities() {
       return active.activities;
     },

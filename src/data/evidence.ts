@@ -2,7 +2,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import type { ActivityType } from '../core/evaluation';
 import { type HelpLevel, type Verdict, verdictOfGrade } from '../core/memory';
 import { studyDayOf } from '../core/study-day';
-import { readPayload } from './ledger';
+import { readPayload, type StoredPayload } from './ledger';
 import type { Writer } from './orm';
 import { currentVerdicts, evaluationColumns } from './projections';
 import { cards, cardVersions, evaluations, observations } from './schema';
@@ -35,6 +35,8 @@ export interface EvidenceAttempt {
   readonly written: string | null;
   readonly activityType: ActivityType | null;
   readonly versionId: string | null;
+  // Fase 18: era una variante que no habías visto.
+  readonly newVariant: boolean;
 }
 
 export interface SubjectCard {
@@ -103,23 +105,20 @@ export function subjectCards(db: Writer, subjectId: string): SubjectCard[] {
     }));
 }
 
-function writtenOf(answer: {
-  type: ActivityType;
-  text?: string;
-  raw?: string;
-  optionId?: string;
-  stepIds?: string[];
-}): string {
+function writtenOf(answer: StoredPayload<'attempt.submitted'>['answer']): string {
   switch (answer.type) {
     case 'short':
     case 'open':
-      return answer.text ?? '';
+      return answer.text;
     case 'numeric':
-      return answer.raw ?? '';
+      return answer.raw;
     case 'options':
-      return answer.optionId ?? '';
+    case 'decision':
+      return answer.optionId;
     case 'order':
-      return (answer.stepIds ?? []).join(' · ');
+      return answer.stepIds.join(' · ');
+    case 'procedure':
+      return answer.steps.map((step) => step.written).join(' · ');
   }
 }
 
@@ -196,6 +195,7 @@ export function subjectEvidence(
         written: writtenOf(payload.answer),
         activityType: payload.activityType,
         versionId: payload.versionId,
+        newVariant: payload.variant?.isNew === true,
       };
     } else {
       const payload = readPayload('review.graded', row.schemaVersion, row.payload);
@@ -217,6 +217,7 @@ export function subjectEvidence(
         written: 'answer' in payload ? (payload.answer ?? null) : null,
         activityType: null,
         versionId: payload.versionId ?? null,
+        newVariant: false,
       };
     }
     const list = byCard.get(attempt.cardId);

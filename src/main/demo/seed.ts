@@ -5,7 +5,7 @@ import { z } from 'zod';
 import cast from '../../../datos-de-ejemplo/elenco/materias.json';
 import cardCast from '../../../datos-de-ejemplo/elenco/tarjetas.json';
 import { findHoles } from '../../core/cards';
-import { referenceText } from '../../core/evaluation';
+import { evaluateDecision, evaluateNumeric, referenceText } from '../../core/evaluation';
 import { extensionFor, HEAD_BYTES, identifyContent } from '../../core/materials/signature';
 import type { Grade } from '../../core/memory';
 import type { IncomingBlock } from '../../core/organization';
@@ -311,6 +311,35 @@ const cardCastSchema = () =>
         }),
       )
       .optional(),
+    // Fase 18: los conjuntos intercalados, con las preguntas de los problemas de cada tipo.
+    conjuntos: z
+      .array(
+        z.strictObject({
+          materia: z.string().min(1),
+          tema: z.string().min(1).nullable(),
+          pregunta: z.string().min(1),
+          tipos: z.array(
+            z.strictObject({
+              id: z.string().min(1),
+              nombre: z.string().min(1),
+              problemas: z.array(z.string().min(1)).min(1),
+            }),
+          ),
+        }),
+      )
+      .optional(),
+    // Fase 18: intentos de otros días sobre ejercicios (haber practicado cada tipo por separado y un
+    // error de confusión para «Mis errores»). `respuesta`: lo escrito en un numérico o la opción
+    // elegida en una decisión.
+    intentos: z
+      .array(
+        z.strictObject({
+          pregunta: z.string().min(1),
+          fecha: z.iso.datetime(),
+          respuesta: z.string().min(1),
+        }),
+      )
+      .optional(),
   });
 
 // El lunes 15/03/2027 a las 10:00 de Buenos Aires: el «hoy» de la demostración.
@@ -574,6 +603,8 @@ export function seedDemoCardCast(workspace: Workspace, materials: DemoMaterials 
   workspace.cards.plantCast([...entries].reverse());
   workspace.cards.plantCast(exercisesOf(elenco.ejercicios ?? [], subjects, workspace, materials));
   seedObjectives(workspace, elenco.objetivos ?? [], subjects);
+  seedSets(workspace, elenco.conjuntos ?? [], subjects);
+  seedAttempts(workspace, elenco.intentos ?? [], subjects);
 
   const statistics = subjects.find((item) => item.name === 'Estadística básica');
   if (statistics) {
@@ -641,6 +672,97 @@ function seedObjectives(
       { source: 'demo' },
     );
   }
+}
+
+// Una actividad del elenco, por su pregunta.
+function castCards(workspace: Workspace, subjects: readonly { id: string }[]) {
+  const all = subjects.flatMap((subject) => workspace.cards.list({ subjectId: subject.id }));
+  return (question: string) => {
+    const card = all.find((item) => item.question === question);
+    if (!card) {
+      throw new Error(`El elenco nombra una actividad que no existe: ${question}`);
+    }
+    return card;
+  };
+}
+
+// «Media, mediana y moda» (Fase 18): el conjunto con sus tipos, cada uno con sus problemas.
+function seedSets(
+  workspace: Workspace,
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['conjuntos']>,
+  subjects: readonly { id: string; name: string }[],
+): void {
+  const cardNamed = castCards(workspace, subjects);
+  const entries = cast.map((set): SeedCard => {
+    const subject = subjects.find((item) => item.name === set.materia);
+    const topic = subject
+      ? (workspace.topics
+          .list({ subjectId: subject.id })
+          .topics.find((item) => item.name === set.tema) ?? null)
+      : null;
+    if (!subject || (set.tema !== null && topic === null)) {
+      throw new Error(`El elenco de conjuntos nombra una materia o un tema que no existe`);
+    }
+    const activity = {
+      type: 'interleaved' as const,
+      types: set.tipos.map((type) => ({
+        id: type.id,
+        name: type.nombre,
+        cardIds: type.problemas.map((question) => cardNamed(question).id),
+      })),
+    };
+    return {
+      question: set.pregunta,
+      answer: referenceText(activity) ?? '',
+      kind: 'qa',
+      subjectId: subject.id,
+      topicId: topic?.id ?? null,
+      createdAt: new Date(DEMO_NOW.getTime() - 91 * DAY_MS),
+      reviews: [],
+      activityType: activity.type,
+      activity: JSON.stringify(activity),
+    };
+  });
+  workspace.cards.plantCast(entries);
+}
+
+// Los intentos de otros días sobre ejercicios del elenco: van con su evaluación, como de la
+// demostración.
+function seedAttempts(
+  workspace: Workspace,
+  cast: NonNullable<z.output<ReturnType<typeof cardCastSchema>>['intentos']>,
+  subjects: readonly { id: string; name: string }[],
+): void {
+  const cardNamed = castCards(workspace, subjects);
+  workspace.cards.plantAttempts(
+    cast.map((attempt) => {
+      const card = workspace.cards.get({ cardId: cardNamed(attempt.pregunta).id });
+      const activity = card.activity;
+      if (activity?.type === 'numeric') {
+        return {
+          cardId: card.id,
+          at: new Date(attempt.fecha),
+          activityType: activity.type,
+          answer: { type: activity.type, raw: attempt.respuesta },
+          verdict: evaluateNumeric(attempt.respuesta, activity, []).verdict,
+        };
+      }
+      if (activity?.type === 'decision') {
+        return {
+          cardId: card.id,
+          at: new Date(attempt.fecha),
+          activityType: activity.type,
+          answer: {
+            type: activity.type,
+            optionId: attempt.respuesta,
+            shown: activity.options.map((option) => option.id),
+          },
+          verdict: evaluateDecision(attempt.respuesta, activity.options).verdict,
+        };
+      }
+      throw new Error(`El elenco no sabe sembrar un intento de «${attempt.pregunta}»`);
+    }),
+  );
 }
 
 // Los ejercicios del elenco (Fase 16), sin historial y un día más viejos que las tarjetas: quedan al
