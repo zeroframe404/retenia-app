@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MaterialSelection } from '../preload/contract/materials';
 import type { Subject } from '../preload/contract/organization';
 import type { SearchHit } from '../preload/contract/search';
 import type { SessionView } from '../preload/contract/study';
@@ -98,6 +99,16 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   studyingRef.current = studying !== null;
   const requests = useRef(0);
   const [toast, setToast] = useState('');
+  // «Ver» de una explicación de la IA que estaba pendiente y llegó con su panel cerrado (Fase 19).
+  const [toastAction, setToastAction] = useState<{ text: string; onClick: () => void } | undefined>(
+    undefined,
+  );
+  const [pendingExplain, setPendingExplain] = useState<{
+    materialId: string;
+    selection: MaterialSelection;
+    requestId: string;
+  } | null>(null);
+  const watchingExplain = useRef<string | null>(null);
   const content = useRef<HTMLElement>(null);
   const subjectsLoaded = useRef(false);
 
@@ -304,6 +315,41 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // Una explicación de la IA que estaba pendiente (sin conexión) llegó con su panel cerrado: un aviso
+  // con «Ver» la abre en su material, sin volver a pedirla (Fase 19, CA-176).
+  useEffect(() => {
+    if (pendingExplain === null) {
+      return;
+    }
+    const stop = window.reteniaAvisos?.alRecibir((event) => {
+      if (event.type !== 'ai.result' || event.requestId !== pendingExplain.requestId) {
+        return;
+      }
+      setPendingExplain(null);
+      if (watchingExplain.current === event.requestId) {
+        return;
+      }
+      setToast(texts.ai.arrived);
+      setToastAction({
+        text: texts.ai.viewArrived,
+        onClick: () => {
+          setToast('');
+          setToastAction(undefined);
+          requests.current += 1;
+          setMaterialRequest({
+            materialId: pendingExplain.materialId,
+            explain: { selection: pendingExplain.selection, requestId: pendingExplain.requestId },
+            nonce: requests.current,
+          });
+          setDestination('materials');
+          setSettingsView('settings');
+          setNavigated(true);
+        },
+      });
+    });
+    return () => stop?.();
+  }, [pendingExplain]);
+
   // «Practicar ahora» desde Progreso o desde Estudiar (Fase 17): la actividad sola, en Apuntes ›
   // «Tarjetas», fuera de la cola del día.
   const practiceCard = (cardId: string) => {
@@ -415,7 +461,15 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
 
   const toasts = (
     <div className={styles.toasts}>
-      <Toast onClose={() => setToast('')}>{toast}</Toast>
+      <Toast
+        onClose={() => {
+          setToast('');
+          setToastAction(undefined);
+        }}
+        action={toastAction}
+      >
+        {toast}
+      </Toast>
     </div>
   );
 
@@ -543,6 +597,10 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onConfigureAi={() => {
                 go('settings');
                 setAiRequested(true);
+              }}
+              onExplainPending={setPendingExplain}
+              onExplainWatching={(requestId) => {
+                watchingExplain.current = requestId;
               }}
             />
           ) : null}

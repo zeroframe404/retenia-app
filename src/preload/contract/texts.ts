@@ -1988,6 +1988,8 @@ export const texts = {
     retry: 'Reintentar',
     unavailable: 'No pude pedir la explicación. Probá de nuevo.',
     goToQuote: (quote: string) => `Ir al pasaje: «${quote}»`,
+    arrived: 'Llegó la explicación que estaba pendiente.',
+    viewArrived: 'Ver',
   },
   // «Exportar todo» e «Importar exportación» (Fase 15, H-30).
   exports: {

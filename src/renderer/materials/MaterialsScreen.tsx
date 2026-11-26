@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { type DragEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { type AddResult, MAX_FILES, type MaterialSummary } from '../../preload/contract/materials';
 import type { Subject } from '../../preload/contract/organization';
@@ -37,6 +38,8 @@ export function MaterialsScreen({
   onChangeSubject,
   onInboxCount,
   onConfigureAi,
+  onExplainPending,
+  onExplainWatching,
 }: {
   subject: Subject | null;
   active: Subject | null;
@@ -47,6 +50,9 @@ export function MaterialsScreen({
   onInboxCount?: ((count: number) => void) | undefined;
   // «Configurar» de la IA (Fase 19): lleva a Ajustes › «Inteligencia artificial».
   onConfigureAi?: (() => void) | undefined;
+  // Una explicación de la IA pendiente (para avisar si llega con el panel cerrado).
+  onExplainPending?: ComponentProps<typeof MaterialViewer>['onExplainPending'];
+  onExplainWatching?: ComponentProps<typeof MaterialViewer>['onExplainWatching'];
 }) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -213,6 +219,8 @@ export function MaterialsScreen({
             onInboxCount={onInboxCount}
             onChanged={() => void load()}
             onConfigureAi={onConfigureAi}
+            onExplainPending={onExplainPending}
+            onExplainWatching={onExplainWatching}
           />
         ) : reviewing ? (
           <ReviewView

@@ -18,17 +18,25 @@ type Shown = AiOutcome | { state: 'loading' } | { state: 'unavailable' };
 export function ExplainPanel({
   materialId,
   selection,
+  requestId,
   onClose,
   onConfigure,
   onLocate,
+  onPending,
+  onWatching,
 }: {
   materialId: string;
   selection: MaterialSelection;
+  // Un pedido ya hecho (el que estaba pendiente y llegó): se muestra su resultado sin volver a pedir.
+  requestId?: string | undefined;
   onClose: () => void;
   // Lleva a Ajustes › «Inteligencia artificial».
   onConfigure: () => void;
   // Marca en el texto el pasaje de una cita.
   onLocate: (quote: string) => void;
+  // Avisa que quedó pendiente y qué pedido está mirando (nulo al cerrarse o al terminar).
+  onPending?: ((requestId: string) => void) | undefined;
+  onWatching?: ((requestId: string | null) => void) | undefined;
 }) {
   const [shown, setShown] = useState<Shown>({ state: 'loading' });
   const [asking, setAsking] = useState(false);
@@ -62,11 +70,22 @@ export function ExplainPanel({
 
   useEffect(() => {
     alive.current = true;
-    void ask();
+    if (requestId === undefined) {
+      void ask();
+    } else {
+      window.retenia['ai.outcome']({ requestId }).then(
+        (outcome) => {
+          if (alive.current) {
+            setShown(outcome);
+          }
+        },
+        () => void ask(),
+      );
+    }
     return () => {
       alive.current = false;
     };
-  }, [ask]);
+  }, [ask, requestId]);
 
   // Mientras está pendiente, el resultado llega por un aviso; se pide también una vez al empezar a
   // escuchar, por si llegó antes.
@@ -75,6 +94,8 @@ export function ExplainPanel({
     if (pendingId === null) {
       return;
     }
+    onPending?.(pendingId);
+    onWatching?.(pendingId);
     const refresh = () => {
       window.retenia['ai.outcome']({ requestId: pendingId }).then(
         (outcome) => {
@@ -91,8 +112,11 @@ export function ExplainPanel({
       }
     });
     refresh();
-    return () => stop?.();
-  }, [pendingId]);
+    return () => {
+      stop?.();
+      onWatching?.(null);
+    };
+  }, [pendingId, onPending, onWatching]);
 
   const choose = (permission: 'once' | 'always' | 'never') => {
     setAsking(false);

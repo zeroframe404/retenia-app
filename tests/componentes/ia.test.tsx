@@ -200,6 +200,30 @@ describe('«Explicame este fragmento»', () => {
     ).toBeTruthy();
   });
 
+  it('[CA-176] (simulado) si llega con el panel cerrado, avisa «Llegó la explicación que estaba pendiente.» y «Ver» la abre sin volver a pedirla', async () => {
+    const opened = openWindow('prueba', undefined, { ai: {} });
+    await addMaterial(opened);
+    await window.retenia['demo.setAi']({ simulated: true });
+    opened.net?.setOffline(true);
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await within(await panel()).findByText('Pendiente: se reanuda cuando haya conexión', {}, SLOW);
+    // Se va a Ajustes (el panel se cierra) y vuelve la conexión.
+    await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
+    opened.net?.setOffline(false);
+    await opened.bridge.ai.drain();
+    expect(
+      await screen.findByText('Llegó la explicación que estaba pendiente.', {}, SLOW),
+    ).toBeTruthy();
+    await opened.user.click(screen.getByRole('button', { name: 'Ver' }));
+    const side = await panel();
+    expect(
+      await within(side).findByRole('heading', { name: 'Según tu material' }, SLOW),
+    ).toBeTruthy();
+    expect(within(side).getByText('IA simulada: sin costo.')).toBeTruthy();
+  });
+
   it('[CA-170] (simulado) con «Modo solo local» dice que está activado y no manda nada', async () => {
     const { provider } = remoteAi();
     const opened = openWindow('real', undefined, { ai: { remote: () => provider } });
