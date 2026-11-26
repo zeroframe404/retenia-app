@@ -1,11 +1,12 @@
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { findSecret } from './lib/buscar-clave.mjs';
+import { DEMO_DATA_DIR } from './lib/datos.mjs';
 
 // «¿Mi clave está en algún archivo?» (M19.11): pide la clave sin mostrarla en pantalla y la busca
-// entera, y también sus primeros y últimos 12 caracteres, en la carpeta de datos de Retenia (prueba)
-// y de Retenia (con sus copias) y en los archivos o carpetas que le pases, por ejemplo la última
-// exportación:
+// entera, y también sus primeros y últimos 12 caracteres, en la carpeta de datos de `npm run iniciar`
+// (datos-locales/demostracion), en las de Retenia (prueba) y Retenia instalados (con sus copias) y en
+// los archivos o carpetas que le pases, por ejemplo la última exportación:
 //   node tools/buscar-clave.mjs "C:\Users\vos\Desktop\Retenia 15-03-2027.zip"
 // No guarda ni muestra la clave: solo dice dónde aparece, si aparece.
 
@@ -28,6 +29,7 @@ function askHidden(question) {
 
 const appData = process.env.APPDATA ?? '';
 const roots = [
+  DEMO_DATA_DIR,
   join(appData, 'Retenia (prueba)'),
   join(appData, 'Retenia'),
   ...process.argv.slice(2),

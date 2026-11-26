@@ -252,8 +252,11 @@ Fase 17 (migraciones `0014_objetivos` y `0015_objetivos_disparadores`, solo agre
 | `settings` | `key, value (JSON), updated_at` | H-08, H-19, H-40, H-51, H-53 |
 | `trash_entries` | `id, entity_type, entity_id, deleted_at, expires_at, restored_at, purged_at` (`purged_at`: Fase 04) | H-05, H-06 |
 | `purge_permits` | `entity_type, entity_id` (Fase 04): el permiso para borrar las versiones de una tarjeta; se agrega y se saca dentro de la transacción de vaciar la papelera, así que fuera de ella siempre está vacía | H-06 |
-| `ai_requests` | `id, at, purpose, task, model, prompt_version, rubric_version, fragments (JSON: materialId, pageNo, sha256, chars), input_tokens, cache_write_tokens, cache_read_tokens, output_tokens, usd, status ('ok' \| 'rejected_schema' \| 'failed' \| 'pending'), related_attempt_id?` (solo se agrega) | H-40, H-41, H-43 |
-| `ai_material_permissions` | `material_id, scope ('once' \| 'always' \| 'never'), decided_at` | H-40 |
+| `ai_requests` | Fase 19: `id, at, purpose, provider, model, prompt_version, rubric_version?, price_version, fragments (JSON: materialId, title, chars, sha256), input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, usd_micros, status ('ok' \| 'rejected_schema' \| 'refused' \| 'failed'), queue_item_id?`. «Qué se envió»: nunca el texto del pasaje ni la respuesta. Solo se agrega: los disparadores `ai_requests_no_update` y `ai_requests_no_delete` (migración 0018) rechazan cambios y borrados. Solo los envíos con tu clave; la IA simulada no deja renglón | H-40, H-41, H-43 |
+| `ai_material_permissions` | Fase 19: `material_id, scope ('always' \| 'never'), decided_at`. «Solo esta vez» no se guarda; «Quitar permiso» borra el renglón y la pregunta vuelve | H-40 |
+| `ai_cache` | Fase 19: `key, purpose, model, prompt_version, rubric_version?, output, created_at`. Lo que ya preguntaste, para no volver a pagarlo: la clave es la huella de la función, el proveedor, el modelo, las versiones de prompt y rúbrica, el material y el pasaje. No viaja en la exportación | H-40 |
+| `ai_queue` | Fase 19: `id, created_at, purpose, cache_key, material_id, material_title, fragment, status ('pending' \| 'sending' \| 'finished'), attempts, waiting, outcome, finished_at`. La cola persistente: el pasaje se guarda solo hasta terminar el pedido (al terminar queda vacío) y lo terminado se borra al día siguiente. No viaja en la exportación | H-41 |
+| `ai_traces` | Fase 19: `id, at, queue_item_id, event, error_kind?, http_status?, latency_ms?, attempt`. Trazas técnicas sin textos (estados, códigos, demoras y reintentos); se borran a los 90 días. No viajan en la exportación | H-41 |
 | ~~`backups`~~ | No existe (Fase 04): las copias son archivos con su manifiesto adentro, ver «Copias» abajo | H-05, H-29, H-72, H-73 |
 | `imports` | `id, kind ('anki' \| 'remnote' \| 'retenia'), file_sha256, at, summary (JSON), rejected (JSON)` (CA-124: un archivo ya importado se reconoce por su huella) | H-29, H-30 |
 | `model_downloads` | `name, version, sha256, status, downloaded_at` | H-07 |
@@ -509,8 +512,11 @@ Fase 14 (migración `0010_revision_de_materiales`, solo agrega; explicado en `do
 | `settings` | `key, value (JSON), updated_at` | H-08, H-19, H-40, H-51, H-53 |
 | `trash_entries` | `id, entity_type, entity_id, deleted_at, expires_at, restored_at, purged_at` (`purged_at`: Fase 04) | H-05, H-06 |
 | `purge_permits` | `entity_type, entity_id` (Fase 04): el permiso para borrar las versiones de una tarjeta; se agrega y se saca dentro de la transacción de vaciar la papelera, así que fuera de ella siempre está vacía | H-06 |
-| `ai_requests` | `id, at, purpose, task, model, prompt_version, rubric_version, fragments (JSON: materialId, pageNo, sha256, chars), input_tokens, cache_write_tokens, cache_read_tokens, output_tokens, usd, status ('ok' \| 'rejected_schema' \| 'failed' \| 'pending'), related_attempt_id?` (solo se agrega) | H-40, H-41, H-43 |
-| `ai_material_permissions` | `material_id, scope ('once' \| 'always' \| 'never'), decided_at` | H-40 |
+| `ai_requests` | Fase 19: `id, at, purpose, provider, model, prompt_version, rubric_version?, price_version, fragments (JSON: materialId, title, chars, sha256), input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, usd_micros, status ('ok' \| 'rejected_schema' \| 'refused' \| 'failed'), queue_item_id?`. «Qué se envió»: nunca el texto del pasaje ni la respuesta. Solo se agrega: los disparadores `ai_requests_no_update` y `ai_requests_no_delete` (migración 0018) rechazan cambios y borrados. Solo los envíos con tu clave; la IA simulada no deja renglón | H-40, H-41, H-43 |
+| `ai_material_permissions` | Fase 19: `material_id, scope ('always' \| 'never'), decided_at`. «Solo esta vez» no se guarda; «Quitar permiso» borra el renglón y la pregunta vuelve | H-40 |
+| `ai_cache` | Fase 19: `key, purpose, model, prompt_version, rubric_version?, output, created_at`. Lo que ya preguntaste, para no volver a pagarlo: la clave es la huella de la función, el proveedor, el modelo, las versiones de prompt y rúbrica, el material y el pasaje. No viaja en la exportación | H-40 |
+| `ai_queue` | Fase 19: `id, created_at, purpose, cache_key, material_id, material_title, fragment, status ('pending' \| 'sending' \| 'finished'), attempts, waiting, outcome, finished_at`. La cola persistente: el pasaje se guarda solo hasta terminar el pedido (al terminar queda vacío) y lo terminado se borra al día siguiente. No viaja en la exportación | H-41 |
+| `ai_traces` | Fase 19: `id, at, queue_item_id, event, error_kind?, http_status?, latency_ms?, attempt`. Trazas técnicas sin textos (estados, códigos, demoras y reintentos); se borran a los 90 días. No viajan en la exportación | H-41 |
 | ~~`backups`~~ | No existe (Fase 04): las copias son archivos con su manifiesto adentro, ver «Copias» abajo | H-05, H-29, H-72, H-73 |
 | `imports` | `id, kind ('anki' \| 'remnote' \| 'retenia'), file_sha256, at, summary (JSON), rejected (JSON)` (CA-124: un archivo ya importado se reconoce por su huella) | H-29, H-30 |
 | `model_downloads` | `name, version, sha256, status, downloaded_at` | H-07 |
@@ -591,8 +597,8 @@ Cómo quedó en la Fase 12 (migración `0008_busqueda`, solo agrega; explicado e
 | H-37 | `exercises` (`procedure`), `exercise_versions.steps`, `evaluations` |
 | H-38 | `exercises` (`method_choice`), `cards` (`origin = 'contrast'`) |
 | H-39 | `exercise_versions.variant_family`, `objective_state.count_variants`, `micro_exercises` |
-| H-40 | `settings`, `ai_requests`, `ai_material_permissions`, `ai_usage_month` |
-| H-41 | `ai_requests.status`, `evaluations.source`, `candidates` |
+| H-40 | `ai_requests` (el gasto del mes se suma de acá: no hay `ai_usage_month`), `ai_material_permissions`, `ai_cache`; el tope y el «Modo solo local» en `ajustes.json` (Fase 19) |
+| H-41 | `ai_requests.status`, `ai_queue`, `ai_traces`, `evaluations.source`, `candidates` |
 | H-42 | ninguna: el catálogo de textos vive en el código |
 | H-43 | `evaluations.prompt_version`, `evaluations.rubric_version`, `ai_requests` |
 | H-44 | `candidates`, `cards.available_only`, `cards.ai_marked`, `sections` |

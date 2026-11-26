@@ -661,3 +661,59 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
   15. Una prueba de antes había quedado floja. Vuelve a comparar toda la propuesta con valores exactos y comprueba que lo que entra es ese ejercicio.
   16. Faltaba la última línea de la verificación rápida en el estado. Está.
 - **Para tener presente (lo marcó el revisor):** al armar la sesión, un procedimiento cuenta 8 minutos. En una sesión de 10 minutos puede dejar entrar muy pocas tarjetas y pasar las demás a mañana. Es el valor inicial de la especificación; si te molesta, se puede bajar.
+
+## 26/11/2026 · Fase 19
+
+- **Modelo de «Explicar un fragmento»: Opus 5.5.** Lo decidiste el 26/11/2026, entre Opus y Haiku. Cuesta unos USD 0,01 a 0,03 por explicación y tarda de 5 a 15 segundos. `docs/versiones.md` y la arquitectura decían Haiku; quedaron corregidos. Sin respaldo automático a otro modelo.
+- **Paquete nuevo: `@anthropic-ai/sdk` 0.133.0.** Es el oficial de Anthropic, con licencia MIT, publicado el 24/11/2026 y ya listado en `docs/versiones.md`. Lo comprobé antes de instalarlo. Trae seis paquetes chicos y viaja adentro del archivo principal. Solo lo usa `src/ai/providers/anthropic.ts`.
+- **El tope.**
+  - Arranca en USD 10: lo pediste en la fase. Los documentos decían 20; quedaron corregidos.
+  - **Nunca se pasa.** Frena antes de una consulta que lo podría pasar. Para eso cuenta lo máximo que puede costar: el pasaje entero de entrada y 2.000 unidades de salida. Con USD 10 se para cerca de USD 9,95. Quedó así porque no dijiste otra cosa al aprobar el plan.
+  - El aviso aparece desde el 80 %.
+  - El mes es el de Buenos Aires.
+  - El costo se guarda en millonésimas de dólar y se muestra redondeado a centavos. Menos de un centavo se muestra como «menos de USD 0,01».
+- **La IA simulada no pregunta el permiso, no suma al tope y no figura en «Qué se envió».** No saca nada de la PC ni gasta: su costo dice «IA simulada: sin costo.». Así tus pasos M19.2 a M19.4 quedan tal cual y en M19.6 la pregunta aparece por primera vez. Respeta «Simular sin conexión» y el «Modo solo local». En las pruebas automáticas hace «como IA remota» para probar el permiso, el costo y el registro.
+- **«Qué se envió» nombra el archivo, como dice CA-171** («Inferencia — capítulos 1 a 4.pdf»). Un texto pegado o una página de internet no tienen archivo y van con su título. La lista «Materiales que pueden ir a la IA» usa el título, como Materiales. Una respuesta tirada suma al final «· respuesta descartada».
+- **Lo ya preguntado sale de lo guardado** y dice «Sin costo: ya la habías pedido.».
+  - La huella junta la función, el proveedor, el modelo, la versión del prompt y la de la rúbrica, el material y el pasaje.
+  - De la IA simulada incluye si responde mal: así «responder mal» nunca devuelve una explicación buena guardada, ni al revés.
+- **El permiso.**
+  - «Solo esta vez» no se recuerda: la pregunta vuelve la próxima vez.
+  - «No» se recuerda, y el panel ofrece «Permitir».
+  - «Quitar permiso», en Ajustes, lo borra.
+- **El pasaje.**
+  - El programa lo vuelve a leer de tu material guardado, no de la pantalla.
+  - Acepta hasta unas 600 palabras (4.000 caracteres). Si es más largo: «Elegí un pasaje más corto: hasta unas 600 palabras.».
+  - Viaja como dato entre marcas, con un prompt de sistema fijo y versionado que prohíbe obedecerlo. Si el texto trae algo con forma de esas marcas, se neutraliza.
+- **«Modo solo local» cierra la puerta única de red.**
+  - No sale nada: ni la IA, ni las páginas web, ni las descargas de los modelos de voz.
+  - Una página web que espera dice «Pendiente: el modo solo local está activado».
+  - Lo pendiente de la IA se cancela: «Se canceló: activaste el modo solo local.».
+- **La cola.**
+  - Va de a un pedido por vez.
+  - Arranca al abrir, al volver la conexión y cada 30 s.
+  - Se frena mientras corre algo exclusivo, como restaurar o importar.
+  - Un error técnico se reintenta solo hasta 3 veces. Sin conexión no cuenta como intento.
+  - La clave rechazada, la cuenta sin saldo y el rechazo de la IA no se reintentan: se dicen como son.
+  - Lo terminado se borra al día siguiente; las trazas técnicas, a los 90 días.
+- **Dónde queda cada cosa.**
+  - La clave, en `clave.bin`, cifrada con el almacén de Windows (`safeStorage`).
+  - El tope, el «Modo solo local» y las funciones suspendidas, en `ajustes.json`, fuera de la base: restaurar una copia no los cambia.
+  - «Qué se envió» y los permisos viajan en la exportación. Lo guardado, la cola y las trazas no.
+- **El SDK se arma con la dirección y la clave explícitas.**
+  - No reintenta solo (reintenta la cola) y espera hasta 90 s.
+  - No lee `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` ni `ANTHROPIC_LOG`: nada de la PC lo desvía ni le hace escribir registros.
+  - No usa `cache_control`: el prompt de sistema es más corto que el mínimo que la API guarda en caché.
+  - «Probar conexión» usa la lista de modelos, que no gasta.
+- **La punta a punta recorre el camino de tu clave sin la IA real.** Usa un servidor que imita a la IA dentro de la PC (`RETENIA_IA_ORIGEN`): solo `127.0.0.1` y solo en la variante de prueba. La clave de las pruebas es inventada. El almacén de Windows es el de verdad.
+- **Las respuestas grabadas de la IA simulada** viajan adentro del archivo principal de la variante de prueba, no como archivo aparte. La prueba del paquete real comprueba que no se colaron (14 de 14).
+- **trampa.md entró al elenco** (Estadística básica, agregado el 13/03/2027). Lo escribe `tools/generar-datos-de-ejemplo.mjs`. La captura de referencia de Materiales siguió igual (su prueba dio verde): no hay capturas nuevas de esta fase para aprobar.
+- **M19.11.** Las claves de Anthropic empiezan casi todas igual («sk-ant-api03»), así que buscar sus primeros 12 caracteres prueba poco. La busco igual, y además dejé `node tools/buscar-clave.mjs`: busca la clave entera sin mostrarla y sin que me la pases por el chat.
+- **Lo que encontré al cerrar.** Cada arreglo fue con su prueba en rojo primero:
+  1. Con la ventana del tamaño con que abre, el panel de la explicación tapaba el texto del PDF. Ahora, si no entran la página, el texto y el panel, la página pasa abajo del texto.
+  2. Las casillas de la IA simulada tardaban en marcarse. Ahora se marcan al tocarlas, como «Procesar despacio».
+  3. El «Ver» del aviso «Llegó la explicación que estaba pendiente.» quedaba pegado al aviso siguiente. Ahora queda atado a su aviso.
+  4. La página 2 del PDF del elenco saltaba del título de nivel 2 al de nivel 4. Lo encontró la prueba de accesibilidad nueva, y venía del visor de la Fase 13. Ahora una página que empieza con un subtítulo lo muestra como nivel 3.
+  5. La comprobación de migraciones pasaba los 30 s de su tope con la PC cargada. Ahora lee el historial de git de una sola pasada. El control es el mismo y no se aflojó ninguna prueba.
+  6. El puerto de la compuerta pasó al núcleo, porque los datos no importan de la IA (regla de capas).
+- **Lo que no toqué y te dejo anotado.** Materiales vuelve a abrir el último «Ver en el original» (o el «Ver» de una explicación) cada vez que entrás desde el riel. Es así desde la Fase 13.
