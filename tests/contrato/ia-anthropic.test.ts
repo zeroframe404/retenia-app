@@ -139,6 +139,17 @@ describe('adaptador de Anthropic (simulado: red)', () => {
     expect((failure as AiProviderError).kind).toBe('offline');
   });
 
+  it('una conexión que se corta con la puerta abierta es un corte (el pedido pudo haber llegado), no «sin conexión» (simulado)', async () => {
+    const provider = createAnthropicProvider({
+      apiKey: TEST_KEY,
+      fetch: () =>
+        Promise.reject(new TypeError('fetch failed', { cause: new Error('other side closed') })),
+    });
+    const failure = await provider.complete(REQUEST).catch((error: unknown) => error);
+    expect((failure as AiProviderError).kind).toBe('connection');
+    expect((failure as AiProviderError).status).toBeNull();
+  });
+
   it('«Probar conexión» pregunta por el modelo, que no cuesta nada', async () => {
     const network = fakeNetwork(() =>
       json(200, {

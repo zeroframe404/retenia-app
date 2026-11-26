@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newId } from '../../src/data/ids';
 import { closeSpaces } from '../apoyo/espacio';
 import {
@@ -434,11 +434,269 @@ describe('[CA-176] sin conexión', () => {
       permission: 'once',
     });
     expect(asked).toMatchObject({ state: 'pending', reason: 'sending' });
-    const session = await space.api['study.start']({ sessionId: newId() });
+    const sessionId = newId();
+    const session = await space.api['study.start']({ sessionId });
     expect(session.progress.total).toBeGreaterThan(0);
     expect(session.current).not.toBeNull();
+    const graded = await space.api['study.grade']({
+      sessionId,
+      activityId: session.current?.activityId ?? '',
+      attemptId: newId(),
+      grade: 'good',
+      answer: null,
+    });
+    expect(graded.progress.done).toBe(1);
+    expect(
+      await space.api['ai.outcome']({
+        requestId: asked.state === 'pending' ? asked.requestId : '',
+      }),
+    ).toMatchObject({ state: 'pending' });
     release();
     await space.bridge.ai.drain();
+  });
+});
+
+describe('lo que encontró el revisor: lo que pudo salir de la PC', () => {
+  const pending = (outcome: { state: string; requestId?: string }) => {
+    if (outcome.state !== 'pending' || outcome.requestId === undefined) {
+      throw new Error('no quedó pendiente');
+    }
+    return outcome.requestId;
+  };
+
+  it('[CA-171] un pedido que pudo haber llegado a la IA (la conexión se cortó después de mandarlo) queda en «Qué se envió», cuenta lo máximo que pudo costar y se reintenta hasta 3 veces (simulado)', async () => {
+    const space = await open();
+    space.script.push({ error: 'connection' }, { error: 'connection' }, { error: 'connection' });
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'once',
+      }),
+    );
+    for (let round = 0; round < 5; round++) {
+      await space.bridge.ai.drain();
+    }
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'technical',
+    });
+    expect(space.remote.calls).toHaveLength(3);
+    const { rows } = await space.api['ai.sentLog']({});
+    expect(rows.map((row) => row.status)).toEqual(['unanswered', 'unanswered', 'unanswered']);
+    expect(rows.every((row) => row.costMicros > 0)).toBe(true);
+    expect((await space.api['ai.status']({})).spentMicros).toBe(
+      rows.reduce((sum, row) => sum + row.costMicros, 0),
+    );
+  });
+
+  it('[CA-171] con el adaptador de Anthropic, si la red corta el pedido con la conexión andando, no se reenvía sin fin y queda en «Qué se envió» (simulado)', async () => {
+    const posts: string[] = [];
+    const space = await open({
+      anthropicFetch: async (input, init) => {
+        if ((init?.method ?? 'GET') === 'GET') {
+          return new Response(
+            JSON.stringify({
+              type: 'model',
+              id: 'claude-opus-5-5',
+              display_name: 'Claude Opus 5.5',
+              created_at: '2026-01-01T00:00:00Z',
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          );
+        }
+        posts.push(String(input));
+        throw new TypeError('fetch failed', { cause: new Error('other side closed') });
+      },
+    });
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'once',
+      }),
+    );
+    for (let round = 0; round < 5; round++) {
+      await space.bridge.ai.drain();
+    }
+    expect(posts).toHaveLength(3);
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'technical',
+    });
+    expect((await space.api['ai.sentLog']({})).rows).toHaveLength(3);
+  });
+
+  it('[CA-171] un pedido que se estaba mandando cuando se cerró Retenia queda en «Qué se envió» con lo máximo que pudo costar y cuenta como un intento (simulado)', async () => {
+    let holding = true;
+    const never = new Promise<void>(() => undefined);
+    const space = await open({ hold: () => (holding ? never : Promise.resolve()) });
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'once',
+      }),
+    );
+    void space.bridge.ai.drain();
+    await vi.waitFor(() => expect(space.remote.calls).toHaveLength(1));
+    // Se corta Retenia con el pedido en camino; al volver a abrir, sigue.
+    holding = false;
+    const reopened = space.bridge.reopenAi();
+    reopened.start();
+    await reopened.drain();
+    expect(reopened.outcome({ requestId })).toMatchObject({ state: 'done' });
+    const { rows } = await space.api['ai.sentLog']({});
+    expect(rows.map((row) => row.status).sort()).toEqual(['ok', 'unanswered']);
+    expect(rows.find((row) => row.status === 'unanswered')?.costMicros).toBeGreaterThan(0);
+    reopened.stop();
+  });
+});
+
+describe('lo que encontró el revisor: lo que espera en la cola', () => {
+  const pending = (outcome: { state: string; requestId?: string }) => {
+    if (outcome.state !== 'pending' || outcome.requestId === undefined) {
+      throw new Error('no quedó pendiente');
+    }
+    return outcome.requestId;
+  };
+
+  it('[CA-172] quitar el permiso frena lo que esperaba la conexión: no sale (simulado)', async () => {
+    const space = await open();
+    space.net.setOffline(true);
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'always',
+      }),
+    );
+    await space.api['ai.revokePermission']({ materialId: space.materialId });
+    space.net.setOffline(false);
+    await space.bridge.ai.drain();
+    expect(space.remote.calls).toHaveLength(0);
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'cancelled_permission',
+    });
+  });
+
+  it('suspender la función frena lo que esperaba la conexión: no sale (simulado)', async () => {
+    const space = await open();
+    space.net.setOffline(true);
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'once',
+      }),
+    );
+    await space.api['ai.setFunctionState']({ functionId: 'explain_fragment', suspended: true });
+    space.net.setOffline(false);
+    await space.bridge.ai.drain();
+    expect(space.remote.calls).toHaveLength(0);
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'cancelled_suspended',
+    });
+  });
+
+  it('[CA-172] si cambia la IA conectada mientras un pedido espera, se cancela: no sale por otra IA sin preguntar ni se guarda con la huella de otra (simulado)', async () => {
+    const space = await open({ demo: true });
+    space.net.setOffline(true);
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+      }),
+    );
+    space.setDemo(false);
+    space.net.setOffline(false);
+    await space.bridge.ai.drain();
+    expect(space.remote.calls).toHaveLength(0);
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'cancelled_ai_changed',
+    });
+    expect((await space.api['ai.sentLog']({})).rows).toHaveLength(0);
+  });
+
+  it('lo mismo pedido dos veces mientras va en camino no se paga dos veces: el segundo pedido espera al primero (simulado)', async () => {
+    const latch = Promise.withResolvers<void>();
+    const space = await open({ hold: () => latch.promise });
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'always',
+      }),
+    );
+    const draining = space.bridge.ai.drain();
+    await vi.waitFor(() => expect(space.remote.calls).toHaveLength(1));
+    expect(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+      }),
+    ).toMatchObject({ state: 'pending', requestId });
+    latch.resolve();
+    await draining;
+    await space.bridge.ai.drain();
+    expect(space.remote.calls).toHaveLength(1);
+    expect((await space.api['ai.sentLog']({})).rows).toHaveLength(1);
+  });
+
+  it('cancelar un pedido que ya está en camino lo deja cancelado: no se reintenta ni se muestra, y queda en «Qué se envió» (simulado)', async () => {
+    const latch = Promise.withResolvers<void>();
+    const space = await open({ hold: () => latch.promise });
+    const requestId = pending(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: space.select(FIRST_SENTENCE),
+        permission: 'once',
+      }),
+    );
+    const draining = space.bridge.ai.drain();
+    await vi.waitFor(() => expect(space.remote.calls).toHaveLength(1));
+    await space.api['ai.cancel']({ requestId });
+    latch.resolve();
+    await draining;
+    await space.bridge.ai.drain();
+    expect(await space.api['ai.outcome']({ requestId })).toMatchObject({
+      state: 'failed',
+      reason: 'cancelled',
+    });
+    expect(space.remote.calls).toHaveLength(1);
+    expect((await space.api['ai.sentLog']({})).rows).toHaveLength(1);
+  });
+
+  it('[CA-170] con «Modo solo local» ni siquiera se lee el pasaje: se corta antes de armar el pedido (simulado)', async () => {
+    const space = await open();
+    await space.api['ai.setLocalOnly']({ on: true });
+    expect(
+      await space.api['ai.explain']({
+        materialId: space.materialId,
+        selection: {
+          from: { blockId: newId(), offset: 0 },
+          to: { blockId: newId(), offset: 5 },
+        },
+      }),
+    ).toMatchObject({ state: 'blocked', reason: 'local_only' });
+  });
+});
+
+describe('lo que encontró el revisor: restaurar una copia', () => {
+  it('[CA-169] [CA-171] restaurar una copia no borra «Qué se envió» ni lo gastado en el mes (simulado)', async () => {
+    const space = await open();
+    const copy = await space.api['backups.createNow']({});
+    await explainOnce(space);
+    await explainOnce(space, TRAP_TEXT);
+    const spent = (await space.api['ai.status']({})).spentMicros;
+    const sent = (await space.api['ai.sentLog']({})).rows;
+    expect(sent).toHaveLength(2);
+    await space.api['backups.restore']({ backupId: copy.created.id });
+    expect((await space.api['ai.status']({})).spentMicros).toBe(spent);
+    expect((await space.api['ai.sentLog']({})).rows).toEqual(sent);
   });
 });
 

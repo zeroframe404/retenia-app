@@ -9,6 +9,7 @@ import {
   type RecordedAnswer,
   type RecordedProvider,
 } from '../../src/ai/adapters/recorded';
+import { createAnthropicProvider } from '../../src/ai/providers/anthropic';
 import type { Clock } from '../../src/core/clock';
 import type { SecretBox } from '../../src/main/ai/key-store';
 import { createNetGate, type NetGate } from '../../src/main/net-gate';
@@ -109,6 +110,7 @@ export async function openAiSpace({
   fileName,
   withCast = false,
   hold,
+  anthropicFetch,
 }: {
   connected?: boolean;
   demo?: boolean;
@@ -121,13 +123,19 @@ export async function openAiSpace({
   withCast?: boolean | 'tarjetas';
   // (simulado) Frena cada respuesta de la IA hasta que la prueba suelte la promesa.
   hold?: () => Promise<void>;
+  // (simulado) La IA con tu clave es el adaptador de Anthropic de verdad, y la red del otro lado de la
+  // puerta única es esta función de la prueba (doble «Red del adaptador de Anthropic»).
+  anthropicFetch?: (input: string, init?: RequestInit) => Promise<Response>;
 } = {}): Promise<AiSpace> {
   const net = createNetGate({
-    fetchImpl: () => Promise.reject(new Error('(simulado) las pruebas no salen a internet')),
+    fetchImpl:
+      anthropicFetch ??
+      (() => Promise.reject(new Error('(simulado) las pruebas no salen a internet'))),
   });
   const script: RecordedAnswer[] = [];
   const keysUsed: string[] = [];
   const remote = createRecordedProvider({
+    id: 'remota-simulada',
     kind: 'remote',
     isOffline: () => net.isOffline(),
     answer: (request) => script.shift() ?? defaultAnswer(request),
@@ -148,7 +156,9 @@ export async function openAiSpace({
       box,
       remote: (apiKey) => {
         keysUsed.push(apiKey);
-        return remote;
+        return anthropicFetch
+          ? createAnthropicProvider({ apiKey, fetch: net.fetch, baseURL: 'http://127.0.0.1:9' })
+          : remote;
       },
       simulated: () => (demoOn ? demoProvider : null),
     },
