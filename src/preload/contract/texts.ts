@@ -1127,7 +1127,7 @@ export const texts = {
       statementsHelp:
         'El primero es el de siempre. Los demás se usan en el último escalón de apoyo.',
       parameters: 'Datos que cambian, uno por renglón: nombre = 10; 20; 30',
-      derived: 'Datos que se calculan (opcional): s = ee * raiz(n)',
+      derived: 'Datos que se calculan (opcional): total = precio * cantidad',
       formula: 'Fórmula de la respuesta',
       // El procedimiento.
       procedureLegend: 'Los pasos, en orden (de 2 a 8)',
@@ -1137,7 +1137,7 @@ export const texts = {
       textResult: 'Un texto',
       expectedNumber: (index: number) => `Paso ${index}: resultado esperado`,
       expectedHelp:
-        'En un número podés escribir una cuenta con los datos y los pasos de antes: s / raiz(n), paso1 * 1,96.',
+        'En un número podés escribir una cuenta con los datos y los pasos de antes: total / cantidad, paso1 * 2.',
       stepTolerance: (index: number) => `Paso ${index}: margen`,
       stepUnit: (index: number) => `Paso ${index}: unidad (opcional)`,
       stepExplanation: (index: number) => `Paso ${index}: explicación`,

@@ -1133,8 +1133,8 @@
       "materia": "Estadística básica",
       "tema": "Intervalos de confianza",
       "pregunta": "Calcular un intervalo de confianza para la media",
+      "procedimiento": true,
       "actividad": {
-        "type": "procedure",
         "steps": [
           {
             "id": "error-estandar",
@@ -1387,8 +1387,8 @@
       "materia": "Estadística básica",
       "tema": "Media y dispersión",
       "pregunta": "En una empresa, cinco personas ganan entre 500 y 560 y el gerente gana veinte veces más. Querés contar cuál es el sueldo típico.",
+      "decision": true,
       "actividad": {
-        "type": "decision",
         "options": [
           {
             "id": "media",
@@ -1422,8 +1422,8 @@
       "materia": "Estadística básica",
       "tema": "Media y dispersión",
       "pregunta": "Una tienda quiere saber qué talle de remera reponer primero, con la lista de los talles que vendió el mes pasado.",
+      "decision": true,
       "actividad": {
-        "type": "decision",
         "options": [
           {
             "id": "media",

@@ -283,20 +283,33 @@ const cardCastSchema = () =>
     // Fase 16: los ejercicios (se listan en «Tarjetas» con la marca «Ejercicio» y no suman al 180).
     ejercicios: z
       .array(
-        z.strictObject({
-          materia: z.string().min(1),
-          tema: z.string().min(1).nullable(),
-          pregunta: z.string().min(1),
-          // La respuesta corta la dice; en los demás tipos sale de la actividad.
-          respuesta: z.string().min(1).optional(),
-          actividad: activitySchema,
-          pistas: z.array(z.string().min(1)).max(3),
-          ejemplo: z.string(),
-          explicacion: z.string(),
-          cita: z
-            .strictObject({ pagina: z.number().int().positive(), texto: z.string().min(1) })
-            .optional(),
-        }),
+        z
+          .strictObject({
+            materia: z.string().min(1),
+            tema: z.string().min(1).nullable(),
+            pregunta: z.string().min(1),
+            // La respuesta corta la dice; en los demás tipos sale de la actividad.
+            respuesta: z.string().min(1).optional(),
+            // Un procedimiento o una decisión se marcan acá (Fase 18) y su actividad no dice el
+            // tipo: las palabras internas del programa no van en los datos de ejemplo, que no
+            // pueden aparecer en el paquete de uso real (CA-013).
+            procedimiento: z.literal(true).optional(),
+            decision: z.literal(true).optional(),
+            actividad: z.record(z.string(), z.unknown()),
+            pistas: z.array(z.string().min(1)).max(3),
+            ejemplo: z.string(),
+            explicacion: z.string(),
+            cita: z
+              .strictObject({ pagina: z.number().int().positive(), texto: z.string().min(1) })
+              .optional(),
+          })
+          .transform(({ procedimiento, decision, actividad, ...exercise }) => {
+            const type = procedimiento ? 'procedure' : decision ? 'decision' : undefined;
+            return {
+              ...exercise,
+              actividad: activitySchema.parse(type ? { ...actividad, type } : actividad),
+            };
+          }),
       )
       .optional(),
     // Fase 17: los objetivos del elenco, con las preguntas de sus actividades.

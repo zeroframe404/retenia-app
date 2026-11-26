@@ -53,8 +53,8 @@ const exercisesOf = (workspace: Workspace, name: string) =>
 
 // Las preguntas de los ejercicios que sumó la Fase 18.
 const PHASE_18 = new Set(
-  (cardCast.ejercicios as { pregunta: string; actividad: { type: string } }[])
-    .filter((exercise) => ['procedure', 'decision'].includes(exercise.actividad.type))
+  (cardCast.ejercicios as { pregunta: string; procedimiento?: true; decision?: true }[])
+    .filter((exercise) => exercise.procedimiento || exercise.decision)
     .map((exercise) => exercise.pregunta)
     .concat(
       (cardCast.conjuntos as { pregunta: string; tipos: { problemas: string[] }[] }[]).flatMap(
