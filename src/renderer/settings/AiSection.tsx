@@ -34,6 +34,8 @@ export function AiSection({ focusTitle = false }: { focusTitle?: boolean }) {
   const capId = useId();
   const localHint = useId();
   const [status, setStatus] = useState<AiStatus | null>(null);
+  // Lo que muestra «Modo solo local» mientras el programa confirma el cambio.
+  const [localOnlyShown, setLocalOnlyShown] = useState<boolean | null>(null);
   const [sent, setSent] = useState<AiSentLog['rows'] | null>(null);
   const [permissions, setPermissions] = useState<AiPermissions['rows'] | null>(null);
   const [key, setKey] = useState('');
@@ -218,12 +220,16 @@ export function AiSection({ focusTitle = false }: { focusTitle?: boolean }) {
         <label className={content.checkbox}>
           <input
             type="checkbox"
-            checked={status?.localOnly ?? false}
+            checked={localOnlyShown ?? status?.localOnly ?? false}
             disabled={status === null}
             aria-describedby={localHint}
             onChange={(event) => {
+              // Como «Procesar despacio»: cambia al tocarla y después se confirma con lo guardado.
               const on = event.target.checked;
-              void change(() => window.retenia['ai.setLocalOnly']({ on }));
+              setLocalOnlyShown(on);
+              void change(() => window.retenia['ai.setLocalOnly']({ on })).finally(() =>
+                setLocalOnlyShown(null),
+              );
             }}
           />
           {texts.ai.localOnly}
