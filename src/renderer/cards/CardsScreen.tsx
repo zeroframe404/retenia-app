@@ -3,6 +3,7 @@ import type { ActivationCost, Card, CardDetail } from '../../preload/contract/ca
 import type { Subject } from '../../preload/contract/organization';
 import { texts } from '../../preload/contract/texts';
 import { ExerciseView, type ReferenceField } from '../practice/ExerciseView';
+import { PracticeClosing } from '../practice/PracticeClosing';
 import { ProcedureView } from '../practice/ProcedureView';
 import { SetView } from '../practice/SetView';
 import { Boton } from '../ui/Boton';
@@ -31,6 +32,8 @@ type View =
     }
   | { kind: 'newExercise' }
   | { kind: 'review'; card: Card }
+  // El cierre de un ejercicio cuando hay un micro-ejercicio para proponer (CA-166).
+  | { kind: 'closing' }
   | { kind: 'history'; card: Card };
 
 type Topic = { id: string; name: string };
@@ -256,9 +259,30 @@ export function CardsScreen({
         () => setProblem(texts.cards.loadFailed),
       );
     };
+    // Después de «Siguiente»: si se repitió un error en este ejercicio, el cierre lo propone.
+    const closeExercise = () => {
+      window.retenia['micro.proposal']({}).then(
+        ({ proposal }) => {
+          if (proposal !== null && proposal.cardId === card.id) {
+            setView({ kind: 'closing' });
+          } else {
+            backToList();
+          }
+        },
+        () => backToList(),
+      );
+    };
     // Fase 18: el procedimiento y el conjunto mezclado tienen su pantalla.
     if (card.activityType === 'procedure') {
-      return <ProcedureView key={card.id} cardId={card.id} onClose={backToList} />;
+      return (
+        <ProcedureView
+          key={card.id}
+          cardId={card.id}
+          onClose={backToList}
+          onEditReference={(field) => editReference(card.id, field)}
+          onOpenObjective={onOpenObjective}
+        />
+      );
     }
     if (card.activityType === 'interleaved') {
       return (
@@ -276,6 +300,7 @@ export function CardsScreen({
           key={card.id}
           cardId={card.id}
           onClose={backToList}
+          onNext={closeExercise}
           onOpenObjective={onOpenObjective}
           onPracticeOther={(otherId) => {
             window.retenia['cards.get']({ cardId: otherId }).then(
@@ -288,6 +313,10 @@ export function CardsScreen({
       );
     }
     return <ReviewView card={card} onReviewed={() => undefined} onClose={backToList} />;
+  }
+
+  if (view.kind === 'closing') {
+    return <PracticeClosing onClose={backToList} />;
   }
 
   if (view.kind === 'newExercise') {

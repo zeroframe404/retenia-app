@@ -17,7 +17,7 @@ export type Rung =
   | { readonly kind: 'whole' }
   | { readonly kind: 'variant' };
 
-export function rungsOf(stepCount: number): Rung[] {
+export function rungsOf(stepCount: number, hasVariants = true): Rung[] {
   return [
     { kind: 'example' },
     ...Array.from({ length: Math.max(0, stepCount - 1) }, (_, n) => ({
@@ -25,7 +25,8 @@ export function rungsOf(stepCount: number): Rung[] {
       count: n + 1,
     })),
     { kind: 'whole' },
-    { kind: 'variant' },
+    // Sin familia de variantes no hay otra situación que proponer.
+    ...(hasVariants ? [{ kind: 'variant' as const }] : []),
   ];
 }
 

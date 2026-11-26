@@ -773,6 +773,10 @@ export const texts = {
     stateLabel: 'Estado de la ficha',
     editedInNote: 'El texto de esta tarjeta se edita en su nota.',
     variantsLine: (list: string) => `Variantes aceptables: ${list}`,
+    // Fase 18: un numérico con familia de variantes no tiene una respuesta fija.
+    variantAnswer: 'Cambia con cada variante.',
+    variantNumericLine: (tolerance: string, unit: string | null) =>
+      `Con variantes: la respuesta se calcula en cada una · margen ${tolerance}${unit === null ? '' : ` · en ${unit}`}`,
     hintLine: (index: number, hint: string) => `Pista ${index}: ${hint}`,
     essentialsLine: (list: string) => `Componentes esenciales: ${list}`,
     referenceLine: (text: string) => `Respuesta de referencia: ${text}`,
@@ -953,6 +957,7 @@ export const texts = {
           ? 'Completá el último paso; los demás ya están resueltos.'
           : `Completá los ${count} últimos pasos; los demás ya están resueltos.`,
       wholeIntro: 'Resolvé el problema entero, paso por paso.',
+      someBlanksIntro: 'Completá los pasos vacíos; los demás ya están resueltos.',
       variantIntro: 'Una variante: el mismo método, en otra situación.',
       stepsLabel: 'Los pasos',
       step: (position: number) => `Paso ${position}`,
@@ -1191,7 +1196,10 @@ export const texts = {
         // Fase 18.
         optionsCount: 'Revisá cuántas opciones hay.',
         family:
-          'Revisá la familia de variantes: cada nombre de los enunciados y las cuentas tiene que estar en los datos, con más de una combinación.',
+          'Revisá la familia de variantes: cada nombre tiene que estar en los datos, las cuentas tienen que dar en todas las combinaciones, y tiene que haber más de una (hasta 10.000).',
+        unknownName: 'Hay un «{dato}» que no está en los datos de la familia.',
+        unsupported:
+          'Un conjunto lleva ejercicios que se contestan en el momento: ni tarjetas, ni procedimientos, ni otros conjuntos.',
         formula: 'Hay una cuenta que no se puede calcular. Revisá los nombres y los signos.',
         stepCount: 'Un procedimiento lleva de 2 a 8 pasos.',
         emptyStep: 'Cada paso lleva qué hacer, el resultado esperado y la explicación.',

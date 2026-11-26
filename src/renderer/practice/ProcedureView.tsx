@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { ActivityOpening } from '../../preload/contract/activities';
+import {
+  type ActivityOpening,
+  type AmendmentNotice,
+  APPEAL_REASONS,
+  type AppealReason,
+} from '../../preload/contract/activities';
 import type {
   CorrectionValue,
   LadderValue,
@@ -10,15 +15,17 @@ import type {
 } from '../../preload/contract/procedures';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
-import { Resultado } from '../ui/Evaluation';
-import { ScreenFrame } from '../ui/Frame';
+import { AvisoEvaluacionCorregida, Resultado } from '../ui/Evaluation';
+import { ScreenFrame, Toast } from '../ui/Frame';
 import { RotuloModo } from '../ui/Labels';
+import { MenuAcciones } from '../ui/Menu';
 import { OptionGroup } from '../ui/Options';
 import { BannerEstado } from '../ui/Process';
 import { BarraAyuda } from '../ui/Session';
 import { ViewState } from '../ui/ViewStates';
+import type { ReferenceField } from './ExerciseView';
 import { ConfirmSolution, HelpPanel } from './HelpPanel';
-import { toneOf } from './labels';
+import { diagnosisText, noticeTexts, toneOf } from './labels';
 import { MicroExerciseView, MicroProposalCard } from './MicroExercise';
 import styles from './Practice.module.css';
 import { useHelp } from './useHelp';
@@ -33,17 +40,35 @@ function rungName(rung: RungValue): string {
   return rung.kind === 'blanks' ? text.rungNames.blanks(rung.blanks) : text.rungNames[rung.kind];
 }
 
-function introOf(rung: RungValue): string {
-  switch (rung.kind) {
-    case 'example':
-      return text.exampleIntro;
-    case 'blanks':
-      return text.blanksIntro(rung.blanks);
-    case 'whole':
-      return text.wholeIntro;
-    case 'variant':
-      return text.variantIntro;
+// Qué hay que completar, según los pasos que de verdad vienen vacíos (uno de antes puede volver
+// después de un micro-ejercicio). Solo se habla de «una variante» si los números cambian.
+export function introOf(view: {
+  statement: string;
+  rung: RungValue;
+  steps: readonly { blank: boolean }[];
+}): string {
+  if (view.rung.kind === 'example') {
+    return text.exampleIntro;
   }
+  const count = view.steps.filter((step) => step.blank).length;
+  if (count === view.steps.length) {
+    return view.rung.kind === 'variant' && view.statement !== ''
+      ? text.variantIntro
+      : text.wholeIntro;
+  }
+  const theLast = view.steps.slice(view.steps.length - count).every((step) => step.blank);
+  return theLast ? text.blanksIntro(count) : text.someBlanksIntro;
+}
+
+// Por qué cambió el apoyo, o por qué no (CA-158).
+function LadderNotes({ ladder }: { ladder: LadderValue }) {
+  return (
+    <>
+      {ladder.change === 'less' ? <p>{text.lessSupport}</p> : null}
+      {ladder.change === 'more' ? <p>{text.moreSupport}</p> : null}
+      {ladder.counted ? null : <p>{text.notCounted}</p>}
+    </>
+  );
 }
 
 // Lo que cambia la próxima vez (CA-158, CA-159).
@@ -51,9 +76,7 @@ function LadderLines({ ladder }: { ladder: LadderValue }) {
   return (
     <>
       <p>{text.next(rungName(ladder.next))}</p>
-      {ladder.change === 'less' ? <p>{text.lessSupport}</p> : null}
-      {ladder.change === 'more' ? <p>{text.moreSupport}</p> : null}
-      {ladder.counted ? null : <p>{text.notCounted}</p>}
+      <LadderNotes ladder={ladder} />
     </>
   );
 }
@@ -67,11 +90,14 @@ interface Tally {
 export function ProcedureView({
   cardId,
   onClose,
-  onOpenOriginal,
+  onEditReference,
+  onOpenObjective,
 }: {
   cardId: string;
   onClose: () => void;
-  onOpenOriginal?: ((materialId: string) => void) | undefined;
+  // «La referencia está incompleta»: abrir la ficha en sus pasos.
+  onEditReference: (field: ReferenceField) => void;
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
 }) {
   const [openingId, setOpeningId] = useState(() => crypto.randomUUID());
   const [closing, setClosing] = useState(false);
@@ -101,7 +127,8 @@ export function ProcedureView({
       cardId={cardId}
       openingId={openingId}
       onClose={onClose}
-      onOpenOriginal={onOpenOriginal}
+      onEditReference={onEditReference}
+      onOpenObjective={onOpenObjective}
       onDone={(kind, next) => {
         tally.current[kind] += 1;
         if (next === 'another') {
@@ -118,13 +145,15 @@ function ProcedureRun({
   cardId,
   openingId,
   onClose,
-  onOpenOriginal,
+  onEditReference,
+  onOpenObjective,
   onDone,
 }: {
   cardId: string;
   openingId: string;
   onClose: () => void;
-  onOpenOriginal?: ((materialId: string) => void) | undefined;
+  onEditReference: (field: ReferenceField) => void;
+  onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onDone: (kind: keyof Tally, next: 'another' | 'finish') => void;
 }) {
   const [view, setView] = useState<View | null>(null);
@@ -141,6 +170,11 @@ function ProcedureRun({
   const [matches, setMatches] = useState<Record<string, 'yes' | 'no'>>({});
   const [result, setResult] = useState<ProcedureResult | null>(null);
   const [problem, setProblem] = useState('');
+  // «Discrepo» sobre el resultado: el aviso abierto y si la tarjeta quedó «En revisión».
+  const [notice, setNotice] = useState<AmendmentNotice | null>(null);
+  const [appealed, setAppealed] = useState(false);
+  const [outOfReviews, setOutOfReviews] = useState(false);
+  const [toast, setToast] = useState('');
   const busy = useRef(false);
   const firstField = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const retryField = useRef<HTMLInputElement>(null);
@@ -291,32 +325,112 @@ function ProcedureRun({
       }
     });
 
+  // Guarda lo que falte (o relee el resultado, si ya estaba guardado).
+  const finishNow = async (id: string) => {
+    setResult(
+      await window.retenia['procedure.finish']({
+        attemptId: id,
+        self: textBlanks.map((step) => ({ stepId: step.id, ok: matches[step.id] === 'yes' })),
+      }),
+    );
+  };
+
   const showResult = () =>
     guarded(async () => {
       if (attemptId !== null) {
-        setResult(
-          await window.retenia['procedure.finish']({
-            attemptId,
-            self: textBlanks.map((step) => ({ stepId: step.id, ok: matches[step.id] === 'yes' })),
-          }),
-        );
+        await finishNow(attemptId);
       }
     });
 
+  const appeal = (reason: AppealReason) =>
+    guarded(async () => {
+      if (attemptId === null || result === null) {
+        return;
+      }
+      const response = await window.retenia['activities.appeal']({
+        attemptId,
+        reason,
+        verdict: result.verdict,
+        marked: [],
+      });
+      if (response.kind === 'editor') {
+        onEditReference(response.field);
+        return;
+      }
+      setNotice(response.notice);
+      setAppealed(true);
+      setOutOfReviews(response.notice.inReview);
+      await finishNow(attemptId);
+    });
+
+  const undoAmendment = (current: AmendmentNotice) =>
+    guarded(async () => {
+      if (attemptId === null) {
+        return;
+      }
+      await window.retenia['activities.undoAmendment']({ amendmentId: current.amendmentId });
+      setNotice(null);
+      setAppealed(false);
+      setOutOfReviews(false);
+      setToast(texts.practice.amendmentUndone);
+      await finishNow(attemptId);
+    });
+
+  const acknowledge = (current: AmendmentNotice) =>
+    guarded(async () => {
+      await window.retenia['activities.acknowledge']({ amendmentId: current.amendmentId });
+      setNotice(null);
+    });
+
+  // «Otro problema» solo si hay otros números para practicar y la tarjeta sigue en los repasos.
   const footer = (kind: keyof Tally) => (
     <div className={styles.resultButtons}>
       <Boton variant="primary" onClick={() => onDone(kind, 'finish')}>
         {text.finish}
       </Boton>
-      <Boton onClick={() => onDone(kind, 'another')}>{text.another}</Boton>
+      {view.statement === '' || outOfReviews ? null : (
+        <Boton onClick={() => onDone(kind, 'another')}>{text.another}</Boton>
+      )}
+      {kind === 'solved' ? (
+        <MenuAcciones
+          label={texts.practice.buttons.disagree}
+          items={APPEAL_REASONS.map((reason) => ({
+            key: reason,
+            text: texts.practice.reasons[reason],
+            onSelect: () => void appeal(reason),
+          }))}
+        />
+      ) : null}
     </div>
   );
 
   const failedAt = result?.steps.find((step) => step.state !== 'ok')?.position ?? null;
   const label = view.rung.kind === 'blanks' || example ? 'help' : help.label;
+  // Tras un fallo, la tercera línea es el diagnóstico (CA-153): una sola acción con su motivo.
+  const diagnosis =
+    result !== null && result.verdict === 'incorrect' && !appealed ? result.diagnosis : null;
+  const diagnosisAction = (() => {
+    if (diagnosis?.action === 'goToRequirement' && onOpenObjective) {
+      const target = diagnosis.requirement.objectiveId;
+      return (
+        <Boton onClick={() => onOpenObjective(target)}>
+          {texts.practice.diagnosis.goToRequirement}
+        </Boton>
+      );
+    }
+    if (diagnosis?.action === 'sendToReview' && !outOfReviews) {
+      return (
+        <Boton onClick={() => void appeal('ambiguous')}>
+          {texts.practice.diagnosis.sendToReview}
+        </Boton>
+      );
+    }
+    return null;
+  })();
 
   return (
     <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <Toast>{toast}</Toast>
       <div className={styles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
         <div className={styles.activity}>
           <div className={styles.bar}>
@@ -325,7 +439,7 @@ function ProcedureRun({
           <p className={styles.prompt}>{view.title}</p>
           {view.statement === '' ? null : <p className={styles.statement}>{view.statement}</p>}
           {example ? <h3 className={styles.diffTitle}>{text.exampleHeading}</h3> : null}
-          <p>{introOf(view.rung)}</p>
+          <p>{introOf(view)}</p>
           <ol className={styles.procedure} aria-label={text.stepsLabel}>
             {view.steps.map((step) => (
               <li key={step.id} className={styles.procedureStep} data-blank={step.blank}>
@@ -580,14 +694,34 @@ function ProcedureRun({
                     ? text.review.correct
                     : text.review[result.verdict](failedAt)
                 }
-                action={<LadderLines ladder={result.ladder} />}
+                action={
+                  diagnosis === null ? (
+                    <p>{text.next(rungName(result.ladder.next))}</p>
+                  ) : (
+                    <>
+                      <p>{diagnosisText(diagnosis)}</p>
+                      {diagnosisAction}
+                    </>
+                  )
+                }
               />
+              <div role="status">
+                {diagnosis === null ? null : <p>{text.next(rungName(result.ladder.next))}</p>}
+                {appealed ? null : <LadderNotes ladder={result.ladder} />}
+              </div>
+              {notice === null ? null : (
+                <AvisoEvaluacionCorregida
+                  {...noticeTexts(notice)}
+                  onUnderstood={() => void acknowledge(notice)}
+                  onUndo={() => void undoAmendment(notice)}
+                />
+              )}
               {footer('solved')}
             </div>
           )}
           {problem === '' ? null : <BannerEstado tone="attention">{problem}</BannerEstado>}
         </div>
-        <HelpPanel help={help} onOpenOriginal={onOpenOriginal} />
+        <HelpPanel help={help} />
       </div>
       <ConfirmSolution help={help} />
     </ScreenFrame>

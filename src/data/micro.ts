@@ -14,6 +14,7 @@ import { checkStep, type ResolvedStep, resolveSteps } from '../core/procedure';
 import { studyDayOf } from '../core/study-day';
 import {
   evaluateFormula,
+  formatValue,
   generateVariant,
   renderTemplate,
   type VariantFamily,
@@ -148,6 +149,8 @@ interface Source {
   readonly row: CardRow;
   readonly family: VariantFamily;
   readonly stepId: string | null;
+  // Cuántos ítems distintos se pueden armar.
+  readonly items: number;
 }
 
 // De dónde salen los ítems de un punto (nulo si ya no se puede armar: la tarjeta no se practica,
@@ -171,13 +174,55 @@ function sourceOf(db: Writer, key: string): Source | null {
       : activity?.type === 'numeric'
         ? (activity.family ?? null)
         : null;
-  if (!family || variantCount(family) < MICRO_MIN_ITEMS) {
+  if (!family) {
     return null;
   }
   if (activity?.type === 'procedure' && !activity.steps.some((step) => step.id === stepId)) {
     return null;
   }
-  return { row, family, stepId };
+  const numbers = variantNumbers(activity, family, stepId, `${cardId}:micro`, 0);
+  return numbers.length < MICRO_MIN_ITEMS ? null : { row, family, stepId, items: numbers.length };
+}
+
+// El resultado que se pide en una variante, como texto (para saber si dos ítems piden lo mismo).
+function expectedKey(
+  activity: ReturnType<typeof parsedActivity>,
+  stepId: string | null,
+  values: Readonly<Record<string, number>>,
+): string {
+  if (activity?.type === 'procedure') {
+    const step = resolveSteps(activity, values).find((candidate) => candidate.id === stepId);
+    return step?.expected.type === 'number'
+      ? formatValue(step.expected.value)
+      : (step?.expected.text ?? '');
+  }
+  return activity?.type === 'numeric' && activity.formula
+    ? formatValue(evaluateFormula(activity.formula, values))
+    : '';
+}
+
+// Hasta 7 variantes cuyas respuestas sean todas distintas, desde la número `first`: con la misma
+// respuesta repetida alcanzaría con copiar la corrección del primer ítem.
+function variantNumbers(
+  activity: ReturnType<typeof parsedActivity>,
+  family: VariantFamily,
+  stepId: string | null,
+  seed: string,
+  first: number,
+): { n: number; values: Record<string, number> }[] {
+  const total = variantCount(family);
+  const answers = new Set<string>();
+  const chosen: { n: number; values: Record<string, number> }[] = [];
+  for (let k = 0; k < total && chosen.length < MICRO_ITEMS; k += 1) {
+    const n = (first + k) % total;
+    const values = { ...generateVariant(family, seed, n).values };
+    const key = expectedKey(activity, stepId, values);
+    if (!answers.has(key)) {
+      answers.add(key);
+      chosen.push({ n, values });
+    }
+  }
+  return chosen;
 }
 
 export interface MicroStore {
@@ -325,7 +370,7 @@ export function createMicroStore(db: ReteniaDatabase, clock: Clock): MicroStore 
           cardId: source.row.id,
           title: source.row.question,
           step,
-          items: Math.min(MICRO_ITEMS, variantCount(source.family)),
+          items: source.items,
         },
       };
     },
@@ -339,11 +384,7 @@ export function createMicroStore(db: ReteniaDatabase, clock: Clock): MicroStore 
             throw new MicroError('Ese micro-ejercicio ya no está disponible');
           }
           const row = activeCard(tx, source.row.id);
-          const total = variantCount(source.family);
-          const count = Math.min(MICRO_ITEMS, total);
           // Otra serie que la de «Practicar ahora»: no gasta las variantes del problema.
-          const seed = `${row.id}:micro`;
-          const first = seedNumber(microId) % total;
           appendObservation(tx, clock, {
             kind: 'micro.started',
             payload: {
@@ -351,10 +392,13 @@ export function createMicroStore(db: ReteniaDatabase, clock: Clock): MicroStore 
               versionId: row.versionId,
               microId,
               stepId: source.stepId,
-              items: Array.from({ length: count }, (_, index) => {
-                const n = (first + index) % total;
-                return { n, values: { ...generateVariant(source.family, seed, n).values } };
-              }),
+              items: variantNumbers(
+                parsedActivity(source.row),
+                source.family,
+                source.stepId,
+                `${row.id}:micro`,
+                seedNumber(microId) % variantCount(source.family),
+              ),
             },
             idempotencyKey: `micro:${microId}`,
             source: 'user',

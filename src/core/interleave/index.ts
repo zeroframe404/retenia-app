@@ -15,6 +15,9 @@ export interface SetItem {
   readonly typeId: string;
 }
 
+// Los ejercicios que pueden ser un problema de un conjunto: los que se contestan en el momento.
+export const SET_ACTIVITIES: readonly string[] = ['short', 'numeric', 'options', 'order', 'open'];
+
 export const MIN_TYPES = 2;
 export const MAX_TYPES = 5;
 // De cada tipo entran 3 como mucho: con media, mediana y moda, 9.
@@ -32,13 +35,22 @@ const wordsOf = (text: string): string[] =>
 
 const phrase = (words: readonly string[]) => ` ${words.join(' ')} `;
 
-// El primer nombre de tipo que aparece en el enunciado como palabra (o frase) entera.
+const same = (word: string | undefined, name: string) =>
+  word === name || word === `${name}s` || word === `${name}es`;
+
+// El primer nombre de tipo que aparece en el enunciado como palabra (o frase) entera, también en
+// plural. La frase hecha «a medias» no nombra nada.
 export function statementNamesType(statement: string, names: readonly string[]): string | null {
-  const text = phrase(wordsOf(statement));
+  const text = wordsOf(statement)
+    .join(' ')
+    .replace(/(^| )a medias(?= |$)/gu, '$1')
+    .split(' ');
   return (
     names.find((name) => {
       const words = wordsOf(name);
-      return words.length > 0 && text.includes(phrase(words));
+      return (
+        words.length > 0 && text.some((_, at) => words.every((word, n) => same(text[at + n], word)))
+      );
     }) ?? null
   );
 }

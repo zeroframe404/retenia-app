@@ -1,3 +1,5 @@
+import { parseNumber } from '../evaluation/numeric';
+
 // Las fórmulas de una familia de variantes (Fase 18, H-39): una cuenta con números (coma o punto),
 // los nombres de los datos, + − × ÷ ^, paréntesis y unas pocas funciones. Se lee acá mismo, sin
 // ejecutar código: lo que no es una cuenta se rechaza.
@@ -62,7 +64,7 @@ const SYMBOLS: ReadonlyMap<string, string> = new Map([
 ]);
 
 export const NAME_PATTERN = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ_][A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_]*/u;
-const NUMBER_PATTERN = /^[0-9]+(?:[.,][0-9]+)?/;
+const NUMBER_PATTERN = /^[0-9]+(?:[.,][0-9]+)*/;
 
 function tokenize(text: string): Token[] {
   if (text.length > MAX_LENGTH) {
@@ -79,7 +81,12 @@ function tokenize(text: string): Token[] {
     }
     const number = NUMBER_PATTERN.exec(rest)?.[0];
     if (number !== undefined) {
-      tokens.push({ kind: 'number', value: Number(number.replace(',', '.')) });
+      // Como en las respuestas: coma o punto decimal y «1.500» es mil quinientos.
+      const parsed = parseNumber(number);
+      if (parsed === null) {
+        throw new FormulaError(`No entiendo el número «${number}»`);
+      }
+      tokens.push({ kind: 'number', value: parsed.value });
       at += number.length;
       continue;
     }

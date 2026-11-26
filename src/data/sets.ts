@@ -4,6 +4,7 @@ import {
   buildInterleavedSet,
   eligibleTypes,
   type ProblemType,
+  SET_ACTIVITIES,
   setProblems,
 } from '../core/interleave';
 import { currentEvaluation } from '../core/ledger';
@@ -11,7 +12,7 @@ import type { Verdict } from '../core/memory';
 import { studyDayOf } from '../core/study-day';
 import type { SetRun, SetSummary } from '../preload/contract/procedures';
 import { CardOutOfReviewsError, CardPausedError } from './card-errors';
-import { parsedActivity } from './cards';
+import { parsedActivity, shownStatements } from './cards';
 import { activeCard, findCard } from './content';
 import type { ReteniaDatabase } from './database';
 import { appendObservation, readPayload, type StoredPayload } from './ledger';
@@ -113,30 +114,50 @@ export function createSetsStore(db: ReteniaDatabase, clock: Clock): SetsStore {
     return { row, types: activity.types };
   }
 
-  // Cuántos problemas de la vuelta ya se contestaron y cuál sigue.
-  function progress(tx: Writer, run: Run) {
-    const done = new Set(
-      attemptsOf(
-        tx,
-        run.items.map((item) => item.cardId),
-      )
-        .filter((attempt) => attempt.sessionId === run.runId)
-        .map((attempt) => attempt.cardId),
-    );
-    // Uno que dejó de poder practicarse (en pausa o borrado) no traba la vuelta.
-    const next = run.items.find((item) => {
-      if (done.has(item.cardId)) {
-        return false;
+  // Lo contestado en la vuelta, en el orden en que salió.
+  function answered(tx: Writer, run: Run) {
+    const attempts = attemptsOf(
+      tx,
+      run.items.map((item) => item.cardId),
+    ).filter((attempt) => attempt.sessionId === run.runId);
+    const seen = new Map<string, Verdict | null>();
+    for (const attempt of attempts) {
+      if (!seen.has(attempt.cardId)) {
+        seen.set(attempt.cardId, attempt.verdict);
       }
-      const row = findCard(tx, item.cardId);
-      return (
-        row !== undefined &&
-        row.deletedAt === null &&
-        row.pausedAt === null &&
-        !OUT.includes(row.sheetState)
-      );
+    }
+    return [...seen].flatMap(([cardId, verdict]) => {
+      const item = run.items.find((candidate) => candidate.cardId === cardId);
+      return item ? [{ ...item, verdict }] : [];
     });
-    return { done: done.size, nextCardId: next?.cardId ?? null };
+  }
+
+  const canBeAsked = (tx: Writer, cardId: string) => {
+    const row = findCard(tx, cardId);
+    return (
+      row !== undefined &&
+      row.deletedAt === null &&
+      row.pausedAt === null &&
+      SET_ACTIVITIES.includes(row.activityType ?? '') &&
+      !OUT.includes(row.sheetState)
+    );
+  };
+
+  // Cuántos problemas ya se contestaron y cuál sigue. Uno que dejó de poder practicarse (en pausa,
+  // borrado o cambiado) se saltea sin dejar dos seguidos del mismo tipo; si solo quedan del último,
+  // la vuelta termina ahí.
+  function progress(tx: Writer, run: Run) {
+    const done = answered(tx, run);
+    const doneIds = new Set(done.map((item) => item.cardId));
+    const left = run.items.filter(
+      (item) => !doneIds.has(item.cardId) && canBeAsked(tx, item.cardId),
+    );
+    const open = left.filter((item) => item.typeId !== done.at(-1)?.typeId);
+    // Si un tipo ocupa más de la mitad de lo que queda, tiene que ir ahora.
+    const urgent = open.find(
+      (item) => left.filter((other) => other.typeId === item.typeId).length * 2 > left.length,
+    );
+    return { done: done.length, nextCardId: (urgent ?? open[0])?.cardId ?? null };
   }
 
   const runResponse = (tx: Writer, run: Run): SetRun => ({
@@ -175,17 +196,11 @@ export function createSetsStore(db: ReteniaDatabase, clock: Clock): SetsStore {
       ...type,
       cardIds: type.cardIds.filter((cardId) => {
         const row = findCard(tx, cardId);
-        if (
-          !row ||
-          row.deletedAt !== null ||
-          row.pausedAt !== null ||
-          row.activityType === null ||
-          OUT.includes(row.sheetState)
-        ) {
+        if (!row || !canBeAsked(tx, cardId)) {
           return false;
         }
         subjects.set(cardId, row.subjectId);
-        statements.set(cardId, row.question);
+        statements.set(cardId, shownStatements(row));
         return true;
       }),
     }));
@@ -196,7 +211,11 @@ export function createSetsStore(db: ReteniaDatabase, clock: Clock): SetsStore {
     open({ cardId, runId }) {
       return orm.transaction((tx): SetRun => {
         const { row, types } = setCard(tx, cardId);
-        const asked = runOf(tx, runId) ?? unfinished(tx, cardId);
+        const requested = runOf(tx, runId);
+        if (requested !== null && requested.cardId !== cardId) {
+          throw new SetError('Esa vuelta es de otro conjunto');
+        }
+        const asked = requested ?? unfinished(tx, cardId);
         if (asked) {
           return runResponse(tx, asked);
         }
@@ -275,18 +294,14 @@ export function createSetsStore(db: ReteniaDatabase, clock: Clock): SetsStore {
       if (!run) {
         throw new SetError('No encontré esa vuelta del conjunto');
       }
-      const attempts = attemptsOf(
-        orm,
-        run.items.map((item) => item.cardId),
-      ).filter((attempt) => attempt.sessionId === runId);
-      const order = run.items.map((item, index) => ({
-        position: index + 1,
-        typeName: item.typeName,
-        verdict: attempts.find((attempt) => attempt.cardId === item.cardId)?.verdict ?? null,
-      }));
+      // El orden en que salieron de verdad (CA-162).
       return {
         title: run.title,
-        order,
+        order: answered(orm, run).map((item, index) => ({
+          position: index + 1,
+          typeName: item.typeName,
+          verdict: item.verdict,
+        })),
         complete: progress(orm, run).nextCardId === null,
       };
     },

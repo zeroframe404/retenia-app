@@ -316,7 +316,7 @@ export type DiffStepValue = z.output<typeof diffStepSchema>;
 
 // El diagnóstico tras un fallo (Fase 17, CA-153): una sola acción siguiente con su motivo, en el
 // orden del criterio. Nulo si no es un fallo.
-const diagnosisSchema = z.discriminatedUnion('action', [
+export const diagnosisSchema = z.discriminatedUnion('action', [
   z.strictObject({
     action: z.literal('checkUnaided'),
     reason: z.enum(['previousAided', 'previousOptions']),

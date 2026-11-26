@@ -1,5 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import type { ActivityType } from '../core/evaluation';
+import { type ActivityType, maxHelpLevel } from '../core/evaluation';
 import { type HelpLevel, type Verdict, verdictOfGrade } from '../core/memory';
 import { studyDayOf } from '../core/study-day';
 import { readPayload, type StoredPayload } from './ledger';
@@ -37,6 +37,8 @@ export interface EvidenceAttempt {
   readonly versionId: string | null;
   // Fase 18: era una variante que no habías visto.
   readonly newVariant: boolean;
+  // La ayuda que pediste. En un procedimiento, los pasos resueltos del escalón no la cuentan.
+  readonly barHelp: HelpLevel;
 }
 
 export interface SubjectCard {
@@ -196,6 +198,8 @@ export function subjectEvidence(
         activityType: payload.activityType,
         versionId: payload.versionId,
         newVariant: payload.variant?.isNew === true,
+        barHelp:
+          payload.activityType === 'procedure' ? maxHelpLevel(payload.help) : payload.helpLevel,
       };
     } else {
       const payload = readPayload('review.graded', row.schemaVersion, row.payload);
@@ -218,6 +222,7 @@ export function subjectEvidence(
         activityType: null,
         versionId: payload.versionId ?? null,
         newVariant: false,
+        barHelp: payload.helpLevel,
       };
     }
     const list = byCard.get(attempt.cardId);

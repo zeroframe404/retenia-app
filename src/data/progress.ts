@@ -37,8 +37,6 @@ const plain = (text: string) =>
     .replace(/\s+/gu, ' ')
     .trim();
 
-const escaped = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 class AttemptNotFoundError extends Error {
   constructor() {
     super('No encontré ese intento');
@@ -82,6 +80,9 @@ function variantMistake(
   const parsed = JSON.parse(activity) as ActivityValue;
   const values = attempt.variant?.values ?? {};
   if (parsed.type === 'numeric' && parsed.family && parsed.formula) {
+    if (!attempt.variant) {
+      return null;
+    }
     const value = formatValue(evaluateFormula(parsed.formula, values));
     return {
       written: attempt.answer.type === 'numeric' ? attempt.answer.raw : '',
@@ -136,12 +137,17 @@ export function createProgressStore(
 ): ProgressStore {
   const { orm } = db;
 
-  // La definición de un concepto en las tarjetas de la materia: «¿Qué es la mediana?» (o «¿Qué es la
-  // media muestral?»). La pregunta más corta que empieza así.
+  // La definición de un concepto en las tarjetas de la materia: «¿Qué es la mediana?» o «¿Qué es la
+  // media muestral?». Solo así de exacto: una que se llame parecido («… ponderada») es otra cosa. No
+  // salen de tarjetas «En revisión» ni «Retiradas».
   function definitionOf(subjectId: string, concept: string): string | null {
-    const wanted = new RegExp(`^que es ${escaped(plain(concept))}(?![\\p{L}\\p{N}])`, 'u');
+    const wanted = [`que es ${plain(concept)}`, `que es ${plain(concept)} muestral`];
     const matches = orm
-      .select({ question: cardVersions.question, answer: cardVersions.answer })
+      .select({
+        question: cardVersions.question,
+        answer: cardVersions.answer,
+        sheetState: cardVersions.sheetState,
+      })
       .from(cards)
       .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
       .where(
@@ -152,8 +158,10 @@ export function createProgressStore(
         ),
       )
       .all()
-      .filter((row) => wanted.test(plain(row.question)))
-      .sort((a, b) => a.question.length - b.question.length);
+      .filter((row) => !OUT_OF_PRACTICE.includes(row.sheetState))
+      .map((row) => ({ ...row, at: wanted.indexOf(plain(row.question)) }))
+      .filter((row) => row.at >= 0)
+      .sort((a, b) => a.at - b.at);
     return matches[0]?.answer ?? null;
   }
 
@@ -168,7 +176,18 @@ export function createProgressStore(
   }
 
   const store: ProgressStore = {
-    contrast({ attemptId, concepts }) {
+    contrast({ requestId, attemptId, concepts }) {
+      // El mismo pedido dos veces crea una sola tarjeta.
+      const made = orm
+        .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+        .from(observations)
+        .where(eq(observations.idempotencyKey, `contrast:${requestId}`))
+        .get();
+      if (made) {
+        const { cardId } = readPayload('contrast.created', made.schemaVersion, made.payload);
+        const card = cardsStore().get({ cardId });
+        return { kind: 'exists', cardId, question: card.question };
+      }
       const row = orm
         .select({
           cardId: observations.cardId,
@@ -234,6 +253,12 @@ export function createProgressStore(
         answer: lines.length === 0 ? texts.progress.contrast.fillAnswer : lines.join('\n'),
         subjectId,
         topicId: source.topicId,
+      });
+      appendObservation(orm, clock, {
+        kind: 'contrast.created',
+        payload: { cardId: card.id, requestId, attemptId },
+        idempotencyKey: `contrast:${requestId}`,
+        source: 'user',
       });
       return { kind: 'created', cardId: card.id, question: card.question };
     },

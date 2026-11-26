@@ -33,12 +33,13 @@ import { CardOutOfReviewsError, CardPausedError } from './card-errors';
 import { asMode, parsedActivity } from './cards';
 import { activeCard, type CardRow, cardOf } from './content';
 import type { ReteniaDatabase } from './database';
+import { diagnosisFor } from './diagnosis';
 import { appendEvaluation, appendObservation, readPayload, type StoredPayload } from './ledger';
 import { pendingReturnSteps } from './micro';
 import type { Writer } from './orm';
 import { recomputeCardSchedule } from './projections';
 import { cardVersions, evaluations, observations } from './schema';
-import { stepStatesOf } from './step-states';
+import { isPending, stepStatesOf } from './step-states';
 import { isNewVariant, showVariant, variantOfOpening } from './variants';
 
 // El procedimiento (Fase 18, H-37): la escalera de apoyo sale del historial; cada envío es un
@@ -154,28 +155,31 @@ function ladderEvents(db: Writer, cardId: string): LadderEvent[] {
   return events;
 }
 
-function ladderOf(db: Writer, cardId: string, stepCount: number): LadderResult {
-  return projectLadder(rungsOf(stepCount).length, ladderEvents(db, cardId));
+function ladderOf(db: Writer, cardId: string, procedure: Procedure): LadderResult {
+  return projectLadder(rungsFor(procedure).length, ladderEvents(db, cardId));
 }
 
 // El escalón con que se practica hoy: sale del historial sin lo último que anotaste hoy. Lo que
 // ganes o falles hoy cambia la próxima vez, no en la misma sesión. Se saca solo el tramo final de
 // hoy (en el orden en que se registró): si la fecha vuelve atrás, el escalón no retrocede.
-function todaysRung(db: Writer, cardId: string, stepCount: number, today: string): number {
+function todaysRung(db: Writer, cardId: string, procedure: Procedure, today: string): number {
   const events = ladderEvents(db, cardId);
   while (events.at(-1)?.studyDay === today) {
     events.pop();
   }
-  return projectLadder(rungsOf(stepCount).length, events).level;
+  return projectLadder(rungsFor(procedure).length, events).level;
 }
+
+const rungsFor = (procedure: Procedure) =>
+  rungsOf(procedure.steps.length, procedure.family !== null);
 
 const rungValue = (rung: Rung): RungValue => ({
   kind: rung.kind,
   blanks: rung.kind === 'blanks' ? rung.count : 0,
 });
 
-const rungAt = (stepCount: number, level: number): Rung => {
-  const rungs = rungsOf(stepCount);
+const rungAt = (procedure: Procedure, level: number): Rung => {
+  const rungs = rungsFor(procedure);
   return rungs[Math.min(level, rungs.length - 1)] as Rung;
 };
 
@@ -335,13 +339,13 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
   function ladderValue(
     tx: Writer,
     cardId: string,
-    stepCount: number,
+    procedure: Procedure,
     eventId: string,
   ): LadderValue {
-    const ladder = ladderOf(tx, cardId, stepCount);
+    const ladder = ladderOf(tx, cardId, procedure);
     const own = ladder.steps.find((step) => step.id === eventId);
     return {
-      next: rungValue(rungAt(stepCount, ladder.level)),
+      next: rungValue(rungAt(procedure, ladder.level)),
       change: own?.change ?? null,
       counted: own?.counted ?? false,
     };
@@ -351,31 +355,15 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
     open({ cardId, openingId }) {
       return orm.transaction((tx) => {
         const row = practicable(tx, cardId);
-        const procedure = procedureOf(row);
-        const count = procedure.steps.length;
-        const rung = rungAt(count, todaysRung(tx, cardId, count, studyDayOf(clock.now())));
-        const shown =
-          procedure.family === null
-            ? null
-            : showVariant(tx, clock, {
-                cardId,
-                versionId: row.versionId,
-                family: procedure.family,
-                openingId,
-              });
-        const steps = resolveSteps(procedure, shown?.values ?? {});
-        const blanks = new Set(
-          blankStepIds(
-            rung,
-            steps.map((step) => step.id),
-          ),
-        );
-        // El punto de un micro-ejercicio superado vuelve acá, sin aviso.
-        if (rung.kind !== 'example') {
-          for (const stepId of pendingReturnSteps(tx, cardId)) {
-            blanks.add(stepId);
-          }
+        const opened = openedOf(tx, openingId) ?? show(tx, row, openingId);
+        if (opened.cardId !== cardId) {
+          throw new ProcedureStepError('Esa apertura es de otra tarjeta');
         }
+        const procedure = procedureOf(versionOf(tx, opened.versionId));
+        const shown = procedure.family === null ? null : variantOfOpening(tx, cardId, openingId);
+        const rung = rungAt(procedure, opened.rung);
+        const steps = resolveSteps(procedure, shown?.values ?? {});
+        const blanks = new Set(opened.blanks);
         const studied = tx
           .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
           .from(observations)
@@ -408,23 +396,30 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
 
     studied({ cardId, openingId, why }) {
       return orm.transaction((tx) => {
-        const row = practicable(tx, cardId);
-        const procedure = procedureOf(row);
-        const keys = new Set(procedure.steps.filter((step) => step.key).map((step) => step.id));
+        practicable(tx, cardId);
+        // Solo se termina un ejemplo que se mostró, con el porqué de cada paso clave.
+        const opened = requireOpened(tx, cardId, openingId);
+        const procedure = procedureOf(versionOf(tx, opened.versionId));
+        if (rungAt(procedure, opened.rung).kind !== 'example') {
+          throw new ProcedureStepError('Esa práctica no era el ejemplo');
+        }
+        const answers = new Map(why.map((item) => [item.stepId, item.text.trim()]));
+        const keys = procedure.steps.filter((step) => step.key);
+        if (keys.some((step) => (answers.get(step.id) ?? '') === '')) {
+          throw new ProcedureStepError('Falta explicar un paso clave');
+        }
         const observation = appendObservation(tx, clock, {
           kind: 'procedure.studied',
           payload: {
             cardId,
-            versionId: row.versionId,
+            versionId: opened.versionId,
             openingId,
-            why: why
-              .filter((item) => keys.has(item.stepId))
-              .map((item) => ({ stepId: item.stepId, answer: item.text.trim() })),
+            why: keys.map((step) => ({ stepId: step.id, answer: answers.get(step.id) ?? '' })),
           },
           idempotencyKey: `studied:${openingId}`,
           source: 'user',
         });
-        return { ladder: ladderValue(tx, cardId, procedure.steps.length, observation.id) };
+        return { ladder: ladderValue(tx, cardId, procedure, observation.id) };
       });
     },
 
@@ -488,10 +483,11 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
           throw new ProcedureStepError('Primero se mira la corrección');
         }
         const steps = stepsOf(tx, attempt);
-        const saved = currentEvaluation(
-          tx.select().from(evaluations).where(eq(evaluations.attemptId, attempt.id)).all(),
-        );
-        if (saved === null) {
+        // Mientras quede algo por decidir (un reintento o un paso de texto), se completa acá; una
+        // sola vez.
+        const before = currentOf(tx, attempt.id);
+        // Si «Discrepo» ya la tocó, no se vuelve a escribir encima.
+        if (isPending(before?.components) && before?.cause !== 'appeal' && before?.affected !== 1) {
           const assessed = new Map(self.map((item) => [item.stepId, item.ok]));
           const states = progressOf(tx, attempt).map((item) => {
             if (item.state !== 'self') {
@@ -503,56 +499,101 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
             }
             return { id: item.stepId, state: (ok ? 'ok' : 'wrong') as StepState };
           });
-          const verdict = procedureVerdict(states.map((item) => item.state));
-          appendEvaluation(tx, clock, {
-            attemptId: attempt.id,
-            verdict,
-            source: self.length > 0 ? 'user' : 'rule',
-            proposedVerdict: verdict,
-            rubricVersion: 'steps-1',
-            contentVersionId: attempt.versionId,
-            components: { steps: states },
-            engineSignal: engineSignal({
-              verdict,
-              helpLevel: attempt.helpLevel,
-              optionsQuestion: false,
-            }),
-            cause: 'graded',
-          });
-          recomputeCardSchedule(tx, attempt.cardId);
+          grade(tx, attempt, states, { pending: false, byUser: self.length > 0 });
         }
-        const current = currentEvaluation(
-          tx.select().from(evaluations).where(eq(evaluations.attemptId, attempt.id)).all(),
-        );
+        const current = currentOf(tx, attempt.id);
         const states = JSON.parse(current?.components ?? '{"steps":[]}') as {
           steps: { id: string; state: StepState }[];
         };
+        const verdict = (current?.verdict ?? 'incorrect') as Verdict;
         return {
-          verdict: (current?.verdict ?? 'incorrect') as Verdict,
+          verdict,
           steps: states.steps.map((item) => ({
             id: item.id,
             state: item.state,
             position: steps.find((step) => step.id === item.id)?.position ?? 1,
           })),
-          ladder: ladderValue(tx, attempt.cardId, steps.length, attempt.id),
+          ladder: ladderValue(
+            tx,
+            attempt.cardId,
+            procedureOf(versionOf(tx, attempt.versionId)),
+            attempt.id,
+          ),
           nextReviewDay: cardOf(tx, attempt.cardId).nextReviewDay,
+          // Tras un fallo, qué sigue y por qué (CA-153).
+          diagnosis:
+            verdict === 'incorrect'
+              ? diagnosisFor(tx, { id: attempt.id, cardId: attempt.cardId, written: null })
+              : null,
         };
       });
     },
   };
 
-  // El envío: los resultados de los pasos numéricos se comparan acá; la ventana no decide nada.
-  function saveAttempt(tx: Writer, input: ProcedureAttemptInput): void {
-    const row = practicable(tx, input.cardId);
-    const procedure = procedureOf(row);
-    const count = procedure.steps.length;
-    const rungIndex = todaysRung(tx, input.cardId, count, studyDayOf(clock.now()));
-    const rung = rungAt(count, rungIndex);
-    const shown =
-      procedure.family === null ? null : variantOfOpening(tx, input.cardId, input.openingId);
-    if (procedure.family !== null && shown === null) {
+  function currentOf(tx: Writer, attemptId: string) {
+    return currentEvaluation(
+      tx.select().from(evaluations).where(eq(evaluations.attemptId, attemptId)).all(),
+    );
+  }
+
+  // Una versión de la evaluación con cómo quedó cada paso. «pending»: todavía puede cambiar (queda
+  // reintentar o comparar con el modelo), y mientras tanto vale: si te vas, el fallo no se pierde.
+  function grade(
+    tx: Writer,
+    attempt: Attempt,
+    states: readonly { id: string; state: StepState }[],
+    { pending, byUser }: { pending: boolean; byUser: boolean },
+  ): void {
+    const verdict = procedureVerdict(states.map((item) => item.state));
+    appendEvaluation(tx, clock, {
+      attemptId: attempt.id,
+      verdict,
+      source: byUser ? 'user' : 'rule',
+      proposedVerdict: verdict,
+      rubricVersion: 'steps-1',
+      contentVersionId: attempt.versionId,
+      components: { steps: states, ...(pending ? { pending: true } : {}) },
+      engineSignal: engineSignal({
+        verdict,
+        helpLevel: attempt.helpLevel,
+        optionsQuestion: false,
+      }),
+      cause: 'graded',
+    });
+    recomputeCardSchedule(tx, attempt.cardId);
+  }
+
+  function openedOf(tx: Writer, openingId: string) {
+    const row = tx
+      .select({ payload: observations.payload, schemaVersion: observations.schemaVersion })
+      .from(observations)
+      .where(eq(observations.idempotencyKey, `opened:${openingId}`))
+      .get();
+    return row ? readPayload('procedure.opened', row.schemaVersion, row.payload) : null;
+  }
+
+  function requireOpened(tx: Writer, cardId: string, openingId: string) {
+    const opened = openedOf(tx, openingId);
+    if (opened?.cardId !== cardId) {
       throw new ProcedureStepError('Falta abrir el procedimiento');
     }
+    return opened;
+  }
+
+  // Arma lo que se va a mostrar: el escalón de hoy, la variante y los pasos vacíos.
+  function show(tx: Writer, row: CardRow, openingId: string) {
+    const procedure = procedureOf(row);
+    const level = todaysRung(tx, row.id, procedure, studyDayOf(clock.now()));
+    const rung = rungAt(procedure, level);
+    const shown =
+      procedure.family === null
+        ? null
+        : showVariant(tx, clock, {
+            cardId: row.id,
+            versionId: row.versionId,
+            family: procedure.family,
+            openingId,
+          });
     const steps = resolveSteps(procedure, shown?.values ?? {});
     const blanks = new Set(
       blankStepIds(
@@ -560,11 +601,43 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
         steps.map((step) => step.id),
       ),
     );
+    // El punto de un micro-ejercicio superado vuelve acá, sin aviso.
     if (rung.kind !== 'example') {
-      for (const stepId of pendingReturnSteps(tx, input.cardId)) {
+      for (const stepId of pendingReturnSteps(tx, row.id)) {
         blanks.add(stepId);
       }
     }
+    const opened = {
+      cardId: row.id,
+      versionId: row.versionId,
+      openingId,
+      rung: level,
+      blanks: steps.filter((step) => blanks.has(step.id)).map((step) => step.id),
+    };
+    appendObservation(tx, clock, {
+      kind: 'procedure.opened',
+      payload: opened,
+      idempotencyKey: `opened:${openingId}`,
+      source: 'user',
+    });
+    return opened;
+  }
+
+  // El envío: los resultados de los pasos numéricos se comparan acá; la ventana no decide nada.
+  function saveAttempt(tx: Writer, input: ProcedureAttemptInput): void {
+    const row = practicable(tx, input.cardId);
+    // Se corrige lo que se mostró: el escalón, los pasos vacíos y la variante de la apertura.
+    const opened = requireOpened(tx, input.cardId, input.openingId);
+    const procedure = procedureOf(versionOf(tx, opened.versionId));
+    const rungIndex = opened.rung;
+    const rung = rungAt(procedure, rungIndex);
+    const shown =
+      procedure.family === null ? null : variantOfOpening(tx, input.cardId, input.openingId);
+    if (procedure.family !== null && shown === null) {
+      throw new ProcedureStepError('Falta abrir el procedimiento');
+    }
+    const steps = resolveSteps(procedure, shown?.values ?? {});
+    const blanks = new Set(opened.blanks);
     const open = steps.filter((step) => blanks.has(step.id));
     if (open.length === 0) {
       throw new ProcedureStepError('No hay pasos para completar');
@@ -588,11 +661,11 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
         ).length + 1;
     const levels: HelpLevel[] = [procedureHelpLevel(rung), maxHelpLevel(help)];
     const helpLevel = levels.sort().at(-1) as HelpLevel;
-    appendObservation(tx, clock, {
+    const observation = appendObservation(tx, clock, {
       kind: 'attempt.submitted',
       payload: {
         cardId: input.cardId,
-        versionId: row.versionId,
+        versionId: opened.versionId,
         activityType: 'procedure',
         openingId: input.openingId,
         attemptNo,
@@ -616,7 +689,7 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
               variant: {
                 n: shown.n,
                 values: shown.values,
-                isNew: isNewVariant(tx, input.cardId, shown.n),
+                isNew: isNewVariant(tx, input.cardId, shown.values),
               },
             }),
         procedure: {
@@ -630,6 +703,17 @@ export function createProceduresStore(db: ReteniaDatabase, clock: Clock): Proced
       },
       idempotencyKey: `attempt:${input.attemptId}`,
       source: 'user',
+    });
+    // La cuenta de los pasos numéricos ya se sabe: queda anotada al enviar. Uno de texto sin
+    // comparar vale como mal hasta que lo compares.
+    const attempt = attemptOf(tx, observation.id);
+    const states = (attempt.procedure?.checks ?? []).map((check) => ({
+      id: check.stepId,
+      state: (check.state === 'ok' ? 'ok' : 'wrong') as StepState,
+    }));
+    grade(tx, attempt, states, {
+      pending: states.some((item) => item.state !== 'ok'),
+      byUser: false,
     });
   }
 

@@ -1,5 +1,6 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Clock } from '../core/clock';
+import { canonicalJson } from '../core/organization';
 import { studyDayOf } from '../core/study-day';
 import { generateVariant, type VariantFamily } from '../core/variants';
 import { appendObservation, readPayload } from './ledger';
@@ -99,9 +100,16 @@ export function showVariant(
   return { n, values };
 }
 
-// Una variante «que no habías visto» (CA-165): nunca contestada, de un problema del que ya viste
-// otra.
-export function isNewVariant(db: Writer, cardId: string, n: number): boolean {
+// Una variante «que no habías visto» (CA-165): unos números que nunca contestaste, de un problema
+// del que ya viste otros. Se comparan los datos, no el número de orden: agotada la familia, vuelven
+// los mismos.
+export function isNewVariant(
+  db: Writer,
+  cardId: string,
+  values: Readonly<Record<string, number>>,
+): boolean {
   const { seen, practiced } = variantHistory(db, cardId);
-  return !practiced.has(n) && seen.some((item) => item.n !== n);
+  const key = canonicalJson(values);
+  const answered = seen.some((item) => practiced.has(item.n) && canonicalJson(item.values) === key);
+  return !answered && seen.some((item) => canonicalJson(item.values) !== key);
 }

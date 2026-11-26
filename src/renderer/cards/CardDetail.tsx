@@ -187,11 +187,13 @@ export function CardDetailView({
           )}
           {activity?.type === 'numeric' ? (
             <li>
-              {texts.cards.numericLine(
-                formatNumber(activity.value),
-                formatNumber(activity.tolerance),
-                activity.unit,
-              )}
+              {activity.family
+                ? texts.cards.variantNumericLine(formatNumber(activity.tolerance), activity.unit)
+                : texts.cards.numericLine(
+                    formatNumber(activity.value),
+                    formatNumber(activity.tolerance),
+                    activity.unit,
+                  )}
             </li>
           ) : null}
           {activity?.type === 'options'

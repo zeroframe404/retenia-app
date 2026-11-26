@@ -61,6 +61,7 @@ import { resultText } from './procedures';
 import { pendingCheckOf, recomputeCardSchedule } from './projections';
 import { cards, cardVersions, evaluations, observations } from './schema';
 import { runIncludes } from './sets';
+import { stepStatesOf } from './step-states';
 import { isNewVariant, showVariant, variantOfOpening } from './variants';
 
 // Las actividades de la Fase 16 (H-31 a H-33). Cada intento sobre un ejercicio es una observación
@@ -425,6 +426,26 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
       optionsQuestion: attempt.optionsQuestion,
       numericReason: evaluated.numericReason,
     });
+  }
+
+  // Las tres líneas de un intento ya guardado. Un procedimiento no se vuelve a corregir acá.
+  function savedParts(
+    tx: Writer,
+    attempt: StoredAttempt,
+    verdict: Verdict,
+    marked: readonly string[],
+  ): ResultParts {
+    if (attempt.activityType === 'procedure') {
+      return resultParts({
+        type: 'procedure',
+        verdict,
+        used: attempt.help,
+        optionsQuestion: false,
+      });
+    }
+    const version = versionOf(tx, attempt.versionId);
+    const evaluated = evaluate(version, attempt.answer, marked, attempt.variant?.values);
+    return partsOf(attempt, verdict, evaluated);
   }
 
   const nextDayOf = (tx: Writer, cardId: string) => cardOf(tx, cardId).nextReviewDay;
@@ -800,6 +821,10 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
           activity.type === 'numeric' && activity.family
             ? variantOfOpening(tx, input.cardId, input.openingId)
             : null;
+        // Con variantes, solo se corrige la que se mostró.
+        if (activity.type === 'numeric' && activity.family && !shown) {
+          throw new HelpNotAvailableError();
+        }
         const evaluated = evaluate(row, input.answer, [], shown?.values);
         if (activity.type === 'procedure' || activity.type === 'interleaved') {
           throw new AnswerTypeMismatchError();
@@ -843,7 +868,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
                   variant: {
                     n: shown.n,
                     values: { ...shown.values },
-                    isNew: isNewVariant(tx, input.cardId, shown.n),
+                    isNew: isNewVariant(tx, input.cardId, shown.values),
                   },
                 }),
           },
@@ -999,12 +1024,24 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             }
           }
           const latest = activeCard(tx, attempt.cardId);
-          const reevaluated = evaluate(
-            versionOf(tx, latest.versionId),
-            attempt.answer,
-            markedOf(before.components),
-            attempt.variant?.values,
-          );
+          // En un procedimiento, todos los pasos quedan bien; en lo demás se vuelve a corregir.
+          const reevaluated =
+            attempt.activityType === 'procedure'
+              ? {
+                  proposed: before.proposedVerdict,
+                  components: {
+                    steps: (stepStatesOf([{ ...before, affected: 0 }]) ?? []).map((step) => ({
+                      id: step.id,
+                      state: 'ok',
+                    })),
+                  },
+                }
+              : evaluate(
+                  versionOf(tx, latest.versionId),
+                  attempt.answer,
+                  markedOf(before.components),
+                  attempt.variant?.values,
+                );
           const byRule = reevaluated.proposed === 'correct' && attempt.activityType !== 'open';
           appendEvaluation(tx, clock, {
             attemptId,
@@ -1090,12 +1127,6 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
         });
         const final = (currentEvaluation(evaluationsOf(tx, attemptId))?.verdict ??
           beforeVerdict) as Verdict;
-        const evaluated = evaluate(
-          versionOf(tx, attempt.versionId),
-          attempt.answer,
-          markedOf(before.components),
-          attempt.variant?.values,
-        );
         return {
           kind: 'amended',
           notice: {
@@ -1110,7 +1141,7 @@ export function createActivitiesStore(db: ReteniaDatabase, clock: Clock): Activi
             inReview: reason !== 'answer_correct',
           },
           verdict: final,
-          parts: partsOf(attempt, final, evaluated),
+          parts: savedParts(tx, attempt, final, markedOf(before.components)),
         };
       });
     },

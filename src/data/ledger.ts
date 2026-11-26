@@ -350,6 +350,21 @@ const PAYLOADS = {
       values: variantValues,
     }),
   },
+  // Lo que se mostró al abrir un procedimiento: la versión, el escalón y los pasos vacíos. Es lo
+  // que después se corrige, aunque en el medio cambie el día de estudio.
+  'procedure.opened': {
+    1: z.strictObject({
+      cardId: z.uuid(),
+      versionId: z.uuid(),
+      openingId: z.uuid(),
+      rung: z.number().int().nonnegative(),
+      blanks: z.array(z.string()),
+    }),
+  },
+  // «Crear tarjeta de contraste»: el mismo pedido crea una sola. `cardId` es la tarjeta nueva.
+  'contrast.created': {
+    1: z.strictObject({ cardId: z.uuid(), requestId: z.uuid(), attemptId: z.uuid() }),
+  },
   // El ejemplo completo de un procedimiento, con lo que contestaste en «¿Por qué este paso?» (se
   // guarda; no se califica).
   'procedure.studied': {
@@ -456,6 +471,8 @@ const CURRENT_VERSION = {
   'card.improved': 1,
   'mistake.type_set': 1,
   'variant.seen': 1,
+  'procedure.opened': 1,
+  'contrast.created': 1,
   'procedure.studied': 1,
   'procedure.step_retried': 1,
   'procedure.revealed': 1,

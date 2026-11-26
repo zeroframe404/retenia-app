@@ -1,6 +1,6 @@
 import { MAX_TYPES, MIN_TYPES } from '../interleave';
 import { type ProcedureProblem, validateProcedure } from '../procedure/steps';
-import { generateVariant, validateFamily } from '../variants/family';
+import { generateVariant, validateFamily, variantCount } from '../variants/family';
 import { evaluateFormula } from '../variants/formula';
 import { normalizeShortAnswer } from './short';
 import type { Activity } from './types';
@@ -53,7 +53,9 @@ function badFamily(activity: Extract<Activity, { type: 'numeric' }>): boolean {
     return true;
   }
   try {
-    evaluateFormula(formula, generateVariant(family, 'check', 0).values);
+    for (let n = 0; n < variantCount(family); n += 1) {
+      evaluateFormula(formula, generateVariant(family, 'check', n).values);
+    }
     return false;
   } catch {
     return true;

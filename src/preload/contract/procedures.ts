@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { helpUseSchema, verdictSchema } from './activities';
+import { diagnosisSchema, helpUseSchema, verdictSchema } from './activities';
 import { day } from './common';
 
 // Canales de la Fase 18 (H-37 a H-39): el procedimiento con su escalera de apoyo y su corrección por
@@ -129,6 +129,8 @@ export const procedureFinishResponse = z.strictObject({
   steps: z.array(z.strictObject({ id: itemId, position, state: z.enum(['ok', 'fixed', 'wrong']) })),
   ladder: ladderSchema,
   nextReviewDay: day.nullable(),
+  // Tras un fallo, qué sigue y por qué (CA-153).
+  diagnosis: diagnosisSchema.nullable(),
 });
 export type ProcedureResult = z.output<typeof procedureFinishResponse>;
 

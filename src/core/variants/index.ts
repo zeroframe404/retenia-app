@@ -1,6 +1,7 @@
 export {
   formatValue,
   generateVariant,
+  placeholdersOf,
   renderTemplate,
   type VariantFamily,
   type VariantValues,

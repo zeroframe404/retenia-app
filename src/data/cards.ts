@@ -17,7 +17,7 @@ import {
   referenceText,
   validateActivity,
 } from '../core/evaluation';
-import { setProblems } from '../core/interleave';
+import { SET_ACTIVITIES, setProblems } from '../core/interleave';
 import { newCardsCost } from '../core/load';
 import { type DueExplanation, type Grade, type HelpLevel, verdictOfGrade } from '../core/memory';
 import { canonicalJson } from '../core/organization';
@@ -35,6 +35,7 @@ import type {
   CardSheetInput,
   SheetStateValue,
 } from '../preload/contract/cards';
+import { texts } from '../preload/contract/texts';
 import {
   CardOutOfReviewsError,
   CardPausedError,
@@ -140,6 +141,13 @@ function activityJson(activity: Activity | null | undefined): {
   return { activityType: activity.type, activity: JSON.stringify(activity) };
 }
 
+// Todo lo que un problema puede mostrar como enunciado: su pregunta y los de sus variantes.
+export function shownStatements(row: { question: string; activity: string | null }): string {
+  const activity = parsedActivity(row);
+  const family = activity?.type === 'numeric' ? activity.family : null;
+  return [row.question, ...(family?.statements ?? [])].join(' ¦ ');
+}
+
 // Un conjunto intercalado (CA-162): sus problemas son ejercicios de la misma materia y ninguno
 // nombra un tipo en el enunciado.
 function assertSetProblems(tx: Writer, activity: Activity, subjectId: string | null): void {
@@ -150,11 +158,14 @@ function assertSetProblems(tx: Writer, activity: Activity, subjectId: string | n
   const statements = new Map<string, string>();
   for (const cardId of activity.types.flatMap((type) => type.cardIds)) {
     const row = findCard(tx, cardId);
-    if (!row || row.deletedAt !== null || row.activityType === null) {
+    if (!row || row.deletedAt !== null) {
       throw new InvalidActivityError(['typesEmpty']);
     }
+    if (!SET_ACTIVITIES.includes(row.activityType ?? '')) {
+      throw new InvalidActivityError(['unsupported']);
+    }
     subjectsOf.set(cardId, row.subjectId);
-    statements.set(cardId, row.question);
+    statements.set(cardId, shownStatements(row));
   }
   const problems = setProblems(activity.types, { subjects: subjectsOf, statements });
   if ([...subjectsOf.values()].some((own) => own !== subjectId)) {
@@ -166,8 +177,16 @@ function assertSetProblems(tx: Writer, activity: Activity, subjectId: string | n
 }
 
 function answerFor(activity: Activity | null | undefined, given: string): string {
+  // Con variantes no hay una respuesta fija (y la cuenta no es para mostrar).
+  if (activity?.type === 'numeric' && activity.family) {
+    return texts.cards.variantAnswer;
+  }
   return activity ? (referenceText(activity) ?? given) : given;
 }
+
+// El procedimiento y el conjunto son siempre de práctica: la escalera ya decide cuánta ayuda hay.
+const alwaysPractice = (activityType: string | null | undefined) =>
+  activityType === 'procedure' || activityType === 'interleaved';
 
 export function parsedActivity(row: { activity: string | null }): ActivityValue | null {
   return row.activity === null ? null : (JSON.parse(row.activity) as ActivityValue);
@@ -643,7 +662,10 @@ export function createCardsStore(
             ...activityJson(input.activity),
             example: input.example?.trim() ?? '',
             // La tarjeta de siempre es siempre de práctica.
-            mode: input.activity ? (input.mode ?? 'practice') : 'practice',
+            mode:
+              input.activity && !alwaysPractice(input.activity.type)
+                ? (input.mode ?? 'practice')
+                : 'practice',
           })
           .run();
         recomputeCardSchedule(tx, cardId);
@@ -827,7 +849,9 @@ export function createCardsStore(
         const textChanged = current.question !== question || current.answer !== answer;
         // Volver a la tarjeta de siempre deja el modo en práctica (no hay dónde verlo).
         const nextMode =
-          nextActivity.activity === null ? 'practice' : (mode ?? asMode(current.mode));
+          nextActivity.activity === null || alwaysPractice(nextActivity.activityType)
+            ? 'practice'
+            : (mode ?? asMode(current.mode));
         const sheetChanged =
           sheetKey(currentSheet) !== sheetKey(nextSheet) ||
           nextActivity.activity !== current.activity ||

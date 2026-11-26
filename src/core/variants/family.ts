@@ -29,9 +29,8 @@ export interface Variant {
   readonly values: VariantValues;
 }
 
-const MAX_COMBINATIONS = 1_000_000_000;
-// Cuántas variantes se prueban al validar (todas, si la familia es chica).
-const CHECKED_VARIANTS = 500;
+// El tope de combinaciones: así se prueban todas al guardar.
+const MAX_COMBINATIONS = 10_000;
 
 export function variantCount(family: VariantFamily): number {
   return family.parameters.reduce((count, parameter) => count * parameter.values.length, 1);
@@ -81,7 +80,7 @@ export function renderTemplate(template: string, values: VariantValues): string 
   });
 }
 
-function placeholdersOf(template: string): string[] {
+export function placeholdersOf(template: string): string[] {
   return [...template.matchAll(PLACEHOLDER)].map((match) => match[1] ?? '');
 }
 
@@ -134,7 +133,7 @@ export function validateFamily(family: VariantFamily): FamilyProblem[] {
     return ['tooMany'];
   }
   try {
-    for (let n = 0; n < Math.min(count, CHECKED_VARIANTS); n += 1) {
+    for (let n = 0; n < count; n += 1) {
       generateVariant(family, 'check', n);
     }
   } catch {

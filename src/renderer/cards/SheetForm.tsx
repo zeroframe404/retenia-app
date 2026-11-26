@@ -16,6 +16,10 @@ import { Dialog } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import cardStyles from './Cards.module.css';
 
+// Los ejercicios que pueden ser un problema de un conjunto: los que se contestan en el momento (el
+// principal lo vuelve a comprobar al guardar).
+const SET_EXERCISE_TYPES: readonly string[] = ['short', 'numeric', 'options', 'order', 'open'];
+
 const STATES = ['reviewed', 'verified', 'in_review', 'retired'] as const;
 // Un campo por componente y por pista, con un nombre fijo (no por su posición).
 const ESSENTIAL_SLOTS = ['primero', 'segundo', 'tercero', 'cuarto'] as const;
@@ -170,7 +174,7 @@ export function SheetForm({
         if (live) {
           setExercises(
             cards
-              .filter((item) => item.activityType !== 'interleaved')
+              .filter((item) => SET_EXERCISE_TYPES.includes(item.activityType ?? ''))
               .map((item) => ({ id: item.id, question: item.question })),
           );
         }
@@ -476,7 +480,10 @@ export function SheetForm({
           onChange={(event) => setExample(event.target.value)}
         />
       </div>
-      {draft.type === 'card' ? null : (
+      {/* El procedimiento y el conjunto son siempre de práctica. */}
+      {draft.type === 'card' ||
+      draft.type === 'procedure' ||
+      draft.type === 'interleaved' ? null : (
         <div className={styles.field}>
           <label htmlFor={`${ids}-modo`}>{texts.practice.editor.mode}</label>
           <select

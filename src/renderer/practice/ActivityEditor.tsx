@@ -351,7 +351,10 @@ export function activityOf(
 export function answerOf(activity: ActivityValue): string | null {
   switch (activity.type) {
     case 'numeric':
-      return `${decimal.format(activity.value)}${activity.unit === null ? '' : ` ${activity.unit}`}`;
+      // Con variantes no hay una respuesta fija.
+      return activity.family
+        ? texts.cards.variantAnswer
+        : `${decimal.format(activity.value)}${activity.unit === null ? '' : ` ${activity.unit}`}`;
     case 'options':
       return activity.options.find((option) => option.correct)?.text ?? null;
     case 'order':

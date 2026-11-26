@@ -132,6 +132,7 @@ const SAMPLES: Record<string, unknown[]> = {
   'texts.cards.stepLine': [1, 'Ordenar los datos de menor a mayor'],
   'texts.cards.unitLine': [2, 'Si se repitiera el muestreo…'],
   'texts.cards.numericLine': ['5', '0,05', null],
+  'texts.cards.variantNumericLine': ['0,05', null],
   'texts.practice.inUnit': ['minutos'],
   'texts.practice.moveUp': ['Contar cuántos datos hay'],
   'texts.practice.moveDown': ['Contar cuántos datos hay'],

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MicroProposal, SetRun, SetSummary } from '../../preload/contract/procedures';
 import { texts } from '../../preload/contract/texts';
 import { Boton } from '../ui/Boton';
@@ -25,7 +25,12 @@ export function SetView({
   onEditReference: (cardId: string, field: ReferenceField) => void;
   onOpenOriginal?: ((materialId: string) => void) | undefined;
 }) {
-  const [runId] = useState(() => crypto.randomUUID());
+  // La vuelta que se pide; si quedó una de hoy a medias, el principal responde con esa y desde
+  // ahí se sigue con la suya.
+  const runId = useRef('');
+  if (runId.current === '') {
+    runId.current = crypto.randomUUID();
+  }
   const [run, setRun] = useState<SetRun | null>(null);
   const [summary, setSummary] = useState<SetSummary | null>(null);
   const [failed, setFailed] = useState(false);
@@ -35,7 +40,10 @@ export function SetView({
   const advance = useCallback(async () => {
     setFailed(false);
     try {
-      const next = await window.retenia['sets.open']({ cardId, runId });
+      const next = await window.retenia['sets.open']({ cardId, runId: runId.current });
+      if (next.kind === 'run') {
+        runId.current = next.runId;
+      }
       if (next.kind === 'run' && next.nextCardId === null) {
         setSummary(await window.retenia['sets.summary']({ runId: next.runId }));
       }
@@ -43,7 +51,7 @@ export function SetView({
     } catch {
       setFailed(true);
     }
-  }, [cardId, runId]);
+  }, [cardId]);
 
   useEffect(() => {
     void advance();

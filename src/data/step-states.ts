@@ -4,6 +4,11 @@ import type { StepState } from '../core/procedure';
 // Cómo terminó cada paso vacío de un intento ya evaluado de un procedimiento, según su evaluación
 // vigente (nulo si quedó sin evaluar o «Discrepo» lo dejó sin contar). Lo usan la escalera, el
 // micro-ejercicio y «Mis errores».
+// Una evaluación de un procedimiento que todavía puede cambiar (queda reintentar o comparar).
+export function isPending(components: string | null | undefined): boolean {
+  return components != null && (JSON.parse(components) as { pending?: boolean }).pending === true;
+}
+
 export function stepStatesOf(
   versions: readonly {
     id: string;

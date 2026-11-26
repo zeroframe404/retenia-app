@@ -3,6 +3,7 @@ import type { HelpLevel, Verdict } from '../memory';
 import {
   evaluateFormula,
   generateVariant,
+  placeholdersOf,
   renderTemplate,
   type VariantFamily,
   type VariantValues,
@@ -130,13 +131,11 @@ export type ProcedureProblem =
   | 'tolerance'
   | 'repeatedId'
   | 'family'
-  | 'formula';
+  | 'formula'
+  | 'unknownName';
 
 const MIN_STEPS = 2;
 const MAX_STEPS = 8;
-// Con cuántas variantes se prueba que las cuentas den un número.
-const CHECKED_VARIANTS = 50;
-
 const blank = (text: string) => text.trim() === '';
 
 export function validateProcedure(procedure: Procedure): ProcedureProblem[] {
@@ -167,8 +166,21 @@ export function validateProcedure(procedure: Procedure): ProcedureProblem[] {
     problems.add('family');
     return [...problems];
   }
+  // Un «{dato}» que la familia no tiene se vería tal cual en pantalla.
+  const known = new Set(
+    family === null ? [] : [...family.parameters, ...family.derived].map((item) => item.name),
+  );
+  const shown = steps.flatMap((step) => [
+    step.prompt,
+    step.explanation,
+    step.expected.type === 'text' ? step.expected.text : '',
+  ]);
+  if (shown.some((template) => placeholdersOf(template).some((name) => !known.has(name)))) {
+    problems.add('unknownName');
+  }
   try {
-    const count = family === null ? 1 : Math.min(variantCount(family), CHECKED_VARIANTS);
+    // Con todas las variantes: ninguna puede fallar al practicar.
+    const count = family === null ? 1 : variantCount(family);
     for (let n = 0; n < count; n += 1) {
       resolveSteps(procedure, family === null ? {} : generateVariant(family, 'check', n).values);
     }
