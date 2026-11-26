@@ -91,8 +91,11 @@ export function check(
   cardId: string,
   session: ReturnType<typeof open>,
   wrong: readonly string[] = [],
+  // Desde qué sesión de Estudiar sale el envío.
+  studySessionId?: string,
 ) {
   return space.workspace.procedures.check({
+    ...(studySessionId === undefined ? {} : { studySessionId }),
     cardId,
     openingId: session.openingId,
     attemptId: randomUUID(),

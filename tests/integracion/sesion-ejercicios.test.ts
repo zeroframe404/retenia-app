@@ -1,8 +1,16 @@
-import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { demoClock } from '../../src/core/clock';
-import { openSpace, type Space } from '../apoyo/espacio';
+import { openSpace } from '../apoyo/espacio';
 import { cardNamed, movableClock, open, PROCEDURE_TITLE, practice } from '../apoyo/procedimiento';
+import {
+  answer,
+  type Current,
+  currentOf,
+  done,
+  gradeCard,
+  startSession,
+  untilExercise,
+} from '../apoyo/sesion-ejercicios';
 
 // Los ejercicios en la sesión de Estudiar (Fase 18, decisión del 24/11/2026). En la demostración,
 // los 4 ejercicios con historial vuelven el 16/03; el 15/03 la propuesta es la de siempre.
@@ -14,88 +22,7 @@ const SEEDED = [
   'En una empresa, cinco personas ganan entre 500 y 560',
 ];
 
-type Current = NonNullable<ReturnType<Space['workspace']['study']['view']>['current']>;
-
 const nextDaySpace = () => openSpace({ withCast: 'tarjetas', clock: demoClock(1) });
-
-function startSession(space: Space, minutes: 5 | 10 | 25 | 45 = 25) {
-  const sessionId = randomUUID();
-  const view = space.workspace.study.start({ sessionId, minutes });
-  return { sessionId, view };
-}
-
-const currentOf = (space: Space, sessionId: string): Current => {
-  const { current } = space.workspace.study.view({ sessionId });
-  if (!current) {
-    throw new Error('La sesión no tiene actividad actual');
-  }
-  return current;
-};
-
-function gradeCard(space: Space, sessionId: string, current: Current) {
-  return space.workspace.study.grade({
-    sessionId,
-    activityId: current.activityId,
-    attemptId: randomUUID(),
-    grade: 'good',
-    answer: null,
-    activeMs: 1000,
-  });
-}
-
-// Califica tarjetas hasta que la actividad actual sea un ejercicio.
-function untilExercise(space: Space, sessionId: string): Current {
-  for (let turn = 0; turn < 120; turn += 1) {
-    const current = currentOf(space, sessionId);
-    if (current.card.activityType !== null) {
-      return current;
-    }
-    gradeCard(space, sessionId, current);
-  }
-  throw new Error('No apareció ningún ejercicio');
-}
-
-// «Enviar» y «Siguiente» sobre un numérico o una decisión del elenco.
-function answer(space: Space, cardId: string, { right = true }: { right?: boolean } = {}) {
-  const openingId = randomUUID();
-  const attemptId = randomUUID();
-  const activity = space.workspace.cards.get({ cardId }).activity;
-  space.workspace.activities.start({ cardId, openingId });
-  let reply: Parameters<Space['workspace']['activities']['submit']>[0]['answer'];
-  if (activity?.type === 'numeric') {
-    reply = { type: 'numeric', raw: right ? String(activity.value).replace('.', ',') : '999999' };
-  } else if (activity?.type === 'decision') {
-    const option = activity.options.find((item) => item.correct === right);
-    reply = {
-      type: 'decision',
-      optionId: option?.id ?? '',
-      shown: activity.options.map((item) => item.id),
-    };
-  } else {
-    throw new Error(`No sé contestar un ${activity?.type}`);
-  }
-  const result = space.workspace.activities.submit({
-    cardId,
-    openingId,
-    attemptId,
-    attemptNo: 1,
-    answer: reply,
-    help: [],
-    noIdea: false,
-    shownAt: '2027-03-16T13:00:00.000Z',
-    firstInputMs: 1000,
-    submittedMs: 2000,
-  });
-  space.workspace.activities.finalize({
-    attemptId: result.attemptId,
-    verdict: result.proposed,
-    marked: [],
-  });
-  return result.attemptId;
-}
-
-const done = (space: Space, sessionId: string, activityId: string) =>
-  space.workspace.study.exerciseDone({ sessionId, activityId, activeMs: 30_000 });
 
 describe('qué ejercicios entran en Estudiar', () => {
   it('el 15/03 ninguno: la propuesta de la demostración sigue en 60 repasos y 10 nuevas', () => {
@@ -119,7 +46,7 @@ describe('qué ejercicios entran en Estudiar', () => {
         gradeCard(space, sessionId, current);
       } else {
         seen.push(current.card.question);
-        answer(space, current.cardId);
+        answer(space, current.cardId, { sessionId });
         done(space, sessionId, current.activityId);
       }
     }
@@ -142,7 +69,7 @@ describe('qué ejercicios entran en Estudiar', () => {
         }
       } else {
         positions.push(position);
-        answer(space, current.cardId);
+        answer(space, current.cardId, { sessionId });
         done(space, sessionId, current.activityId);
       }
     }
@@ -169,7 +96,7 @@ describe('qué ejercicios entran en Estudiar', () => {
         gradeCard(space, sessionId, current);
       } else {
         cards.push(current.cardId);
-        answer(space, current.cardId);
+        answer(space, current.cardId, { sessionId });
         done(space, sessionId, current.activityId);
       }
     }
@@ -184,7 +111,7 @@ describe('contestar un ejercicio dentro de la sesión', () => {
     const { sessionId } = startSession(space);
     const exercise = untilExercise(space, sessionId);
     const before = space.workspace.study.view({ sessionId }).progress.done;
-    answer(space, exercise.cardId);
+    answer(space, exercise.cardId, { sessionId });
     const after = done(space, sessionId, exercise.activityId);
     expect(after.progress.done).toBe(before + 1);
     expect(after.current?.cardId).not.toBe(exercise.cardId);
@@ -206,7 +133,7 @@ describe('contestar un ejercicio dentro de la sesión', () => {
     const { sessionId } = startSession(space);
     const exercise = untilExercise(space, sessionId);
     const dueBefore = space.workspace.cards.get({ cardId: exercise.cardId }).nextReviewDay;
-    answer(space, exercise.cardId, { right: false });
+    answer(space, exercise.cardId, { right: false, sessionId });
     done(space, sessionId, exercise.activityId);
     const summary = space.workspace.study.summary({ sessionId });
     expect(summary.results.again).toBe(1);
@@ -220,7 +147,7 @@ describe('contestar un ejercicio dentro de la sesión', () => {
     const space = nextDaySpace();
     const { sessionId } = startSession(space);
     const exercise = untilExercise(space, sessionId);
-    answer(space, exercise.cardId);
+    answer(space, exercise.cardId, { sessionId });
     space.workspace.study.pause({ sessionId });
     const resumed = space.workspace.study.resume({ sessionId });
     expect(resumed.current?.activityId).not.toBe(exercise.activityId);
@@ -241,7 +168,7 @@ describe('contestar un ejercicio dentro de la sesión', () => {
     const space = nextDaySpace();
     const { sessionId } = startSession(space);
     const exercise = untilExercise(space, sessionId);
-    const attemptId = answer(space, exercise.cardId, { right: false });
+    const { attemptId } = answer(space, exercise.cardId, { right: false, sessionId });
     space.workspace.activities.appeal({
       attemptId,
       reason: 'ambiguous',
@@ -281,7 +208,7 @@ describe('un procedimiento en la sesión', () => {
       } else if (current.cardId === procedure.id) {
         found = current;
       } else {
-        answer(space, current.cardId);
+        answer(space, current.cardId, { sessionId });
         done(space, sessionId, current.activityId);
       }
     }
@@ -294,6 +221,7 @@ describe('un procedimiento en la sesión', () => {
     space.workspace.procedures.studied({
       cardId: procedure.id,
       openingId: session.openingId,
+      studySessionId: sessionId,
       why: session.view.steps
         .filter((step) => step.key)
         .map((step) => ({ stepId: step.id, text: 'Porque achica el error.' })),

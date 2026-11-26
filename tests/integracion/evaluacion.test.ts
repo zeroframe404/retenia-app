@@ -4,6 +4,7 @@ import { type Clock, demoClock } from '../../src/core/clock';
 import type { Activity } from '../../src/core/evaluation';
 import { readRows } from '../apoyo/base-cruda';
 import { closeSpaces, openSpace, type Space } from '../apoyo/espacio';
+import { untilExercise } from '../apoyo/sesion-ejercicios';
 
 // Fase 16 (H-31 a H-33), con la base real: cada intento queda en el libro mayor, su evaluación se
 // enmienda agregando versiones y la agenda se recalcula desde el historial; «Deshacer» agrega otra
@@ -572,8 +573,31 @@ describe('ejercicios en la lista y en la cola', () => {
     untouched.advance(1);
     const after = withExercise.workspace.study.overview();
     const control = withoutExercise.workspace.study.overview();
-    expect(after.dueCount).toBe(control.dueCount + 1);
-    expect(after.proposal?.why.due).toBe((control.proposal?.why.due ?? 0) + 1);
+    const base = control.proposal;
+    if (!base || !after.proposal) {
+      throw new Error('falta la propuesta');
+    }
+    // Un vencido más: como la sesión ya estaba llena, entra y una tarjeta pasa a mañana; sus 2
+    // minutos atrasados suben el atraso a medio día. Lo demás queda igual.
+    expect(after).toEqual({
+      ...control,
+      dueCount: control.dueCount + 1,
+      proposal: {
+        ...base,
+        forTomorrow: base.forTomorrow + 1,
+        why: { ...base.why, due: base.why.due + 1 },
+        brake: { band: 'half', days: 0.5 },
+        // Con el freno a la mitad, las otras actividades traen menos tarjetas nuevas.
+        alternatives: after.proposal.alternatives,
+      },
+    });
+    expect(after.proposal.alternatives.map(({ kind, reviews }) => [kind, reviews])).toEqual(
+      base.alternatives.map(({ kind, reviews }) => [kind, reviews]),
+    );
+    // Y el que entra es ese ejercicio.
+    const sessionId = randomUUID();
+    withExercise.workspace.study.start({ sessionId });
+    expect(untilExercise(withExercise, sessionId, created.id).cardId).toBe(created.id);
   });
 });
 
