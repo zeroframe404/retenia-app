@@ -14,8 +14,9 @@ type StudyMark = 'shown' | 'firstInteraction' | 'answerRequested';
 export interface StudyTimer {
   // Empieza (o retoma) a medir una sesión.
   begin(sessionId: string): void;
-  // Lo activo desde el paso anterior de esa sesión (como mucho el tope); vuelve a medir desde acá.
-  step(sessionId: string): number;
+  // Lo activo desde el paso anterior de esa sesión (como mucho el tope, o el que se le pase);
+  // vuelve a medir desde acá.
+  step(sessionId: string, cap?: number): number;
   // Deja de medir (al pausar o terminar) y devuelve lo que quedaba.
   stop(sessionId: string): number;
   // Lo que quedaba de la sesión que se estaba midiendo, sea cual sea (al cerrar la ventana).
@@ -42,16 +43,16 @@ export function createStudyTimer(
       answerRequestedMs: number | null;
     }
   >();
-  const capped = (ms: number) => Math.min(capMs(), Math.round(ms));
+  const capped = (ms: number, cap: number) => Math.min(cap, Math.round(ms));
 
-  const take = (sessionId: string, restart: boolean): number => {
+  const take = (sessionId: string, restart: boolean, cap: number = capMs()): number => {
     if (running?.sessionId !== sessionId) {
       if (restart) {
         running = { sessionId, elapsed: stopwatch.start() };
       }
       return 0;
     }
-    const ms = capped(running.elapsed());
+    const ms = capped(running.elapsed(), cap);
     running = restart ? { sessionId, elapsed: stopwatch.start() } : null;
     return ms;
   };
@@ -60,7 +61,7 @@ export function createStudyTimer(
     begin(sessionId) {
       running = { sessionId, elapsed: stopwatch.start() };
     },
-    step: (sessionId) => take(sessionId, true),
+    step: (sessionId, cap) => take(sessionId, true, cap),
     stop: (sessionId) => take(sessionId, false),
     stopAny() {
       return running ? take(running.sessionId, false) : 0;

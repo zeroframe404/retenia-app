@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { Clock } from '../core/clock';
 import {
   type Attempt,
+  activitySeconds,
   type Brake,
   backlogDays,
   brakeWithRecovery,
@@ -259,6 +260,9 @@ export function reviewsToOffer(
       siblingGroupId: card.siblingGroupId,
       postponements: state?.count ?? 0,
       topicId: card.topicId,
+      ...(card.activityType === null
+        ? {}
+        : { exercise: true, seconds: activitySeconds(card.activityType, 0) }),
     });
   }
   return { due, offered, postponedCount };
@@ -288,7 +292,11 @@ export function gather(
     }),
   );
   const capacity = dailyMinutesOf(db, clock, defaultMinutes);
-  const backlog = backlogDays((late.length * estimates.reviewSeconds) / 60, capacity);
+  const lateSeconds = late.reduce(
+    (sum, card) => sum + activitySeconds(card.activityType, estimates.reviewSeconds),
+    0,
+  );
+  const backlog = backlogDays(lateSeconds / 60, capacity);
   const past = readSetting(db, BACKLOG_KEY, backlogSetting, []).filter(
     (entry) => entry.day < today,
   );

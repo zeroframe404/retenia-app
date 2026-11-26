@@ -1249,6 +1249,40 @@ async function phase18(page) {
     .first()
     .waitFor();
   await shoot(page, '17-editor-conjunto');
+
+  // Los ejercicios en la sesión de Estudiar: al otro día vuelven los que quedaron vencidos.
+  await goToDestination(page, 'Ajustes');
+  await page.getByRole('button', { name: '+1 día' }).click();
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  const show = page.getByRole('button', { name: 'Mostrar respuesta' });
+  const exercise = page.getByRole('region', { name: 'Ejercicio' });
+  const progress = page.getByRole('status', { name: /^Llevás/ });
+  for (let turn = 0; turn < 60; turn += 1) {
+    await show.or(exercise).waitFor();
+    if (await exercise.isVisible()) {
+      break;
+    }
+    const before = await progress.innerText();
+    await show.click();
+    await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+    await page.waitForFunction(
+      ([text]) =>
+        document.querySelector('[role="status"][aria-label^="Llevás"]')?.textContent !== text,
+      [before],
+    );
+  }
+  await exercise.getByRole('button', { name: 'Enviar' }).waitFor();
+  await shoot(page, '18-ejercicio-en-la-sesion');
+  const number = exercise.getByRole('textbox', { name: 'Tu respuesta, con coma o con punto' });
+  if (await number.count()) {
+    await number.fill('1');
+  } else {
+    await exercise.getByRole('radio').first().check();
+  }
+  await exercise.getByRole('button', { name: 'Enviar' }).click();
+  await exercise.getByRole('button', { name: 'Siguiente' }).scrollIntoViewIfNeeded();
+  await shoot(page, '19-ejercicio-en-la-sesion-corregido');
 }
 
 /** @param {import('@playwright/test').Page} page */

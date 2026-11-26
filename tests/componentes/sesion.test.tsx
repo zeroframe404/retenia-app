@@ -189,8 +189,9 @@ describe('sesión de estudio en la ventana', () => {
       await user.keyboard(' 3');
     }
     expect(await screen.findByRole('heading', { name: /^Sesión terminada/ })).toBeTruthy();
-    // Mañana vuelven los 15 que ya vencían el 16/03 y los 15 que no entraron en los 10 minutos.
-    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 30.')).toBeTruthy();
+    // Mañana vuelven los 15 que ya vencían el 16/03, los 15 que no entraron en los 10 minutos y,
+    // desde la Fase 18, los 4 ejercicios del elenco con el repaso para el 16/03.
+    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 34.')).toBeTruthy();
     expect(screen.queryByText(/^Quedan \d+ repasos para hoy/)).toBeNull();
   });
 
@@ -212,7 +213,8 @@ describe('sesión de estudio en la ventana', () => {
     expect(screen.getByText('No la sabía: 1')).toBeTruthy();
     expect(screen.getByText('Media y dispersión: ¿Qué mide el desvío estándar?')).toBeTruthy();
     // La sesión de 25 minutos toma los 60 repasos de hoy: no queda ninguno y se dice cuántos vencen mañana.
-    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 16.')).toBeTruthy();
+    // Desde la Fase 18 también cuentan los 4 ejercicios del elenco que vencen el 16/03.
+    expect(screen.getByText('Por hoy no quedan repasos. Mañana vencen 20.')).toBeTruthy();
     expect(screen.getByText('Completar la sesión no equivale a dominar el tema')).toBeTruthy();
     expect(document.body.textContent ?? '').not.toMatch(/dominad[oa]s?/i);
     expect(

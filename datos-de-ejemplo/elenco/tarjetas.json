@@ -1493,23 +1493,28 @@
   "intentos": [
     {
       "pregunta": "Cinco amigos juntaron 4, 6, 7, 8 y 10 pesos. Si repartieran todo en partes iguales, ¿cuántos pesos tendría cada uno?",
-      "fecha": "2027-03-09T14:00:00.000Z",
+      "fecha": "2027-03-14T14:00:00.000Z",
       "respuesta": "7"
     },
     {
       "pregunta": "Los sueldos de cinco personas son 560, 500, 2000, 540 y 520. ¿Qué sueldo tiene dos por debajo y dos por encima?",
-      "fecha": "2027-03-10T14:00:00.000Z",
+      "fecha": "2027-03-14T14:05:00.000Z",
       "respuesta": "540"
     },
     {
       "pregunta": "Una zapatería vendió hoy los talles 38, 40, 40, 41, 40, 39 y 41. ¿Qué talle se pidió más veces?",
-      "fecha": "2027-03-11T14:00:00.000Z",
+      "fecha": "2027-03-14T14:10:00.000Z",
       "respuesta": "40"
     },
     {
       "pregunta": "En una empresa, cinco personas ganan entre 500 y 560 y el gerente gana veinte veces más. Querés contar cuál es el sueldo típico.",
       "fecha": "2027-03-12T14:00:00.000Z",
       "respuesta": "media"
+    },
+    {
+      "pregunta": "En una empresa, cinco personas ganan entre 500 y 560 y el gerente gana veinte veces más. Querés contar cuál es el sueldo típico.",
+      "fecha": "2027-03-14T14:15:00.000Z",
+      "respuesta": "mediana"
     }
   ],
   "objetivos": [

@@ -532,7 +532,7 @@ describe('«Discrepo» y la enmienda de una evaluación', () => {
 });
 
 describe('ejercicios en la lista y en la cola', () => {
-  it('los ejercicios se listan con su tipo pero no suman al contador de tarjetas ni entran en la cola de Estudiar', () => {
+  it('los ejercicios se listan con su tipo, no suman al contador de tarjetas y el día que los practicás no entran en la cola', () => {
     const space = openSpace({ withCast: true });
     const subject = space.workspace.subjects
       .list()
@@ -556,7 +556,7 @@ describe('ejercicios en la lista y en la cola', () => {
     expect(space.workspace.study.overview()).toEqual(proposalBefore);
   });
 
-  it('un ejercicio vencido tampoco entra en la propuesta del día siguiente (llega con la Fase 18)', () => {
+  it('al día siguiente, el ejercicio que quedó vencido entra en la propuesta de Estudiar (Fase 18)', () => {
     const practiced = movableClock();
     const withExercise = openSpace({ clock: practiced, withCast: true });
     const untouched = movableClock();
@@ -570,9 +570,10 @@ describe('ejercicios en la lista y en la cola', () => {
     withExercise.workspace.activities.finalize({ attemptId: sent.attemptId, verdict: 'incorrect' });
     practiced.advance(1);
     untouched.advance(1);
-    expect(withExercise.workspace.study.overview()).toEqual(
-      withoutExercise.workspace.study.overview(),
-    );
+    const after = withExercise.workspace.study.overview();
+    const control = withoutExercise.workspace.study.overview();
+    expect(after.dueCount).toBe(control.dueCount + 1);
+    expect(after.proposal?.why.due).toBe((control.proposal?.why.due ?? 0) + 1);
   });
 });
 

@@ -4,7 +4,8 @@
 // eso es solo del motor de memoria.
 
 // La versión de esta política: se registra en cada sesión, así se sabe con qué reglas se armó.
-export const LOAD_POLICY_VERSION = 1;
+// 2 (Fase 18): entran los ejercicios, con su tiempo y repartidos entre las tarjetas.
+export const LOAD_POLICY_VERSION = 2;
 
 // La mediana inicial de cada tipo de actividad, en segundos (los valores con que se empieza, antes
 // de saber cómo estudia cada uno).
@@ -15,6 +16,36 @@ export const INITIAL_SECONDS = {
   problem: 480,
   practiceBlock: 1800,
 } as const;
+
+// Cuánto tarda una actividad: una tarjeta, lo que se aprendió de tus repasos; un ejercicio, lo de
+// una pregunta de comprensión; un procedimiento, lo de un problema.
+export function activitySeconds(activityType: string | null, reviewSeconds: number): number {
+  if (activityType === null) {
+    return reviewSeconds;
+  }
+  return activityType === 'procedure' ? INITIAL_SECONDS.problem : INITIAL_SECONDS.comprehension;
+}
+
+// El orden de estudio con ejercicios: se empieza con una tarjeta y los ejercicios van repartidos
+// entre las demás. Las tarjetas no cambian de orden entre sí, ni los ejercicios.
+function spreadExercises(ids: readonly string[], isExercise: (id: string) => boolean): string[] {
+  const cards = ids.filter((id) => !isExercise(id));
+  const exercises = ids.filter(isExercise);
+  const result: string[] = [];
+  let shown = 0;
+  exercises.forEach((exercise, index) => {
+    const after = Math.max(
+      Math.min(1, cards.length),
+      Math.floor(((index + 1) * cards.length) / (exercises.length + 1)),
+    );
+    while (shown < after) {
+      result.push(cards[shown] as string);
+      shown += 1;
+    }
+    result.push(exercise);
+  });
+  return [...result, ...cards.slice(shown)];
+}
 
 // Con cuántos intentos propios el valor inicial pesa lo mismo que lo propio.
 const SHRINKAGE_ATTEMPTS = 10;
@@ -284,6 +315,9 @@ export interface ReviewCandidate {
   readonly isRequisite?: boolean;
   // Fallada hoy: vuelve antes que nada.
   readonly relearning?: boolean;
+  // Un ejercicio (Fase 18): cuánto tarda, y va repartido entre las tarjetas.
+  readonly exercise?: boolean;
+  readonly seconds?: number;
 }
 
 export interface ComposeInput {
@@ -305,7 +339,7 @@ export interface SessionPlan {
   readonly minutes: number;
   readonly prepMinutes: number;
   // Los repasos en el orden en que se estudian: reaprendizajes, los que entran sí o sí y el resto
-  // por prioridad.
+  // por prioridad, con los ejercicios repartidos entre las tarjetas.
   readonly reviews: readonly string[];
   readonly relearning: readonly string[];
   readonly forced: readonly string[];
@@ -374,9 +408,10 @@ export function composeSession(input: ComposeInput): SessionPlan {
   let usedSeconds = 0;
   for (const card of eligible) {
     const mustEnter = card.relearning === true || card.postponements >= MAX_POSTPONEMENTS;
-    if (mustEnter || usedSeconds + input.reviewSeconds <= budgetSeconds) {
+    const seconds = card.seconds ?? input.reviewSeconds;
+    if (mustEnter || usedSeconds + seconds <= budgetSeconds) {
       reviews.push(card.cardId);
-      usedSeconds += input.reviewSeconds;
+      usedSeconds += seconds;
       if (card.relearning === true) {
         relearning.push(card.cardId);
       } else if (mustEnter) {
@@ -407,10 +442,13 @@ export function composeSession(input: ComposeInput): SessionPlan {
   );
   const newCards = candidates.slice(0, count);
   const nothing = reviews.length === 0 && newCards.length === 0;
+  const exercises = new Set(
+    eligible.filter((card) => card.exercise === true).map((card) => card.cardId),
+  );
   return {
     minutes: input.minutes,
     prepMinutes: prep,
-    reviews,
+    reviews: spreadExercises(reviews, (cardId) => exercises.has(cardId)),
     relearning,
     forced,
     newCards,

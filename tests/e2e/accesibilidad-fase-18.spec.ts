@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { Page } from '@playwright/test';
 import { expect, test } from './apoyo';
-import { advanceDemoDate, goTo, goToDestination } from './pasos';
+import { advanceDemoDate, goTo, goToDestination, untilExercise } from './pasos';
 
 // Accesibilidad de las pantallas nuevas de la Fase 18 con axe-core, en claro y en oscuro: el ejemplo
 // completo, el paso vacío con su error y su corrección, el cierre con la propuesta del
@@ -121,4 +121,25 @@ test('accesibilidad: la decisión, el conjunto, «Mis errores» con el contraste
   await type.selectOption('interleaved');
   await expect(page.getByRole('checkbox', { name: /^Cinco amigos/ }).first()).toBeVisible();
   expect(await violationsNow(page), 'el editor del conjunto').toEqual([]);
+});
+
+test('accesibilidad: un ejercicio dentro de la sesión de Estudiar, antes y después de enviar, no tiene faltas según axe-core', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await advanceDemoDate(page, '+1 día');
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  const exercise = await untilExercise(page);
+  await expect(exercise.getByRole('button', { name: 'Enviar' })).toBeVisible();
+  expect(await violationsNow(page), 'el ejercicio en la sesión').toEqual([]);
+  const number = exercise.getByRole('textbox', { name: 'Tu respuesta, con coma o con punto' });
+  if (await number.isVisible()) {
+    await number.fill('1');
+  } else {
+    await exercise.getByRole('radio').first().check();
+  }
+  await exercise.getByRole('button', { name: 'Enviar' }).click();
+  await expect(exercise.getByRole('button', { name: 'Siguiente' })).toBeVisible();
+  expect(await violationsNow(page), 'el resultado en la sesión').toEqual([]);
 });

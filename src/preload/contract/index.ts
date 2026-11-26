@@ -287,6 +287,7 @@ export const channels = {
   'study.grade': { request: studyGradeRequest, response: sessionViewSchema },
   'study.undo': { request: activityRequest, response: sessionViewSchema },
   'study.skip': { request: activityRequest, response: sessionViewSchema },
+  'study.exerciseDone': { request: activityRequest, response: sessionViewSchema },
   'study.flag': { request: studyFlagRequest, response: sessionViewSchema },
   'study.pause': { request: sessionIdRequest, response: okResponse },
   'study.saveDraft': { request: studyDraftRequest, response: okResponse },

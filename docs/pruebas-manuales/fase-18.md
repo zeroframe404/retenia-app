@@ -96,6 +96,16 @@ Yo hice S1 a S5, M18.1 a M18.9 y un rato de uso libre contra el programa de prue
 - Tenés que ver: «Completá el último paso; los demás ya están resueltos.», no el ejemplo completo.
 - Lo que vi: eso. **Ojo:** si en M18.8 fallaste el mismo paso en dos días seguidos (el de M18.3 y el de M18.8), al **día siguiente** vuelve el ejemplo completo: es la regla de CA-159 («dos fallos seguidos del mismo tipo traen un paso más de apoyo»).
 
+## M18.10 · Los ejercicios vuelven en Estudiar
+
+Esta la sumé yo: es lo que pediste el 26/11/2026.
+
+- Hacé: después de M18.9, «+1 día» → Estudiar → «Empezar». Respondé tarjetas («Mostrar respuesta» → «La sabía», o Espacio y 3) hasta que aparezca un ejercicio.
+- Tenés que ver: la sesión empieza con una tarjeta; más adelante aparece «Ejercicio» ahí mismo, con «Pausar» arriba. «Enviar» lo corrige y «Siguiente» sigue con la sesión. Después de enviar no hay «Deshacer».
+- Lo que vi: una sesión de 67; el primer ejercicio apareció después de 21 tarjetas (el del sueldo), lo contesté mal a propósito, «Todavía no.» y «La correcta: La mediana», y «Siguiente» pasó de 21/67 a 22/67. Qué ejercicio te toque y en qué lugar depende de lo que hayas practicado.
+- Atajo sin hacer las otras: con los datos recién reiniciados, «+1 día» ya trae los 4 ejercicios del elenco que tienen historial.
+- También probé sobre un ejercicio de la sesión: «Esc» y continuar (vuelve al mismo), Espacio y números (no califican), «Más» → «Editar» → «Cancelar», «Saltar», «La tarjeta está mal», doble clic en «Enviar» y en «Siguiente» (suma una vez), y cerrar el programa después de «Enviar»: esto último fallaba y lo arreglé.
+
 ## Libre · Uso libre
 
 - Hacé: usalo cinco minutos como en un día de mucho estudio e intentá romperlo.
@@ -110,4 +120,4 @@ Los textos que escribiste salen igual. Difiere esto:
 2. **La escalera tiene un escalón más que tu lista:** ejemplo, 1 vacío, 2 vacíos, **3 vacíos**, problema entero y variante. Tu lista de tareas saltaba los «tres vacíos», pero CA-158 los pide (lo aprobaste en la Fase 00: con 4 pasos faltaba ese).
 3. **M18.8, «terminá la sesión»:** en «Practicar ahora» el cierre se llama «Práctica terminada» y se llega con «Terminar».
 4. **M18.9** es el mismo día (ver el «Ojo» de arriba).
-5. **Fuera de tus pruebas:** el 24/11/2026 decidiste que en esta fase los ejercicios iban a entrar solos en las sesiones de Estudiar. **No está hecho**: no figura en las tareas ni en los criterios de la Fase 18, y tu prueba S3 cuenta con que la sesión empiece por una tarjeta. Decime si lo sumo.
+5. **M18.10 es nueva** (los ejercicios en las sesiones de Estudiar). Tus pruebas S1 a S5 no cambian: el 15/03 la sesión no trae ejercicios.

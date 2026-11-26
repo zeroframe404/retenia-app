@@ -1,12 +1,14 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Clock } from '../core/clock';
 import type { HelpUse } from '../core/evaluation';
+import { currentEvaluation } from '../core/ledger';
 import { LOAD_POLICY_VERSION, postponeOutcome } from '../core/load';
-import type { Grade } from '../core/memory';
+import type { Grade, Verdict } from '../core/memory';
 import {
   activeMinutes,
   chooseSessionCards,
+  type ExerciseOutcome,
   projectSession,
   type SessionEvent,
   type SessionState,
@@ -38,7 +40,15 @@ import {
 } from './load';
 import type { Writer } from './orm';
 import { appendPostponement, postponementStates, recordedPostponements } from './postponements';
-import { cards, cardVersions, observations, sessionDrafts, subjects, topics } from './schema';
+import {
+  cards,
+  cardVersions,
+  evaluations,
+  observations,
+  sessionDrafts,
+  subjects,
+  topics,
+} from './schema';
 import { readSetting, writeSetting } from './settings';
 import { eligibleCards, nextDay, OUT_OF_REVIEWS, studiedGroupsOf } from './study-queue';
 
@@ -123,6 +133,9 @@ export interface StudyStore {
   // Deshace la calificación de esa actividad si es la última: el mismo pedido dos veces deshace una.
   undo(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   skip(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
+  // «Siguiente» sobre un ejercicio: queda hecho si desde que empezó la sesión lo enviaste (o, en un
+  // procedimiento, terminaste el ejemplo). Repetirlo no suma.
+  exerciseDone(input: { sessionId: string; activityId: string; activeMs?: number }): SessionView;
   flag(input: {
     sessionId: string;
     activityId: string;
@@ -144,6 +157,9 @@ export interface StudyStore {
   planPreferences(): PlanPreferences;
   dismissShortcuts(): void;
 }
+
+// Cómo cuenta en el cierre el resultado de un ejercicio, como los tres botones de una tarjeta.
+const OUTCOMES: Record<Verdict, Grade> = { correct: 'good', partial: 'hard', incorrect: 'again' };
 
 const SHORTCUTS_SEEN = 'session.shortcutsSeen';
 const PLAN_PREFERENCES = 'plan.preferences';
@@ -199,6 +215,15 @@ function sessionEventOf(row: ObservationRow): SessionEvent | null {
     case 'session.dropped': {
       const p = readPayload('session.dropped', row.schemaVersion, row.payload);
       return { kind: 'dropped', activityId: p.activityId, activeMs: p.activeMs };
+    }
+    case 'session.exercise_done': {
+      const p = readPayload('session.exercise_done', row.schemaVersion, row.payload);
+      return {
+        kind: 'exercise',
+        activityId: p.activityId,
+        outcome: p.outcome,
+        activeMs: p.activeMs,
+      };
     }
     case 'session.paused':
     case 'session.resumed':
@@ -299,6 +324,81 @@ export function createStudyStore(
       // Puede terminar más de una vez: deshacer la última la vuelve a abrir.
       append(tx, 'session.finished', { sessionId, activeMs: 0 }, `finish:${newId()}`);
     }
+  }
+
+  const activityTypeOf = (tx: Writer, cardId: string) =>
+    tx
+      .select({ activityType: cardVersions.activityType })
+      .from(cards)
+      .innerJoin(cardVersions, eq(cardVersions.id, cards.currentVersionId))
+      .where(eq(cards.id, cardId))
+      .get()?.activityType ?? null;
+
+  // Cómo contestaste ese ejercicio desde que empezó la sesión (el primer intento evaluado), o
+  // nulo si todavía no hiciste nada.
+  function exerciseResult(
+    tx: Writer,
+    sessionId: string,
+    cardId: string,
+  ): { attemptId: string | null; outcome: ExerciseOutcome } | null {
+    const from = sessionRows(tx, sessionId)[0]?.seq ?? 0;
+    const rows = tx
+      .select({ id: observations.id, kind: observations.kind })
+      .from(observations)
+      .where(
+        and(
+          eq(observations.cardId, cardId),
+          gt(observations.seq, from),
+          inArray(observations.kind, ['attempt.submitted', 'procedure.studied']),
+        ),
+      )
+      .orderBy(observations.seq)
+      .all();
+    for (const row of rows) {
+      if (row.kind !== 'attempt.submitted') {
+        continue;
+      }
+      const current = currentEvaluation(
+        tx.select().from(evaluations).where(eq(evaluations.attemptId, row.id)).all(),
+      );
+      if (current) {
+        const outcome: ExerciseOutcome =
+          current.affected === 1 ? 'flagged' : OUTCOMES[current.verdict as Verdict];
+        return { attemptId: row.id, outcome };
+      }
+    }
+    return rows.some((row) => row.kind === 'procedure.studied')
+      ? { attemptId: null, outcome: 'seen' }
+      : null;
+  }
+
+  // Anota el ejercicio actual como hecho, si lo hiciste.
+  function recordExercise(
+    tx: Writer,
+    sessionId: string,
+    activityId: string,
+    activeMs: number,
+  ): void {
+    const state = stateOf(tx, sessionId);
+    const current = state.pending[0];
+    if (
+      !isOpen(state) ||
+      current?.activityId !== activityId ||
+      activityTypeOf(tx, current.cardId) === null
+    ) {
+      return;
+    }
+    const result = exerciseResult(tx, sessionId, current.cardId);
+    if (result === null) {
+      return;
+    }
+    appendObservation(tx, clock, {
+      kind: 'session.exercise_done',
+      payload: { sessionId, activityId, cardId: current.cardId, ...result, activeMs },
+      idempotencyKey: `exercise:${sessionId}:${activityId}`,
+      source: 'user',
+    });
+    finishIfComplete(tx, sessionId);
   }
 
   // La actividad actual tiene que ser una tarjeta que todavía se puede estudiar; si se borró, se
@@ -632,21 +732,45 @@ export function createStudyStore(
     },
 
     resume({ sessionId, activeMs = 0 }) {
-      return change(sessionId, (tx, state) => {
+      return orm.transaction((tx) => {
+        const before = stateOf(tx, sessionId);
         // Una sesión pausada vale hasta el cambio de día de estudio (04:00).
-        if (state.studyDay !== today()) {
+        if (before.studyDay !== today()) {
           throw new SessionClosedError();
         }
+        // Un ejercicio que contestaste antes de pausar o de cerrar no se vuelve a pedir. Va antes
+        // de sacar lo que no se puede estudiar: uno marcado con «Discrepo» igual cuenta.
+        const answered = before.pending[0];
+        if (answered) {
+          recordExercise(tx, sessionId, answered.activityId, 0);
+        }
+        dropUnavailable(tx, sessionId);
+        const state = stateOf(tx, sessionId);
         if (state.status === 'paused' && !state.complete) {
           append(tx, 'session.resumed', { sessionId, activeMs }, `resume:${newId()}`);
         }
+        return viewOf(tx, sessionId);
+      });
+    },
+
+    exerciseDone({ sessionId, activityId, activeMs = 0 }) {
+      // Sin sacar antes la actividad actual: si quedó «En revisión» con «Discrepo», igual cuenta.
+      return orm.transaction((tx) => {
+        recordExercise(tx, sessionId, activityId, activeMs);
+        dropUnavailable(tx, sessionId);
+        return viewOf(tx, sessionId);
       });
     },
 
     grade({ sessionId, activityId, attemptId, grade, answer, marks, activeMs = 0, help, noIdea }) {
       return change(sessionId, (tx, state) => {
         const current = state.pending[0];
-        if (!isOpen(state) || current?.activityId !== activityId) {
+        // Un ejercicio no se califica con los tres botones: tiene su «Siguiente».
+        if (
+          !isOpen(state) ||
+          current?.activityId !== activityId ||
+          activityTypeOf(tx, current.cardId) !== null
+        ) {
           return;
         }
         const recorded = recordReview(tx, clock, fuzz, {

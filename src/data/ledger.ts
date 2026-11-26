@@ -260,6 +260,18 @@ const PAYLOADS = {
   // La tarjeta dejó de poder estudiarse mientras estaba en la sesión (se pausó o cambió su estado
   // desde «Editar»): sale de la sesión como hecha.
   'session.dropped': { 1: sessionActivityStep },
+  // Un ejercicio contestado dentro de la sesión (Fase 18): qué intento fue (nulo si de un
+  // procedimiento solo se vio el ejemplo) y cómo cuenta en el cierre.
+  'session.exercise_done': {
+    1: z.strictObject({
+      sessionId: z.uuid(),
+      activityId: z.uuid(),
+      cardId: z.uuid(),
+      attemptId: z.uuid().nullable(),
+      outcome: z.enum(['good', 'hard', 'again', 'flagged', 'seen']),
+      activeMs,
+    }),
+  },
   'session.paused': { 1: sessionStep },
   'session.resumed': { 1: sessionStep },
   'session.finished': { 1: sessionStep },
@@ -453,6 +465,7 @@ const CURRENT_VERSION = {
   'session.started': 2,
   'session.skipped': 1,
   'session.dropped': 1,
+  'session.exercise_done': 1,
   'session.paused': 1,
   'session.resumed': 1,
   'session.finished': 1,

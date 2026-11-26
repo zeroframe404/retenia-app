@@ -52,9 +52,9 @@ Otros ejercicios: el procedimiento **«Calcular un intervalo de confianza para l
 Desde la Fase 18 están sembrados (`tarjetas.json`, con `conjuntos` e `intentos`):
 
 - **«Calcular un intervalo de confianza para la media»** (Intervalos de confianza): paso 1 (clave) el error estándar `s / raiz(n)`; 2 el valor crítico 1,96; 3 el margen de error; 4 el límite superior. Familia: media de 40 a 80, n de 16, 25, 36, 64 o 100, y el desvío calculado `ee * raiz(n)`; tres enunciados (el segundo y el tercero, para el último escalón).
-- **Nueve problemas** numéricos de «Media y dispersión», tres de cada tipo; ninguno dice «media», «mediana» ni «moda». Uno de cada tipo trae un intento acertado (09, 10 y 11/03/2027): «ya lo practicaste por separado».
+- **Nueve problemas** numéricos de «Media y dispersión», tres de cada tipo; ninguno dice «media», «mediana» ni «moda». Uno de cada tipo trae un intento acertado (14/03/2027): «ya lo practicaste por separado». Su repaso cae el 16/03, así que en la demostración vuelven en Estudiar con «+1 día».
 - **El conjunto «Media, mediana y moda»**, con los tipos «Media», «Mediana» y «Moda».
-- **Dos tarjetas de decisión**: la del sueldo del gerente (la correcta es «La mediana») y la del talle de remera (la correcta es «La moda»). La del sueldo trae un intento del 12/03/2027 que eligió «La media»: es el error de confusión de «Mis errores» para la tarjeta de contraste (CA-163).
+- **Dos tarjetas de decisión**: la del sueldo del gerente (la correcta es «La mediana») y la del talle de remera (la correcta es «La moda»). La del sueldo trae un intento del 12/03/2027 que eligió «La media» (es el error de confusión de «Mis errores» para la tarjeta de contraste, CA-163) y uno acertado del 14/03: también vuelve el 16/03. Ningún ejercicio vence el 15/03.
 
 Los estados de los objetivos de la demostración no cambian (todo lo sembrado cae en días que ya tenían repasos o en objetivos implícitos que ya estaban en «Suficiente para avanzar»); cambia la cantidad de actividades de «Media y dispersión» (80) e «Intervalos de confianza» (63).
 

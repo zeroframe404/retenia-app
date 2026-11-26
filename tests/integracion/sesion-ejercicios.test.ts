@@ -86,8 +86,12 @@ function answer(space: Space, cardId: string, { right = true }: { right?: boolea
     firstInputMs: 1000,
     submittedMs: 2000,
   });
-  space.workspace.activities.finalize({ attemptId, verdict: result.proposed, marked: [] });
-  return attemptId;
+  space.workspace.activities.finalize({
+    attemptId: result.attemptId,
+    verdict: result.proposed,
+    marked: [],
+  });
+  return result.attemptId;
 }
 
 const done = (space: Space, sessionId: string, activityId: string) =>

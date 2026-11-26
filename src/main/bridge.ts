@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { z } from 'zod';
 import { type Clock, type Stopwatch, systemStopwatch } from '../core/clock';
+import { INITIAL_SECONDS, inactivityCapSeconds } from '../core/load';
 import { studyDayOf } from '../core/study-day';
 import type { ThemeChoice } from '../core/theme';
 import type { ZoomDirection } from '../core/zoom';
@@ -23,6 +24,10 @@ import type { Dialogs } from './imports/dialogs';
 import { createTransfersService, type TransfersService } from './imports/service';
 import type { MaterialsService } from './materials/service';
 import { createStudyTimer } from './study-timer';
+
+// El corte de inactividad de un ejercicio dentro de la sesión (la regla de la carga: nunca más de
+// 2 minutos por paso).
+const EXERCISE_CAP_MS = inactivityCapSeconds(INITIAL_SECONDS.comprehension) * 1000;
 
 export type Variant = 'prueba' | 'real';
 
@@ -201,6 +206,12 @@ export function createHandlers({
       workspace.study.undo({ ...request, activeMs: timer.step(request.sessionId) }),
     'study.skip': async (request) =>
       workspace.study.skip({ ...request, activeMs: timer.step(request.sessionId) }),
+    // Un ejercicio lleva más que una tarjeta: su paso quieto cuenta hasta 2 minutos.
+    'study.exerciseDone': async (request) =>
+      workspace.study.exerciseDone({
+        ...request,
+        activeMs: timer.step(request.sessionId, EXERCISE_CAP_MS),
+      }),
     'study.flag': async (request) =>
       workspace.study.flag({ ...request, activeMs: timer.step(request.sessionId) }),
     'study.pause': async ({ sessionId }) => {

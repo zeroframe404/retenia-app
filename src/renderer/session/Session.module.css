@@ -403,3 +403,18 @@
 .requirement p {
   margin: 0;
 }
+
+/* Un ejercicio dentro de la sesión (Fase 18): usa su propia pantalla, con el mismo margen. */
+.exercise {
+  display: grid;
+  align-content: start;
+  gap: var(--espacio-16);
+  width: min(808px, 100%);
+  margin: 0 auto;
+  padding: var(--espacio-32) var(--espacio-24);
+}
+
+/* Con la ayuda abierta al costado, hace falta más ancho. */
+.exercise:has([data-panel="open"]) {
+  width: min(1200px, 100%);
+}

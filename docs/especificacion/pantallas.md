@@ -28,6 +28,7 @@ Estudiar · Apuntes · Materiales · Idiomas · Progreso · Ajustes. Arriba, «B
 ## Actividad
 
 - «Pausar». Progreso «3/10». Rótulo de modo: PRÁCTICA CON AYUDA · PRÁCTICA AUTÓNOMA · EVALUACIÓN.
+- Un ejercicio vencido (desde la Fase 18) aparece entre las tarjetas, con su propia pantalla («Enviar», su corrección y «Siguiente»); la sesión empieza con una tarjeta.
 - Campo «Tu respuesta…». «Borrador guardado». «Enviar».
 - En tarjetas: «Mostrar respuesta» y después «No la sabía» · «Con dudas» · «La sabía». «Deshacer». «¿Por qué hoy?».
 - Barra de ayuda: «Pista» · «Ver un ejemplo» · «Fuente» · «Preguntar al tutor». «No sé por dónde empezar». Antes de la solución: «La próxima pista muestra la respuesta completa. ¿Querés intentarlo una vez más?».

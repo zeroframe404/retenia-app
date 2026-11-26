@@ -86,6 +86,31 @@ interface Tally {
   solved: number;
 }
 
+// El procedimiento dentro de la sesión de Estudiar (Fase 18): una sola práctica y «Siguiente».
+export function SessionProcedure({
+  cardId,
+  onNext,
+  onSent,
+  onEditReference,
+}: {
+  cardId: string;
+  onNext: () => void;
+  onSent: () => void;
+  onEditReference: (field: ReferenceField) => void;
+}) {
+  const [openingId] = useState(() => crypto.randomUUID());
+  return (
+    <ProcedureRun
+      cardId={cardId}
+      openingId={openingId}
+      session={{ onSent }}
+      onClose={() => undefined}
+      onEditReference={onEditReference}
+      onDone={onNext}
+    />
+  );
+}
+
 // La práctica de un procedimiento: «Otro problema» abre uno nuevo y «Terminar» lleva al cierre.
 export function ProcedureView({
   cardId,
@@ -148,14 +173,19 @@ function ProcedureRun({
   onEditReference,
   onOpenObjective,
   onDone,
+  session,
 }: {
   cardId: string;
   openingId: string;
   onClose: () => void;
+  // Dentro de la sesión: «Siguiente» en vez de «Terminar», sin «Otro problema» ni volver.
+  session?: { onSent: () => void } | undefined;
   onEditReference: (field: ReferenceField) => void;
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onDone: (kind: keyof Tally, next: 'another' | 'finish') => void;
 }) {
+  // En la sesión, el procedimiento va justo debajo del título de la pantalla.
+  const level = session ? 2 : 3;
   const [view, setView] = useState<View | null>(null);
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -241,9 +271,9 @@ function ProcedureRun({
 
   if (loadFailed) {
     return (
-      <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
         <BannerEstado tone="attention">{text.loadFailed}</BannerEstado>
-        <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>
+        {session ? null : <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>}
       </ScreenFrame>
     );
   }
@@ -273,6 +303,7 @@ function ProcedureRun({
         openingId,
         why: keySteps.map((step) => ({ stepId: step.id, text: (why[step.id] ?? '').trim() })),
       });
+      session?.onSent();
       setStudied(response.ladder);
     });
 
@@ -287,6 +318,7 @@ function ProcedureRun({
         noIdea: help.noIdea,
       });
       help.hidePanel();
+      session?.onSent();
       if (response.kind === 'error') {
         setAttemptId(response.attemptId);
         setError(response.step);
@@ -386,9 +418,9 @@ function ProcedureRun({
   const footer = (kind: keyof Tally) => (
     <div className={styles.resultButtons}>
       <Boton variant="primary" onClick={() => onDone(kind, 'finish')}>
-        {text.finish}
+        {session ? texts.practice.buttons.next : text.finish}
       </Boton>
-      {view.statement === '' || outOfReviews ? null : (
+      {session || view.statement === '' || outOfReviews ? null : (
         <Boton onClick={() => onDone(kind, 'another')}>{text.another}</Boton>
       )}
       {kind === 'solved' ? (
@@ -429,7 +461,7 @@ function ProcedureRun({
   })();
 
   return (
-    <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+    <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
       <Toast>{toast}</Toast>
       <div className={styles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
         <div className={styles.activity}>
@@ -541,9 +573,11 @@ function ProcedureRun({
               >
                 {text.finishExample}
               </Boton>
-              <Boton variant="quiet" onClick={onClose}>
-                {texts.practice.backToCards}
-              </Boton>
+              {session ? null : (
+                <Boton variant="quiet" onClick={onClose}>
+                  {texts.practice.backToCards}
+                </Boton>
+              )}
             </div>
           ) : null}
           {studied === null ? null : (
@@ -580,9 +614,11 @@ function ProcedureRun({
                 <Boton variant="primary" disabled={!canSubmit} onClick={() => void submit()}>
                   {texts.practice.submit}
                 </Boton>
-                <Boton variant="quiet" onClick={onClose}>
-                  {texts.practice.backToCards}
-                </Boton>
+                {session ? null : (
+                  <Boton variant="quiet" onClick={onClose}>
+                    {texts.practice.backToCards}
+                  </Boton>
+                )}
               </div>
             </>
           ) : null}

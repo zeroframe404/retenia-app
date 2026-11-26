@@ -49,9 +49,14 @@ export function ExerciseView({
   onPracticeOther,
   runId,
   onNext,
+  inSession = false,
+  onSent,
 }: {
   cardId: string;
   onClose: () => void;
+  // Dentro de la sesión de Estudiar: se sale con «Pausar», y avisa cuando ya enviaste.
+  inSession?: boolean | undefined;
+  onSent?: (() => void) | undefined;
   // Fase 18: en un conjunto mezclado, la vuelta y qué hace «Siguiente».
   runId?: string | undefined;
   onNext?: (() => void) | undefined;
@@ -62,6 +67,8 @@ export function ExerciseView({
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onPracticeOther?: ((cardId: string) => void) | undefined;
 }) {
+  // En la sesión, el ejercicio va justo debajo del título de la pantalla.
+  const level = inSession ? 2 : 3;
   const [openingId] = useState(() => crypto.randomUUID());
   const [opening, setOpening] = useState<ActivityOpening | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -129,22 +136,27 @@ export function ExerciseView({
     };
   }, [cardId, openingId, resetHelp]);
 
-  // Lo último en pantalla, para guardar la evaluación al salir sin tocar «Siguiente».
+  // Lo último en pantalla, para guardar la evaluación al salir sin tocar «Siguiente»: al cambiar
+  // de pantalla y también al cerrar la ventana (el principal espera a que termine).
   const latest = useRef({ submitted, final, verdict, marked });
   latest.current = { submitted, final, verdict, marked };
-  useEffect(
-    () => () => {
-      const { submitted: open, final: saved, verdict: last, marked: units } = latest.current;
-      if (open && !saved) {
-        window.retenia['activities.finalize']({
-          attemptId: open.attemptId,
-          verdict: last,
-          marked: [...units],
-        }).catch(() => undefined);
-      }
-    },
-    [],
-  );
+  const saveOpen = useCallback(async () => {
+    const { submitted: open, final: saved, verdict: last, marked: units } = latest.current;
+    if (open && !saved) {
+      await window.retenia['activities.finalize']({
+        attemptId: open.attemptId,
+        verdict: last,
+        marked: [...units],
+      }).catch(() => undefined);
+    }
+  }, []);
+  useEffect(() => {
+    const unregister = window.reteniaCierre?.alCerrar(saveOpen);
+    return () => {
+      unregister?.();
+      void saveOpen();
+    };
+  }, [saveOpen]);
 
   const started = () => {
     if (!help.started) {
@@ -213,6 +225,7 @@ export function ExerciseView({
         ...(runId === undefined ? {} : { runId }),
       });
       help.hidePanel();
+      onSent?.();
       setSubmitted(result);
       setProposal(result);
       setVerdict(result.proposed);
@@ -345,15 +358,15 @@ export function ExerciseView({
 
   if (loadFailed) {
     return (
-      <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
         <BannerEstado tone="attention">{texts.practice.loadFailed}</BannerEstado>
-        <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>
+        {inSession ? null : <Boton onClick={onClose}>{texts.practice.backToCards}</Boton>}
       </ScreenFrame>
     );
   }
   if (opening === null) {
     return (
-      <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+      <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
         {null}
       </ScreenFrame>
     );
@@ -424,7 +437,7 @@ export function ExerciseView({
   const label = evaluation ? 'evaluation' : help.label === 'evaluation' ? 'autonomous' : help.label;
 
   return (
-    <ScreenFrame level={3} title={texts.practice.exerciseTitle}>
+    <ScreenFrame level={level} title={texts.practice.exerciseTitle}>
       <Toast>{toast}</Toast>
       <div className={styles.layout} data-panel={help.panel === null ? 'closed' : 'open'}>
         <div className={styles.activity}>
@@ -529,9 +542,11 @@ export function ExerciseView({
                 <Boton variant="primary" disabled={!canSubmit} onClick={() => void submit()}>
                   {texts.practice.submit}
                 </Boton>
-                <Boton variant="quiet" onClick={onClose}>
-                  {texts.practice.backToCards}
-                </Boton>
+                {inSession ? null : (
+                  <Boton variant="quiet" onClick={onClose}>
+                    {texts.practice.backToCards}
+                  </Boton>
+                )}
               </div>
             </>
           ) : null}
