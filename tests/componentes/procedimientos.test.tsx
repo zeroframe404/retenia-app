@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../src/renderer/App';
 import { introOf } from '../../src/renderer/practice/ProcedureView';
+import { movableClock } from '../apoyo/procedimiento';
 import { closeWindows, openWindow } from './apoyo-ventana';
 
 // Fase 18, en la ventana.
@@ -147,5 +148,58 @@ describe('el texto de los pasos vacíos (objeción 16)', () => {
     expect(introOf(view([true, true], 'variant', ''))).toBe(
       'Resolvé el problema entero, paso por paso.',
     );
+  });
+});
+
+describe('«Discrepo» en el resultado de un procedimiento (objeción 9)', () => {
+  it('[CA-139] [CA-141] ofrece los cuatro motivos; «Mi respuesta era correcta» lo pasa a «Correcto.» y «Deshacer» vuelve', async () => {
+    const clock = movableClock();
+    const { user, api } = openWindow('real', clock, { withCast: 'tarjetas' });
+    const { cards } = await api['cards.list']({ kind: 'exercise' });
+    const cardId = cards.find((card) => card.question === PROCEDURE)?.id ?? '';
+    // El ejemplo en 2 días distintos: al tercero, el último paso viene vacío.
+    for (let day = 1; day <= 2; day += 1) {
+      const openingId = crypto.randomUUID();
+      await api['activities.start']({ cardId, openingId });
+      const view = await api['procedure.open']({ cardId, openingId });
+      await api['procedure.studied']({
+        cardId,
+        openingId,
+        why: view.steps
+          .filter((step) => step.key)
+          .map((step) => ({ stepId: step.id, text: 'Porque mide cuánto cambia la media.' })),
+      });
+      clock.advance(1);
+    }
+    render(<App />);
+    await screen.findByRole('button', { name: 'Empezar' }, SLOW);
+    await practiceByName(user, PROCEDURE);
+    await user.type(
+      await screen.findByRole('textbox', { name: 'Paso 4: tu resultado' }, SLOW),
+      '999998',
+    );
+    await user.click(screen.getByRole('button', { name: 'Enviar' }));
+    await screen.findByText('Hay un error en el paso 4; ¿lo encontrás?', {}, SLOW);
+    await user.click(screen.getByRole('button', { name: 'Ver la corrección' }));
+    await user.click(await screen.findByRole('button', { name: 'Ver el resultado' }, SLOW));
+    await screen.findByText('Todavía no.', {}, SLOW);
+
+    await user.click(screen.getByRole('button', { name: 'Discrepo' }));
+    const reasons = (await screen.findAllByRole('menuitem', {}, SLOW)).map(
+      (item) => item.textContent,
+    );
+    expect(reasons).toEqual([
+      'Mi respuesta era correcta',
+      'La pregunta era ambigua',
+      'La referencia está incompleta',
+      'La referencia es incorrecta',
+    ]);
+    await user.click(screen.getByRole('menuitem', { name: 'Mi respuesta era correcta' }));
+    await screen.findByText('Todavía no → Correcto', {}, SLOW);
+    await screen.findByText('Correcto.', {}, SLOW);
+
+    await user.click(screen.getByRole('button', { name: 'Deshacer' }));
+    await screen.findByText('Todavía no.', {}, SLOW);
+    expect(screen.queryByText('Todavía no → Correcto')).toBeNull();
   });
 });
