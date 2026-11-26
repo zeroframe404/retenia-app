@@ -128,6 +128,14 @@ module.exports = {
       to: { path: '^node_modules/@anthropic-ai/sdk/' },
     },
     {
+      name: 'capas-R9b-la-ia-del-principal',
+      severity: 'error',
+      comment:
+        'La IA del principal (main/ai) solo usa, de los datos, el almacén de la IA (data/ai.ts): no tiene cómo tocar tarjetas, repasos ni dominio (Fase 19, CA-174).',
+      from: { path: '^src/main/ai/' },
+      to: { path: '^src/data/', pathNot: '^src/data/ai\\.ts$' },
+    },
+    {
       name: 'capas-R10-procesos-de-trabajo',
       severity: 'error',
       comment: 'Voz, escaneos y lectores de materiales solo en main/workers e ingest.',

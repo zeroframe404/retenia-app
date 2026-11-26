@@ -24,19 +24,21 @@ function filesUnder(folder: string): string[] {
 
 // Las importaciones de los datos que hace un archivo: estáticas, dinámicas y con require.
 function dataImports(source: string): string[] {
-  return [...source.matchAll(/from '([^']+)'/g)]
+  return [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*)['"]([^'"]+)['"]/g)]
     .map((match) => match[1] ?? '')
     .filter((target) => target.includes('/data/'));
 }
 
-// Las tablas que no son de la IA en las que escribe un archivo: con Drizzle (`.insert(tabla)`) o
-// con SQL a mano.
+// Las tablas que no son de la IA en las que escribe un archivo: con Drizzle (`.insert(tabla)`, también
+// `.insert(schema.tabla)`) o con SQL a mano, en mayúsculas o minúsculas.
 function writesOutsideAi(source: string): string[] {
-  const drizzle = [...source.matchAll(/\.(insert|update|delete)\((\w+)\)/g)]
+  const drizzle = [...source.matchAll(/\.(insert|update|delete)\(\s*(?:[\w$]+\.)*([\w$]+)\s*\)/g)]
     .map((match) => match[2] ?? '')
     .filter((table) => !/^ai[A-Z]/.test(table));
-  const raw = [...source.matchAll(/\b(INSERT|UPDATE|DELETE)\b\s+(?:INTO|FROM)?\s*`?(\w+)/g)]
-    .map((match) => match[2] ?? '')
+  const raw = [
+    ...source.matchAll(/\b(?:insert\s+(?:or\s+\w+\s+)?into|update|delete\s+from)\s+[`"']?(\w+)/gi),
+  ]
+    .map((match) => match[1] ?? '')
     .filter((table) => !table.startsWith('ai_'));
   return [...drizzle, ...raw];
 }
