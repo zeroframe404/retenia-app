@@ -278,9 +278,9 @@ test('[CA-056] la lista de 180 no arma 180 filas: solo las que se ven', async ({
   await expect(page.getByText('180 tarjetas')).toBeVisible();
   const rows = page.getByRole('list', { name: 'Tus tarjetas' }).getByRole('listitem');
   expect(await rows.count()).toBeLessThan(40);
-  // Los renglones son las 180 tarjetas y, desde la Fase 16, los 5 ejercicios del elenco, que se
-  // listan en la misma pestaña sin sumar al contador.
-  await expect(rows.first()).toHaveAttribute('aria-setsize', '185');
+  // Los renglones son las 180 tarjetas y los ejercicios del elenco (5 desde la Fase 16 y 13 desde la
+  // 18), que se listan en la misma pestaña sin sumar al contador.
+  await expect(rows.first()).toHaveAttribute('aria-setsize', '198');
 });
 
 test('[CA-057] «Pausar esta tarjeta» muestra «En pausa» y «Reanudar» devuelve el próximo repaso', async ({

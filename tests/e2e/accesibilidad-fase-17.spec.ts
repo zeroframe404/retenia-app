@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { Page } from '@playwright/test';
 import { expect, test } from './apoyo';
-import { goToDestination } from './pasos';
+import { goToDestination, itemWith, openSubjects } from './pasos';
 
 // Accesibilidad de las pantallas nuevas de la Fase 17 con axe-core, en claro y en oscuro: Progreso
 // con sus objetivos, el cuadro «Nuevo objetivo», el panel de evidencias con sus requisitos, «Mis
@@ -67,7 +67,8 @@ test('accesibilidad: Progreso (objetivos, «Nuevo objetivo», el panel, «Mis er
 
   const sections = page.getByRole('navigation', { name: 'Secciones de Progreso' });
   await sections.getByRole('button', { name: 'Mis errores' }).click();
-  await expect(page.getByText(/^Todavía no hay errores anotados/)).toBeVisible();
+  // Desde la Fase 18 la demostración trae un error de confusión (con su tarjeta de contraste).
+  await expect(page.getByRole('button', { name: 'Crear tarjeta de contraste' })).toBeVisible();
   expect(await violationsNow(page), 'Mis errores').toEqual([]);
 
   await sections.getByRole('button', { name: 'Mejorar la tarjeta' }).click();
@@ -81,4 +82,13 @@ test('accesibilidad: Progreso (objetivos, «Nuevo objetivo», el panel, «Mis er
   await goToDestination(page, 'Estudiar');
   await expect(page.getByRole('note', { name: 'Requisito' })).toBeVisible();
   expect(await violationsNow(page), 'Estudiar con un requisito').toEqual([]);
+
+  // «Mis errores» vacío: en una materia sin errores.
+  const subjects = await openSubjects(page);
+  await itemWith(page, 'Historia argentina').getByRole('button', { name: 'Abrir' }).click();
+  await expect(subjects).toBeHidden();
+  await goToDestination(page, 'Progreso');
+  await sections.getByRole('button', { name: 'Mis errores' }).click();
+  await expect(page.getByText(/^Todavía no hay errores anotados/)).toBeVisible();
+  expect(await violationsNow(page), 'Mis errores vacío').toEqual([]);
 });
