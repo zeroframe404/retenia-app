@@ -112,6 +112,26 @@ describe('[CA-170] «Modo solo local»', () => {
     expect(space.remote.calls).toHaveLength(0);
   });
 
+  it('[CA-170] una página web que se agrega con «Modo solo local» queda pendiente y dice por qué (simulado)', async () => {
+    const space = await open();
+    await space.api['ai.setLocalOnly']({ on: true });
+    const added = await space.api['materials.addUrl']({
+      subjectId: space.subjectId,
+      address: 'https://example.com/apunte',
+    });
+    if (added.outcome !== 'added') {
+      throw new Error('no se agregó la página');
+    }
+    await space.bridge.materials.whenIdle();
+    const detail = await space.api['materials.get']({ materialId: added.materialId });
+    expect(detail.state).toEqual({ kind: 'pendingNetwork', localOnly: true });
+    const listed = await space.api['materials.list']({ subjectId: space.subjectId });
+    expect(listed.materials.find((item) => item.id === added.materialId)?.state).toEqual({
+      kind: 'pendingNetwork',
+      localOnly: true,
+    });
+  });
+
   it('[CA-170] la puerta a internet también corta las páginas web y lo demás (simulado)', async () => {
     const space = await open();
     await space.api['ai.setLocalOnly']({ on: true });
