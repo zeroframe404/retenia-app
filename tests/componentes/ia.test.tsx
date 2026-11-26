@@ -224,6 +224,31 @@ describe('«Explicame este fragmento»', () => {
     expect(within(side).getByText('IA simulada: sin costo.')).toBeTruthy();
   });
 
+  it('[CA-176] (simulado) el «Ver» de la explicación que llegó no queda pegado al aviso siguiente', async () => {
+    const opened = openWindow('prueba', undefined, { ai: {} });
+    await addMaterial(opened);
+    await window.retenia['demo.setAi']({ simulated: true });
+    opened.net?.setOffline(true);
+    render(<App />);
+    await openViewer(opened);
+    await explain(opened);
+    await within(await panel()).findByText('Pendiente: se reanuda cuando haya conexión', {}, SLOW);
+    await opened.user.click(within(rail()).getByRole('button', { name: 'Ajustes' }));
+    opened.net?.setOffline(false);
+    await opened.bridge.ai.drain();
+    await screen.findByText('Llegó la explicación que estaba pendiente.', {}, SLOW);
+    // Otro aviso, sin tocar «Ver»: anotar algo al vuelo en la Bandeja.
+    await opened.user.keyboard('{Control>}{Shift>}n{/Shift}{/Control}');
+    const capture = await screen.findByRole('dialog', { name: 'Anotar al vuelo' });
+    await opened.user.type(
+      within(capture).getByRole('textbox', { name: 'Anotá lo que se te ocurrió' }),
+      'Repasar el error estándar',
+    );
+    await opened.user.keyboard('{Enter}');
+    expect(await screen.findByText('Anotado en la Bandeja.', {}, SLOW)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Ver', exact: true })).toBeNull();
+  });
+
   it('[CA-170] (simulado) con «Modo solo local» dice que está activado y no manda nada', async () => {
     const { provider } = remoteAi();
     const opened = openWindow('real', undefined, { ai: { remote: () => provider } });
