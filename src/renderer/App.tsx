@@ -520,6 +520,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               onOpenOriginal={(materialId, cardId) => openOriginal({ materialId, cardId })}
               onNoteRequestHandled={() => setNoteRequest(null)}
               cardRequest={cardRequest}
+              onPracticeStarted={() => setCardRequest(null)}
               onOpenObjective={openObjective}
               topicRequest={topicRequest}
               onTopicRequestHandled={() => setTopicRequest(null)}

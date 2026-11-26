@@ -53,6 +53,7 @@ export function NotesScreen({
   onOpenOriginal,
   onNoteRequestHandled,
   cardRequest = null,
+  onPracticeStarted,
   onOpenObjective,
   topicRequest = null,
   onTopicRequestHandled,
@@ -71,6 +72,8 @@ export function NotesScreen({
   noteRequest?: NoteRequest | null;
   // Abrir una tarjeta desde otra pantalla («Abrir la tarjeta» en Progreso).
   cardRequest?: CardRequest | null;
+  // El pedido de «Practicar ahora» ya se usó.
+  onPracticeStarted?: (() => void) | undefined;
   // «Ir al requisito» tras un fallo (Fase 17).
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
   onOpenNoteFromCard?: (noteId: string, blockId: string | null) => void;
@@ -120,6 +123,7 @@ export function NotesScreen({
           onOpenNote={onOpenNoteFromCard}
           onOpenOriginal={onOpenOriginal}
           cardRequest={cardRequest}
+          onPracticeStarted={onPracticeStarted}
           onOpenObjective={onOpenObjective}
         />
       ) : null}

@@ -56,6 +56,7 @@ export function CardsScreen({
   onOpenNote,
   onOpenOriginal,
   cardRequest = null,
+  onPracticeStarted,
   onOpenObjective,
 }: {
   subject?: Subject | undefined;
@@ -68,6 +69,9 @@ export function CardsScreen({
     practice?: boolean | undefined;
     edit?: 'rephrase' | 'hint' | undefined;
   } | null;
+  // El pedido de «Practicar ahora» vale una sola vez: volver a «Tarjetas» muestra la lista, no
+  // reabre la actividad (que anotaría otra variante u otra vuelta sin que la pidas).
+  onPracticeStarted?: (() => void) | undefined;
   // «Ir al requisito» tras un fallo (Fase 17).
   onOpenObjective?: ((objectiveId: string) => void) | undefined;
 }) {
@@ -145,6 +149,7 @@ export function CardsScreen({
   // biome-ignore lint/correctness/useExhaustiveDependencies: solo cuando llega un pedido nuevo.
   useEffect(() => {
     if (cardRequest?.practice) {
+      onPracticeStarted?.();
       window.retenia['cards.get']({ cardId: cardRequest.cardId }).then(
         (card) =>
           // Una en pausa, «En revisión» o «Retirada» no se practica: se abre su pantalla.
