@@ -1,9 +1,16 @@
 import { z } from 'zod';
-import { type ConsequenceLevel, locateQuote, maxCostMicros, numbersAgree } from '../../core/ai';
+import {
+  type ConsequenceLevel,
+  locateQuote,
+  maxCostMicros,
+  numbersAgree,
+  utf8Length,
+} from '../../core/ai';
 import { AI_MODELS } from '../models';
 import { priceFor } from '../prices';
 import { EXPLAIN_PROMPT } from '../prompts/explicar-fragmento';
 import { fragmentBlock, neutralizeFragment } from '../request';
+import { toApiSchema } from '../schema-api';
 
 // «Explicar un fragmento» (Fase 19, H-41): la primera función de IA, de exploración. Se muestra
 // separada en «Según tu material» (lo que se respalda con una cita textual del pasaje) y «Aporte del
@@ -49,12 +56,15 @@ export function buildExplainRequest({
   };
 }
 
+// El esquema de la salida también viaja (y se cobra como entrada).
+const SCHEMA_BYTES = utf8Length(JSON.stringify(toApiSchema(explainOutputSchema)));
+
 // Lo máximo que puede costar un pedido antes de mandarlo (CA-169): con eso se decide si entra en el
 // tope y, si no llega respuesta, es lo que se anota.
 export function maxCostOf(request: { system: string; user: string }): number {
   return maxCostMicros(
     {
-      inputChars: request.system.length + request.user.length,
+      inputBytes: utf8Length(request.system) + utf8Length(request.user) + SCHEMA_BYTES,
       maxOutputTokens: EXPLAIN_FRAGMENT.maxTokens,
     },
     priceFor(EXPLAIN_FRAGMENT.model),

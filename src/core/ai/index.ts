@@ -10,7 +10,7 @@ export {
 } from './cap';
 export { locateQuote } from './citations';
 export type { ModelPrice, Usage } from './cost';
-export { costMicros, maxCostMicros } from './cost';
+export { costMicros, maxCostMicros, utf8Length } from './cost';
 export type { AiFunctionState } from './functions';
 export { functionState, retiresSoon } from './functions';
 export type { PermissionChoice, RequestFacts } from './gate-rules';

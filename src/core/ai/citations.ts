@@ -10,20 +10,26 @@ const WRAPPERS = /^[\s«»“”"'‘’…]+|[\s«»“”"'‘’…]+$/gu;
 
 interface Normalized {
   readonly text: string;
-  // Para cada letra del texto normalizado, dónde estaba en el original.
-  readonly positions: readonly number[];
+  // Para cada letra del texto normalizado, dónde empieza y dónde termina en el original.
+  readonly starts: readonly number[];
+  readonly ends: readonly number[];
 }
 
-// NFC y los espacios seguidos (también saltos de renglón) como uno solo.
+// Una letra con sus marcas (una tilde aparte, «a» + «◌́»), para componerla junta.
+const CLUSTER = /\P{M}\p{M}*|\p{M}+/gu;
+
+// NFC y los espacios seguidos (también saltos de renglón) como uno solo, recordando de dónde sale
+// cada letra en el texto tal como está (que puede no estar en NFC).
 function normalize(original: string): Normalized {
   let text = '';
-  const positions: number[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
   let pendingSpace = -1;
-  let index = 0;
-  for (const char of original) {
-    const at = index;
-    index += char.length;
-    if (/\s/u.test(char)) {
+  for (const match of original.matchAll(CLUSTER)) {
+    const cluster = match[0];
+    const at = match.index;
+    const end = at + cluster.length;
+    if (/^\s+$/u.test(cluster)) {
       if (pendingSpace === -1 && text !== '') {
         pendingSpace = at;
       }
@@ -31,16 +37,18 @@ function normalize(original: string): Normalized {
     }
     if (pendingSpace !== -1) {
       text += ' ';
-      positions.push(pendingSpace);
+      starts.push(pendingSpace);
+      ends.push(pendingSpace + 1);
       pendingSpace = -1;
     }
-    const composed = char.normalize('NFC');
+    const composed = cluster.normalize('NFC');
     text += composed;
     for (let step = 0; step < composed.length; step++) {
-      positions.push(at);
+      starts.push(at);
+      ends.push(end);
     }
   }
-  return { text, positions };
+  return { text, starts, ends };
 }
 
 export function locateQuote(
@@ -51,19 +59,16 @@ export function locateQuote(
   if (wanted.split(' ').filter((word) => /[\p{L}\p{N}]/u.test(word)).length < MIN_QUOTE_WORDS) {
     return null;
   }
-  const source = normalize(fragment.normalize('NFC'));
+  const source = normalize(fragment);
   const found = source.text.indexOf(wanted);
   if (found === -1) {
     return null;
   }
-  const last = found + wanted.length - 1;
-  const start = source.positions[found];
-  const lastAt = source.positions[last];
-  if (start === undefined || lastAt === undefined) {
+  // El inicio y el final, en el texto tal como está.
+  const start = source.starts[found];
+  const end = source.ends[found + wanted.length - 1];
+  if (start === undefined || end === undefined) {
     return null;
   }
-  // El final es la letra siguiente a la última de la cita, en el original.
-  const lastChar = fragment.normalize('NFC').codePointAt(lastAt);
-  const width = lastChar !== undefined && lastChar > 0xffff ? 2 : 1;
-  return { start, end: lastAt + width };
+  return { start, end };
 }

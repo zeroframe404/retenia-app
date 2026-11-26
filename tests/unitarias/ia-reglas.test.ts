@@ -13,6 +13,7 @@ import {
   percentUsed,
   type RequestFacts,
   retiresSoon,
+  utf8Length,
 } from '../../src/core/ai';
 
 // Las reglas puras de la compuerta de IA (Fase 19): qué entrega cada nivel, cuánto cuesta una
@@ -47,11 +48,18 @@ describe('IA: el costo de una consulta', () => {
     expect(costMicros(NO_USAGE, OPUS)).toBe(0);
   });
 
-  it('[CA-169] lo máximo que puede costar un pedido cuenta toda la salida y una unidad de entrada cada dos letras', () => {
-    expect(maxCostMicros({ inputChars: 4000, maxOutputTokens: 2000 }, OPUS)).toBe(
-      2000 * 4 + 2000 * 20,
+  it('[CA-169] lo máximo que puede costar un pedido cuenta toda la salida y una unidad de entrada por byte, más 1.000 por las marcas de los mensajes', () => {
+    expect(maxCostMicros({ inputBytes: 4000, maxOutputTokens: 2000 }, OPUS)).toBe(
+      (4000 + 1000) * 4 + 2000 * 20,
     );
-    expect(maxCostMicros({ inputChars: 3, maxOutputTokens: 0 }, OPUS)).toBe(2 * 4);
+    expect(maxCostMicros({ inputBytes: 3, maxOutputTokens: 0 }, OPUS)).toBe((3 + 1000) * 4);
+  });
+
+  it('los bytes de un texto son los que viaja en UTF-8: una «ñ» son 2, un ideograma 3 y un emoji 4', () => {
+    expect(utf8Length('n')).toBe(1);
+    expect(utf8Length('ñ')).toBe(2);
+    expect(utf8Length('統')).toBe(3);
+    expect(utf8Length('😀')).toBe(4);
   });
 });
 

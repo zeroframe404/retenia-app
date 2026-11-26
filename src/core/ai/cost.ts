@@ -27,15 +27,25 @@ export function costMicros(usage: Usage, price: ModelPrice): number {
   return Math.ceil(Number(exact.toFixed(6)));
 }
 
+// Las marcas que la API agrega alrededor de los mensajes y del esquema de la salida, por las dudas.
+const FRAMING_TOKENS = 1000;
+
+// Los bytes de un texto en UTF-8, como viaja.
+export function utf8Length(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
 // Lo máximo que puede costar un pedido antes de mandarlo: toda la salida permitida y, de entrada,
-// una unidad cada dos letras (las unidades reales salen de a tres o cuatro letras en castellano).
+// una unidad por byte de lo que se manda, más las marcas de los mensajes. Ninguna unidad de texto
+// ocupa menos de un byte, así que es un techo con cualquier idioma, emoji o símbolo (en castellano,
+// las unidades reales salen de a tres o cuatro letras: el techo queda holgado).
 export function maxCostMicros(
-  { inputChars, maxOutputTokens }: { inputChars: number; maxOutputTokens: number },
+  { inputBytes, maxOutputTokens }: { inputBytes: number; maxOutputTokens: number },
   price: ModelPrice,
 ): number {
   return costMicros(
     {
-      inputTokens: Math.ceil(inputChars / 2),
+      inputTokens: inputBytes + FRAMING_TOKENS,
       outputTokens: maxOutputTokens,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
