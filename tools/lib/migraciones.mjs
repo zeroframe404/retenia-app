@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { run } from './proceso.mjs';
@@ -24,33 +25,62 @@ async function git(root, args) {
 const normalized = (text) => text.replace(/\r\n/g, '\n');
 
 /**
+ * La huella con que git guarda un archivo (su «blob»), con los finales de línea de git.
+ * @param {string} text
+ */
+function blobId(text) {
+  const bytes = Buffer.from(normalized(text), 'utf8');
+  return createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+}
+
+/**
  * Las migraciones del historial que cambiaron o desaparecieron.
+ * Una sola pasada por el historial (del commit más viejo al más nuevo) da, de cada archivo, el commit
+ * que lo agregó y la huella que tenía ahí; solo si la huella de hoy no coincide se compara el
+ * contenido entero (así un archivo guardado con otros finales de línea no da un falso aviso).
  * @param {string} root
  * @returns {Promise<{ path: string, problem: 'cambió' | 'ya no existe' }[]>}
  */
 export async function changedMigrations(root) {
-  const listed = await git(root, [
+  const log = await git(root, [
     'log',
     '--diff-filter=A',
-    '--name-only',
-    '--format=',
+    '--raw',
+    '--no-abbrev',
+    '--format=commit %H',
+    '--reverse',
     '--',
     ...PATHSPECS,
   ]);
-  const paths = [...new Set(listed.split(/\r?\n/).filter((line) => line.trim() !== ''))].sort();
+  /** @type {Map<string, { commit: string, blob: string }>} */
+  const added = new Map();
+  let commit = '';
+  for (const line of log.split(/\r?\n/)) {
+    if (line.startsWith('commit ')) {
+      commit = line.slice('commit '.length).trim();
+      continue;
+    }
+    // «:000000 100644 0000… <blob> A\t<ruta>»
+    const raw = /^:\d+ \d+ [0-9a-f]+ ([0-9a-f]+) A\t(.+)$/.exec(line);
+    if (raw?.[1] && raw[2] && !added.has(raw[2])) {
+      added.set(raw[2], { commit, blob: raw[1] });
+    }
+  }
   /** @type {{ path: string, problem: 'cambió' | 'ya no existe' }[]} */
   const problems = [];
-  for (const path of paths) {
-    const firstCommit = (
-      await git(root, ['log', '--diff-filter=A', '--format=%H', '--reverse', '--', path])
-    )
-      .split(/\r?\n/)
-      .find((line) => line.trim() !== '');
-    const original = await git(root, ['show', `${firstCommit}:${path}`]);
+  for (const path of [...added.keys()].sort()) {
+    const first = added.get(path);
     const current = join(root, path);
     if (!existsSync(current)) {
       problems.push({ path, problem: 'ya no existe' });
-    } else if (normalized(readFileSync(current, 'utf8')) !== normalized(original)) {
+      continue;
+    }
+    const text = readFileSync(current, 'utf8');
+    if (first && blobId(text) === first.blob) {
+      continue;
+    }
+    const original = await git(root, ['show', `${first?.commit}:${path}`]);
+    if (normalized(text) !== normalized(original)) {
       problems.push({ path, problem: 'cambió' });
     }
   }

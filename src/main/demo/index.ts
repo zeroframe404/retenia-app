@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { demoChannels } from '../../preload/contract/demo';
+import type { DemoAi } from './ai';
 import type { DemoDate } from './clock';
 import type { DemoWorkspace } from './switcher';
 
@@ -23,8 +24,15 @@ type DemoData = Pick<DemoWorkspace, 'mode' | 'useFirstTime' | 'useCast' | 'loadV
 
 // Los manejadores de los canales que solo existen en «Retenia (prueba)»: la fecha de la cinta y
 // los botones de Ajustes › «Demostración». Sin los datos (`data`), «demo.dataMode» responde el
-// elenco y los dos cambios de modo fallan.
-export function createDemoHandlers(demo: DemoDate, data?: DemoData): DemoHandlers {
+// elenco y los dos cambios de modo fallan. Sin la IA simulada (`ai`), sus interruptores quedan
+// apagados y no se pueden prender.
+export function createDemoHandlers(demo: DemoDate, data?: DemoData, ai?: DemoAi): DemoHandlers {
+  const needAi = (): DemoAi => {
+    if (!ai) {
+      throw new Error('Acá no hay IA simulada');
+    }
+    return ai;
+  };
   const needData = (): DemoData => {
     if (!data) {
       throw new Error('Acá no se puede cambiar de datos de demostración');
@@ -41,5 +49,12 @@ export function createDemoHandlers(demo: DemoDate, data?: DemoData): DemoHandler
     'demo.load10k': async () => needData().loadVolume(),
     'demo.processing': async () => ({ slow: demo.slowProcessing() }),
     'demo.setProcessing': async ({ slow }) => ({ slow: demo.setSlowProcessing(slow) }),
+    'demo.ai': async () => ai?.state() ?? { simulated: false, bad: false, slow: false },
+    'demo.setAi': async (patch) =>
+      needAi().set({
+        ...(patch.simulated === undefined ? {} : { simulated: patch.simulated }),
+        ...(patch.bad === undefined ? {} : { bad: patch.bad }),
+        ...(patch.slow === undefined ? {} : { slow: patch.slow }),
+      }),
   };
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { MaterialSelection } from '../preload/contract/materials';
 import type { Subject } from '../preload/contract/organization';
 import type { SearchHit } from '../preload/contract/search';
 import type { SessionView } from '../preload/contract/study';
@@ -98,12 +99,26 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   studyingRef.current = studying !== null;
   const requests = useRef(0);
   const [toast, setToast] = useState('');
+  // «Ver» de una explicación de la IA que estaba pendiente y llegó con su panel cerrado (Fase 19).
+  // Va atado a su aviso (`message`): si el cartel cambia o se va solo, el botón no pasa al siguiente.
+  const [toastAction, setToastAction] = useState<
+    { message: string; text: string; onClick: () => void } | undefined
+  >(undefined);
+  const [pendingExplain, setPendingExplain] = useState<{
+    materialId: string;
+    selection: MaterialSelection;
+    requestId: string;
+  } | null>(null);
+  const watchingExplain = useRef<string | null>(null);
   const content = useRef<HTMLElement>(null);
   const subjectsLoaded = useRef(false);
 
+  // «Configurar» de una función de IA (Fase 19): Ajustes con el foco en «Inteligencia artificial».
+  const [aiRequested, setAiRequested] = useState(false);
   const go = useCallback((next: Destination) => {
     setDestination(next);
     setSettingsView('settings');
+    setAiRequested(false);
     if (next === 'notes') {
       setNotesSection('notes');
     }
@@ -301,6 +316,53 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     setNavigated(true);
   };
 
+  // Una explicación de la IA que estaba pendiente (sin conexión) terminó con su panel cerrado (Fase
+  // 19, CA-176): si llegó, «Llegó la explicación que estaba pendiente.»; si no se pudo completar, lo
+  // dice. En los dos casos, «Ver» la abre en su material sin volver a pedirla. Si se canceló por algo
+  // que hiciste vos (el modo solo local, quitar el permiso), no avisa nada.
+  useEffect(() => {
+    if (pendingExplain === null) {
+      return;
+    }
+    const open = () => {
+      setToast('');
+      setToastAction(undefined);
+      requests.current += 1;
+      setMaterialRequest({
+        materialId: pendingExplain.materialId,
+        explain: { selection: pendingExplain.selection, requestId: pendingExplain.requestId },
+        nonce: requests.current,
+      });
+      setDestination('materials');
+      setSettingsView('settings');
+      setNavigated(true);
+    };
+    const stop = window.reteniaAvisos?.alRecibir((event) => {
+      if (event.type !== 'ai.result' || event.requestId !== pendingExplain.requestId) {
+        return;
+      }
+      setPendingExplain(null);
+      if (watchingExplain.current === event.requestId) {
+        return;
+      }
+      window.retenia['ai.outcome']({ requestId: event.requestId }).then(
+        (outcome) => {
+          if (
+            outcome.state === 'pending' ||
+            (outcome.state === 'failed' && outcome.reason.startsWith('cancelled'))
+          ) {
+            return;
+          }
+          const message = outcome.state === 'done' ? texts.ai.arrived : texts.ai.notCompleted;
+          setToast(message);
+          setToastAction({ message, text: texts.ai.viewArrived, onClick: open });
+        },
+        () => undefined,
+      );
+    });
+    return () => stop?.();
+  }, [pendingExplain]);
+
   // «Practicar ahora» desde Progreso o desde Estudiar (Fase 17): la actividad sola, en Apuntes ›
   // «Tarjetas», fuera de la cola del día.
   const practiceCard = (cardId: string) => {
@@ -412,7 +474,15 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
 
   const toasts = (
     <div className={styles.toasts}>
-      <Toast onClose={() => setToast('')}>{toast}</Toast>
+      <Toast
+        onClose={() => {
+          setToast('');
+          setToastAction(undefined);
+        }}
+        action={toastAction?.message === toast ? toastAction : undefined}
+      >
+        {toast}
+      </Toast>
     </div>
   );
 
@@ -537,6 +607,14 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
               request={materialRequest}
               onChangeSubject={() => setChangingSubject(true)}
               onInboxCount={setInboxCount}
+              onConfigureAi={() => {
+                go('settings');
+                setAiRequested(true);
+              }}
+              onExplainPending={setPendingExplain}
+              onExplainWatching={(requestId) => {
+                watchingExplain.current = requestId;
+              }}
             />
           ) : null}
           {destination === 'languages' ? (
@@ -564,6 +642,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
           {destination === 'settings' && settingsView === 'settings' ? (
             <SettingsScreen
               focusTitle={navigated}
+              focusAi={aiRequested}
               onSubjectsChanged={reloadShared}
               demo={
                 __VARIANTE__ === 'prueba' ? (

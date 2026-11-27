@@ -45,7 +45,10 @@ Solo en las fronteras externas. Cada doble está en esta lista, declarado en el 
 
 | Frontera | Doble | Dónde vive | Qué lo reemplaza en una prueba real |
 |---|---|---|---|
-| IA | Adaptador con respuestas grabadas, indexadas por propósito y huella del pedido; también sirve respuestas malformadas, lentas (más de 8 s) y fallidas. | `src/ai/adapters/recorded.ts`; grabaciones en `tests/ia-casos/` y `datos-de-ejemplo/ia/` | «Evaluar prompts con la IA real» (CA-184) con tu clave, a pedido. |
+| IA | La IA simulada (Fase 19): un adaptador que contesta lo que le da la prueba o la demostración (respuestas grabadas, una plantilla, una respuesta con la forma equivocada), con demora en el reloj inyectado o frenada hasta que la prueba la suelta, y que respeta la conexión. En la demostración no saca nada de la PC ni gasta (`kind: 'local'`); en las pruebas también hace «como IA remota» (`kind: 'remote'`), con permiso, costo y registro. | `src/ai/adapters/recorded.ts`; grabaciones en `datos-de-ejemplo/ia/` (y en `tests/ia-casos/` desde la Fase 20); armado en `tests/apoyo/ia.ts` | «Evaluar prompts con la IA real» (CA-184) con tu clave, a pedido; en la Fase 19, tu prueba manual M19.6. |
+| Servidor de la IA en la PC (Fase 19) | Un servidor `node:http` de la propia prueba, en `127.0.0.1`, que contesta como la API de Anthropic (modelos y mensajes, con una clave inventada) y anota lo que recibe. La variante de prueba le manda los pedidos «de tu clave» cuando arranca con `RETENIA_IA_ORIGEN`. Es la frontera «Red»: el adaptador de Anthropic, el SDK, el permiso, el costo y «Qué se envió» son los de verdad. | `tests/apoyo/servidor-ia.ts`; `tests/e2e/ia.spec.ts`, `tests/e2e/accesibilidad-fase-19.spec.ts` y `tools/capturas.mjs` | Tu prueba manual M19.5 a M19.7 con tu clave. |
+| Red del adaptador de Anthropic (Fase 19) | Un `fetch` de la prueba que contesta como la API (respuestas y errores 400, 401, 402, 403, 404, 429, 500 y 529, sin conexión y una conexión que se corta después de mandar). Sirve para el contrato del adaptador y, detrás de la puerta única, para la integración con el adaptador de verdad (`anthropicFetch` en `tests/apoyo/ia.ts`). | `tests/contrato/ia-anthropic.test.ts`, `tests/integracion/ia-compuerta.test.ts` | Igual que el de arriba. |
+| Almacén seguro de Windows en las pruebas sin Electron (Fase 19) | `testSecretBox`: cifra con una clave fija de prueba, y una variante que dice que no hay cifrado. En la punta a punta se usa el de Windows de verdad. | `tests/apoyo/caja-segura.ts` | La punta a punta (`tests/e2e/ia.spec.ts`, CA-168). |
 | Red | Servidor local que sirve páginas web del elenco (`pagina.html`), `latest.yml` e instaladores de prueba, y un servicio de conectividad que se fuerza a «sin conexión». Desde la Fase 05: un servidor local que sirve los modelos de voz con las mismas direcciones que la página real (`RETENIA_MODELOS_ORIGEN`), otro que sabe cortar una descarga a la mitad y entregar un archivo cambiado, y «Simular sin conexión» en Ajustes › «Demostración». | `tests/apoyo/servidor-local.ts`; `tests/apoyo/servidor-de-modelos.ts` y `tests/integracion/modelos.test.ts`; «Simular sin conexión» en `src/main/demo/lab.ts` | La descarga real de los modelos: la hace `node tools/preparar.mjs` (y el CI cuando cambia el manifiesto) con el mismo código y el mismo manifiesto; a mano, M05.1. La Fase 40 prueba a mano una actualización real. |
 | Reloj | El `Clock` inyectado. | `core/clock.ts` | Nada: el reloj real solo corre en la versión real. |
 | Voz y micrófono | Micrófono bloqueado simulado (`RETENIA_SIMULAR_MICROFONO=bloqueado`) y micrófono de prueba de Chromium que «dice» un archivo WAV fijo (`RETENIA_MICROFONO_ARCHIVO`, con `datos-de-ejemplo/good-morning.wav`), los dos solo en la variante de prueba; en las pruebas de pantallas, el grabador de la ventana reemplazado por uno que devuelve dos segundos de audio. Los modelos de voz son reales en SR, E y N. | `src/main/demo/lab-setup.ts`; `vi.mock` de `src/renderer/demo/lab/microphone.ts` en `tests/componentes/laboratorio.test.tsx` | Se escucha y se graba a mano en la Fase 05 (M05.2 a M05.5). |
@@ -415,7 +418,7 @@ Cómo quedó en la Fase 10:
 | Criterio | Capa | También | Cómo se comprueba |
 |---|---|---|---|
 | CA-167 | E | — | Sin clave, estudiar funciona y las funciones de IA muestran «Para usar esto hay que conectar la IA» con «Configurar». |
-| CA-168 | I | E | La clave guardada con `safeStorage` no aparece en claro en la carpeta de datos, copias, exportaciones ni registros; E ve «Conexión correcta» (IA simulada). |
+| CA-168 | I | E | La clave guardada con `safeStorage` no aparece en claro en la carpeta de datos, copias, exportaciones ni registros; E ve «Conexión correcta» (servidor de la IA en la PC) y busca la clave en toda la carpeta, en una copia, en una exportación y en la ventana, con el almacén de Windows de verdad. |
 | CA-169 | U | E | Tope USD 10: aviso en 8, freno en 10 con los textos exactos y «Este mes: USD 10,00 de 10». |
 | CA-170 | I | E | Con «Modo solo local», la compuerta rechaza antes de armar el pedido y la pantalla lo dice. |
 | CA-171 | E | I | «Qué se envió» muestra el renglón con fecha, propósito, fragmento y costo. |
@@ -425,6 +428,23 @@ Cómo quedó en la Fase 10:
 | CA-175 | I | E | `trampa.md` con la frase de inyección: la IA (grabada) lo explica como texto y nada cambia. |
 | CA-176 | E | I | Sin conexión, el pedido queda «Pendiente: se reanuda cuando haya conexión» y se envía al volver. |
 | CA-177 | U | I | El verificador de citas degrada a «Aporte del modelo, no verificado» toda cita que no está textualmente en el fragmento. |
+
+Cómo quedó en la Fase 19: 51 criterios con prueba en la red. Las de los 11 de la fase:
+
+- **Reglas puras** (`tests/unitarias/ia-reglas.test.ts`, `ia-verificadores.test.ts`, `ia-pedido.test.ts`): costo, tope, mes de Buenos Aires, citas, números, niveles y el orden del pedido.
+- **Propiedades** (`tests/propiedades/ia.test.ts`): ninguna secuencia de respuestas de la IA simulada escribe fuera de la compuerta; nunca se pasa del tope; lo que se muestra como cita siempre está en el pasaje.
+- **Integración con base real** (`tests/integracion/ia-compuerta.test.ts`, `ia-clave.test.ts`, `materiales-cola.test.ts`).
+- **Contrato** (`tests/contrato/ia.test.ts`, `ia-anthropic.test.ts`).
+- **Estáticas** (`tests/estaticas/ia.test.ts`):
+  - capas, con la regla `capas-R9b` en dependency-cruiser;
+  - modelos y precios con fecha;
+  - huellas de los prompts, que no cambian respecto de su primer commit (`tools/lib/prompts.mjs`, probado sobre un repositorio de juguete en `tests/unitarias/red/prompts.test.ts`);
+  - nada de `console`.
+- **Pantallas** (`tests/componentes/ia.test.tsx`).
+- **La IA simulada de la demostración** (`tests/integracion/ia-demostracion.test.ts`): la demora de 12 segundos, con la espera simulada, y `RETENIA_IA_ORIGEN` solo en 127.0.0.1.
+- **Punta a punta** (`tests/e2e/ia.spec.ts`), más la accesibilidad en claro y en oscuro (`tests/e2e/accesibilidad-fase-19.spec.ts`).
+
+La red nunca llama a la IA real. Los dobles nuevos están en la sección 4. `tools/buscar-clave.mjs` (con `tools/lib/buscar-clave.mjs`, el mismo buscador de las pruebas) busca la clave entera en la carpeta de datos, en las copias comprimidas y en una exportación, en UTF-8 y en UTF-16, sin mostrarla.
 
 ### Fase 20 · Prompts, rúbricas y voz (H-42, H-43)
 

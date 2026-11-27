@@ -157,6 +157,9 @@ export function createDemoWorkspace({
     get micro() {
       return active.micro;
     },
+    get ai() {
+      return active.ai;
+    },
     get activities() {
       return active.activities;
     },

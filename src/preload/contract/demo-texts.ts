@@ -18,6 +18,17 @@ export const demoTexts = {
   slowProcessing: 'Procesar despacio',
   slowProcessingHint:
     'Agrega una demora de 2 segundos por página para probar el cierre a mitad de camino.',
+  // La IA simulada (Fase 19): respuestas grabadas, sin clave, sin internet y sin gastar.
+  ai: {
+    simulated: 'IA simulada',
+    simulatedHint:
+      'Responde con respuestas grabadas: sin clave, sin internet y sin gastar. No saca nada de la PC.',
+    bad: 'IA simulada: responder mal',
+    badHint: 'Devuelve una respuesta con la forma equivocada.',
+    slow: 'IA simulada: tardar 12 segundos',
+    slowHint: 'Cada respuesta tarda 12 segundos en llegar.',
+    failed: 'No pude cambiar la IA simulada. Probá de nuevo.',
+  },
   // «Cargar 10.000 tarjetas» (Fase 12): relleno en la materia «Volumen», para medir la búsqueda y las listas.
   volume: {
     load: 'Cargar 10.000 tarjetas',

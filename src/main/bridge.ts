@@ -6,6 +6,7 @@ import { studyDayOf } from '../core/study-day';
 import type { ThemeChoice } from '../core/theme';
 import type { ZoomDirection } from '../core/zoom';
 import type { BackupView } from '../data/backups';
+import { newId } from '../data/ids';
 import type { Workspace } from '../data/workspace';
 import {
   type ChannelName,
@@ -18,10 +19,13 @@ import type { Backup } from '../preload/contract/backups';
 import type { fileChannels } from '../preload/contract/materials';
 import { formatShortDate, texts } from '../preload/contract/texts';
 import { createActivityTimer } from './activity-timer';
+import type { SecretBox } from './ai/key-store';
+import { type AiService, createAiService } from './ai/service';
 import { createAppearanceStore } from './appearance';
 import type { Dialogs } from './imports/dialogs';
 import { createTransfersService, type TransfersService } from './imports/service';
 import type { MaterialsService } from './materials/service';
+import { createNetGate } from './net-gate';
 import { createStudyTimer } from './study-timer';
 
 export type Variant = 'prueba' | 'real';
@@ -36,6 +40,17 @@ export type FileHandlers = {
   [K in keyof FileChannels]: (
     request: z.output<FileChannels[K]['request']>,
   ) => Promise<z.input<FileChannels[K]['response']>>;
+};
+
+// Sin almacén seguro: la clave no se puede guardar (el puente de las pruebas que no prueban la IA).
+const NO_SECURE_STORAGE: SecretBox = {
+  isEncryptionAvailable: () => false,
+  encryptString: () => {
+    throw new Error('Sin almacén seguro');
+  },
+  decryptString: () => {
+    throw new Error('Sin almacén seguro');
+  },
 };
 
 const CANCELLING_DIALOGS: Dialogs = {
@@ -74,6 +89,7 @@ export function createHandlers({
   materials,
   transfers: givenTransfers,
   dialogs = CANCELLING_DIALOGS,
+  ai: givenAi,
 }: {
   clock: Clock;
   variant: Variant;
@@ -94,6 +110,9 @@ export function createHandlers({
   // pruebas de otros canales), no se lee ningún archivo y todo diálogo vuelve cancelado.
   transfers?: TransfersService;
   dialogs?: Dialogs;
+  // La IA (Fase 19). Sin ella (las pruebas de otros canales), una IA apagada: sin almacén seguro y
+  // con la puerta a internet cerrada, así nada puede salir.
+  ai?: AiService;
 }): Handlers {
   const backups = async () => (await workspace.backups()).map(toBackup);
   const transfers =
@@ -101,6 +120,20 @@ export function createHandlers({
     createTransfersService({
       workspace,
       execute: () => Promise.reject(new Error('Sin proceso de trabajo para importar')),
+    });
+  const ai =
+    givenAi ??
+    createAiService({
+      store: () => workspace.ai,
+      clock,
+      dataDir: workspace.dataDir,
+      box: NO_SECURE_STORAGE,
+      net: createNetGate({ offline: true }),
+      newId,
+      fragmentOf: (input) => materials.fragment(input),
+      remote: () => {
+        throw new Error('Este puente no tiene IA');
+      },
     });
   const appearance = createAppearanceStore(workspace.dataDir);
   const timer = createStudyTimer(clock, stopwatch, (sessionId) =>
@@ -322,6 +355,19 @@ export function createHandlers({
     'materials.updateDerived': async (request) => materials.updateDerived(request),
     'materials.resolveConflict': async (request) => materials.resolveConflict(request),
     'materials.sourceChange': async (request) => materials.sourceChange(request),
+    // La IA (Fase 19): todo pasa por la compuerta; ningún canal toca tarjetas, repasos ni dominio.
+    'ai.status': async () => ai.status(),
+    'ai.testConnection': async (request) => ai.testConnection(request),
+    'ai.deleteKey': async () => ai.deleteKey(),
+    'ai.setCap': async (request) => ai.setCap(request),
+    'ai.setLocalOnly': async (request) => ai.setLocalOnly(request),
+    'ai.setFunctionState': async (request) => ai.setFunctionState(request),
+    'ai.sentLog': async () => ai.sentLog(),
+    'ai.permissions': async () => ai.permissions(),
+    'ai.revokePermission': async (request) => ai.revokePermission(request),
+    'ai.explain': async (request) => ai.explain(request),
+    'ai.outcome': async (request) => ai.outcome(request),
+    'ai.cancel': async (request) => ai.cancel(request),
     'inbox.list': async () => workspace.inbox.list(),
     'inbox.capture': async (request) => workspace.inbox.capture(request),
     'inbox.move': async (request) => workspace.inbox.move(request),

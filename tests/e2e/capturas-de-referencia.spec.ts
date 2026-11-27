@@ -52,10 +52,10 @@ for (const destination of ['Estudiar', 'Materiales', 'Idiomas', 'Progreso'] as c
         page.getByRole('heading', { name: 'Objetivos de Estadística básica' }),
       ).toBeVisible();
     } else if (destination === 'Materiales') {
-      // Desde la Fase 13, los dos materiales del elenco se leen solos al abrir: la captura espera a
-      // que los dos estén «Listo», así no depende del momento.
+      // Desde la Fase 13, los materiales del elenco se leen solos al abrir (tres desde la Fase 19,
+      // con «trampa.md»): la captura espera a que todos estén «Listo», así no depende del momento.
       const rows = page.getByRole('list', { name: 'Materiales de la materia' }).getByRole('button');
-      await expect(rows).toHaveCount(2);
+      await expect(rows).toHaveCount(3);
       for (const row of await rows.all()) {
         await expect(row).toContainText('Listo', { timeout: 60_000 });
       }

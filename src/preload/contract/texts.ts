@@ -55,6 +55,26 @@ const readable = (address: string) => {
   }
 };
 
+// Plata (Fase 19): dólares con coma decimal, «USD 0,02», «USD 1.234,50». Lo que no llega a un
+// centavo se dice así, sin redondear a cero.
+const moneyFormat = new Intl.NumberFormat('es-AR', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const MICROS_PER_CENT = 10_000;
+const centsOf = (micros: number) => Math.floor((micros + MICROS_PER_CENT / 2) / MICROS_PER_CENT);
+function formatUsd(micros: number): string {
+  if (micros > 0 && centsOf(micros) === 0) {
+    return 'menos de USD 0,01';
+  }
+  return `USD ${moneyFormat.format(centsOf(micros) / 100)}`;
+}
+// El tope, como se escribe: «10» si son dólares enteros, «2,50» si no.
+const capAmount = (capCents: number) =>
+  capCents % 100 === 0 ? numberFormat.format(capCents / 100) : moneyFormat.format(capCents / 100);
+const fragmentsPhrase = (count: number) =>
+  count === 1 ? '1 fragmento' : `${numberFormat.format(count)} fragmentos`;
+
 export const texts = {
   appName: 'Retenia',
   appNameTest: 'Retenia (prueba)',
@@ -333,6 +353,7 @@ export const texts = {
       review: 'Requiere revisión',
       error: 'Error',
       pendingNetwork: 'Pendiente: se descarga cuando haya conexión',
+      pendingLocalOnly: 'Pendiente: el modo solo local está activado',
     },
     partialDetail: (read: number, total: number) => `Leímos ${read} de ${total} páginas`,
     version: (number: number) => `versión ${number}`,
@@ -1856,6 +1877,127 @@ export const texts = {
     filterAnki: 'Mazo o colección de Anki',
     filterRemnote: 'Exportación de RemNote en Markdown',
     filterText: 'Texto',
+  },
+  // La IA (Fase 19, H-40 y H-41): Ajustes › «Inteligencia artificial» y «Explicame este fragmento».
+  ai: {
+    title: 'Inteligencia artificial',
+    intro:
+      'La IA es opcional: Retenia funciona igual sin ella. Solo explica o propone; nunca cambia tus tarjetas, tus repasos ni tu historial.',
+    keyTitle: 'Clave de la IA',
+    keyLabel: 'Tu clave de Anthropic',
+    keyPlaceholder: 'Pegá tu clave',
+    keySaved: 'Clave guardada en el almacén seguro de Windows.',
+    noKey: 'Todavía no hay una clave guardada.',
+    testConnection: 'Probar conexión',
+    testing: 'Probando…',
+    connection: {
+      ok: 'Conexión correcta',
+      no_key: 'Pegá tu clave para probarla.',
+      invalid_key: 'La clave no funciona. Revisala y probá de nuevo.',
+      offline: 'No hay conexión: probá cuando vuelva.',
+      local_only: 'El modo solo local está activado: no se envía nada a la IA.',
+      model_unavailable: 'Tu clave no puede usar el modelo que usa Retenia.',
+      insecure: 'No pude guardar la clave de forma segura en esta PC',
+      technical: 'No se pudo probar por un error técnico. Probá de nuevo en un rato.',
+    },
+    retiresOn: (date: string) =>
+      `Este modelo puede dejar de funcionar desde el ${date}: hay que actualizar Retenia antes.`,
+    changeKey: 'Cambiar clave',
+    deleteKey: 'Borrar clave',
+    deleteKeyQuestion: '¿Borrar la clave? La IA queda apagada hasta que pegues otra.',
+    deleteKeyConfirm: 'Borrar',
+    cancel: 'Cancelar',
+    capTitle: 'Tope mensual',
+    capLabel: 'Tope mensual (USD)',
+    capSave: 'Guardar tope',
+    capInvalid: 'Escribí un monto en dólares entre 0,01 y 1.000, por ejemplo 10 o 2,50.',
+    capSaved: 'Tope guardado.',
+    counter: (spentMicros: number, capCents: number) =>
+      `Este mes: USD ${moneyFormat.format(centsOf(spentMicros) / 100)} de ${capAmount(capCents)}`,
+    warning: (percent: number) =>
+      `Ya usaste el ${numberFormat.format(percent)} % del tope de este mes.`,
+    capReached: 'Llegaste al tope de este mes',
+    changeCap: 'Cambiar el tope',
+    localOnly: 'Modo solo local',
+    localOnlyHint: 'Nada sale de la PC: la IA y las descargas quedan apagadas.',
+    sentTitle: 'Qué se envió',
+    sentEmpty: 'Todavía no se envió nada.',
+    purposes: { explain_fragment: 'Explicar un fragmento' },
+    fragments: fragmentsPhrase,
+    // Lo que se agrega al renglón si no salió bien (si salió bien, nada).
+    sentStatus: {
+      rejected_schema: 'respuesta descartada',
+      refused: 'la IA no quiso responder',
+      failed: 'falló',
+      unanswered: 'sin respuesta: cuenta lo máximo que pudo costar',
+    },
+    // «02/04/2027 · Explicar un fragmento · 1 fragmento de “Apunte.pdf” · USD 0,02».
+    sentRow: (
+      date: string,
+      purpose: string,
+      count: number,
+      title: string,
+      costMicros: number,
+      status: string | null,
+    ) =>
+      `${date} · ${purpose} · ${fragmentsPhrase(count)} de “${title}” · ${formatUsd(costMicros)}${status === null ? '' : ` · ${status}`}`,
+    functionsTitle: 'Funciones de la IA',
+    functionStates: { enabled: 'Habilitada', in_review: 'En revisión', suspended: 'Suspendida' },
+    functionRow: (name: string, state: string) => `${name} · ${state}`,
+    suspend: 'Suspender',
+    enable: 'Habilitar',
+    permissionsTitle: 'Materiales que pueden ir a la IA',
+    permissionsEmpty: 'Ningún material tiene un permiso guardado.',
+    revokePermission: 'Quitar permiso',
+    // Los materiales a los que dijiste «No»: «Volver a preguntar» borra la respuesta.
+    refusedTitle: 'Materiales que no van a la IA',
+    askAgain: 'Volver a preguntar',
+    failedSettings: 'No pude cambiar este ajuste. Probá de nuevo.',
+    // El visor de un material.
+    explain: 'Explicame este fragmento',
+    panelTitle: 'Explicación',
+    mark: 'Respuesta de la IA: las citas se comprobaron letra por letra en tu material.',
+    fromMaterial: 'Según tu material',
+    modelContribution: 'Aporte del modelo, no verificado',
+    noQuotes: 'Ninguna cita de tu material pasó la comprobación.',
+    preparing: 'Preparando la explicación…',
+    cost: (micros: number) => `Costo de esta consulta: ${formatUsd(micros)}`,
+    cached: 'Sin costo: ya la habías pedido.',
+    simulatedCost: 'IA simulada: sin costo.',
+    notConnected: 'Para usar esto hay que conectar la IA',
+    configure: 'Configurar',
+    localOnlyOn: 'El modo solo local está activado: no se envía nada a la IA.',
+    goToSettings: 'Ir a Ajustes',
+    suspended: (name: string) => `“${name}” está suspendida.`,
+    tooLong: 'Elegí un pasaje más corto: hasta unas 600 palabras.',
+    permissionQuestion: '¿Permitir enviar fragmentos de este material a la IA?',
+    permissionDetail: 'Se envía solo el pasaje que elegiste, no el material entero.',
+    permissionOnce: 'Solo esta vez',
+    permissionAlways: 'Siempre para este material',
+    permissionNo: 'No',
+    denied: 'Elegiste no enviar este material a la IA.',
+    allow: 'Permitir',
+    pendingOffline: 'Pendiente: se reanuda cuando haya conexión',
+    pendingRetry: 'Pendiente: hubo un error técnico y se reintenta solo.',
+    failed: {
+      format: 'No pude completar esto. Reintentá.',
+      technical: 'No se pudo conectar con la IA por un error técnico. Reintentá más tarde.',
+      auth: 'La clave de la IA no funciona. Revisala en Ajustes.',
+      billing: 'Tu cuenta de la IA no tiene saldo. Cargalo en la consola de Anthropic.',
+      refused: 'La IA no quiso responder este pedido.',
+      cancelled: 'Se canceló.',
+      cancelled_local_only: 'Se canceló: activaste el modo solo local.',
+      cancelled_suspended: 'Se canceló: suspendiste esta función de la IA.',
+      cancelled_permission: 'Se canceló: este material ya no tiene permiso para ir a la IA.',
+      cancelled_no_ai: 'Se canceló: ya no hay una IA conectada.',
+      cancelled_ai_changed: 'Se canceló: cambió la IA conectada. Pedila de nuevo.',
+    },
+    retry: 'Reintentar',
+    unavailable: 'No pude pedir la explicación. Probá de nuevo.',
+    goToQuote: (quote: string) => `Ir al pasaje: «${quote}»`,
+    arrived: 'Llegó la explicación que estaba pendiente.',
+    notCompleted: 'La explicación que estaba pendiente no se pudo completar.',
+    viewArrived: 'Ver',
   },
   // «Exportar todo» e «Importar exportación» (Fase 15, H-30).
   exports: {

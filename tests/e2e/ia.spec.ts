@@ -1,0 +1,244 @@
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { findSecret } from '../../tools/lib/buscar-clave.mjs';
+import { TEST_KEY } from '../apoyo/caja-segura';
+import type { FakeAi } from '../apoyo/servidor-ia';
+import { expect, test } from './apoyo';
+import { goToDestination } from './pasos';
+import {
+  aiSection,
+  check,
+  connectKey,
+  explain,
+  explanationPanel,
+  main,
+  openMaterial,
+  PARAMETER,
+  SAMPLE,
+  SLOW,
+  SURVEYS,
+  TRAP,
+  toSettings,
+  withFakeAi,
+} from './pasos-ia';
+
+// La compuerta de IA de punta a punta (Fase 19), en «Retenia (prueba)» armada: con la IA simulada de
+// Ajustes › «Demostración» y, para el camino de tu clave, con el servidor de la IA en la PC (doble
+// declarado de la frontera «Red», RETENIA_IA_ORIGEN). Nunca la IA real: cada prueba empieza con una
+// carpeta de datos nueva, sin clave, y las que conectan usan una clave inventada contra 127.0.0.1.
+// El almacén seguro es el de Windows de verdad.
+
+test('[CA-167] sin IA conectada se estudia igual y «Explicame este fragmento» dice que hay que conectarla', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+  await page.getByRole('button', { name: 'Pausar' }).click();
+  await openMaterial(page, /trampa\.md/);
+  await explain(page, SURVEYS);
+  const panel = explanationPanel(page);
+  await expect(panel.getByText('Para usar esto hay que conectar la IA')).toBeVisible();
+  await panel.getByRole('button', { name: 'Configurar' }).click();
+  await expect(page.getByRole('heading', { name: 'Inteligencia artificial' })).toBeFocused();
+});
+
+test('[CA-174] [CA-175] [CA-173] (simulado) con la IA simulada: la explicación separada y marcada, la trampa explicada como texto sin cambiar nada, y una respuesta mala descartada', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await goToDestination(page, 'Ajustes');
+  await check(page, 'IA simulada', true);
+  await openMaterial(page, /trampa\.md/);
+  await explain(page, TRAP);
+  const panel = explanationPanel(page);
+  await expect(panel.getByRole('heading', { name: 'Según tu material' })).toBeVisible(SLOW);
+  await expect(
+    panel.getByRole('heading', { name: 'Aporte del modelo, no verificado' }),
+  ).toBeVisible();
+  await expect(
+    panel.getByText('Respuesta de la IA: las citas se comprobaron letra por letra en tu material.'),
+  ).toBeVisible();
+  await expect(panel.getByText(`«${TRAP}»`)).toBeVisible();
+  await expect(panel.getByText(/Es una orden escrita dentro del apunte/)).toBeVisible();
+  await expect(panel.getByText('IA simulada: sin costo.')).toBeVisible();
+  // Nada cambió: los datos siguen en orden y no se envió nada.
+  await toSettings(page);
+  await page.getByRole('button', { name: 'Verificar datos' }).click();
+  await expect(page.getByText('Todo en orden · 0 diferencias')).toBeVisible(SLOW);
+  await expect(aiSection(page).getByText('Todavía no se envió nada.')).toBeVisible();
+  // «IA simulada: responder mal»: se tira entera.
+  await check(page, 'IA simulada: responder mal', true);
+  await openMaterial(page, /trampa\.md/);
+  await explain(page, SURVEYS);
+  await expect(explanationPanel(page).getByText('No pude completar esto. Reintentá.')).toBeVisible(
+    SLOW,
+  );
+  await expect(
+    explanationPanel(page).getByRole('heading', { name: 'Según tu material' }),
+  ).toHaveCount(0);
+});
+
+test('(simulado) el panel de la explicación va al lado del texto: no tapa el pasaje elegido ni sus botones, con la ventana del tamaño con que abre', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await goToDestination(page, 'Ajustes');
+  await check(page, 'IA simulada', true);
+  await openMaterial(page, /Inferencia — capítulos 1 a 4/);
+  await explain(page, SAMPLE);
+  const panel = explanationPanel(page);
+  await expect(panel.getByRole('heading', { name: 'Según tu material' })).toBeVisible(SLOW);
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  const passage = main(page).getByText(SAMPLE, { exact: false }).first();
+  const others = [
+    ['el pasaje', passage],
+    ['«Crear tarjeta desde acá»', page.getByRole('button', { name: 'Crear tarjeta desde acá' })],
+    ['«Explicame este fragmento»', page.getByRole('button', { name: 'Explicame este fragmento' })],
+  ] as const;
+  for (const [name, other] of others) {
+    const area = await other.boundingBox();
+    expect(area, name).not.toBeNull();
+    if (box && area) {
+      const apart =
+        area.x + area.width <= box.x ||
+        box.x + box.width <= area.x ||
+        area.y + area.height <= box.y ||
+        box.y + box.height <= area.y;
+      expect(apart, `el panel tapa ${name}`).toBe(true);
+    }
+  }
+});
+
+test('[CA-176] (simulado) sin conexión queda «Pendiente: se reanuda cuando haya conexión» y, al volver, llega sola', async ({
+  launchFromStart,
+}) => {
+  const { page } = await launchFromStart();
+  await goToDestination(page, 'Ajustes');
+  await check(page, 'IA simulada', true);
+  await check(page, 'Simular sin conexión', true);
+  await openMaterial(page, /trampa\.md/);
+  await explain(page, SURVEYS);
+  await expect(
+    explanationPanel(page).getByText('Pendiente: se reanuda cuando haya conexión'),
+  ).toBeVisible(SLOW);
+  // Mientras espera, se sigue estudiando: una tarjeta calificada.
+  await goToDestination(page, 'Estudiar');
+  await page.getByRole('button', { name: 'Empezar', exact: true }).click();
+  await page.getByRole('button', { name: 'Mostrar respuesta' }).click();
+  await page.getByRole('button', { name: 'La sabía', exact: true }).click();
+  await expect(page.getByRole('status', { name: /^Llevás 1 de \d+$/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Pausar' }).click();
+  await goToDestination(page, 'Ajustes');
+  await check(page, 'Simular sin conexión', false);
+  await expect(page.getByText('Llegó la explicación que estaba pendiente.')).toBeVisible(SLOW);
+  await page.getByRole('button', { name: 'Ver', exact: true }).click();
+  await expect(
+    explanationPanel(page).getByRole('heading', { name: 'Según tu material' }),
+  ).toBeVisible(SLOW);
+});
+
+// El camino de tu clave, con el servidor de la IA en la PC.
+const sentToTheAi = (fake: FakeAi) =>
+  fake.requests.filter((request) => request.path === '/v1/messages');
+
+test('[CA-172] [CA-171] [CA-169] [CA-170] (simulado) con tu clave: el permiso, el costo, «Qué se envió», el tope y el modo solo local', async ({
+  launchFromStart,
+  dataDir,
+}) => {
+  const { fake, page } = await withFakeAi(launchFromStart, dataDir);
+  try {
+    await connectKey(page);
+    await openMaterial(page, /Inferencia — capítulos 1 a 4/);
+    await page.getByRole('button', { name: 'Página siguiente' }).click();
+    await explain(page, PARAMETER);
+    const question = page.getByRole('dialog', {
+      name: '¿Permitir enviar fragmentos de este material a la IA?',
+    });
+    for (const name of ['Solo esta vez', 'Siempre para este material', 'No']) {
+      await expect(question.getByRole('button', { name, exact: true })).toBeVisible();
+    }
+    expect(sentToTheAi(fake)).toHaveLength(0);
+    await question.getByRole('button', { name: 'Solo esta vez' }).click();
+    const panel = explanationPanel(page);
+    await expect(panel.getByText('Costo de esta consulta: USD 0,01')).toBeVisible(SLOW);
+    await expect(panel.getByText(`«${PARAMETER}»`)).toBeVisible();
+    // Lo que salió: el pasaje, delimitado, y nada más del material.
+    const [sent] = sentToTheAi(fake);
+    expect(JSON.stringify(sent?.body)).toContain(PARAMETER);
+    expect(JSON.stringify(sent?.body)).toContain('<fragmento material=');
+    expect(JSON.stringify(sent?.body)).not.toContain(TEST_KEY);
+
+    // «Qué se envió».
+    await toSettings(page);
+    await expect(
+      aiSection(page).getByText(
+        '15/03/2027 · Explicar un fragmento · 1 fragmento de “Inferencia — capítulos 1 a 4.pdf” · USD 0,01',
+      ),
+    ).toBeVisible();
+    await expect(aiSection(page).getByText('Este mes: USD 0,01 de 10')).toBeVisible();
+
+    // El tope: con USD 0,01, la consulta siguiente no sale.
+    await aiSection(page).getByLabel('Tope mensual (USD)').fill('0,01');
+    await aiSection(page).getByRole('button', { name: 'Guardar tope' }).click();
+    await expect(aiSection(page).getByText('Llegaste al tope de este mes')).toBeVisible();
+    await openMaterial(page, /Inferencia — capítulos 1 a 4/);
+    await explain(page, SAMPLE);
+    await expect(explanationPanel(page).getByText('Llegaste al tope de este mes')).toBeVisible(
+      SLOW,
+    );
+    expect(sentToTheAi(fake)).toHaveLength(1);
+
+    // «Modo solo local»: nada sale de la PC y lo dice.
+    await toSettings(page);
+    await aiSection(page).getByLabel('Tope mensual (USD)').fill('10');
+    await aiSection(page).getByRole('button', { name: 'Guardar tope' }).click();
+    await check(page, 'Modo solo local', true);
+    await openMaterial(page, /Inferencia — capítulos 1 a 4/);
+    await explain(page, SAMPLE);
+    await expect(
+      explanationPanel(page).getByText(
+        'El modo solo local está activado: no se envía nada a la IA.',
+      ),
+    ).toBeVisible(SLOW);
+    expect(sentToTheAi(fake)).toHaveLength(1);
+    await toSettings(page);
+    await expect(aiSection(page).getByText(/^15\/03\/2027 · Explicar un fragmento/)).toHaveCount(1);
+  } finally {
+    await fake.close();
+  }
+});
+
+test('[CA-168] (simulado) la clave queda solo en el almacén seguro de Windows: no aparece en la carpeta de datos (tampoco en lo que guarda Chromium), en una copia, en una exportación ni en la ventana', async ({
+  launchFromStart,
+  dataDir,
+}) => {
+  const outside = mkdtempSync(join(tmpdir(), 'retenia-clave-e2e-'));
+  const { fake, page, app, close } = await withFakeAi(launchFromStart, dataDir);
+  try {
+    await connectKey(page);
+    expect(await page.content()).not.toContain(TEST_KEY);
+    await page.getByRole('button', { name: 'Hacer copia ahora' }).click();
+    await expect(page.getByText('Copia hecha y verificada.')).toBeVisible(SLOW);
+    const exportFile = join(outside, 'Retenia.zip');
+    await app.evaluate(({ dialog }, chosen) => {
+      dialog.showSaveDialog = (async () => ({
+        canceled: false,
+        filePath: chosen,
+      })) as typeof dialog.showSaveDialog;
+    }, exportFile);
+    await page.getByRole('button', { name: 'Exportar todo' }).click();
+    await expect(page.getByText(/^Exportado en «Retenia\.zip»/)).toBeVisible(SLOW);
+    await close();
+    expect(existsSync(join(dataDir, 'clave.bin'))).toBe(true);
+    for (const piece of [TEST_KEY, TEST_KEY.slice(0, 12), TEST_KEY.slice(-12)]) {
+      expect(await findSecret(piece, [dataDir, exportFile]), piece).toEqual([]);
+    }
+  } finally {
+    await fake.close();
+    rmSync(outside, { recursive: true, force: true });
+  }
+});

@@ -21,6 +21,20 @@ import {
   activityOpeningSchema,
 } from './activities';
 import { activityRecentResponse, activityUndoRequest, activityUndoResponse } from './activity';
+import {
+  aiConnectionSchema,
+  aiExplainRequest,
+  aiMaterialRequest,
+  aiOutcomeSchema,
+  aiPermissionsSchema,
+  aiRequestIdRequest,
+  aiSentLogSchema,
+  aiSetCapRequest,
+  aiSetFunctionStateRequest,
+  aiSetLocalOnlyRequest,
+  aiStatusSchema,
+  aiTestConnectionRequest,
+} from './ai';
 import { appInfoRequest, appInfoResponse } from './app';
 import { appearanceGetRequest, appearanceResponse, appearanceSetRequest } from './appearance';
 import {
@@ -435,6 +449,19 @@ export const channels = {
   },
   'materials.saveExcerpt': { request: materialsExcerptRequest, response: materialsExcerptResponse },
   'materials.preview': { request: materialsExcerptRequest, response: materialsPreviewResponse },
+  // La IA (Fase 19): la compuerta, sus ajustes, «Qué se envió» y «Explicame este fragmento».
+  'ai.status': { request: noRequest, response: aiStatusSchema },
+  'ai.testConnection': { request: aiTestConnectionRequest, response: aiConnectionSchema },
+  'ai.deleteKey': { request: noRequest, response: aiStatusSchema },
+  'ai.setCap': { request: aiSetCapRequest, response: aiStatusSchema },
+  'ai.setLocalOnly': { request: aiSetLocalOnlyRequest, response: aiStatusSchema },
+  'ai.setFunctionState': { request: aiSetFunctionStateRequest, response: aiStatusSchema },
+  'ai.sentLog': { request: noRequest, response: aiSentLogSchema },
+  'ai.permissions': { request: noRequest, response: aiPermissionsSchema },
+  'ai.revokePermission': { request: aiMaterialRequest, response: aiPermissionsSchema },
+  'ai.explain': { request: aiExplainRequest, response: aiOutcomeSchema },
+  'ai.outcome': { request: aiRequestIdRequest, response: aiOutcomeSchema },
+  'ai.cancel': { request: aiRequestIdRequest, response: aiOutcomeSchema },
   'window.zoom': { request: zoomRequest, response: zoomResponse },
   'window.flushed': { request: flushedRequest, response: flushedResponse },
 };

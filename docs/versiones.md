@@ -53,9 +53,9 @@ Las dependencias se actualizan solo al empezar las Fases **02, 13, 24, 35 y 40**
 | **Voz** | | | | |
 | sherpa-onnx-node, sherpa-onnx-win-x64 | 1.13.8 | 13/10/2026 | Apache-2.0 | Voz y transcripción sin internet con modelos abiertos; complemento Node-API. Comprobado en esta PC dentro de un proceso de trabajo de Electron, empaquetado e instalado (Fase 05): las DLL viajan fuera del asar y se encuentran solas. Abre sus archivos con rutas de 8 bits: Retenia le pasa rutas relativas a la carpeta de modelos (una carpeta con «í» lo tumbaba). |
 | **IA** | | | | |
-| @anthropic-ai/sdk | 0.133.0 | 13/10/2026 | MIT | `latest`; salidas con esquema definitivas, caché de prompts, API de modelos. |
-| claude-opus-5-5 | identificador vigente | 13/10/2026 | — | Tu decisión para corregir, tutor, escritura y conversación. USD 4 por millón de tokens de entrada y 20 de salida; retiro no antes del 22/09/2027. |
-| claude-haiku-5-5 | identificador vigente | 13/10/2026 | — | Tareas en volumen (candidatas, explicar fragmentos). USD 0,10 / 0,50; retiro no antes del 07/10/2027. |
+| @anthropic-ai/sdk | 0.133.0 | 13/10/2026 | MIT | `latest`; salidas con esquema definitivas, caché de prompts, API de modelos. Instalado en la Fase 19 (26/11/2026): paquete oficial de Anthropic (`anthropics/anthropic-sdk-typescript`), publicado el 24/11/2026; trae seis paquetes chicos (`standardwebhooks`, `fast-sha256`, `@stablelib/base64`, `json-schema-to-ts`, `ts-algebra`, `@babel/runtime`) y viaja adentro del archivo principal. Lo usa solo `src/ai/providers/anthropic.ts`. |
+| claude-opus-5-5 | identificador vigente | 13/10/2026 | — | Tu decisión para corregir, tutor, escritura y conversación; desde la Fase 19 también para explicar fragmentos (tu decisión del 26/11/2026). USD 4 por millón de tokens de entrada y 20 de salida (lectura de caché 0,20 y escritura 5; precios comprobados el 26/11/2026 en `src/ai/precios.json`); retiro no antes del 22/09/2027. |
+| claude-haiku-5-5 | identificador vigente | 13/10/2026 | — | Tareas en volumen (candidatas, Fase 21). Explicar fragmentos pasó a Opus 5.5 en la Fase 19 (tu decisión). USD 0,10 / 0,50; retiro no antes del 07/10/2027. |
 | claude-sonnet-5-5 | identificador vigente | 13/10/2026 | — | Solo la validación triple del curso de inglés (Fase 31). USD 2 / 10; retiro no antes del 28/09/2027. |
 | **Pruebas** | | | | |
 | vitest, @vitest/coverage-v8 | 5.0.4 | 13/10/2026 | MIT | `latest`; mayor 5 desde el 03/09/2026; corre con Vite 7. |

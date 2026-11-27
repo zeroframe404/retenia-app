@@ -12,6 +12,8 @@ files:
   # Zod, Drizzle y ts-fsrs ya viajan adentro del archivo principal; de better-sqlite3 solo
   # hace falta lo que usa en Windows de 64 bits.
   - "!node_modules/{drizzle-orm,ts-fsrs,zod}/**"
+  # El SDK de Anthropic (Fase 19) también viaja adentro del archivo principal, con lo que usa.
+  - "!node_modules/{@anthropic-ai,standardwebhooks,fast-sha256,@stablelib,json-schema-to-ts,ts-algebra,@babel}/**"
   - "!node_modules/better-sqlite3/{deps,src}/**"
   - "!node_modules/better-sqlite3/{binding.gyp,README.md}"
   - "!node_modules/better-sqlite3/prebuilds/{darwin,linux,linuxmusl}-*.node"

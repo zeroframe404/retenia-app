@@ -157,6 +157,9 @@ async function generate({ app, BrowserWindow }) {
     writeFileSync(join(OUT, 'trampa-rutas.zip'), trapPathsZip());
     writeFileSync(join(OUT, 'trampa-script.html'), content.TRAP_SCRIPT_HTML);
     console.log('  trampa-codigo.pdf, trampa-rutas.zip, trampa-script.html');
+    // El apunte con la orden escondida para la IA (Fase 19, CA-175).
+    writeFileSync(join(OUT, 'trampa.md'), content.TRAP_MD);
+    console.log('  trampa.md');
     console.log(
       `  campana.png (${Math.round(writeBellCurve(OUT) / 1024)} KB, también en el elenco)`,
     );

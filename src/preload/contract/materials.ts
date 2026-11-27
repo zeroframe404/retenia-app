@@ -43,7 +43,8 @@ const materialState = z.discriminatedUnion('kind', [
   }),
   z.strictObject({ kind: z.literal('review') }),
   z.strictObject({ kind: z.literal('error'), problem: errorProblem }),
-  z.strictObject({ kind: z.literal('pendingNetwork') }),
+  // `localOnly`: espera porque está prendido «Modo solo local» (Fase 19).
+  z.strictObject({ kind: z.literal('pendingNetwork'), localOnly: z.literal(true).optional() }),
 ]);
 export type MaterialStateView = z.output<typeof materialState>;
 

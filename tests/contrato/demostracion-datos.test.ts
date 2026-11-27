@@ -63,7 +63,7 @@ function handlersWithSwitcher() {
 }
 
 describe('contrato: canales de los datos de la demostración', () => {
-  it('el contrato de la demostración trae los nueve canales y el base ninguno', () => {
+  it('el contrato de la demostración trae los once canales y el base ninguno', () => {
     expect(Object.keys(demoChannels())).toEqual([
       'demo.state',
       'demo.advanceDays',
@@ -74,6 +74,8 @@ describe('contrato: canales de los datos de la demostración', () => {
       'demo.load10k',
       'demo.processing',
       'demo.setProcessing',
+      'demo.ai',
+      'demo.setAi',
     ]);
     expect(Object.keys(channels).filter((name) => name.startsWith('demo.'))).toEqual([]);
   });

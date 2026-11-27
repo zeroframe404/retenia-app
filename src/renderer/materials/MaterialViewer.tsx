@@ -13,6 +13,8 @@ import { Toast } from '../ui/Frame';
 import { BannerEstado } from '../ui/Process';
 import { PdfPage } from '../visor/PdfPage';
 import { CreateCardFromQuote } from './CreateCardFromQuote';
+import { ExplainPanel } from './ExplainPanel';
+import { headingTags } from './headings';
 import styles from './Materials.module.css';
 import { useOriginal } from './original';
 
@@ -27,6 +29,17 @@ export interface OpenTarget {
   text?: string;
   // Abrir en esta página (la de un problema de la revisión, una casilla del mapa).
   unit?: number;
+  // Abrir con el panel de una explicación de la IA (Fase 19): la que estaba pendiente y llegó.
+  explain?: { selection: MaterialSelection; requestId: string };
+}
+
+// Dónde abrir: el pasaje pedido o, para una explicación, el renglón donde empieza su selección.
+function placeOf(target: OpenTarget | null): Omit<OpenTarget, 'explain'> | null {
+  if (!target) {
+    return null;
+  }
+  const { explain, ...place } = target;
+  return explain ? { blockId: explain.selection.from.blockId } : place;
 }
 
 const A4 = { width: 595, height: 842 };
@@ -73,11 +86,14 @@ function referenceFor(page: MaterialPage, block: MaterialBlockView | undefined):
 
 function BlockText({
   block,
+  heading,
   highlighted,
   onHover,
   onPick,
 }: {
   block: MaterialBlockView;
+  // El nivel de título de una sección, sin saltear niveles (`headingTags`).
+  heading: 'h3' | 'h4' | null;
   highlighted: boolean;
   onHover: (block: MaterialBlockView | null) => void;
   onPick: (block: MaterialBlockView) => void;
@@ -92,7 +108,7 @@ function BlockText({
     onClick: () => onPick(block),
   };
   if (block.type === 'section') {
-    const Heading = block.level <= 1 ? 'h3' : 'h4';
+    const Heading = heading ?? 'h4';
     return (
       <Heading className={styles.heading} {...shared}>
         {block.text}
@@ -114,6 +130,9 @@ export function MaterialViewer({
   onInboxCount,
   onChanged,
   refreshKey,
+  onConfigureAi,
+  onExplainPending,
+  onExplainWatching,
 }: {
   materialId: string;
   target: OpenTarget | null;
@@ -124,6 +143,14 @@ export function MaterialViewer({
   onChanged?: (() => void) | undefined;
   // Cambia cuando el material avanza (un aviso del principal): se vuelve a pedir la página.
   refreshKey: number;
+  // «Configurar» de la IA (Fase 19): lleva a Ajustes › «Inteligencia artificial».
+  onConfigureAi?: (() => void) | undefined;
+  // Una explicación quedó pendiente, y qué pedido está mirando el panel (para avisar si llega
+  // cuando ya no está abierto).
+  onExplainPending?:
+    | ((pending: { materialId: string; selection: MaterialSelection; requestId: string }) => void)
+    | undefined;
+  onExplainWatching?: ((requestId: string | null) => void) | undefined;
 }) {
   const [detail, setDetail] = useState<MaterialDetail | null>(null);
   const [unit, setUnit] = useState<number | null>(null);
@@ -133,6 +160,13 @@ export function MaterialViewer({
   const [picked, setPicked] = useState<Picked | null>(null);
   const [cited, setCited] = useState<MaterialBlockView | null>(null);
   const [creating, setCreating] = useState(false);
+  // «Explicame este fragmento» (Fase 19): la selección que se explica (con su pedido, si se abrió
+  // para ver una que estaba pendiente) y el renglón de una cita.
+  const [explaining, setExplaining] = useState<{
+    selection: MaterialSelection;
+    requestId?: string;
+  } | null>(target?.explain ?? null);
+  const [located, setLocated] = useState<string | null>(null);
   const [toast, setToast] = useState('');
   // Las páginas del original, contadas al abrirlo: sirve mientras Retenia todavía no lo leyó.
   const [pagesInFile, setPagesInFile] = useState(0);
@@ -154,8 +188,9 @@ export function MaterialViewer({
       try {
         const found = await window.retenia['materials.get']({ materialId });
         let start = 1;
-        if (target && (target.cardId || target.blockId || target.text || target.unit)) {
-          const open = await window.retenia['materials.open']({ materialId, ...target });
+        const place = placeOf(target);
+        if (place && (place.cardId || place.blockId || place.text || place.unit)) {
+          const open = await window.retenia['materials.open']({ materialId, ...place });
           if (alive) {
             setOpened(open);
           }
@@ -302,6 +337,7 @@ export function MaterialViewer({
   const total = detail.units.length || pagesInFile || 1;
   const visible =
     page?.blocks.filter((block) => !HIDDEN.includes(block.type) && block.text !== '') ?? [];
+  const headings = headingTags(visible);
   const unread = page !== null && page.status === 'pending' && visible.length === 0;
   const readingText = !page?.working
     ? texts.materials.notReadCancelled
@@ -309,6 +345,20 @@ export function MaterialViewer({
       ? texts.materials.stillReading
       : texts.materials.stillReadingDocument;
   const openedHere = opened && opened.unit === unit ? opened : null;
+  // Una cita de la explicación lleva a su renglón: se marca y queda a la vista.
+  const locate = (quote: string) => {
+    const wanted = quote.replace(/\s+/g, ' ').trim();
+    const block = page?.blocks.find((candidate) =>
+      candidate.text.replace(/\s+/g, ' ').includes(wanted),
+    );
+    if (!block) {
+      return;
+    }
+    setLocated(block.id);
+    textRef.current
+      ?.querySelector<HTMLElement>(`[data-block-id="${block.id}"]`)
+      ?.scrollIntoView?.({ block: 'center' });
+  };
   const highlight: MaterialBox[] =
     hovered?.boxes ?? (openedHere?.highlight.length ? openedHere.highlight : (cited?.boxes ?? []));
 
@@ -365,92 +415,121 @@ export function MaterialViewer({
       {opened?.notFound ? (
         <BannerEstado tone="pending">{texts.materials.notFound}</BannerEstado>
       ) : null}
-      <div className={styles.viewerBody} data-columns={isPdf ? 2 : 1}>
-        {isPdf ? (
-          <div className={styles.original}>
-            <PdfPage
-              key={`${materialId}-${unit}`}
-              pdf={bytes ?? new Uint8Array()}
-              page={unit}
-              width={page?.width ?? A4.width}
-              height={page?.height ?? A4.height}
-              highlight={highlight.filter((box) => box.page === unit)}
-              label={texts.materials.pageImage(unit)}
-              highlightLabel={texts.materials.highlighted}
-              onPageCount={setPagesInFile}
-            />
-          </div>
-        ) : null}
-        {isWeb && asSnapshot && snapshot ? (
-          <iframe
-            className={styles.snapshotFrame}
-            title={texts.materials.snapshot.frameLabel}
-            // Sin permisos de ningún tipo: ni scripts, ni formularios, ni mismo origen.
-            sandbox=""
-            referrerPolicy="no-referrer"
-            srcDoc={snapshotDocument(snapshot.html)}
-          />
-        ) : null}
-        <div className={styles.textColumn} hidden={isWeb && asSnapshot}>
-          {picked ? (
-            <div className={styles.selectionActions}>
-              <Boton onClick={() => setCreating(true)}>{texts.materials.createCard}</Boton>
-              <Boton onClick={() => void saveExcerpt()}>{texts.materials.saveExcerpt}</Boton>
+      <div className={styles.viewerWithPanel} data-panel={explaining ? 'open' : 'closed'}>
+        <div className={styles.viewerBody} data-columns={isPdf ? 2 : 1}>
+          {isPdf ? (
+            <div className={styles.original}>
+              <PdfPage
+                key={`${materialId}-${unit}`}
+                pdf={bytes ?? new Uint8Array()}
+                page={unit}
+                width={page?.width ?? A4.width}
+                height={page?.height ?? A4.height}
+                highlight={highlight.filter((box) => box.page === unit)}
+                label={texts.materials.pageImage(unit)}
+                highlightLabel={texts.materials.highlighted}
+                onPageCount={setPagesInFile}
+              />
             </div>
           ) : null}
-          {cited ? (
-            <section className={styles.citedMenu} aria-label={texts.materials.citedLabel}>
-              <ul className={styles.citedList}>
-                {cited.cited.map((card) => (
-                  <li key={card.cardId}>{card.question}</li>
-                ))}
-              </ul>
-              <Boton
-                onClick={() => {
-                  // La frase exacta de la primera tarjeta que cita este pasaje.
-                  const [first] = cited.cited;
-                  setCited(null);
-                  if (!first) {
-                    return;
-                  }
-                  window.retenia['materials.open']({ materialId, cardId: first.cardId })
-                    .then(setOpened)
-                    .catch((error: unknown) => {
-                      console.error('La ventana no pudo abrir la cita por el puente', error);
-                    });
-                }}
-              >
-                {texts.materials.viewOriginal}
-              </Boton>
-            </section>
+          {isWeb && asSnapshot && snapshot ? (
+            <iframe
+              className={styles.snapshotFrame}
+              title={texts.materials.snapshot.frameLabel}
+              // Sin permisos de ningún tipo: ni scripts, ni formularios, ni mismo origen.
+              sandbox=""
+              referrerPolicy="no-referrer"
+              srcDoc={snapshotDocument(snapshot.html)}
+            />
           ) : null}
-          {/* biome-ignore lint/a11y/noStaticElementInteractions: la selección de texto con el mouse o el teclado se lee al soltar. */}
-          <div
-            ref={textRef}
-            className={styles.text}
-            onMouseUp={readSelection}
-            onKeyUp={readSelection}
-          >
-            {unread ? <p className={styles.reading}>{readingText}</p> : null}
-            {visible.map((block) => (
-              <BlockText
-                key={block.id}
-                block={block}
-                highlighted={openedHere?.blockId === block.id}
-                onHover={(entered) =>
-                  setHovered(entered && entered.boxes.length > 0 ? entered : null)
-                }
-                onPick={(clicked) => {
-                  const selection = document.getSelection();
-                  if (clicked.cited.length > 0 && (!selection || selection.isCollapsed)) {
-                    setCited(clicked);
-                    setPicked(null);
+          <div className={styles.textColumn} hidden={isWeb && asSnapshot}>
+            {picked ? (
+              <div className={styles.selectionActions}>
+                <Boton onClick={() => setCreating(true)}>{texts.materials.createCard}</Boton>
+                <Boton onClick={() => void saveExcerpt()}>{texts.materials.saveExcerpt}</Boton>
+                <Boton onClick={() => setExplaining({ selection: picked.selection })}>
+                  {texts.ai.explain}
+                </Boton>
+              </div>
+            ) : null}
+            {cited ? (
+              <section className={styles.citedMenu} aria-label={texts.materials.citedLabel}>
+                <ul className={styles.citedList}>
+                  {cited.cited.map((card) => (
+                    <li key={card.cardId}>{card.question}</li>
+                  ))}
+                </ul>
+                <Boton
+                  onClick={() => {
+                    // La frase exacta de la primera tarjeta que cita este pasaje.
+                    const [first] = cited.cited;
+                    setCited(null);
+                    if (!first) {
+                      return;
+                    }
+                    window.retenia['materials.open']({ materialId, cardId: first.cardId })
+                      .then(setOpened)
+                      .catch((error: unknown) => {
+                        console.error('La ventana no pudo abrir la cita por el puente', error);
+                      });
+                  }}
+                >
+                  {texts.materials.viewOriginal}
+                </Boton>
+              </section>
+            ) : null}
+            {/* biome-ignore lint/a11y/noStaticElementInteractions: la selección de texto con el mouse o el teclado se lee al soltar. */}
+            <div
+              ref={textRef}
+              className={styles.text}
+              onMouseUp={readSelection}
+              onKeyUp={readSelection}
+            >
+              {unread ? <p className={styles.reading}>{readingText}</p> : null}
+              {visible.map((block, index) => (
+                <BlockText
+                  key={block.id}
+                  block={block}
+                  heading={headings[index] ?? null}
+                  highlighted={openedHere?.blockId === block.id || located === block.id}
+                  onHover={(entered) =>
+                    setHovered(entered && entered.boxes.length > 0 ? entered : null)
                   }
-                }}
-              />
-            ))}
+                  onPick={(clicked) => {
+                    const selection = document.getSelection();
+                    if (clicked.cited.length > 0 && (!selection || selection.isCollapsed)) {
+                      setCited(clicked);
+                      setPicked(null);
+                    }
+                  }}
+                />
+              ))}
+            </div>
           </div>
         </div>
+        {explaining ? (
+          <ExplainPanel
+            key={[
+              explaining.selection.from.blockId,
+              explaining.selection.from.offset,
+              explaining.selection.to.blockId,
+              explaining.selection.to.offset,
+            ].join('-')}
+            materialId={materialId}
+            selection={explaining.selection}
+            requestId={explaining.requestId}
+            onClose={() => {
+              setExplaining(null);
+              setLocated(null);
+            }}
+            onConfigure={() => onConfigureAi?.()}
+            onLocate={locate}
+            onPending={(requestId) =>
+              onExplainPending?.({ materialId, selection: explaining.selection, requestId })
+            }
+            onWatching={onExplainWatching}
+          />
+        ) : null}
       </div>
       {creating && picked ? (
         <CreateCardFromQuote

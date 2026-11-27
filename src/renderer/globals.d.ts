@@ -1,5 +1,5 @@
 import type { ReteniaApi } from '../preload/contract';
-import type { MaterialEvent } from '../preload/contract/events';
+import type { ReteniaEvent } from '../preload/contract/events';
 import type { AddResult } from '../preload/contract/materials';
 
 declare global {
@@ -22,6 +22,6 @@ declare global {
     };
     // Los avisos del principal (Fase 13): avanza, termina o falla un material. Devuelve cómo dejar
     // de escuchar.
-    reteniaAvisos?: { alRecibir(listener: (event: MaterialEvent) => void): () => void };
+    reteniaAvisos?: { alRecibir(listener: (event: ReteniaEvent) => void): () => void };
   }
 }

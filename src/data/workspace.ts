@@ -14,6 +14,7 @@ import type { ExportCounts, ExportIndex } from '../core/imports/markdown';
 import type { DataDifference } from '../preload/contract/backups';
 import { type ActivitiesStore, createActivitiesStore } from './activities';
 import { type ActivityStore, createActivityStore } from './activity';
+import { type AiStore, carrySentLog, createAiStore } from './ai';
 import {
   BackupError,
   type BackupView,
@@ -90,6 +91,8 @@ export interface Workspace {
   readonly procedures: ProceduresStore;
   readonly sets: SetsStore;
   readonly micro: MicroStore;
+  // La compuerta de IA (Fase 19): «Qué se envió», los permisos, lo guardado, la cola y las trazas.
+  readonly ai: AiStore;
   // «Exportar todo»: arma los archivos de datos en la carpeta `staging` y dice qué va al comprimido.
   stageExport(staging: string): StagedExport;
   exportCounts(): ExportCounts;
@@ -240,6 +243,7 @@ export function openWorkspace({
       procedures: createProceduresStore(db, clock),
       sets: createSetsStore(db, clock),
       micro: createMicroStore(db, clock),
+      ai: createAiStore(db),
     };
   };
   type Live = ReturnType<typeof connect>;
@@ -312,6 +316,9 @@ export function openWorkspace({
     },
     get micro() {
       return current().micro;
+    },
+    get ai() {
+      return current().ai;
     },
     get subjects() {
       return current().subjects;
@@ -405,6 +412,8 @@ export function openWorkspace({
         const prepared = openDatabase(incoming, { clock });
         try {
           continueSequence(prepared.orm, readLedgerState(current().db.orm));
+          // Lo que salió de la PC hacia la IA no vuelve atrás (Fase 19): sigue en «Qué se envió».
+          carrySentLog(current().db.orm, prepared.orm);
           prepared.switchToRollbackJournal();
         } finally {
           prepared.close();

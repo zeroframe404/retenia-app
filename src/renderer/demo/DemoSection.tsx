@@ -33,6 +33,13 @@ export function DemoSection({
   const [volumeCards, setVolumeCards] = useState(0);
   // «Procesar despacio» (Fase 13).
   const [slow, setSlow] = useState<boolean | null>(null);
+  // La IA simulada (Fase 19): «IA simulada», «responder mal» y «tardar 12 segundos».
+  const [simulatedAi, setSimulatedAi] = useState<{
+    simulated: boolean;
+    bad: boolean;
+    slow: boolean;
+  } | null>(null);
+  const [aiFailed, setAiFailed] = useState(false);
   const working = useRef(false);
 
   useEffect(() => {
@@ -72,6 +79,39 @@ export function DemoSection({
       alive = false;
     };
   }, []);
+
+  // Como «Procesar despacio»: si no se puede leer, las tres casillas arrancan apagadas.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const state = await window.retenia['demo.ai']({});
+        if (alive) {
+          setSimulatedAi(state);
+        }
+      } catch {
+        if (alive) {
+          setSimulatedAi({ simulated: false, bad: false, slow: false });
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  // Como «Procesar despacio»: la casilla cambia al tocarla y después se confirma con lo guardado.
+  async function toggleAi(change: { simulated?: boolean; bad?: boolean; slow?: boolean }) {
+    setAiFailed(false);
+    const before = simulatedAi;
+    setSimulatedAi((current) => (current ? { ...current, ...change } : current));
+    try {
+      setSimulatedAi(await window.retenia['demo.setAi'](change));
+    } catch {
+      setSimulatedAi(before);
+      setAiFailed(true);
+    }
+  }
 
   async function toggleSlow(next: boolean) {
     setSlow(next);
@@ -210,6 +250,30 @@ export function DemoSection({
           {demoTexts.slowProcessingHint}
         </p>
       </div>
+      {(
+        [
+          ['simulated', demoTexts.ai.simulated, demoTexts.ai.simulatedHint],
+          ['bad', demoTexts.ai.bad, demoTexts.ai.badHint],
+          ['slow', demoTexts.ai.slow, demoTexts.ai.slowHint],
+        ] as const
+      ).map(([field, label, hint]) => (
+        <div key={field}>
+          <label className={styles.checkbox}>
+            <input
+              type="checkbox"
+              checked={simulatedAi?.[field] ?? false}
+              disabled={simulatedAi === null}
+              aria-describedby={`ia-simulada-${field}`}
+              onChange={(event) => void toggleAi({ [field]: event.target.checked })}
+            />
+            {label}
+          </label>
+          <p id={`ia-simulada-${field}`} className={styles.help}>
+            {hint}
+          </p>
+        </div>
+      ))}
+      {aiFailed ? <BannerEstado tone="attention">{demoTexts.ai.failed}</BannerEstado> : null}
       {dataFailed ? (
         <BannerEstado tone="attention">{demoTexts.firstTime.failed}</BannerEstado>
       ) : null}

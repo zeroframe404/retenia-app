@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { type DragEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { type AddResult, MAX_FILES, type MaterialSummary } from '../../preload/contract/materials';
 import type { Subject } from '../../preload/contract/organization';
@@ -36,6 +37,9 @@ export function MaterialsScreen({
   request,
   onChangeSubject,
   onInboxCount,
+  onConfigureAi,
+  onExplainPending,
+  onExplainWatching,
 }: {
   subject: Subject | null;
   active: Subject | null;
@@ -44,6 +48,11 @@ export function MaterialsScreen({
   request: MaterialRequest | null;
   onChangeSubject: () => void;
   onInboxCount?: ((count: number) => void) | undefined;
+  // «Configurar» de la IA (Fase 19): lleva a Ajustes › «Inteligencia artificial».
+  onConfigureAi?: (() => void) | undefined;
+  // Una explicación de la IA pendiente (para avisar si llega con el panel cerrado).
+  onExplainPending?: ComponentProps<typeof MaterialViewer>['onExplainPending'];
+  onExplainWatching?: ComponentProps<typeof MaterialViewer>['onExplainWatching'];
 }) {
   const [materials, setMaterials] = useState<MaterialSummary[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -81,7 +90,11 @@ export function MaterialsScreen({
 
   // Los avisos del principal: avanzó, terminó o falló un material.
   useEffect(() => {
-    const stop = window.reteniaAvisos?.alRecibir(() => {
+    const stop = window.reteniaAvisos?.alRecibir((event) => {
+      // Los de la IA los escucha su panel.
+      if (!event.type.startsWith('material.')) {
+        return;
+      }
       setProgress((current) => current + 1);
       void load();
     });
@@ -205,6 +218,9 @@ export function MaterialsScreen({
             backLabel={viewing.fromReview ? texts.materials.review.backToReview : undefined}
             onInboxCount={onInboxCount}
             onChanged={() => void load()}
+            onConfigureAi={onConfigureAi}
+            onExplainPending={onExplainPending}
+            onExplainWatching={onExplainWatching}
           />
         ) : reviewing ? (
           <ReviewView
@@ -322,7 +338,11 @@ function MaterialDetailPanel({
       <h3 className={styles.detailTitle}>{material.title}</h3>
       {waiting ? (
         <>
-          <BannerEstado tone="pending">{texts.materials.states.pendingNetwork}</BannerEstado>
+          <BannerEstado tone="pending">
+            {material.state.kind === 'pendingNetwork' && material.state.localOnly
+              ? texts.materials.states.pendingLocalOnly
+              : texts.materials.states.pendingNetwork}
+          </BannerEstado>
           {material.sourceUrl ? <p className={styles.webInfo}>{material.sourceUrl}</p> : null}
           <div className={styles.actions}>
             <Boton variant="quiet" onClick={onDismiss}>

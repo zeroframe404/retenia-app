@@ -73,6 +73,9 @@ export const EXPORTED_TABLES = [
   'observations',
   'evaluations',
   'operations',
+  // Fase 19: «Qué se envió» a la IA y lo que decidiste sobre cada material.
+  'ai_requests',
+  'ai_material_permissions',
 ] as const;
 
 // Las que no se exportan, con su motivo.
@@ -83,6 +86,9 @@ export const EXCLUDED_TABLES: Record<string, string> = {
     'Es la lista de pendientes del índice de búsqueda: siempre vacía entre transacciones.',
   ledger_state: 'Es de cada instalación: el dispositivo y su número de secuencia.',
   purge_permits: 'Siempre vacía fuera de la transacción que vacía la Papelera.',
+  ai_cache: 'Lo ya preguntado a la IA: se vuelve a pedir si hace falta; no es un dato tuyo.',
+  ai_queue: 'Los pedidos a la IA en curso: duran hasta que terminan.',
+  ai_traces: 'Las trazas técnicas de la IA: duran 90 días y no son datos tuyos.',
 };
 
 const HISTORY_TABLES = new Set(['observations', 'evaluations']);

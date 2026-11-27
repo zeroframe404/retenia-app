@@ -127,6 +127,12 @@ export interface MaterialsService {
     quote: string;
     reference: string;
   };
+  // El pasaje de una selección tal como está guardado, y el título del material (Fase 19): lo que
+  // se le manda a la IA sale de acá, nunca del texto de la pantalla.
+  fragment(input: { materialId: string; selection: MaterialSelection }): {
+    text: string;
+    title: string;
+  };
   // La cola: arrancarla (vuelven a «pendiente» las tareas «en curso» de otro arranque), esperar a que
   // no quede nada, una tarea por vez (pruebas), pausarla y soltarla sin escribir nada (pruebas del
   // corte).
@@ -224,6 +230,11 @@ export function createMaterialsService({
   const elapsed = stopwatch.start();
   const limits = { ...DEFAULT_TIMEOUTS, ...timeouts };
   const store = () => workspace.materials;
+  // Una página que espera la conexión porque está prendido «Modo solo local» (Fase 19) lo dice.
+  const withReason = <T extends { state: MaterialSummary['state'] }>(item: T): T =>
+    item.state.kind === 'pendingNetwork' && net.isLocalOnly()
+      ? { ...item, state: { kind: 'pendingNetwork', localOnly: true } }
+      : item;
   const dirs = () => ({
     tmpDir: join(workspace.dataDir, 'tmp'),
     originalsDir: workspace.originalsDir,
@@ -1272,9 +1283,9 @@ export function createMaterialsService({
       return { materialId };
     },
 
-    list: ({ subjectId }) => ({ materials: store().summaries(subjectId) }),
+    list: ({ subjectId }) => ({ materials: store().summaries(subjectId).map(withReason) }),
 
-    get: ({ materialId }) => store().detail(materialId),
+    get: ({ materialId }) => withReason(store().detail(materialId)),
 
     cancel({ materialId }) {
       store().cancel(materialId);
@@ -1282,14 +1293,14 @@ export function createMaterialsService({
         interrupt();
       }
       safeEmit({ type: 'material.progress', materialId });
-      return store().summary(materialId);
+      return withReason(store().summary(materialId));
     },
 
     resume({ materialId }) {
       store().resume(materialId);
       kick();
       safeEmit({ type: 'material.progress', materialId });
-      return store().summary(materialId);
+      return withReason(store().summary(materialId));
     },
 
     dismiss({ materialId }) {
@@ -1406,6 +1417,15 @@ export function createMaterialsService({
     preview({ materialId, selection }) {
       const { reference, quote } = citeOf(materialId, selection);
       return { reference, quote };
+    },
+
+    // Lo que va a la IA. El nombre es el que queda en «Qué se envió» (CA-171): el del archivo que
+    // agregaste («Resumen de la unidad 2.pdf»); un texto pegado o una página de internet no
+    // tienen archivo, así que van con su título.
+    fragment({ materialId, selection }) {
+      const { row, quote } = citeOf(materialId, selection);
+      const fromFile = row.kind !== 'text' && row.sourceUrl === null;
+      return { text: quote, title: fromFile ? row.originalName : row.title };
     },
 
     createCard({ materialId, selection, question, answer }) {

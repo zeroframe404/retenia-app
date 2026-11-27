@@ -661,3 +661,110 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
   15. Una prueba de antes había quedado floja. Vuelve a comparar toda la propuesta con valores exactos y comprueba que lo que entra es ese ejercicio.
   16. Faltaba la última línea de la verificación rápida en el estado. Está.
 - **Para tener presente (lo marcó el revisor):** al armar la sesión, un procedimiento cuenta 8 minutos. En una sesión de 10 minutos puede dejar entrar muy pocas tarjetas y pasar las demás a mañana. Es el valor inicial de la especificación; si te molesta, se puede bajar.
+
+## 26/11/2026 · Fase 19
+
+- **Modelo de «Explicar un fragmento»: Opus 5.5.** Lo decidiste el 26/11/2026, entre Opus y Haiku. Cuesta unos USD 0,01 a 0,03 por explicación y tarda de 5 a 15 segundos. `docs/versiones.md` y la arquitectura decían Haiku; quedaron corregidos. Sin respaldo automático a otro modelo.
+- **Paquete nuevo: `@anthropic-ai/sdk` 0.133.0.** Es el oficial de Anthropic, con licencia MIT, publicado el 24/11/2026 y ya listado en `docs/versiones.md`. Lo comprobé antes de instalarlo. Trae seis paquetes chicos y viaja adentro del archivo principal. Solo lo usa `src/ai/providers/anthropic.ts`.
+- **El tope.**
+  - Arranca en USD 10: lo pediste en la fase. Los documentos decían 20; quedaron corregidos.
+  - **Nunca se pasa.** Frena antes de una consulta que lo podría pasar. Para eso cuenta lo máximo que puede costar: una unidad por cada byte de lo que se manda, más 1.000 por las marcas de los mensajes, y 2.000 unidades de salida. Ninguna unidad de texto ocupa menos de un byte, así que es un techo con cualquier idioma. Con USD 10 se para entre 5 y 7 centavos antes. Quedó así porque no dijiste otra cosa al aprobar el plan.
+  - Si un pedido salió y no llegó respuesta (se cortó la conexión, venció el tiempo o se cerró Retenia en el medio), pudo haber costado: queda en «Qué se envió» con «sin respuesta: cuenta lo máximo que pudo costar» y cuenta eso para el tope.
+  - El aviso aparece desde el 80 %.
+  - El mes es el de Buenos Aires.
+  - El costo se guarda en millonésimas de dólar y se muestra redondeado a centavos. Menos de un centavo se muestra como «menos de USD 0,01».
+- **La IA simulada no pregunta el permiso, no suma al tope y no figura en «Qué se envió».** No saca nada de la PC ni gasta: su costo dice «IA simulada: sin costo.». Así tus pasos M19.2 a M19.4 quedan tal cual y en M19.6 la pregunta aparece por primera vez. Respeta «Simular sin conexión» y el «Modo solo local». En las pruebas automáticas hace «como IA remota» para probar el permiso, el costo y el registro.
+- **«Qué se envió» nombra el archivo, como dice CA-171** («Inferencia — capítulos 1 a 4.pdf»). Un texto pegado o una página de internet no tienen archivo y van con su título. La lista «Materiales que pueden ir a la IA» usa el título, como Materiales. Una respuesta tirada suma al final «· respuesta descartada».
+- **Lo ya preguntado sale de lo guardado** y dice «Sin costo: ya la habías pedido.».
+  - La huella junta la función, el proveedor, el modelo, la versión del prompt y la de la rúbrica, el material y el pasaje.
+  - De la IA simulada incluye si responde mal: así «responder mal» nunca devuelve una explicación buena guardada, ni al revés.
+- **El permiso.**
+  - «Solo esta vez» no se recuerda: la pregunta vuelve la próxima vez.
+  - «No» se recuerda, y el panel ofrece «Permitir».
+  - «Quitar permiso», en Ajustes, lo borra.
+- **El pasaje.**
+  - El programa lo vuelve a leer de tu material guardado, no de la pantalla.
+  - Acepta hasta unas 600 palabras (4.000 caracteres). Si es más largo: «Elegí un pasaje más corto: hasta unas 600 palabras.».
+  - Viaja como dato entre marcas, con un prompt de sistema fijo y versionado que prohíbe obedecerlo. Si el texto trae algo con forma de esas marcas, se neutraliza.
+- **«Modo solo local» cierra la puerta única de red.**
+  - No sale nada: ni la IA, ni las páginas web, ni las descargas de los modelos de voz.
+  - Una página web que espera dice «Pendiente: el modo solo local está activado».
+  - Lo pendiente de la IA se cancela: «Se canceló: activaste el modo solo local.».
+- **La cola.**
+  - Va de a un pedido por vez.
+  - Arranca al abrir, al volver la conexión y cada 30 s.
+  - Se frena mientras corre algo exclusivo, como restaurar o importar.
+  - Un error técnico se reintenta solo hasta 3 veces. Sin conexión no cuenta como intento.
+  - La clave rechazada, la cuenta sin saldo y el rechazo de la IA no se reintentan: se dicen como son.
+  - Lo terminado se borra al día siguiente; las trazas técnicas, a los 90 días.
+- **Dónde queda cada cosa.**
+  - La clave, en `clave.bin`, cifrada con el almacén de Windows (`safeStorage`).
+  - El tope, el «Modo solo local» y las funciones suspendidas, en `ajustes.json`, fuera de la base: restaurar una copia no los cambia.
+  - «Qué se envió» y los permisos viajan en la exportación. Lo guardado, la cola y las trazas no.
+- **El SDK se arma con la dirección y la clave explícitas.**
+  - No reintenta solo (reintenta la cola) y espera hasta 90 s.
+  - No lee `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` ni `ANTHROPIC_LOG`: nada de la PC lo desvía ni le hace escribir registros.
+  - No usa `cache_control`: el prompt de sistema es más corto que el mínimo que la API guarda en caché.
+  - «Probar conexión» usa la lista de modelos, que no gasta.
+- **La punta a punta recorre el camino de tu clave sin la IA real.** Usa un servidor que imita a la IA dentro de la PC (`RETENIA_IA_ORIGEN`): solo `127.0.0.1` y solo en la variante de prueba. La clave de las pruebas es inventada. El almacén de Windows es el de verdad.
+- **Las respuestas grabadas de la IA simulada** viajan adentro del archivo principal de la variante de prueba, no como archivo aparte. La prueba del paquete real comprueba que no se colaron (14 de 14).
+- **trampa.md entró al elenco** (Estadística básica, agregado el 13/03/2027). Lo escribe `tools/generar-datos-de-ejemplo.mjs`. La captura de referencia de Materiales cambia: ahora hay 3 materiales. Su prueba igual da verde, porque la fila nueva (blanco sobre gris) queda dentro de la tolerancia de la comparación. Me lo marcó el revisor. Las capturas nuevas esperan tu aprobación: `docs/pruebas-manuales/capturas/fase-19-referencia-materiales-claro-nueva.png` y `-oscuro-nueva.png`. La de referencia no la toqué.
+- **M19.11.** Las claves de Anthropic empiezan casi todas igual («sk-ant-api03»), así que buscar sus primeros 12 caracteres prueba poco. La busco igual, y además dejé `node tools/buscar-clave.mjs`: busca la clave entera sin mostrarla y sin que me la pases por el chat.
+- **Lo que encontré al cerrar.** Cada arreglo fue con su prueba en rojo primero:
+  1. Con la ventana del tamaño con que abre, el panel de la explicación tapaba el texto del PDF. Ahora, si no entran la página, el texto y el panel, la página pasa abajo del texto.
+  2. Las casillas de la IA simulada tardaban en marcarse. Ahora se marcan al tocarlas, como «Procesar despacio».
+  3. El «Ver» del aviso «Llegó la explicación que estaba pendiente.» quedaba pegado al aviso siguiente. Ahora queda atado a su aviso.
+  4. La página 2 del PDF del elenco saltaba del título de nivel 2 al de nivel 4. Lo encontró la prueba de accesibilidad nueva, y venía del visor de la Fase 13. Ahora una página que empieza con un subtítulo lo muestra como nivel 3.
+  5. La comprobación de migraciones pasaba los 30 s de su tope con la PC cargada. Ahora lee el historial de git de una sola pasada. El control es el mismo y no se aflojó ninguna prueba.
+  6. El puerto de la compuerta pasó al núcleo, porque los datos no importan de la IA (regla de capas).
+- **Lo que no toqué y te dejo anotado.** Materiales vuelve a abrir el último «Ver en el original» (o el «Ver» de una explicación) cada vez que entrás desde el riel. Es así desde la Fase 13.
+- **Lo que encontró el revisor (una vez, al cerrar): 17 objeciones, ninguna bloqueante y 4 importantes.** Cada arreglo fue con su prueba en rojo primero, en un commit aparte. Las que pedían pruebas que faltaban se resolvieron sumándolas.
+  1. Importante. Un corte de la conexión después de mandar el pedido se tomaba como «sin conexión». No quedaba en «Qué se envió», no contaba para el tope ni como intento, y se reenviaba sin fin. Ahora:
+     - «Sin conexión» es solo cuando la puerta de la PC no dejó salir nada.
+     - Un corte con la puerta abierta cuenta como intento (tope de 3) y queda como «sin respuesta», con lo máximo que pudo costar.
+     - Lo mismo pasa con lo que estaba en camino si se cierra Retenia.
+     - Un error con código de la IA queda con costo 0, porque no se cobra.
+  2. Importante. Lo que esperaba en la cola salía aunque se hubiera quitado el permiso, suspendido la función o cambiado de IA (de la simulada a tu clave). Ahora:
+     - La cola recuerda con qué IA y con qué permiso se pidió cada pedido (migración 0019) y lo vuelve a mirar antes de salir.
+     - Si ya no puede salir, se cancela con su motivo («Se canceló: este material ya no tiene permiso para ir a la IA.», «Se canceló: cambió la IA conectada. Pedila de nuevo.», etc.).
+     - Quitar un permiso, suspender o borrar la clave revisan la cola en el momento.
+  3. Importante. Restaurar una copia volvía atrás «Qué se envió» y el gasto del mes, y el tope se podía pasar. Ahora la restauración le agrega a la base restaurada los envíos que no tenía.
+  4. Importante. El aviso del 80 % no tenía prueba en pantalla. Ahora la tiene, en el panel y en Ajustes.
+  5. Pedir el mismo pasaje mientras el primero iba en camino pagaba dos veces. Ahora el segundo espera al primero.
+  6. El techo del costo suponía 2 letras por unidad de texto: con chino o emojis la última consulta del mes podía pasar el tope por centavos. Ahora cuenta una unidad por byte (ver «El tope», arriba). La prueba unitaria de la regla vieja pasó a la regla nueva, con sus valores.
+  7. El verificador de números dejaba pasar los que no sabía leer («2.1.3», «３００», «1,5,7», y leía «10⁶» como 10). Ahora esos solo pasan si están escritos igual en el pasaje.
+  8. Avisos con texto falso:
+     - «Llegó la explicación…» salía también si se cancelaba o fallaba. Ahora sale solo si llegó. Si falló: «La explicación que estaba pendiente no se pudo completar.», con «Ver». Si se canceló por algo que hiciste, no hay aviso.
+     - Toda cancelación decía «…activaste el modo solo local». Ahora cada una dice su motivo. La prueba de «Modo solo local» ahora espera ese motivo exacto.
+  9. «Puedo seguir estudiando» casi no tenía prueba, y tampoco «tardar 12 segundos» ni la pantalla de CA-177. Ahora:
+     - Se califica una tarjeta mientras la IA espera (integración y punta a punta).
+     - La demora de 12 segundos se prueba con la espera simulada.
+     - Hay prueba de pantalla de la cita que no está en el pasaje.
+  10. La captura de referencia de Materiales había quedado vieja (ver trampa.md, arriba).
+  11. Que `RETENIA_IA_ORIGEN` valga solo en `http://127.0.0.1:puerto` no tenía prueba. Ahora la tiene, y la prueba del paquete real busca `RETENIA_IA_ORIGEN` y `createDemoAi`. Sumé también «IA simulada» a la búsqueda y la saqué: aparece con razón en comentarios del contrato y en un texto del catálogo.
+  12. La huella de un prompt se podía pisar sin subir la versión. Ahora cada versión conserva la huella con que entró al historial de git (`tools/lib/prompts.mjs`, con prueba sobre un repositorio de juguete).
+  13. Con un pasaje que no estuviera en NFC, la cita mostrada quedaba corrida. Ahora se ubica en el texto tal como está.
+  14. Cancelar un pedido en camino se pisaba con lo que volvía. Ahora queda cancelado. Lo que vuelve se anota y se guarda, porque ya está pago, pero no se muestra.
+  15. Títulos de pruebas:
+      - Suman «(simulado)» donde hay dobles.
+      - Pierden criterios que no prueban.
+      - La de «no en la versión real» ahora abre la versión real.
+      - La del interruptor ya no reemplaza un canal del puente.
+      - Con «Modo solo local», el pasaje ya no se lee antes de cortar (lo decía el título y el plan).
+  16. La regla «la IA del principal solo usa el almacén de la IA» no estaba en dependency-cruiser y los controles estáticos se salteaban fácil. Ahora:
+      - La regla está (`capas-R9b`), probada metiendo una importación prohibida a propósito.
+      - Los controles ven `insert(schema.tabla)`, SQL en minúsculas, `import()` y `require()`.
+  17. «Materiales que pueden ir a la IA» listaba también los que dijeron «No». Ahora van aparte, en «Materiales que no van a la IA», con «Volver a preguntar».
+- **Lo que apareció después del revisor.**
+  - La casilla «Modo solo local» se marcaba recién cuando contestaba el programa, igual que las de la IA simulada. Ahora se marca al tocarla.
+  - Un comentario nombraba un material del elenco y la prueba del paquete real lo encontró. Ahora usa un nombre de ejemplo.
+- **Un cierre que a veces no termina, con la PC muy cargada (te lo dejo anotado).** En la punta a punta, 3 veces la prueba pasó pero el programa no terminó al cerrarlo, y la prueba se cortó al desarmar.
+  - **Lo que hice.** Lo reproduje con 6 programas a la vez: pasó 1 vez en 60 cierres.
+  - **Lo que vi.** El proceso principal quedó trabado en el cierre. No tenía ventana; seguían vivos el proceso de GPU y el de red. No usaba el procesador y no respondía ni al depurador: es un bloqueo en código nativo, no en el de Retenia en JavaScript.
+  - **No es de esta fase.** Cerrando el programa apenas aparece la ventana, con 8 a la vez, se colgaron 3 de 150 cierres de main y unos 5 de 150 de esta rama. En JavaScript el cierre termina entero; lo que se traba es la parte nativa del final. En el CI apareció una vez, en el humo del instalador, y se volvió a lanzar.
+  - **Una hipótesis que descarté.** Primero pensé que era el proceso que lee los materiales, pero en el proceso trabado no estaba.
+  - **Por qué conviene seguirlo.** Si alguna vez pasara fuera de las pruebas, Retenia quedaría abierto sin ventana.
+  - **Qué falta.** Investigarlo necesita un depurador de Windows, que esta PC no tiene. Está anotado en `docs/entorno.md`.
+- **Lo que encontró la red completa.**
+  - La punta a punta de «la ventana está aislada» compara uno por uno los canales del puente, y le faltaban los 12 `ai.*` y `demo.ai` / `demo.setAi`. Fue un olvido mío y ya está arreglado.
+  - Dentro de los sabotajes, que corren varias redes a la vez, la propiedad de CA-174 se cortaba a los 5 segundos, el tope de una propiedad. Sola tarda 1,4 s, pero usa la base de verdad, como las de integración. Ahora tiene su mismo margen (60 s), como ya se hizo con las pruebas de migraciones. No cambió nada de lo que comprueba.

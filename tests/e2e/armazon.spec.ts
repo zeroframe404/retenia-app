@@ -298,24 +298,27 @@ test('[CA-034] sin mouse: con Tab se llega a todo lo de Materiales y siempre se 
   // La lista se lee aparte (con la máquina cargada puede tardar): se espera a que esté a la vista.
   await expect(
     page.getByRole('list', { name: 'Materiales de la materia' }).getByRole('button'),
-  ).toHaveCount(2);
+  ).toHaveCount(3);
   await expect(page.getByRole('heading', { level: 2, name: 'Materiales' })).toBeFocused();
 
   // De ahí, el siguiente Tab llega a lo que sigue en la pantalla (desde la Fase 13, «Agregar
-  // material», «Cambiar» y los dos materiales del elenco, cada uno con su estado, que cambia
-  // mientras se leen); después da la vuelta por el riel.
+  // material», «Cambiar» y los materiales del elenco —tres desde la Fase 19, con «trampa.md»—, cada
+  // uno con su estado, que cambia mientras se leen); después da la vuelta por el riel.
   const visited: string[] = [];
-  for (let presses = 0; presses < 12; presses += 1) {
+  for (let presses = 0; presses < 13; presses += 1) {
     await page.keyboard.press('Tab');
     const info = await focusInfo(page);
     expectVisibleFocus(info, `Tab ${presses + 1}`);
-    visited.push(info.name.replace(/^(Inferencia — capítulos 1 a 4|Apunte 3) .*$/, '$1'));
+    visited.push(
+      info.name.replace(/^(Inferencia — capítulos 1 a 4|Apunte 3|trampa\.md) .*$/, '$1'),
+    );
   }
   expect(visited).toEqual([
     'Agregar material',
     'Cambiar',
     'Inferencia — capítulos 1 a 4',
     'Apunte 3',
+    'trampa.md',
     'BuscarCtrl+K',
     'Estudiar',
     'Apuntes',
