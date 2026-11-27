@@ -103,6 +103,19 @@ describe('qué se anota de un error', () => {
     expect(describeError(new ClosedFolderError('cerrada')).name).toBe('ClosedFolderError');
   });
 
+  it('algo con mensaje pero sin nombre ni pila se anota como Error, y un código raro no se anota', () => {
+    expect(describeError({ message: 'algo', code: 'con espacios' })).toEqual({
+      name: 'Error',
+      message: 'algo',
+      stack: [],
+    });
+    expect(describeError({ name: '', message: 'otro', code: 404, stack: 42 })).toEqual({
+      name: 'Error',
+      message: 'otro',
+      stack: [],
+    });
+  });
+
   it('la clave de la IA nunca llega al registro: ni en el mensaje, ni en la pila, ni en la causa', () => {
     const cause = new Error(`401 con la clave ${TEST_KEY}`);
     const error = new Error(`falló el pedido con x-api-key: ${TEST_KEY}`, { cause });
