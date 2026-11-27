@@ -63,6 +63,7 @@ export function openMaterials(
     stopwatch,
     interrupt,
     net,
+    autoStart,
   }: {
     execute?: (task: MaterialsTask) => Promise<unknown>;
     runnerId?: string;
@@ -72,6 +73,8 @@ export function openMaterials(
     interrupt?: () => void;
     // La puerta hacia internet (Fase 14): por defecto, la real; las pruebas de páginas web la reemplazan.
     net?: NetGate;
+    // Como en Retenia: la cola no arranca sola, arranca cuando se lo pide (después de mostrar la ventana).
+    autoStart?: boolean;
   } = {},
 ): OpenMaterials {
   const executed: string[] = [];
@@ -89,6 +92,7 @@ export function openMaterials(
     ...(stopwatch ? { stopwatch } : {}),
     ...(interrupt ? { interrupt } : {}),
     ...(net ? { net } : {}),
+    ...(autoStart === undefined ? {} : { autoStart }),
   });
   return { service, executed, events };
 }

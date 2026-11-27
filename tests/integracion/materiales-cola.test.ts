@@ -284,3 +284,34 @@ describe('[CA-105] (simulado) la pausa de la cola', () => {
     expect(service.list({ subjectId }).materials[0]?.state).toEqual({ kind: 'ready' });
   });
 });
+
+// Retenia arranca la cola un segundo después de mostrar la ventana. Si la cerrás antes, esa orden
+// llega con la cola ya frenada (antes de cerrar) o con la carpeta de datos ya cerrada (al cerrar).
+// Antes, en el segundo caso la orden fallaba sin que nadie la atrapara y el programa quedaba
+// abierto con un aviso de error, sin terminar de cerrarse.
+describe('cerrar Retenia apenas se abre, antes de que arranque la cola', () => {
+  it('(simulado) si la orden de arrancar llega con la carpeta de datos ya cerrada, no falla ni lee nada', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service, executed } = openMaterials(space, { autoStart: false });
+    await service.addFiles({ paths: [sample(APUNTE)], subjectId });
+    await service.stop();
+    space.workspace.close();
+    expect(() => service.start()).not.toThrow();
+    await service.whenIdle();
+    expect(executed).toEqual([]);
+  });
+
+  it('(simulado) si la orden de arrancar llega con la cola ya frenada, no le manda nada al proceso de trabajo y el material sigue pendiente', async () => {
+    const space = openSpace();
+    const subjectId = statisticsSubject(space);
+    const { service, executed } = openMaterials(space, { autoStart: false });
+    await service.addFiles({ paths: [sample(APUNTE)], subjectId });
+    const before = service.list({ subjectId }).materials[0]?.state;
+    await service.stop();
+    service.start();
+    await service.whenIdle();
+    expect(executed).toEqual([]);
+    expect(service.list({ subjectId }).materials[0]?.state).toEqual(before);
+  });
+});
