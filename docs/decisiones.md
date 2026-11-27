@@ -761,7 +761,7 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Un cierre que a veces no termina, con la PC muy cargada (te lo dejo anotado).** En la punta a punta, 3 veces la prueba pasó pero el programa no terminó al cerrarlo, y la prueba se cortó al desarmar.
   - **Lo que hice.** Lo reproduje con 6 programas a la vez: pasó 1 vez en 60 cierres.
   - **Lo que vi.** El proceso principal quedó trabado en el cierre. No tenía ventana; seguían vivos el proceso de GPU y el de red. No usaba el procesador y no respondía ni al depurador: es un bloqueo en código nativo, no en el de Retenia en JavaScript.
-  - **Por qué no sé si es nuevo.** En una segunda tanda de 120 cierres no pasó ni en esta rama ni en main. 1 en unos 300 contra 0 en 120 no alcanza para saber si lo trajo esta fase.
+  - **No es de esta fase.** Cerrando el programa apenas aparece la ventana, con 8 a la vez, se colgaron 3 de 150 cierres de main y unos 5 de 150 de esta rama. En JavaScript el cierre termina entero; lo que se traba es la parte nativa del final. En el CI apareció una vez, en el humo del instalador, y se volvió a lanzar.
   - **Una hipótesis que descarté.** Primero pensé que era el proceso que lee los materiales, pero en el proceso trabado no estaba.
   - **Por qué conviene seguirlo.** Si alguna vez pasara fuera de las pruebas, Retenia quedaría abierto sin ventana.
   - **Qué falta.** Investigarlo necesita un depurador de Windows, que esta PC no tiene. Está anotado en `docs/entorno.md`.
