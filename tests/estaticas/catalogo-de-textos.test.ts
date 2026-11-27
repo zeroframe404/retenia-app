@@ -126,6 +126,12 @@ describe('catálogo de textos', () => {
     expect(demoTexts.offline).toBe('Simular sin conexión');
   });
 
+  it('el aviso de un error inesperado es el de CA-353, todavía sin sus dos botones', () => {
+    // Con tu acuerdo del 27/11/2026: solo el aviso, que se cierra con la X. «Reintentar» y «Guardar
+    // diagnóstico» llegan en la Fase 39 (docs/decisiones.md).
+    expect(texts.errors.unexpected).toBe('Algo salió mal. Tu trabajo está guardado.');
+  });
+
   it('cuánto tardó se dice en segundos con coma decimal, y nunca «0 s»', () => {
     expect(demoTexts.lab.elapsed(1140)).toBe('Tardó 1,1 s');
     expect(demoTexts.lab.elapsed(4200)).toBe('Tardó 4,2 s');

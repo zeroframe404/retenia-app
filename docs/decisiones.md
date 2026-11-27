@@ -776,6 +776,7 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Qué hace ahora** (`src/main/unexpected-errors.ts`; las reglas, en `src/core/unexpected-errors`):
   - Todo error sin atrapar y toda promesa rechazada sin esperar quedan anotados en `registros/retenia.log` de la carpeta de datos, un renglón por error, en el momento. Se escribe sin esperas, para que llegue al disco aunque Retenia se esté cerrando.
   - Con la ventana abierta, Retenia muestra «Algo salió mal. Tu trabajo está guardado.» en el cartel de siempre, con el tono de atención (no rojo). Al cartel no le llega nada del error: ni el mensaje ni la pila.
+  - **El aviso lo elegiste vos (27/11/2026): solo el texto, en un cartel que se cierra con la X.** Es el de CA-353 (`docs/especificacion/historias.md`, `docs/especificacion/pantallas.md` y `docs/plan-de-pruebas.md`), que ahí va siempre con «Reintentar» y «Guardar diagnóstico». Esos dos botones quedan afuera a propósito hasta la Fase 39. Lo fija una prueba del catálogo (`tests/estaticas/catalogo-de-textos.test.ts`).
   - Si ya se está cerrando (desde que empieza el cierre), solo se anota y el cierre sigue.
   - El aviso de Electron ya no sale para ningún error. Por eso el registro tiene que alcanzar para que ninguna falla quede escondida.
 - **Qué se anota de cada error.**
