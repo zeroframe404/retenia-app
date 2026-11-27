@@ -3,6 +3,7 @@ import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { test as base, _electron as electron, expect, type Page } from '@playwright/test';
+import { systemStopwatch } from '../../src/core/clock';
 import { DEV_MODELS_DIR } from '../../tools/lib/modelos.mjs';
 import { ROOT } from '../../tools/lib/proceso.mjs';
 import { serveModels } from '../apoyo/servidor-de-modelos';
@@ -121,8 +122,38 @@ async function openCards(page: Page) {
   await page.getByRole('heading', { level: 3, name: 'Tarjetas' }).waitFor();
 }
 
-function launchInstalled() {
-  return electron.launch({ executablePath: installedExe, args: [], env: installedEnv() });
+// Si el humo se corta, su informe dice hasta dónde llegó: cada paso con su hora, lo que escribió el
+// programa y las etapas de su cierre (el proceso principal las anota en su salida).
+const elapsed = systemStopwatch().start();
+function paso(what: string) {
+  console.log(`${(elapsed() / 1000).toFixed(1)} s · ${what}`);
+}
+
+async function launchInstalled() {
+  paso('abriendo el programa instalado');
+  const app = await electron.launch({
+    executablePath: installedExe,
+    args: [],
+    env: installedEnv(),
+  });
+  app.process().stdout?.on('data', (data) => paso(`programa: ${String(data).trim()}`));
+  app.process().stderr?.on('data', (data) => paso(`programa, errores: ${String(data).trim()}`));
+  app.process().once('exit', (code) => paso(`el programa terminó (${code})`));
+  await app.evaluate(({ app: electronApp }) => {
+    electronApp.on('window-all-closed', () => console.log('cierre: window-all-closed'));
+    electronApp.on('before-quit', () => console.log('cierre: before-quit'));
+    electronApp.on('will-quit', () => console.log('cierre: will-quit'));
+    electronApp.on('quit', () => console.log('cierre: quit'));
+    process.on('exit', () => console.log('cierre: exit'));
+  });
+  paso('abierto');
+  return app;
+}
+
+async function closeInstalled(app: Awaited<ReturnType<typeof launchInstalled>>) {
+  paso('cerrando el programa');
+  await app.close();
+  paso('cerrado');
 }
 
 test('[CA-012] el instalador de «Retenia (prueba)» se instala en silencio y deja su acceso en el menú Inicio', async () => {
@@ -143,6 +174,7 @@ test('[CA-012] el programa instalado abre con el título «Retenia», la cinta d
   const app = await launchInstalled();
   try {
     const page = await app.firstWindow();
+    paso('ventana');
     await expect(page).toHaveTitle('Retenia');
     expect(
       await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.getTitle()),
@@ -151,13 +183,16 @@ test('[CA-012] el programa instalado abre con el título «Retenia», la cinta d
       page.getByText('DEMOSTRACIÓN · hoy es lunes 15/03/2027', { exact: true }),
     ).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Estudiar' })).toBeVisible();
+    paso('Estudiar');
     await openCards(page);
     await expect(page.getByText('180 tarjetas')).toBeVisible();
     await expect(page.getByRole('listitem').first()).toContainText('¿Qué mide el desvío estándar?');
+    paso('las 180 tarjetas');
 
     // Los datos: en la carpeta de datos de aplicaciones de la cuenta, aparte de «Retenia» y
     // fuera de la carpeta del programa.
     const info = await page.evaluate(() => window.retenia['app.info']({}));
+    paso('la carpeta de datos');
     expect(info.variant).toBe('prueba');
     expect(resolve(info.dataDir)).toBe(resolve(dataFolder));
     expect(resolve(info.dataDir).startsWith(resolve(installDir))).toBe(false);
@@ -165,7 +200,7 @@ test('[CA-012] el programa instalado abre con el título «Retenia», la cinta d
     expect(existsSync(realDataFolder) === state.realDataExistedBefore).toBe(true);
     expect(readdirSync(installDir).some((name) => name.endsWith('.db'))).toBe(false);
   } finally {
-    await app.close();
+    await closeInstalled(app);
   }
 });
 
@@ -181,7 +216,7 @@ test('[CA-009] una tarjeta creada en el programa instalado sigue ahí después d
     await expect(page.getByText('Tarjeta guardada')).toBeVisible();
     await expect(page.getByRole('listitem').first()).toContainText('¿Capital de Francia?');
   } finally {
-    await first.close();
+    await closeInstalled(first);
   }
   const second = await launchInstalled();
   try {
@@ -190,7 +225,7 @@ test('[CA-009] una tarjeta creada en el programa instalado sigue ahí después d
     await expect(page.getByText('181 tarjetas')).toBeVisible();
     await expect(page.getByRole('listitem').first()).toContainText('¿Capital de Francia?');
   } finally {
-    await second.close();
+    await closeInstalled(second);
   }
 });
 
@@ -210,7 +245,7 @@ test('[CA-014] abrir el programa instalado por segunda vez pasa al frente la ven
     expect(await runToEnd(installedExe, [], 30_000)).toEqual({ exitCode: 0, ended: true });
     await expect.poll(windowState).toEqual({ count: 1, minimized: false });
   } finally {
-    await app.close();
+    await closeInstalled(app);
   }
 });
 
@@ -286,7 +321,7 @@ test('[CA-024] [CA-025] [CA-026] [CA-028] [CA-029] [CA-030] el Laboratorio anda 
       notice.getByText('Aviso enviado. Minimizá Retenia y tocalo: Retenia vuelve al frente.'),
     ).toBeVisible({ timeout: 30_000 });
   } finally {
-    await app.close();
+    await closeInstalled(app);
     await server.close();
   }
 });
