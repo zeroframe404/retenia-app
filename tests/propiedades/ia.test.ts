@@ -203,7 +203,11 @@ describe('IA: ninguna respuesta escribe fuera de la compuerta (propiedad)', () =
     ),
   );
 
-  it('[CA-174] ninguna secuencia de respuestas de la IA simulada cambia tus tarjetas, tu historial, tus repasos ni tu dominio (simulado)', async () => {
+  // Usa la base de verdad, como las de integración: con la PC cargada (los sabotajes corren varias
+  // redes a la vez) los 5 segundos de una propiedad no alcanzan. El mismo margen que integración.
+  it('[CA-174] ninguna secuencia de respuestas de la IA simulada cambia tus tarjetas, tu historial, tus repasos ni tu dominio (simulado)', {
+    timeout: 60_000,
+  }, async () => {
     const pieces = [
       FIRST_SENTENCE,
       TRAP_TEXT,

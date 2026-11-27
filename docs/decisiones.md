@@ -765,3 +765,6 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
   - **Una hipótesis que descarté.** Primero pensé que era el proceso que lee los materiales, pero en el proceso trabado no estaba.
   - **Por qué conviene seguirlo.** Si alguna vez pasara fuera de las pruebas, Retenia quedaría abierto sin ventana.
   - **Qué falta.** Investigarlo necesita un depurador de Windows, que esta PC no tiene. Está anotado en `docs/entorno.md`.
+- **Lo que encontró la red completa.**
+  - La punta a punta de «la ventana está aislada» compara uno por uno los canales del puente, y le faltaban los 12 `ai.*` y `demo.ai` / `demo.setAi`. Fue un olvido mío y ya está arreglado.
+  - Dentro de los sabotajes, que corren varias redes a la vez, la propiedad de CA-174 se cortaba a los 5 segundos, el tope de una propiedad. Sola tarda 1,4 s, pero usa la base de verdad, como las de integración. Ahora tiene su mismo margen (60 s), como ya se hizo con las pruebas de migraciones. No cambió nada de lo que comprueba.
