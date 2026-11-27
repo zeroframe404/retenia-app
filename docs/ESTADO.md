@@ -1,6 +1,8 @@
 # Estado del proyecto
 
-**Fase 19 lista para tu revisión (26/11/2026, rama `fase-19` contra main).** Retenia (prueba) ahora tiene IA, con una compuerta que no la deja escribir en tu aprendizaje.
+**Arreglo aparte: el cierre que a veces no terminaba (27/11/2026, rama `cierre-colgado` contra main).** Si cerrabas Retenia en el primer segundo después de abrirlo, a veces quedaba abierto con un aviso «Error» y no terminaba de cerrarse. Era de Retenia: la cola de materiales arrancaba igual, con la carpeta de datos ya cerrada. Ya no pasa: de 6 cierres colgados en 300 pasó a 0 en 300 (`docs/decisiones.md`, 27/11/2026).
+
+**Fase 19 fusionada en main (27/11/2026, pull request #25).** Retenia (prueba) ahora tiene IA, con una compuerta que no la deja escribir en tu aprendizaje.
 
 - **«Explicame este fragmento».** En el visor de un material seleccionás un pasaje y la explicación se abre en un panel al lado, separada en «Según tu material» y «Aporte del modelo, no verificado».
   - Las citas se comprueban letra por letra y los números contra el pasaje.
@@ -22,7 +24,7 @@ Lo que falta de tu lado:
 - Tu visto bueno a la captura nueva de Materiales (`docs/pruebas-manuales/capturas/fase-19-referencia-materiales-*-nueva.png`).
 - El tag `fase-19-ok`.
 
-Paquete nuevo: `@anthropic-ai/sdk` 0.133.0, el oficial. No fusiones ni pongas el tag hasta confirmar.
+Paquete nuevo: `@anthropic-ai/sdk` 0.133.0, el oficial. No pongas el tag hasta confirmar tus pruebas manuales.
 
 **Fase 18 fusionada en main (26/11/2026, pull request #24).** Retenia (prueba) ahora enseña a hacer, no solo a recordar. Un procedimiento («Calcular un intervalo de confianza para la media») empieza resuelto, con «¿Por qué este paso?», y se va vaciando de a un paso a medida que te sale en días distintos; si fallás dos veces seguidas en el mismo paso, vuelve un poco de apoyo. Con un error primero dice en qué paso está y deja reintentarlo. Las variantes cambian los números y la respuesta se calcula sola. Hay tarjetas de decisión («¿Qué método usarías? No lo resuelvas»), un conjunto mezclado de media, mediana y moda que nunca pone dos del mismo tipo seguidos, la tarjeta de contraste desde «Mis errores» y el micro-ejercicio cuando se repite un error. «Consolidado» en un objetivo «Aplicar» pide una variante nueva. Y, como pediste, los ejercicios que ya practicaste vuelven solos en las sesiones de Estudiar cuando les toca el repaso: se contestan ahí mismo, repartidos entre las tarjetas. Faltan tus pruebas manuales (`docs/pruebas-manuales/fase-18.md`), tu visto bueno a dos límites (el micro-ejercicio solo para pasos de procedimientos y cuentas con variantes; ver el ejemplo 2 días saca el primer apoyo) y las tres capturas de referencia que esperan tu aprobación (`docs/pruebas-manuales/capturas/fase-18-referencia-*-nueva.png`: Apuntes › «Tarjetas», Progreso y la pregunta de la sesión).
 

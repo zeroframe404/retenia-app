@@ -88,13 +88,20 @@ export function startMaterials({
       service.unpause();
     }
   });
+  // La cola arranca un segundo después de mostrar la ventana: el arranque sigue siendo rápido. Si
+  // Retenia se cierra antes, esa espera se cancela (la carpeta de datos se cierra al salir).
+  let beginTimer: ReturnType<typeof setTimeout> | undefined;
   return {
     service,
-    // La cola arranca un segundo después de mostrar la ventana: el arranque sigue siendo rápido.
     begin: () => {
-      setTimeout(() => service.start(), 1000);
+      beginTimer = setTimeout(() => {
+        beginTimer = undefined;
+        service.start();
+      }, 1000);
     },
     stop: async () => {
+      clearTimeout(beginTimer);
+      beginTimer = undefined;
       await service.stop();
       worker.stop();
     },

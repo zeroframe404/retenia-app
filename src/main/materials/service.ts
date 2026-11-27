@@ -145,6 +145,8 @@ export interface MaterialsService {
   // quede nada corriendo: antes de restaurar una copia, al suspenderse Windows.
   pause(): Promise<void>;
   unpause(): void;
+  // Al cerrar Retenia: frena la cola para siempre (una orden de arrancar que llega tarde no hace
+  // nada) y espera a que termine lo que estaba corriendo.
   stop(): Promise<void>;
   abandon(): void;
 }
@@ -245,6 +247,8 @@ export function createMaterialsService({
   let pauses = 0;
   let paused = false;
   let abandoned = false;
+  // Frenada al cerrar Retenia: ya no vuelve a arrancar.
+  let stopped = false;
   let running: Promise<void> | null = null;
   let current: { taskId: string; materialId: string } | null = null;
   let releasing = false;
@@ -693,7 +697,7 @@ export function createMaterialsService({
   }
 
   function start(): void {
-    if (abandoned) {
+    if (abandoned || stopped) {
       return;
     }
     if (!started) {
@@ -1504,6 +1508,7 @@ export function createMaterialsService({
     },
 
     async stop() {
+      stopped = true;
       started = false;
       clearInterval(staleTimer);
       clearInterval(webTimer);
