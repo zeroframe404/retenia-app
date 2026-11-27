@@ -363,6 +363,18 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
     return () => stop?.();
   }, [pendingExplain]);
 
+  // Un error inesperado del proceso principal (docs/decisiones.md, 27/11/2026): el aviso del
+  // catálogo, sin nada técnico; el detalle queda en el registro de la carpeta de datos.
+  useEffect(() => {
+    const stop = window.reteniaAvisos?.alRecibir((event) => {
+      if (event.type === 'app.unexpectedError') {
+        setToast(texts.errors.unexpected);
+        setToastAction(undefined);
+      }
+    });
+    return () => stop?.();
+  }, []);
+
   // «Practicar ahora» desde Progreso o desde Estudiar (Fase 17): la actividad sola, en Apuntes ›
   // «Tarjetas», fuera de la cola del día.
   const practiceCard = (cardId: string) => {
@@ -475,6 +487,7 @@ function Shell({ onDataReset }: { onDataReset: () => void }) {
   const toasts = (
     <div className={styles.toasts}>
       <Toast
+        tone={toast === texts.errors.unexpected ? 'attention' : 'info'}
         onClose={() => {
           setToast('');
           setToastAction(undefined);

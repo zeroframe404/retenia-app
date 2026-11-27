@@ -12,7 +12,7 @@ import {
   shell,
 } from 'electron';
 import { createAnthropicProvider } from '../ai/providers/anthropic';
-import { systemClock } from '../core/clock';
+import { systemClock, systemStopwatch } from '../core/clock';
 import { effectiveTheme, PAPER_COLOR, type ThemeChoice } from '../core/theme';
 import { zoomStep } from '../core/zoom';
 import { newId } from '../data/ids';
@@ -42,6 +42,7 @@ import {
 } from './materials/electron';
 import { fuzzForVariant } from './memory-options';
 import { createNetGate } from './net-gate';
+import { createErrorLog, watchUnexpectedErrors } from './unexpected-errors';
 
 const variant: Variant = __VARIANTE__;
 const isTest = __VARIANTE__ === 'prueba';
@@ -73,6 +74,25 @@ if (__VARIANTE__ === 'prueba' && process.env.RETENIA_DATOS) {
 app.setPath('userData', dataDir);
 
 let mainWindow: BrowserWindow | null = null;
+
+// Los errores que nadie atrapó (docs/decisiones.md, 27/11/2026): quedan anotados en
+// registros/retenia.log de la carpeta de datos, con la hora real, y con la ventana abierta Retenia
+// avisa con un texto suyo. Si ya se está cerrando, solo se anotan y el cierre sigue.
+const unexpectedErrors = watchUnexpectedErrors({
+  log: createErrorLog({ dataDir, version: app.getVersion(), clock: systemClock() }),
+  stopwatch: systemStopwatch(),
+  windowOpen: () => mainWindow !== null && !mainWindow.isDestroyed(),
+  notify: () => {
+    const contents = mainWindow?.webContents;
+    if (!contents || contents.isDestroyed() || contents.isCrashed()) {
+      return false;
+    }
+    contents.send(EVENTS_CHANNEL, { type: 'app.unexpectedError' });
+    return true;
+  },
+});
+app.on('before-quit', unexpectedErrors.quitting);
+app.on('will-quit', unexpectedErrors.quitting);
 
 // Cerrar la ventana nunca pierde lo escrito (CA-043): se frena el cierre, se le pide a la pantalla
 // que guarde lo que tenga a medio escribir y se cierra cuando contesta (`window.flushed`) o, para que
