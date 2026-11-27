@@ -804,6 +804,14 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
     - después de cerrar la carpeta de datos. En rojo, Retenia no terminaba y le quedaba abierta la ventana «Error». Ahora termina enseguida y los dos errores quedan anotados como «cerrándose»;
     - con la ventana abierta. En rojo, el error no quedaba anotado. Ahora queda, el proceso sigue atendiendo y se ve el cartel de Retenia, sin texto técnico.
     - Repetidas 12 veces cada una: 24 de 24.
+- **Lo que mostró la punta a punta entera con este cambio** (254 pruebas, una vez, en esta PC):
+  - En tres pruebas comunes el registro anotó «La carpeta de datos ya se cerró» mientras Retenia se cerraba: es el error que arregla la pull request #26, que todavía no está en main. Esos cierres antes podían quedar trabados; ahora terminan y el error queda anotado.
+  - Con la ventana abierta no apareció ningún error escondido: el cartel no salió en ninguna prueba que no lo forzara.
+  - Fallaron 10, ninguna por este cambio:
+    - las 5 del Laboratorio, el rojo conocido de los modelos de voz en esta PC (`docs/entorno.md`);
+    - 3 capturas de referencia: son las tres de la Fase 18 que esperan tu aprobación (Apuntes › «Tarjetas», Progreso y la pregunta de la sesión);
+    - CA-046 (la Bandeja al cerrar y abrir), que sola pasó;
+    - CA-107 (agregar `notas.md`, `resumen.docx` y un texto pegado): al tocar «Agregar material» no se abre el cuadro. Falla igual con el programa armado desde main, así que no es de este cambio. Queda para revisarlo aparte.
 - **Un detalle de las pruebas.** Playwright abre Retenia a través de `cmd.exe`, así que el número de proceso que da no es el de Retenia.
   - Para buscar la ventana «Error» hay que pedirle el número a Retenia misma (`process.pid`).
   - La ventana se busca entre todas las del proceso, porque Windows no siempre la toma como la principal.
