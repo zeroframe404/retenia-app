@@ -758,7 +758,7 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Lo que apareció después del revisor.**
   - La casilla «Modo solo local» se marcaba recién cuando contestaba el programa, igual que las de la IA simulada. Ahora se marca al tocarla.
   - Un comentario nombraba un material del elenco y la prueba del paquete real lo encontró. Ahora usa un nombre de ejemplo.
-- **Un cierre que a veces no termina, con la PC muy cargada (te lo dejo anotado).** En la punta a punta, 3 veces la prueba pasó pero el programa no terminó al cerrarlo, y la prueba se cortó al desarmar.
+- **Un cierre que a veces no termina, con la PC muy cargada (te lo dejo anotado).** En la punta a punta, 3 veces la prueba pasó pero el programa no terminó al cerrarlo, y la prueba se cortó al desarmar. **Resuelto el 27/11/2026: era de Retenia, y dos de las cosas que anoté abajo estaban mal (ver «27/11/2026 · El cierre que a veces no termina»).**
   - **Lo que hice.** Lo reproduje con 6 programas a la vez: pasó 1 vez en 60 cierres.
   - **Lo que vi.** El proceso principal quedó trabado en el cierre. No tenía ventana; seguían vivos el proceso de GPU y el de red. No usaba el procesador y no respondía ni al depurador: es un bloqueo en código nativo, no en el de Retenia en JavaScript.
   - **No es de esta fase.** Cerrando el programa apenas aparece la ventana, con 8 a la vez, se colgaron 3 de 150 cierres de main y unos 5 de 150 de esta rama. En JavaScript el cierre termina entero; lo que se traba es la parte nativa del final. En el CI apareció una vez, en el humo del instalador, y se volvió a lanzar.
@@ -768,3 +768,27 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Lo que encontró la red completa.**
   - La punta a punta de «la ventana está aislada» compara uno por uno los canales del puente, y le faltaban los 12 `ai.*` y `demo.ai` / `demo.setAi`. Fue un olvido mío y ya está arreglado.
   - Dentro de los sabotajes, que corren varias redes a la vez, la propiedad de CA-174 se cortaba a los 5 segundos, el tope de una propiedad. Sola tarda 1,4 s, pero usa la base de verdad, como las de integración. Ahora tiene su mismo margen (60 s), como ya se hizo con las pruebas de migraciones. No cambió nada de lo que comprueba.
+
+## 27/11/2026 · El cierre que a veces no termina
+
+- **La causa era de Retenia, no del entorno.** La cola de materiales arranca un segundo después de mostrar la ventana. Si se cerraba el programa dentro de ese segundo, la orden de arrancar llegaba igual, con la carpeta de datos ya cerrada.
+  - Fallaba con «La carpeta de datos ya se cerró» y nadie atrapaba ese error. Electron abría entonces su aviso «Error» y el programa quedaba esperando que alguien lo aceptara, sin terminar de cerrarse.
+  - En las pruebas nadie lo acepta: por eso la punta a punta se cortaba al desarmar y el humo del instalador no podía borrar la carpeta de datos (`EPERM`).
+- **Cómo lo comprobé**, con un diagnóstico aparte, fuera del repositorio:
+  - Abre y cierra el programa armado 300 veces, 8 a la vez, cerrándolo en distintos momentos del primer segundo (de 0 a 1,2 s), y anota qué pasa durante el cierre.
+  - En todos los cierres que no terminaron aparecía ese error justo después de cerrar la carpeta de datos, y el aviso «Error» seguía abierto.
+  - Un error cualquiera, forzado después de cerrar, colgó 8 cierres de 8.
+  - Corridas una detrás de la otra, en las mismas condiciones: sin el arreglo, 6 de 300 cierres no terminaron nunca; con el arreglo, 0 de 300, y los 300 cerraron en menos de 3 s.
+- **El arreglo.**
+  - Al cerrar Retenia, la cola de materiales queda frenada para siempre: una orden de arrancar que llega tarde no hace nada (`src/main/materials/service.ts`).
+  - La espera de un segundo se cancela al cerrar (`src/main/materials/electron.ts`).
+  - Prueba en rojo primero. Son dos pruebas nuevas en `tests/integracion/materiales-cola.test.ts`:
+    - una con la carpeta de datos ya cerrada;
+    - otra con la cola ya frenada y la carpeta todavía abierta. Ahí la cola le volvía a mandar trabajo al proceso de materiales.
+- **Lo que corrijo de la Fase 19.** Ahí anoté que era un bloqueo de Electron, sin ventana, y que el proceso de materiales no tenía que ver. Estaba mal:
+  - el aviso «Error» estaba abierto (no lo había buscado);
+  - la que fallaba era la cola de materiales, que vive en el proceso principal.
+- **Lo que no hice.** No agregué un atrapador general de errores para el momento del cierre: escondería el próximo error de este tipo en vez de mostrarlo. La prueba nueva cubre el que había.
+- **Cierres lentos con la PC cargada.** En dos de las tandas aparecieron cierres de 3 a 25 s, agrupados en dos momentos.
+  - El programa esperaba a que terminaran sus procesos de gráficos, de red y de la ventana, casi sin usar el procesador, y terminaba solo.
+  - Pasaron con el arreglo y sin él, y al repetir la tanda no aparecieron: es la carga de la PC, no Retenia.
