@@ -2035,6 +2035,11 @@ export const texts = {
     fileName: (date: string) => `Retenia ${date}.zip`,
     filter: 'Exportación de Retenia',
   },
+  // Un error inesperado del proceso principal (docs/decisiones.md, 27/11/2026): el aviso de la
+  // ventana, nunca el mensaje técnico, que queda en el registro de la carpeta de datos.
+  errors: {
+    unexpected: 'Algo salió mal. Tu trabajo está guardado.',
+  },
 };
 
 // «2027-03-15» → «lunes 15/03/2027».

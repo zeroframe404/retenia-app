@@ -788,7 +788,56 @@ Decisiones técnicas de esta fase (importar materiales: escaneos, web y revisió
 - **Lo que corrijo de la Fase 19.** Ahí anoté que era un bloqueo de Electron, sin ventana, y que el proceso de materiales no tenía que ver. Estaba mal:
   - el aviso «Error» estaba abierto (no lo había buscado);
   - la que fallaba era la cola de materiales, que vive en el proceso principal.
-- **Lo que no hice.** No agregué un atrapador general de errores para el momento del cierre: escondería el próximo error de este tipo en vez de mostrarlo. La prueba nueva cubre el que había.
+- **Lo que no hice.** No agregué en este arreglo un atrapador general de errores para el momento del cierre: sin un registro, escondería el próximo error de este tipo en vez de mostrarlo. Quedó como tarea aparte, con registro: es la sección siguiente, «Los errores inesperados del proceso principal».
 - **Cierres lentos con la PC cargada.** En dos de las tandas aparecieron cierres de 3 a 25 s, agrupados en dos momentos.
   - El programa esperaba a que terminaran sus procesos de gráficos, de red y de la ventana, casi sin usar el procesador, y terminaba solo.
   - Pasaron con el arreglo y sin él, y al repetir la tanda no aparecieron: es la carga de la PC, no Retenia.
+
+## 27/11/2026 · Los errores inesperados del proceso principal
+
+- **Qué pasaba.** Cuando algo fallaba por dentro de Retenia y nadie atrapaba el error, Electron abría su aviso «Error», en inglés y con texto técnico, y el proceso principal quedaba trabado hasta que alguien lo aceptara: ni la ventana recibía respuestas. Si pasaba al cerrar, Retenia no terminaba nunca (lo que colgaba los cierres de la Fase 19). Y una promesa rechazada que nadie esperaba pasaba en silencio, sin dejar rastro.
+  - Lo comprobé con un programa mínimo de Electron 44 y con Retenia armada, antes de tocar nada.
+- **Qué hace ahora** (`src/main/unexpected-errors.ts`; las reglas, en `src/core/unexpected-errors`):
+  - Todo error sin atrapar y toda promesa rechazada sin esperar quedan anotados en `registros/retenia.log` de la carpeta de datos, un renglón por error, en el momento. Se escribe sin esperas, para que llegue al disco aunque Retenia se esté cerrando.
+  - Con la ventana abierta, Retenia muestra «Algo salió mal. Tu trabajo está guardado.» en el cartel de siempre, con el tono de atención (no rojo). Al cartel no le llega nada del error: ni el mensaje ni la pila.
+  - **El aviso lo elegiste vos (27/11/2026): solo el texto, en un cartel que se cierra con la X.** Es el de CA-353 (`docs/especificacion/historias.md`, `docs/especificacion/pantallas.md` y `docs/plan-de-pruebas.md`), que ahí va siempre con «Reintentar» y «Guardar diagnóstico». Esos dos botones quedan afuera a propósito hasta la Fase 39. Lo fija una prueba del catálogo (`tests/estaticas/catalogo-de-textos.test.ts`).
+  - Si ya se está cerrando (desde que empieza el cierre), solo se anota y el cierre sigue.
+  - El aviso de Electron ya no sale para ningún error. Por eso el registro tiene que alcanzar para que ninguna falla quede escondida.
+- **Qué se anota de cada error.**
+  - La fecha y la hora de Buenos Aires: la real, también en la variante de prueba, para saber cuándo pasó.
+  - Si fue un error o una promesa rechazada, si Retenia estaba abierta o cerrándose, y la versión.
+  - Del error: su nombre, su código, el mensaje y dónde pasó (los renglones de la pila), con sus causas hasta tres niveles.
+- **Sin secretos.** Antes de anotar se tapan:
+  - las claves de Anthropic (todo lo que empieza con `sk-ant-`);
+  - los tokens «Bearer»;
+  - lo que sigue a `x-api-key`, `api_key` o `authorization`.
+  - Una prueba de propiedades lo comprueba con 500 claves inventadas, puestas en cualquier lugar del mensaje, de la pila y de la causa. Otra busca la clave de prueba en toda la carpeta de datos con el buscador de CA-168.
+- **Lo que no tapo, a sabiendas.** El mensaje de un error inesperado es lo que permite arreglarlo, y no se sabe de antemano qué va a decir.
+  - Se guarda hasta 500 caracteres; la pila, hasta 30 renglones.
+  - Si un error trajera en su mensaje un pedazo de texto tuyo (los que arma Retenia no lo traen), quedaría en el registro. El registro vive solo en esta PC, al lado de la base con tus apuntes.
+  - Por eso «Guardar diagnóstico» (Fase 39, CA-354) tiene que elegir qué saca del registro antes de que salga de la PC.
+- **Cómo es el archivo.** Un renglón de JSON por error: un error de varios renglones sigue ocupando uno solo.
+  - Al pasar de 1 MB empieza uno nuevo y quedan los cinco anteriores (`retenia.1.log` es el más nuevo), como ya decía `docs/arquitectura.md`.
+  - Si el disco no deja escribir, no se anota, pero Retenia sigue. Nada de lo que pasa dentro del manejador puede fallar hacia afuera: un error ahí cerraría el programa de golpe.
+- **Un cartel cada diez minutos.** Si un error se repite (algo que falla cada pocos segundos), el cartel sale una vez y no vuelve hasta pasados diez minutos. En el registro se anotan todos.
+- **No escribe en la consola.** Si la consola que abrió Retenia ya no está, escribir en ella da otro error, que volvería al manejador y daría vueltas sin fin.
+- **Pruebas**, primero en rojo y en un commit aparte:
+  - Reglas puras: `tests/unitarias/errores-inesperados.test.ts` y `tests/propiedades/errores-inesperados.test.ts`.
+  - Con archivos de verdad: `tests/integracion/registro-de-errores.test.ts`. Cubre un renglón por error, siete archivos llenos que rotan, la clave que no queda y el disco que no deja escribir.
+  - Contrato: el aviso viaja sin texto (`tests/contrato/errores-inesperados.test.ts`).
+  - Punta a punta (`tests/e2e/errores-inesperados.spec.ts`), forzando el error desde el proceso principal como el diagnóstico:
+    - después de cerrar la carpeta de datos. En rojo, Retenia no terminaba y le quedaba abierta la ventana «Error». Ahora termina enseguida y los dos errores quedan anotados como «cerrándose»;
+    - con la ventana abierta. En rojo, el error no quedaba anotado. Ahora queda, el proceso sigue atendiendo y se ve el cartel de Retenia, sin texto técnico.
+    - Repetidas 12 veces cada una: 24 de 24.
+- **Lo que mostró la punta a punta entera con este cambio** (254 pruebas, una vez, en esta PC):
+  - En tres pruebas comunes el registro anotó «La carpeta de datos ya se cerró» mientras Retenia se cerraba: es el error que arregla la pull request #26, que todavía no está en main. Esos cierres antes podían quedar trabados; ahora terminan y el error queda anotado.
+  - Con la ventana abierta no apareció ningún error escondido: el cartel no salió en ninguna prueba que no lo forzara.
+  - Fallaron 10, ninguna por este cambio:
+    - las 5 del Laboratorio, el rojo conocido de los modelos de voz en esta PC (`docs/entorno.md`);
+    - 3 capturas de referencia: son las tres de la Fase 18 que esperan tu aprobación (Apuntes › «Tarjetas», Progreso y la pregunta de la sesión);
+    - CA-046 (la Bandeja al cerrar y abrir), que sola pasó;
+    - CA-107 (agregar `notas.md`, `resumen.docx` y un texto pegado): al tocar «Agregar material» no se abre el cuadro. Falla igual con el programa armado desde main, así que no es de este cambio. Queda para revisarlo aparte.
+- **Un detalle de las pruebas.** Playwright abre Retenia a través de `cmd.exe`, así que el número de proceso que da no es el de Retenia.
+  - Para buscar la ventana «Error» hay que pedirle el número a Retenia misma (`process.pid`).
+  - La ventana se busca entre todas las del proceso, porque Windows no siempre la toma como la principal.
+- **Lo que no cubre.** Es solo el proceso principal. Los errores de la pantalla y de los procesos de trabajo siguen como estaban.
