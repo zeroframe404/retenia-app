@@ -150,28 +150,25 @@ test('un error inesperado después de cerrar la carpeta de datos queda anotado y
   const { app, page, close } = await launchFromStart();
   await page.getByRole('heading', { level: 2 }).first().waitFor();
   const mainPid = await mainPidOf(app);
-  const thrown = join(dataDir, 'error-forzado.txt');
   // Como el diagnóstico del 27/11/2026: después de cerrar la carpeta de datos (el evento «quit»), un
   // error que nadie atrapa y una promesa rechazada que nadie espera.
-  await app.evaluate(({ app: electronApp }, marker) => {
-    const fs = process.getBuiltinModule('node:fs') as typeof import('node:fs');
+  await app.evaluate(({ app: electronApp }) => {
     electronApp.on('quit', () => {
       setTimeout(() => {
-        fs.writeFileSync(marker, '');
         void Promise.reject(new Error('rechazo forzado después de cerrar'));
         throw new Error('error forzado después de cerrar');
       }, 0);
     });
-  }, thrown);
+  });
 
   const outcome = await closeWithin(app, close, mainPid);
 
   expect(outcome, 'Retenia no terminó al cerrarla').toEqual({ ended: true, windows: [] });
+  // Que estén anotados prueba además que los errores forzados de verdad se tiraron.
   expect(
-    existsSync(thrown),
-    'el error forzado no llegó a tirarse: la prueba no comprobó nada',
-  ).toBe(true);
-  expect(summary(logEntries(dataDir))).toEqual([
+    summary(logEntries(dataDir)),
+    'los dos errores forzados quedan anotados como «cerrándose»',
+  ).toEqual([
     'main.uncaught-exception · quitting · error forzado después de cerrar',
     'main.unhandled-rejection · quitting · rechazo forzado después de cerrar',
   ]);
